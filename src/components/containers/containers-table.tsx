@@ -19,7 +19,9 @@ import {
   Trash2, 
   Terminal, 
   MoreHorizontal,
-  ExternalLink 
+  ExternalLink,
+  ChevronDown,
+  ChevronRight
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -28,65 +30,84 @@ import {
   DropdownMenuTrigger,
 } from '../ui/dropdown-menu';
 import { formatDistanceToNow } from 'date-fns';
-
-interface Container {
-  id: string;
-  name: string;
-  image: string;
-  status: 'running' | 'stopped' | 'paused';
-  created: Date;
-  ports: string[];
-  cpu: number;
-  memory: string;
-}
+import { ContainerData } from '../../pages/ContainersPage';
 
 interface ContainersTableProps {
   filter: 'all' | 'running' | 'stopped';
   selectedContainers: string[];
   onSelectionChange: (_selected: string[]) => void;
+  containers: ContainerData[];
+}
+
+interface ContainerGroup {
+  projectName: string;
+  containers: ContainerData[];
+  isExpanded: boolean;
 }
 
 export function ContainersTable({ 
   filter, 
   selectedContainers, 
-  onSelectionChange 
+  onSelectionChange,
+  containers
 }: ContainersTableProps) {
-  const [containers] = useState<Container[]>([
-    {
-      id: 'cont_1',
-      name: 'nginx-web',
-      image: 'nginx:alpine',
-      status: 'running',
-      created: new Date(Date.now() - 86400000),
-      ports: ['80:80', '443:443'],
-      cpu: 2.1,
-      memory: '64 MB'
-    },
-    {
-      id: 'cont_2',
-      name: 'postgres-db',
-      image: 'postgres:15',
-      status: 'running',
-      created: new Date(Date.now() - 172800000),
-      ports: ['5432:5432'],
-      cpu: 8.5,
-      memory: '256 MB'
-    },
-    {
-      id: 'cont_3',
-      name: 'redis-cache',
-      image: 'redis:7-alpine',
-      status: 'stopped',
-      created: new Date(Date.now() - 259200000),
-      ports: ['6379:6379'],
-      cpu: 0,
-      memory: '0 MB'
-    },
-  ]);
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
 
-  const filteredContainers = containers.filter(container => {
-    if (filter === 'running') return container.status === 'running';
-    if (filter === 'stopped') return container.status === 'stopped';
+  const getProjectName = (container: ContainerData): string | null => {
+    return container.labels && container.labels["com.docker.compose.project"] || null;
+  };
+
+  const organizeContainers = () => {
+    const individualContainers: ContainerData[] = [];
+    const groupedContainers: Record<string, ContainerData[]> = {};
+
+    containers.forEach(container => {
+      const projectName = getProjectName(container);
+
+      if (projectName) {
+        // Container belongs to a compose project
+        if (!groupedContainers[projectName]) {
+          groupedContainers[projectName] = [];
+        }
+        groupedContainers[projectName].push(container);
+      } else {
+        // Individual container (not part of a compose project)
+        individualContainers.push(container);
+      }
+    });
+
+    // Sort containers by creation time (newest first)
+    const sortByCreatedTime = (a: ContainerData, b: ContainerData) => b.created - a.created;
+
+    const groups: ContainerGroup[] = Object.entries(groupedContainers).map(([projectName, containers]) => ({
+      projectName,
+      containers: containers.sort(sortByCreatedTime),
+      isExpanded: expandedGroups.has(projectName)
+    }));
+
+    // Sort groups by the creation time of their newest container
+    const sortedGroups = groups.sort((a, b) => {
+      const newestA = Math.max(...a.containers.map(c => c.created));
+      const newestB = Math.max(...b.containers.map(c => c.created));
+      return newestB - newestA;
+    });
+
+    return {
+      individualContainers: individualContainers.sort(sortByCreatedTime),
+      groupedContainers: sortedGroups
+    };
+  };
+
+  const { individualContainers, groupedContainers } = organizeContainers();
+
+  const allContainers = [
+    ...individualContainers,
+    ...groupedContainers.flatMap(group => group.containers)
+  ];
+
+  const filteredContainers = allContainers.filter(container => {
+    if (filter === 'running') return container.state === 'running';
+    if (filter === 'stopped') return container.state === 'stopped';
     return true;
   });
 
@@ -106,6 +127,190 @@ export function ContainersTable({
     }
   };
 
+  const toggleGroup = (projectName: string) => {
+    const newExpandedGroups = new Set(expandedGroups);
+    if (newExpandedGroups.has(projectName)) {
+      newExpandedGroups.delete(projectName);
+    } else {
+      newExpandedGroups.add(projectName);
+    }
+    setExpandedGroups(newExpandedGroups);
+  };
+
+  const formatContainerName = (container: ContainerData) => {
+    if (container.names.length > 0) {
+      let first_name = container.names[0];
+      if (first_name.startsWith("/")) {
+        first_name = first_name.slice(1);
+      }
+      return first_name;
+    }
+    return "";
+  };
+
+  const formatContainerImage = (image: string) => {
+    if (image && image.includes("@")) {
+      return image.split("@")[0];
+    }
+    return image;
+  };
+
+  const formatContainerPorts = (ports: object[]) => {
+    if (ports && ports.length > 0) {
+      return `${ports.length} port(s) mapped`;
+    }
+    return "No port mapping";
+  };
+
+  const renderContainerRow = (container: ContainerData, isNested: boolean = false) => (
+    <TableRow key={container.id} className={isNested ? "bg-muted/50" : ""}>
+      <TableCell className={isNested ? "pl-8" : ""}>
+        <Checkbox 
+          checked={selectedContainers.includes(container.id)}
+          onCheckedChange={(checked) => 
+            handleSelectContainer(container.id, checked as boolean)
+          }
+        />
+      </TableCell>
+      <TableCell className={`font-medium ${isNested ? "pl-8" : ""}`}>
+        {formatContainerName(container)}
+      </TableCell>
+      <TableCell className="text-muted-foreground">{formatContainerImage(container.image)}</TableCell>
+      <TableCell>
+        <Badge 
+          variant={container.state === 'running' ? 'default' : 'secondary'}
+          className={
+            container.state === 'running' 
+              ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300' 
+              : ''
+          }
+        >
+          {container.state}
+        </Badge>
+      </TableCell>
+      <TableCell className="text-muted-foreground">
+        {formatDistanceToNow(new Date(container.created * 1000))} ago
+      </TableCell>
+      <TableCell className="text-muted-foreground">
+        {formatContainerPorts(container.ports)}
+      </TableCell>
+      <TableCell className="text-muted-foreground">
+        {container.size}
+      </TableCell>
+      <TableCell>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="sm">
+              <MoreHorizontal className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            {container.state === 'running' ? (
+              <>
+                <DropdownMenuItem>
+                  <Square className="mr-2 h-4 w-4" />
+                  Stop
+                </DropdownMenuItem>
+                <DropdownMenuItem>
+                  <Terminal className="mr-2 h-4 w-4" />
+                  Terminal
+                </DropdownMenuItem>
+                <DropdownMenuItem>
+                  <ExternalLink className="mr-2 h-4 w-4" />
+                  Logs
+                </DropdownMenuItem>
+              </>
+            ) : (
+              <DropdownMenuItem>
+                <Play className="mr-2 h-4 w-4" />
+                Start
+              </DropdownMenuItem>
+            )}
+            <DropdownMenuItem>
+              <RotateCcw className="mr-2 h-4 w-4" />
+              Restart
+            </DropdownMenuItem>
+            <DropdownMenuItem className="text-destructive">
+              <Trash2 className="mr-2 h-4 w-4" />
+              Delete
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </TableCell>
+    </TableRow>
+  );
+
+  const renderGroupRow = (group: ContainerGroup) => {
+    const isExpanded = expandedGroups.has(group.projectName);
+    const filteredGroupContainers = group.containers.filter(container => {
+      if (filter === 'running') return container.state === 'running';
+      if (filter === 'stopped') return container.state === 'stopped';
+      return true;
+    });
+
+    if (filteredGroupContainers.length === 0) return null;
+
+    return (
+      <>
+        <TableRow key={`group-${group.projectName}`} className="bg-muted/30">
+          <TableCell>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => toggleGroup(group.projectName)}
+              className="p-0 h-auto"
+            >
+              {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+            </Button>
+          </TableCell>
+          <TableCell className="font-semibold">
+            <div className="flex items-center gap-2">
+              <span>{group.projectName}</span>
+              <Badge variant="outline" className="text-xs">
+                {filteredGroupContainers.length} containers
+              </Badge>
+            </div>
+          </TableCell>
+          <TableCell className="text-muted-foreground">Docker Compose Project</TableCell>
+          <TableCell>
+            <div className="flex gap-1">
+              {group.containers.some(c => c.state === 'running') && (
+                <Badge variant="default" className="text-xs bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300">
+                  Running
+                </Badge>
+              )}
+              {group.containers.some(c => c.state === 'stopped') && (
+                <Badge variant="secondary" className="text-xs">
+                  Stopped
+                </Badge>
+              )}
+            </div>
+          </TableCell>
+          <TableCell className="text-muted-foreground">-</TableCell>
+          <TableCell className="text-muted-foreground">-</TableCell>
+          <TableCell className="text-muted-foreground">-</TableCell>
+          <TableCell>
+            <div className="flex gap-1">
+              {group.containers.every(container => container.state !== 'running') && (
+                <Button size="sm" variant="outline" className="h-6 px-2">
+                  <Play className="h-3 w-3 mr-1" />
+                  Start All
+                </Button>
+              )}
+              {group.containers.some(container => container.state === 'running') && (
+                <Button size="sm" variant="outline" className="h-6 px-2">
+                  <Square className="h-3 w-3 mr-1" />
+                  Stop All
+                </Button>
+              )}
+            </div>
+          </TableCell>
+        </TableRow>
+        {isExpanded && filteredGroupContainers.map(container => renderContainerRow(container, true))}
+      </>
+    );
+  };
+
   return (
     <div className="border rounded-lg overflow-hidden">
       <div className="overflow-x-auto">
@@ -114,7 +319,7 @@ export function ContainersTable({
             <TableRow>
               <TableHead className="w-12">
                 <Checkbox 
-                  checked={selectedContainers.length === filteredContainers.length}
+                  checked={selectedContainers.length === filteredContainers.length && filteredContainers.length > 0}
                   onCheckedChange={handleSelectAll}
                 />
               </TableHead>
@@ -123,90 +328,22 @@ export function ContainersTable({
               <TableHead>Status</TableHead>
               <TableHead>Created</TableHead>
               <TableHead>Ports</TableHead>
-              <TableHead>CPU</TableHead>
-              <TableHead>Memory</TableHead>
+              <TableHead>Size</TableHead>
               <TableHead className="w-24">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredContainers.map((container) => (
-              <TableRow key={container.id}>
-                <TableCell>
-                  <Checkbox 
-                    checked={selectedContainers.includes(container.id)}
-                    onCheckedChange={(checked) => 
-                      handleSelectContainer(container.id, checked as boolean)
-                    }
-                  />
-                </TableCell>
-                <TableCell className="font-medium">{container.name}</TableCell>
-                <TableCell className="text-muted-foreground">{container.image}</TableCell>
-                <TableCell>
-                  <Badge 
-                    variant={container.status === 'running' ? 'default' : 'secondary'}
-                    className={
-                      container.status === 'running' 
-                        ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300' 
-                        : ''
-                    }
-                  >
-                    {container.status}
-                  </Badge>
-                </TableCell>
-                <TableCell className="text-muted-foreground">
-                  {formatDistanceToNow(container.created)} ago
-                </TableCell>
-                <TableCell className="text-muted-foreground">
-                  {container.ports.join(', ') || '-'}
-                </TableCell>
-                <TableCell className="text-muted-foreground">
-                  {container.cpu}%
-                </TableCell>
-                <TableCell className="text-muted-foreground">
-                  {container.memory}
-                </TableCell>
-                <TableCell>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="sm">
-                        <MoreHorizontal className="h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      {container.status === 'running' ? (
-                        <>
-                          <DropdownMenuItem>
-                            <Square className="mr-2 h-4 w-4" />
-                            Stop
-                          </DropdownMenuItem>
-                          <DropdownMenuItem>
-                            <Terminal className="mr-2 h-4 w-4" />
-                            Terminal
-                          </DropdownMenuItem>
-                          <DropdownMenuItem>
-                            <ExternalLink className="mr-2 h-4 w-4" />
-                            Logs
-                          </DropdownMenuItem>
-                        </>
-                      ) : (
-                        <DropdownMenuItem>
-                          <Play className="mr-2 h-4 w-4" />
-                          Start
-                        </DropdownMenuItem>
-                      )}
-                      <DropdownMenuItem>
-                        <RotateCcw className="mr-2 h-4 w-4" />
-                        Restart
-                      </DropdownMenuItem>
-                      <DropdownMenuItem className="text-destructive">
-                        <Trash2 className="mr-2 h-4 w-4" />
-                        Delete
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </TableCell>
-              </TableRow>
-            ))}
+            {/* Individual containers */}
+            {individualContainers
+              .filter(container => {
+                if (filter === 'running') return container.state === 'running';
+                if (filter === 'stopped') return container.state === 'stopped';
+                return true;
+              })
+              .map(container => renderContainerRow(container))}
+            
+            {/* Grouped containers */}
+            {groupedContainers.map(group => renderGroupRow(group))}
           </TableBody>
         </Table>
       </div>
