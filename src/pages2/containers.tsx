@@ -1,8 +1,8 @@
 import { Container, Play, Search, Square, ChevronDown, ChevronRight } from "lucide-react";
-import { StatusBadge } from "../components/StatusBadge";
+import { StatusBadge } from "../components2/StatusBadge";
 import { invoke } from "@tauri-apps/api/core";
 import { useState, useEffect, useRef } from "react";
-import { ContainerActions } from "../components/ContainerActions";
+import { ContainerActions } from "../components2/ContainerActions";
 
 const AUTO_REFRESH_INTERVAL = 500;
 

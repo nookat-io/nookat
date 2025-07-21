@@ -1,6 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { useState } from "react";
-import { ContainerData } from "../pages/containers";
+import { ContainerData } from "../pages2/containers";
 import { Loader2, Play, RotateCcw, Square, Trash2, Terminal, FileSearch, Folder } from "lucide-react";
 
 export const ContainerActions: React.FC<{ container: ContainerData, onStateChanged: () => void }> = ({ container, onStateChanged }) => {
