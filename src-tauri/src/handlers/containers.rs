@@ -144,13 +144,38 @@ pub async fn open_terminal(id: String) -> Result<(), String> {
 }
 
 #[tauri::command]
-pub async fn container_logs(id: String) -> Result<(), String> {
-    println!("Getting container logs: {}", id);
+pub async fn container_logs(
+    id: String,
+    lines: Option<u32>,
+    since: Option<String>,
+    until: Option<String>,
+    follow: Option<bool>
+) -> Result<Vec<String>, String> {
+    println!("Getting container logs: {} (lines: {:?}, since: {:?}, until: {:?}, follow: {:?})", 
+             id, lines, since, until, follow);
 
-    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
-    // ContainersService::container_logs(id).await;
+    // Mock logs for now - replace with actual Docker API call
+    // In a real implementation, you would query the container state and get appropriate logs
+    let mock_logs = vec![
+        "2024-01-15T10:30:00Z Container started successfully".to_string(),
+        "2024-01-15T10:30:01Z Database connection established".to_string(),
+        "2024-01-15T10:30:02Z Warning: High memory usage detected".to_string(),
+        "2024-01-15T10:30:03Z Error: Failed to connect to external service".to_string(),
+        "2024-01-15T10:30:04Z Application ready on port 8080".to_string(),
+        "2024-01-15T10:35:00Z Container stopped gracefully".to_string(),
+    ];
 
-    Ok(())
+    // Apply filters based on parameters
+    let mut filtered_logs = mock_logs;
+    
+    if let Some(line_count) = lines {
+        if line_count < filtered_logs.len() as u32 {
+            filtered_logs = filtered_logs.into_iter().rev().take(line_count as usize).collect();
+            filtered_logs.reverse();
+        }
+    }
+
+    Ok(filtered_logs)
 }
 
 #[tauri::command]

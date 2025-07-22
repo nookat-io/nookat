@@ -34,6 +34,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { ContainerData } from './container-data-provider';
 import { invoke } from '@tauri-apps/api/core';
 import { toast } from 'sonner';
+import { ContainerLogsForm } from './container-logs-form';
 
 interface ContainersTableProps {
   filter: 'all' | 'running' | 'stopped';
@@ -58,6 +59,8 @@ export function ContainersTable({
 }: ContainersTableProps) {
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   const [openingTerminal, setOpeningTerminal] = useState<string | null>(null);
+  const [logsFormOpen, setLogsFormOpen] = useState(false);
+  const [selectedContainerForLogs, setSelectedContainerForLogs] = useState<ContainerData | null>(null);
 
   // Clean up stale selections when containers list changes
   useEffect(() => {
@@ -334,22 +337,25 @@ export function ContainersTable({
               </DropdownMenuItem>
             )}
             
-            {/* Terminal and Logs - available for running containers */}
+            {/* Terminal - available for running containers */}
             {container.state === 'running' && (
-              <>
-                <DropdownMenuItem 
-                  onClick={() => handleOpenTerminal(container.id)}
-                  disabled={openingTerminal === container.id}
-                >
-                  <Terminal className="mr-2 h-4 w-4" />
-                  {openingTerminal === container.id ? 'Opening...' : 'Terminal'}
-                </DropdownMenuItem>
-                <DropdownMenuItem>
-                  <ExternalLink className="mr-2 h-4 w-4" />
-                  Logs
-                </DropdownMenuItem>
-              </>
+              <DropdownMenuItem 
+                onClick={() => handleOpenTerminal(container.id)}
+                disabled={openingTerminal === container.id}
+              >
+                <Terminal className="mr-2 h-4 w-4" />
+                {openingTerminal === container.id ? 'Opening...' : 'Terminal'}
+              </DropdownMenuItem>
             )}
+            
+            {/* Logs - available for all containers */}
+            <DropdownMenuItem onClick={() => {
+              setSelectedContainerForLogs(container);
+              setLogsFormOpen(true);
+            }}>
+              <ExternalLink className="mr-2 h-4 w-4" />
+              Logs
+            </DropdownMenuItem>
             
             {/* Delete action - available for stopped, exited, created containers */}
             {['stopped', 'exited', 'created', "running"].includes(container.state) && (
@@ -457,6 +463,20 @@ export function ContainersTable({
           </TableBody>
         </Table>
       </div>
+      
+      {/* Logs Form Modal */}
+      {selectedContainerForLogs && (
+        <ContainerLogsForm
+          containerId={selectedContainerForLogs.id}
+          containerName={formatContainerName(selectedContainerForLogs)}
+          containerState={selectedContainerForLogs.state}
+          isOpen={logsFormOpen}
+          onClose={() => {
+            setLogsFormOpen(false);
+            setSelectedContainerForLogs(null);
+          }}
+        />
+      )}
     </div>
   );
 }
