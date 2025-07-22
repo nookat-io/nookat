@@ -20,7 +20,7 @@ export function ContainerActions({ selectedContainers, containers, onActionCompl
   );
 
   const canStart = selectedContainerData.length > 0 && selectedContainerData.every(container => 
-    ['stopped', 'exited', 'created', 'paused'].includes(container.state)
+    ['stopped', 'exited', 'created'].includes(container.state)
   );
 
   const canStop = selectedContainerData.length > 0 && selectedContainerData.every(container => 
@@ -40,7 +40,7 @@ export function ContainerActions({ selectedContainers, containers, onActionCompl
   );
 
   const canDelete = selectedContainerData.length > 0 && selectedContainerData.every(container => 
-    ['stopped', 'exited', 'created', 'paused'].includes(container.state)
+    ['stopped', 'exited', 'created', "running"].includes(container.state)
   );
 
   const handleAction = async (action: string, containerIds: string[]) => {
@@ -101,12 +101,67 @@ export function ContainerActions({ selectedContainers, containers, onActionCompl
     }
   };
 
+  const handleDelete = async () => {
+    // Filter out container IDs that no longer exist in the current containers list
+    const existingContainerIds = selectedContainers.filter(id => 
+      containers.some(container => container.id === id)
+    );
+    
+    if (existingContainerIds.length === 0) {
+      toast.error('No valid containers selected');
+      return;
+    }
+    
+    setIsLoading('remove_container');
+    try {
+      if (existingContainerIds.length === 1) {
+        // Single container operation - check if it's running
+        const container = containers.find(c => c.id === existingContainerIds[0]);
+        if (!container) {
+          toast.error('Container not found');
+          return;
+        }
+        
+        const action = container.state === 'running' ? 'force_remove_container' : 'remove_container';
+        await invoke(action, { id: existingContainerIds[0] });
+        
+        const actionText = container.state === 'running' ? 'Force deleted' : 'Deleted';
+        toast.success(`${actionText} container`);
+      } else {
+        // For bulk operations, check if any containers are running
+        const hasRunningContainers = selectedContainerData.some(c => c.state === 'running');
+        const action = hasRunningContainers ? 'bulk_force_remove_containers' : 'bulk_remove_containers';
+        await invoke(action, { ids: existingContainerIds });
+        
+        const actionText = hasRunningContainers ? 'Force deleted' : 'Deleted';
+        toast.success(`${actionText} ${existingContainerIds.length} containers`);
+      }
+      
+      // Clear selections for destructive actions
+      onSelectionChange?.([]);
+      
+      // Add a small delay to ensure the backend operation completes before refreshing
+      setTimeout(() => {
+        onActionComplete?.();
+      }, 500);
+    } catch (error) {
+      console.error('Error deleting containers:', error);
+      toast.error(`Failed to delete containers: ${error}`);
+      
+      // Refresh even on error to ensure UI is in sync
+      setTimeout(() => {
+        onActionComplete?.();
+      }, 500);
+    } finally {
+      setIsLoading(null);
+    }
+  };
+
   const handleStart = () => handleAction('start_container', selectedContainers);
   const handleStop = () => handleAction('stop_container', selectedContainers);
   const handlePause = () => handleAction('pause_container', selectedContainers);
   const handleResume = () => handleAction('unpause_container', selectedContainers);
   const handleRestart = () => handleAction('restart_container', selectedContainers);
-  const handleDelete = () => handleAction('remove_container', selectedContainers);
 
   return (
     <div className="flex items-center space-x-2">
@@ -185,7 +240,8 @@ export function ContainerActions({ selectedContainers, containers, onActionCompl
               disabled={isLoading === 'remove_container'}
             >
               <Trash2 className="mr-2 h-4 w-4" />
-              {isLoading === 'remove_container' ? 'Deleting...' : 'Delete'}
+              {isLoading === 'remove_container' ? 'Deleting...' : 
+                selectedContainerData.some(c => c.state === 'running') ? 'Force Delete' : 'Delete'}
             </Button>
           )}
         </>

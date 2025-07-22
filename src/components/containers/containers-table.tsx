@@ -176,6 +176,37 @@ export function ContainersTable({
     }
   };
 
+  const handleDeleteContainer = async (containerId: string) => {
+    try {
+      // Find the container to check its state
+      const container = containers.find(c => c.id === containerId);
+      if (!container) {
+        toast.error('Container not found');
+        return;
+      }
+
+      // Use force removal for running containers, regular removal for others
+      const action = container.state === 'running' ? 'force_remove_container' : 'remove_container';
+      await invoke(action, { id: containerId });
+      
+      const actionText = container.state === 'running' ? 'Force deleted' : 'Deleted';
+      toast.success(`${actionText} container`);
+      
+      // Add a small delay to ensure the backend operation completes before refreshing
+      setTimeout(() => {
+        onActionComplete?.();
+      }, 500);
+    } catch (error) {
+      console.error('Error deleting container:', error);
+      toast.error(`Failed to delete container: ${error}`);
+      
+      // Refresh even on error to ensure UI is in sync
+      setTimeout(() => {
+        onActionComplete?.();
+      }, 500);
+    }
+  };
+
   const formatContainerName = (container: ContainerData) => {
     if (container.names.length > 0) {
       let first_name = container.names[0];
@@ -249,8 +280,8 @@ export function ContainersTable({
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            {/* Start action - available for stopped, exited, created, paused containers */}
-            {['stopped', 'exited', 'created', 'paused'].includes(container.state) && (
+            {/* Start action - available for stopped, exited, created containers */}
+            {['stopped', 'exited', 'created'].includes(container.state) && (
               <DropdownMenuItem onClick={() => handleContainerAction('start_container', container.id)}>
                 <Play className="mr-2 h-4 w-4" />
                 Start
@@ -303,14 +334,14 @@ export function ContainersTable({
               </>
             )}
             
-            {/* Delete action - available for stopped, exited, created, paused containers */}
-            {['stopped', 'exited', 'created', 'paused'].includes(container.state) && (
+            {/* Delete action - available for stopped, exited, created containers */}
+            {['stopped', 'exited', 'created', "running"].includes(container.state) && (
               <DropdownMenuItem 
                 className="text-destructive"
-                onClick={() => handleContainerAction('remove_container', container.id)}
+                onClick={() => handleDeleteContainer(container.id)}
               >
                 <Trash2 className="mr-2 h-4 w-4" />
-                Delete
+                {container.state === 'running' ? 'Force Delete' : 'Delete'}
               </DropdownMenuItem>
             )}
           </DropdownMenuContent>
@@ -374,7 +405,7 @@ export function ContainersTable({
           <TableCell className="text-muted-foreground">-</TableCell>
           <TableCell>
             <div className="flex gap-1">
-              {group.containers.some(container => ['stopped', 'exited', 'created', 'paused'].includes(container.state)) && (
+              {group.containers.some(container => ['stopped', 'exited', 'created'].includes(container.state)) && (
                 <Button size="sm" variant="outline" className="h-6 px-2">
                   <Play className="h-3 w-3 mr-1" />
                   Start All

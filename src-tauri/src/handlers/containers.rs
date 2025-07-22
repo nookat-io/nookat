@@ -124,6 +124,19 @@ pub async fn bulk_remove_containers(ids: Vec<String>) -> Result<(), String> {
 }
 
 #[tauri::command]
+pub async fn bulk_force_remove_containers(ids: Vec<String>) -> Result<(), String> {
+    println!("Force removing {} containers", ids.len());
+
+    for id in &ids {
+        if let Err(e) = ContainersService::force_remove_container(id).await {
+            return Err(format!("Failed to force remove container {}: {}", id, e));
+        }
+    }
+
+    Ok(())
+}
+
+#[tauri::command]
 pub async fn open_terminal(id: String) -> Result<(), String> {
     println!("Opening terminal: {}", id);
 
