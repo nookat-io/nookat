@@ -21,7 +21,8 @@ import {
   MoreHorizontal,
   ExternalLink,
   ChevronDown,
-  ChevronRight
+  ChevronRight,
+  Pause
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -30,7 +31,7 @@ import {
   DropdownMenuTrigger,
 } from '../ui/dropdown-menu';
 import { formatDistanceToNow } from 'date-fns';
-import { ContainerData } from '../../pages/ContainersPage';
+import { ContainerData } from './container-data-provider';
 
 interface ContainersTableProps {
   filter: 'all' | 'running' | 'stopped';
@@ -107,7 +108,7 @@ export function ContainersTable({
 
   const filteredContainers = allContainers.filter(container => {
     if (filter === 'running') return container.state === 'running';
-    if (filter === 'stopped') return container.state === 'stopped';
+    if (filter === 'stopped') return ['stopped', 'exited', 'created', 'paused', 'dead'].includes(container.state);
     return true;
   });
 
@@ -178,10 +179,18 @@ export function ContainersTable({
       <TableCell className="text-muted-foreground">{formatContainerImage(container.image)}</TableCell>
       <TableCell>
         <Badge 
-          variant={container.state === 'running' ? 'default' : 'secondary'}
+          variant="secondary"
           className={
             container.state === 'running' 
               ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300' 
+              : container.state === 'paused'
+              ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300'
+              : container.state === 'restarting'
+              ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300'
+              : container.state === 'exited' || container.state === 'dead'
+              ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300'
+              : container.state === 'removing'
+              ? 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300'
               : ''
           }
         >
@@ -205,12 +214,49 @@ export function ContainersTable({
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            {container.state === 'running' ? (
+            {/* Start action - available for stopped, exited, created, paused containers */}
+            {['stopped', 'exited', 'created', 'paused'].includes(container.state) && (
+              <DropdownMenuItem>
+                <Play className="mr-2 h-4 w-4" />
+                Start
+              </DropdownMenuItem>
+            )}
+            
+            {/* Stop action - available for running, restarting containers */}
+            {['running', 'restarting'].includes(container.state) && (
+              <DropdownMenuItem>
+                <Square className="mr-2 h-4 w-4" />
+                Stop
+              </DropdownMenuItem>
+            )}
+            
+            {/* Pause action - available for running containers */}
+            {container.state === 'running' && (
+              <DropdownMenuItem>
+                <Pause className="mr-2 h-4 w-4" />
+                Pause
+              </DropdownMenuItem>
+            )}
+            
+            {/* Resume action - available for paused containers */}
+            {container.state === 'paused' && (
+              <DropdownMenuItem>
+                <Play className="mr-2 h-4 w-4" />
+                Resume
+              </DropdownMenuItem>
+            )}
+            
+            {/* Restart action - available for running, restarting containers */}
+            {['running', 'restarting'].includes(container.state) && (
+              <DropdownMenuItem>
+                <RotateCcw className="mr-2 h-4 w-4" />
+                Restart
+              </DropdownMenuItem>
+            )}
+            
+            {/* Terminal and Logs - available for running containers */}
+            {container.state === 'running' && (
               <>
-                <DropdownMenuItem>
-                  <Square className="mr-2 h-4 w-4" />
-                  Stop
-                </DropdownMenuItem>
                 <DropdownMenuItem>
                   <Terminal className="mr-2 h-4 w-4" />
                   Terminal
@@ -220,20 +266,15 @@ export function ContainersTable({
                   Logs
                 </DropdownMenuItem>
               </>
-            ) : (
-              <DropdownMenuItem>
-                <Play className="mr-2 h-4 w-4" />
-                Start
+            )}
+            
+            {/* Delete action - available for stopped, exited, created, paused containers */}
+            {['stopped', 'exited', 'created', 'paused'].includes(container.state) && (
+              <DropdownMenuItem className="text-destructive">
+                <Trash2 className="mr-2 h-4 w-4" />
+                Delete
               </DropdownMenuItem>
             )}
-            <DropdownMenuItem>
-              <RotateCcw className="mr-2 h-4 w-4" />
-              Restart
-            </DropdownMenuItem>
-            <DropdownMenuItem className="text-destructive">
-              <Trash2 className="mr-2 h-4 w-4" />
-              Delete
-            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </TableCell>
@@ -244,7 +285,7 @@ export function ContainersTable({
     const isExpanded = expandedGroups.has(group.projectName);
     const filteredGroupContainers = group.containers.filter(container => {
       if (filter === 'running') return container.state === 'running';
-      if (filter === 'stopped') return container.state === 'stopped';
+      if (filter === 'stopped') return ['stopped', 'exited', 'created', 'paused', 'dead'].includes(container.state);
       return true;
     });
 
@@ -279,9 +320,14 @@ export function ContainersTable({
                   Running
                 </Badge>
               )}
-              {group.containers.some(c => c.state === 'stopped') && (
+              {group.containers.some(c => ['stopped', 'exited', 'created', 'paused', 'dead'].includes(c.state)) && (
                 <Badge variant="secondary" className="text-xs">
                   Stopped
+                </Badge>
+              )}
+              {group.containers.some(c => c.state === 'restarting') && (
+                <Badge variant="default" className="text-xs bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300">
+                  Restarting
                 </Badge>
               )}
             </div>
@@ -291,13 +337,13 @@ export function ContainersTable({
           <TableCell className="text-muted-foreground">-</TableCell>
           <TableCell>
             <div className="flex gap-1">
-              {group.containers.every(container => container.state !== 'running') && (
+              {group.containers.some(container => ['stopped', 'exited', 'created', 'paused'].includes(container.state)) && (
                 <Button size="sm" variant="outline" className="h-6 px-2">
                   <Play className="h-3 w-3 mr-1" />
                   Start All
                 </Button>
               )}
-              {group.containers.some(container => container.state === 'running') && (
+              {group.containers.some(container => ['running', 'restarting'].includes(container.state)) && (
                 <Button size="sm" variant="outline" className="h-6 px-2">
                   <Square className="h-3 w-3 mr-1" />
                   Stop All

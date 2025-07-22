@@ -5,7 +5,7 @@ export interface ContainerData {
   id: string;
   names: string[];
   image: string;
-  state: 'running' | 'stopped' | 'paused' | 'restarting';
+  state: 'running' | 'stopped' | 'paused' | 'restarting' | 'created' | 'exited' | 'removing' | 'dead';
   created: number;
   ports: object[];
   size: string;

@@ -22,7 +22,7 @@ export default function ContainersPage() {
       {({ containers }) => (
         <div className="page-background min-h-screen">
           <div className="space-y-6 p-6 max-w-full">
-            <ContainerHeader selectedContainers={selectedContainers} />
+            <ContainerHeader selectedContainers={selectedContainers} containers={containers} />
             
             <ContainerControls
               filter={filter}
