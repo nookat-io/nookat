@@ -21,9 +21,9 @@ function App() {
       defaultTheme="dark"
       enableSystem
     >
-      <div className="min-h-screen">
+      <div className="h-screen flex flex-col">
         {/* Custom Window Frame */}
-        <div className="window-frame h-8 flex items-center justify-between px-4 no-select">
+        <div className="window-frame h-8 flex items-center justify-between px-4 no-select flex-shrink-0">
           <div className="flex items-center space-x-2">
             <div 
               className="w-3 h-3 rounded-full bg-red-500 hover:bg-red-600 cursor-pointer transition-colors window-controls"
@@ -47,7 +47,7 @@ function App() {
           <div className="w-12"></div>
         </div>
         
-        <div className="flex">
+        <div className="flex flex-1 min-h-0">
           <Sidebar />
           <div className="flex-1 flex flex-col min-w-0">
             <Header />
