@@ -140,10 +140,7 @@ pub async fn bulk_force_remove_containers(ids: Vec<String>) -> Result<(), String
 pub async fn open_terminal(id: String) -> Result<(), String> {
     println!("Opening terminal: {}", id);
 
-    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
-    // ContainersService::open_terminal(id).await;
-
-    Ok(())
+    ContainersService::open_terminal(&id).await
 }
 
 #[tauri::command]

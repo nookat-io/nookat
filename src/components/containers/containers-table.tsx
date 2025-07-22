@@ -57,6 +57,7 @@ export function ContainersTable({
   onActionComplete
 }: ContainersTableProps) {
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+  const [openingTerminal, setOpeningTerminal] = useState<string | null>(null);
 
   // Clean up stale selections when containers list changes
   useEffect(() => {
@@ -207,6 +208,19 @@ export function ContainersTable({
     }
   };
 
+  const handleOpenTerminal = async (containerId: string) => {
+    try {
+      setOpeningTerminal(containerId);
+      await invoke('open_terminal', { id: containerId });
+      toast.success('Terminal opened');
+    } catch (error) {
+      console.error('Error opening terminal:', error);
+      toast.error(`Failed to open terminal: ${error}`);
+    } finally {
+      setOpeningTerminal(null);
+    }
+  };
+
   const formatContainerName = (container: ContainerData) => {
     if (container.names.length > 0) {
       let first_name = container.names[0];
@@ -323,9 +337,12 @@ export function ContainersTable({
             {/* Terminal and Logs - available for running containers */}
             {container.state === 'running' && (
               <>
-                <DropdownMenuItem>
+                <DropdownMenuItem 
+                  onClick={() => handleOpenTerminal(container.id)}
+                  disabled={openingTerminal === container.id}
+                >
                   <Terminal className="mr-2 h-4 w-4" />
-                  Terminal
+                  {openingTerminal === container.id ? 'Opening...' : 'Terminal'}
                 </DropdownMenuItem>
                 <DropdownMenuItem>
                   <ExternalLink className="mr-2 h-4 w-4" />
