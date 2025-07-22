@@ -4,9 +4,11 @@ import { ContainerData } from './container-data-provider';
 interface ContainerHeaderProps {
   selectedContainers: string[];
   containers: ContainerData[];
+  onActionComplete?: () => void;
+  onSelectionChange?: (selected: string[]) => void;
 }
 
-export function ContainerHeader({ selectedContainers, containers }: ContainerHeaderProps) {
+export function ContainerHeader({ selectedContainers, containers, onActionComplete, onSelectionChange }: ContainerHeaderProps) {
   return (
     <div className="flex items-center justify-between">
       <div className="border border-border/50 rounded-2xl p-6 dark:bg-card/50 w-full flex flex-col items-start justify-start">
@@ -20,7 +22,12 @@ export function ContainerHeader({ selectedContainers, containers }: ContainerHea
             </p>
           </div>
           <div className="flex items-start">
-            <ContainerActions selectedContainers={selectedContainers} containers={containers} />
+            <ContainerActions 
+              selectedContainers={selectedContainers} 
+              containers={containers} 
+              onActionComplete={onActionComplete}
+              onSelectionChange={onSelectionChange}
+            />
           </div>
         </div>
       </div>

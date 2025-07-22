@@ -19,10 +19,15 @@ export default function ContainersPage() {
 
   return (
     <ContainerDataProvider>
-      {({ containers }) => (
+      {({ containers, refreshContainers }) => (
         <div className="page-background min-h-screen">
           <div className="space-y-6 p-6 max-w-full">
-            <ContainerHeader selectedContainers={selectedContainers} containers={containers} />
+            <ContainerHeader 
+              selectedContainers={selectedContainers} 
+              containers={containers} 
+              onActionComplete={refreshContainers}
+              onSelectionChange={setSelectedContainers}
+            />
             
             <ContainerControls
               filter={filter}
@@ -43,6 +48,7 @@ export default function ContainersPage() {
                     selectedContainers={selectedContainers}
                     onSelectionChange={setSelectedContainers}
                     containers={filteredContainers}
+                    onActionComplete={refreshContainers}
                   />
                 </div>
               )}

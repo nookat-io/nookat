@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   Table, 
   TableBody, 
@@ -32,12 +32,15 @@ import {
 } from '../ui/dropdown-menu';
 import { formatDistanceToNow } from 'date-fns';
 import { ContainerData } from './container-data-provider';
+import { invoke } from '@tauri-apps/api/core';
+import { toast } from 'sonner';
 
 interface ContainersTableProps {
   filter: 'all' | 'running' | 'stopped';
   selectedContainers: string[];
   onSelectionChange: (_selected: string[]) => void;
   containers: ContainerData[];
+  onActionComplete?: () => void;
 }
 
 interface ContainerGroup {
@@ -50,9 +53,21 @@ export function ContainersTable({
   filter, 
   selectedContainers, 
   onSelectionChange,
-  containers
+  containers,
+  onActionComplete
 }: ContainersTableProps) {
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+
+  // Clean up stale selections when containers list changes
+  useEffect(() => {
+    const existingContainerIds = new Set(containers.map(c => c.id));
+    const staleSelections = selectedContainers.filter(id => !existingContainerIds.has(id));
+    
+    if (staleSelections.length > 0) {
+      const cleanedSelections = selectedContainers.filter(id => existingContainerIds.has(id));
+      onSelectionChange(cleanedSelections);
+    }
+  }, [containers, selectedContainers, onSelectionChange]);
 
   const getProjectName = (container: ContainerData): string | null => {
     return container.labels && container.labels["com.docker.compose.project"] || null;
@@ -138,6 +153,29 @@ export function ContainersTable({
     setExpandedGroups(newExpandedGroups);
   };
 
+  const handleContainerAction = async (action: string, containerId: string) => {
+    try {
+      await invoke(action, { id: containerId });
+      
+      const actionName = action.replace('_container', '').replace('unpause', 'resume');
+      toast.success(`${actionName.charAt(0).toUpperCase() + actionName.slice(1)}ed container`);
+      
+      // Add a small delay to ensure the backend operation completes before refreshing
+      setTimeout(() => {
+        onActionComplete?.();
+      }, 500);
+    } catch (error) {
+      console.error(`Error ${action}ing container:`, error);
+      const actionName = action.replace('_container', '').replace('unpause', 'resume');
+      toast.error(`Failed to ${actionName} container: ${error}`);
+      
+      // Refresh even on error to ensure UI is in sync
+      setTimeout(() => {
+        onActionComplete?.();
+      }, 500);
+    }
+  };
+
   const formatContainerName = (container: ContainerData) => {
     if (container.names.length > 0) {
       let first_name = container.names[0];
@@ -203,9 +241,6 @@ export function ContainersTable({
       <TableCell className="text-muted-foreground">
         {formatContainerPorts(container.ports)}
       </TableCell>
-      <TableCell className="text-muted-foreground">
-        {container.size}
-      </TableCell>
       <TableCell>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -216,7 +251,7 @@ export function ContainersTable({
           <DropdownMenuContent align="end">
             {/* Start action - available for stopped, exited, created, paused containers */}
             {['stopped', 'exited', 'created', 'paused'].includes(container.state) && (
-              <DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleContainerAction('start_container', container.id)}>
                 <Play className="mr-2 h-4 w-4" />
                 Start
               </DropdownMenuItem>
@@ -224,7 +259,7 @@ export function ContainersTable({
             
             {/* Stop action - available for running, restarting containers */}
             {['running', 'restarting'].includes(container.state) && (
-              <DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleContainerAction('stop_container', container.id)}>
                 <Square className="mr-2 h-4 w-4" />
                 Stop
               </DropdownMenuItem>
@@ -232,7 +267,7 @@ export function ContainersTable({
             
             {/* Pause action - available for running containers */}
             {container.state === 'running' && (
-              <DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleContainerAction('pause_container', container.id)}>
                 <Pause className="mr-2 h-4 w-4" />
                 Pause
               </DropdownMenuItem>
@@ -240,7 +275,7 @@ export function ContainersTable({
             
             {/* Resume action - available for paused containers */}
             {container.state === 'paused' && (
-              <DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleContainerAction('unpause_container', container.id)}>
                 <Play className="mr-2 h-4 w-4" />
                 Resume
               </DropdownMenuItem>
@@ -248,7 +283,7 @@ export function ContainersTable({
             
             {/* Restart action - available for running, restarting containers */}
             {['running', 'restarting'].includes(container.state) && (
-              <DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleContainerAction('restart_container', container.id)}>
                 <RotateCcw className="mr-2 h-4 w-4" />
                 Restart
               </DropdownMenuItem>
@@ -270,7 +305,10 @@ export function ContainersTable({
             
             {/* Delete action - available for stopped, exited, created, paused containers */}
             {['stopped', 'exited', 'created', 'paused'].includes(container.state) && (
-              <DropdownMenuItem className="text-destructive">
+              <DropdownMenuItem 
+                className="text-destructive"
+                onClick={() => handleContainerAction('remove_container', container.id)}
+              >
                 <Trash2 className="mr-2 h-4 w-4" />
                 Delete
               </DropdownMenuItem>
@@ -334,7 +372,6 @@ export function ContainersTable({
           </TableCell>
           <TableCell className="text-muted-foreground">-</TableCell>
           <TableCell className="text-muted-foreground">-</TableCell>
-          <TableCell className="text-muted-foreground">-</TableCell>
           <TableCell>
             <div className="flex gap-1">
               {group.containers.some(container => ['stopped', 'exited', 'created', 'paused'].includes(container.state)) && (
@@ -374,7 +411,6 @@ export function ContainersTable({
               <TableHead>Status</TableHead>
               <TableHead>Created</TableHead>
               <TableHead>Ports</TableHead>
-              <TableHead>Size</TableHead>
               <TableHead className="w-24">Actions</TableHead>
             </TableRow>
           </TableHeader>
