@@ -406,36 +406,16 @@ export function ContainersTable({
                   Running
                 </Badge>
               )}
-              {group.containers.some(c => c.state !== 'running') && (
+              {group.containers.every(c => c.state !== 'running') && (
                 <Badge variant="secondary" className="text-xs">
                   Stopped
                 </Badge>
               )}
-              {group.containers.some(c => c.state === 'restarting') && (
-                <Badge variant="default" className="text-xs bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300">
-                  Restarting
-                </Badge>
-              )}
             </div>
           </TableCell>
           <TableCell className="text-muted-foreground">-</TableCell>
           <TableCell className="text-muted-foreground">-</TableCell>
-          <TableCell>
-            <div className="flex gap-1">
-              {group.containers.some(container => container.state !== 'running') && (
-                <Button size="sm" variant="outline" className="h-6 px-2">
-                  <Play className="h-3 w-3 mr-1" />
-                  Start All
-                </Button>
-              )}
-              {group.containers.some(container => ['running', 'restarting'].includes(container.state)) && (
-                <Button size="sm" variant="outline" className="h-6 px-2">
-                  <Square className="h-3 w-3 mr-1" />
-                  Stop All
-                </Button>
-              )}
-            </div>
-          </TableCell>
+          <TableCell>-</TableCell>
         </TableRow>
         {isExpanded && filteredGroupContainers.map(container => renderContainerRow(container, true))}
       </>
