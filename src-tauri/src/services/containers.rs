@@ -1,6 +1,6 @@
 use bollard::models::ContainerSummary;
 use bollard::{
-    container::{ListContainersOptions, StartContainerOptions, StopContainerOptions, RestartContainerOptions, RemoveContainerOptions},
+    container::{ListContainersOptions, StartContainerOptions, StopContainerOptions, RestartContainerOptions, RemoveContainerOptions, LogsOptions},
     Docker,
 };
 use std::process::Command;
@@ -255,4 +255,55 @@ impl ContainersService {
 
         Ok(())
     }
+
+    pub async fn get_container_logs(id: &str) -> Result<Vec<String>, String> {
+        let docker = Docker::connect_with_local_defaults()
+            .map_err(|e| format!("Failed to connect to Docker: {}", e))?;
+
+        let options = LogsOptions::<String> {
+            stdout: true,
+            stderr: true,
+            ..Default::default()
+        };
+
+        // Use the logs method to get container logs
+        let logs_stream = docker.logs(id, Some(options));
+
+        // Convert the logs stream to strings
+        let mut logs = Vec::new();
+        
+        // Collect all log entries from the stream
+        use futures_util::StreamExt;
+        
+        let mut stream = logs_stream;
+        while let Some(log_entry) = stream.next().await {
+            match log_entry {
+                Ok(bollard::container::LogOutput::StdOut { message }) |
+                Ok(bollard::container::LogOutput::StdErr { message }) => {
+                    // Convert bytes to string
+                    if let Ok(log_line) = String::from_utf8(message.to_vec()) {
+                        logs.push(log_line);
+                    }
+                },
+                Ok(_) => {
+                    // Handle other log output types if needed
+                    continue;
+                },
+                Err(e) => {
+                    return Err(format!("Error reading log stream: {}", e));
+                }
+            }
+        }
+
+        // If no logs were collected, return a default message
+        if logs.is_empty() {
+            logs.push("No logs available for this container".to_string());
+        }
+
+        Ok(logs)
+    }
+
+
 }
+
+
