@@ -19,27 +19,27 @@ export function ContainerActions({ selectedContainers, containers, onActionCompl
     selectedContainers.includes(container.id)
   );
 
-  const canStart = selectedContainerData.some(container => 
+  const canStart = selectedContainerData.length > 0 && selectedContainerData.every(container => 
     ['stopped', 'exited', 'created', 'paused'].includes(container.state)
   );
 
-  const canStop = selectedContainerData.some(container => 
+  const canStop = selectedContainerData.length > 0 && selectedContainerData.every(container => 
     ['running', 'restarting'].includes(container.state)
   );
 
-  const canPause = selectedContainerData.some(container => 
+  const canPause = selectedContainerData.length > 0 && selectedContainerData.every(container => 
     container.state === 'running'
   );
 
-  const canResume = selectedContainerData.some(container => 
+  const canResume = selectedContainerData.length > 0 && selectedContainerData.every(container => 
     container.state === 'paused'
   );
 
-  const canRestart = selectedContainerData.some(container => 
+  const canRestart = selectedContainerData.length > 0 && selectedContainerData.every(container => 
     ['running', 'restarting'].includes(container.state)
   );
 
-  const canDelete = selectedContainerData.some(container => 
+  const canDelete = selectedContainerData.length > 0 && selectedContainerData.every(container => 
     ['stopped', 'exited', 'created', 'paused'].includes(container.state)
   );
 
