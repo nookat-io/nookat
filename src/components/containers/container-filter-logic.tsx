@@ -23,7 +23,7 @@ export function ContainerFilterLogic({
                          imageName.toLowerCase().includes(searchTerm.toLowerCase());
     
     if (filter === 'running') return matchesSearch && container.state === 'running';
-    if (filter === 'stopped') return matchesSearch && container.state === 'stopped';
+    if (filter === 'stopped') return matchesSearch && container.state !== 'running';
     return matchesSearch;
   });
 

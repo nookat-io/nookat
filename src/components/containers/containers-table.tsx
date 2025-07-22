@@ -124,7 +124,7 @@ export function ContainersTable({
 
   const filteredContainers = allContainers.filter(container => {
     if (filter === 'running') return container.state === 'running';
-    if (filter === 'stopped') return ['stopped', 'exited', 'created', 'paused', 'dead'].includes(container.state);
+    if (filter === 'stopped') return container.state !== 'running';
     return true;
   });
 
@@ -371,7 +371,7 @@ export function ContainersTable({
     const isExpanded = expandedGroups.has(group.projectName);
     const filteredGroupContainers = group.containers.filter(container => {
       if (filter === 'running') return container.state === 'running';
-      if (filter === 'stopped') return ['stopped', 'exited', 'created', 'paused', 'dead'].includes(container.state);
+      if (filter === 'stopped') return container.state !== 'running';
       return true;
     });
 
@@ -406,7 +406,7 @@ export function ContainersTable({
                   Running
                 </Badge>
               )}
-              {group.containers.some(c => ['stopped', 'exited', 'created', 'paused', 'dead'].includes(c.state)) && (
+              {group.containers.some(c => c.state !== 'running') && (
                 <Badge variant="secondary" className="text-xs">
                   Stopped
                 </Badge>
@@ -422,7 +422,7 @@ export function ContainersTable({
           <TableCell className="text-muted-foreground">-</TableCell>
           <TableCell>
             <div className="flex gap-1">
-              {group.containers.some(container => ['stopped', 'exited', 'created'].includes(container.state)) && (
+              {group.containers.some(container => container.state !== 'running') && (
                 <Button size="sm" variant="outline" className="h-6 px-2">
                   <Play className="h-3 w-3 mr-1" />
                   Start All
@@ -467,7 +467,7 @@ export function ContainersTable({
             {individualContainers
               .filter(container => {
                 if (filter === 'running') return container.state === 'running';
-                if (filter === 'stopped') return container.state === 'stopped';
+                if (filter === 'stopped') return container.state !== 'running';
                 return true;
               })
               .map(container => renderContainerRow(container))}
