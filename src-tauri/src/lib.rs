@@ -2,9 +2,7 @@ mod entities;
 mod handlers;
 mod services;
 
-use crate::entities::list_images;
-use crate::entities::list_networks;
-use crate::entities::list_volumes;
+use crate::entities::{list_images, list_networks, list_volumes, prune_images};
 use crate::handlers::{
     container_files, container_logs, list_containers, open_terminal, remove_container,
     restart_container, start_container, stop_container, pause_container, unpause_container,
@@ -40,6 +38,7 @@ pub fn run() {
             prune_containers,
             // Images
             list_images,
+            prune_images,
             list_networks,
             list_volumes
         ])
