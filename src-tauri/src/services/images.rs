@@ -1,15 +1,23 @@
 use crate::entities::{Image, PruneResult};
 use bollard::container::ListContainersOptions;
 use bollard::image::ListImagesOptions;
+use bollard::models::ImageSummary;
 use bollard::Docker;
+use std::collections::HashSet;
 
 #[derive(Default, Debug)]
 pub struct ImagesService {}
 
 impl ImagesService {
-    pub async fn get_images() -> Result<Vec<Image>, String> {
-        let docker = Docker::connect_with_local_defaults()
-            .map_err(|e| format!("Failed to connect to Docker: {}", e))?;
+    /// Helper function to connect to Docker
+    async fn connect_docker() -> Result<Docker, String> {
+        Docker::connect_with_local_defaults()
+            .map_err(|e| format!("Failed to connect to Docker: {}", e))
+    }
+
+    /// Helper function to get all images and containers with used image IDs
+    async fn get_images_and_used_ids() -> Result<(Vec<ImageSummary>, HashSet<String>), String> {
+        let docker = Self::connect_docker().await?;
 
         // Get all images
         let image_options: ListImagesOptions<String> = ListImagesOptions::default();
@@ -29,12 +37,18 @@ impl ImagesService {
             .map_err(|e| format!("Failed to list containers: {}", e))?;
 
         // Create a set of image IDs that are currently in use
-        let used_image_ids: std::collections::HashSet<String> = containers
+        let used_image_ids: HashSet<String> = containers
             .iter()
             .filter_map(|container| container.image_id.clone())
             .collect();
 
         println!("Found {} containers using images", used_image_ids.len());
+
+        Ok((images, used_image_ids))
+    }
+
+    pub async fn get_images() -> Result<Vec<Image>, String> {
+        let (images, used_image_ids) = Self::get_images_and_used_ids().await?;
 
         let result: Vec<Image> = images
             .iter()
@@ -52,16 +66,21 @@ impl ImagesService {
                     } else if parts.len() == 1 {
                         // Handle case where there's no tag (just repository name)
                         image_name = Some(parts[0].to_string());
-                        image_tag = Some("latest".to_string());
+                        image_tag = None;
                     }
                 } else {
                     let id = image.id.clone();
                     if id.starts_with("sha256:") {
-                        image_name = Some(id.split(":").nth(1).unwrap_or("unknown").to_string());
-                        image_tag = Some("unknown".to_string());
+                        // For untagged images with SHA256 IDs, use a shortened version as name
+                        // and indicate it's untagged rather than using a misleading tag
+                        image_name = Some(format!(
+                            "<untagged>@{}",
+                            id.split(":").nth(1).unwrap_or("unknown")
+                        ));
+                        image_tag = None; // Keep as None to indicate no tag
                     } else {
-                        image_name = Some(id);
-                        image_tag = Some("unknown".to_string());
+                        image_name = Some(format!("<untagged>@{}", id));
+                        image_tag = None; // Keep as None to indicate no tag
                     }
                 }
 
@@ -85,31 +104,8 @@ impl ImagesService {
     }
 
     pub async fn perform_prune() -> Result<PruneResult, String> {
-        let docker = Docker::connect_with_local_defaults()
-            .map_err(|e| format!("Failed to connect to Docker: {}", e))?;
-
-        // Get all images
-        let image_options: ListImagesOptions<String> = ListImagesOptions::default();
-        let images = docker
-            .list_images(Some(image_options))
-            .await
-            .map_err(|e| format!("Failed to list images: {}", e))?;
-
-        // Get all containers to identify unused images
-        let container_options: ListContainersOptions<String> = ListContainersOptions {
-            all: true,
-            ..Default::default()
-        };
-        let containers = docker
-            .list_containers(Some(container_options))
-            .await
-            .map_err(|e| format!("Failed to list containers: {}", e))?;
-
-        // Create a set of image IDs that are currently in use
-        let used_image_ids: std::collections::HashSet<String> = containers
-            .iter()
-            .filter_map(|container| container.image_id.clone())
-            .collect();
+        let (images, used_image_ids) = Self::get_images_and_used_ids().await?;
+        let docker = Self::connect_docker().await?;
 
         let mut deleted_images = Vec::new();
         let mut total_space_reclaimed = 0i64;
