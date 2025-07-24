@@ -56,12 +56,6 @@ function formatBytes(bytes: number): string {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
 }
 
-// Utility function to truncate text
-function truncateText(text: string, maxLength: number = 30): string {
-  if (text.length <= maxLength) return text;
-  return text.substring(0, maxLength - 3) + '...';
-}
-
 // Convert ImageData to DockerImage format for display
 function convertImageData(imageData: ImageData): DockerImage {
   const repository = imageData.repository || '<none>';
@@ -143,12 +137,12 @@ export function ImagesTable({
                 onCheckedChange={handleSelectAll}
               />
             </TableHead>
-            <TableHead>Name</TableHead>
-            <TableHead>Tag</TableHead>
-            <TableHead>Image ID</TableHead>
-            <TableHead>Created</TableHead>
-            <TableHead>Size</TableHead>
-            <TableHead>Status</TableHead>
+            <TableHead className="w-[30%]">Name</TableHead>
+            <TableHead className="w-[15%]">Tag</TableHead>
+            <TableHead className="w-[15%]">Image ID</TableHead>
+            <TableHead className="w-[15%]">Created</TableHead>
+            <TableHead className="w-[10%]">Size</TableHead>
+            <TableHead className="w-[10%]">Status</TableHead>
             <TableHead className="w-24">Actions</TableHead>
           </TableRow>
         </TableHeader>
@@ -170,14 +164,14 @@ export function ImagesTable({
                     }
                   />
                 </TableCell>
-                <TableCell className="font-medium max-w-[200px]">
+                <TableCell className="font-medium">
                   <div className="truncate" title={image.repository}>
-                    {truncateText(image.repository, 25)}
+                    {image.repository}
                   </div>
                 </TableCell>
-                <TableCell className="text-muted-foreground max-w-[100px]">
+                <TableCell className="text-muted-foreground">
                   <div className="truncate" title={image.tag}>
-                    {truncateText(image.tag, 15)}
+                    {image.tag}
                   </div>
                 </TableCell>
                 <TableCell className="text-muted-foreground text-xs font-mono">
