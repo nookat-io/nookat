@@ -1,5 +1,5 @@
 import { Button } from '../ui/button';
-import { Play, Square, RotateCcw, Trash2, Plus, Pause, Play as ResumeIcon } from 'lucide-react';
+import { Play, Square, RotateCcw, Trash2, Plus, Pause, Play as ResumeIcon, Scissors } from 'lucide-react';
 import { ContainerData } from './container-data-provider';
 import { invoke } from '@tauri-apps/api/core';
 import { useState } from 'react';
@@ -163,11 +163,36 @@ export function ContainerActions({ selectedContainers, containers, onActionCompl
   const handleResume = () => handleAction('unpause_container', selectedContainers);
   const handleRestart = () => handleAction('restart_container', selectedContainers);
 
+  const handlePrune = async () => {
+    setIsLoading('prune_containers');
+    try {
+      await invoke('prune_containers');
+      toast.success('Successfully cleaned up stopped containers');
+      onActionComplete?.();
+    } catch (error) {
+      console.error('Error cleaning up containers:', error);
+      toast.error(`Failed to clean up containers: ${error}`);
+      onActionComplete?.();
+    } finally {
+      setIsLoading(null);
+    }
+  };
+
   return (
     <div className="flex items-center space-x-2">
       <Button variant="default">
         <Plus className="mr-2 h-4 w-4" />
         Run New Container
+      </Button>
+      
+      <Button 
+        variant="outline" 
+        size="sm"
+        onClick={handlePrune}
+        disabled={isLoading === 'prune_containers'}
+      >
+        <Scissors className="mr-2 h-4 w-4" />
+        {isLoading === 'prune_containers' ? 'Cleaning...' : 'Clean Up'}
       </Button>
       
       {selectedContainers.length > 0 && (

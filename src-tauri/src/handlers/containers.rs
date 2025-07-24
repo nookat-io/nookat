@@ -173,3 +173,10 @@ pub async fn force_remove_container(id: String) -> Result<(), String> {
 
     ContainersService::force_remove_container(&id).await
 }
+
+#[tauri::command]
+pub async fn prune_containers() -> Result<(), String> {
+    println!("Cleaning up stopped containers");
+
+    ContainersService::prune_containers().await
+}
