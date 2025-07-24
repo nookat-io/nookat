@@ -27,6 +27,7 @@ import {
 } from '../ui/dropdown-menu';
 import { formatDistanceToNow } from 'date-fns';
 import { ImageData } from './image-data-provider';
+import { formatBytes } from '../../utils/format';
 
 interface DockerImage {
   id: string;
@@ -47,14 +48,7 @@ interface ImagesTableProps {
   error: string | null;
 }
 
-// Utility function to format bytes to human readable size
-function formatBytes(bytes: number): string {
-  if (bytes === 0) return '0 B';
-  const k = 1024;
-  const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
-}
+
 
 // Convert ImageData to DockerImage format for display
 function convertImageData(imageData: ImageData): DockerImage {
@@ -84,7 +78,7 @@ export function ImagesTable({
 
   const filteredImages = dockerImages.filter(image => {
     if (filter === 'used') return image.inUse;
-    if (filter === 'dangling') return image.repository === '<none>' || image.tag === '<none>';
+    if (filter === 'dangling') return !image.inUse;
     return true;
   });
 
