@@ -36,7 +36,6 @@ export function ImageDataProvider({ children }: ImageDataProviderProps) {
       const result = await invoke<ImageData[]>("list_images");
       setImages(result);
       lastRefreshTime.current = Date.now();
-      console.log('Fetched images:', result);
     } catch (error) {
       console.error("Error getting images:", error);
       const errorMessage = error instanceof Error ? error.message : "Failed to fetch images";
