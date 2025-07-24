@@ -172,6 +172,7 @@ export function ContainerActions({ selectedContainers, containers, onActionCompl
     } catch (error) {
       console.error('Error cleaning up containers:', error);
       toast.error(`Failed to clean up containers: ${error}`);
+      onActionComplete?.();
     } finally {
       setIsLoading(null);
     }
