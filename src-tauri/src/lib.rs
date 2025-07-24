@@ -10,6 +10,7 @@ use crate::handlers::{
     restart_container, start_container, stop_container, pause_container, unpause_container,
     force_remove_container, bulk_start_containers, bulk_stop_containers, bulk_pause_containers,
     bulk_unpause_containers, bulk_restart_containers, bulk_remove_containers, bulk_force_remove_containers,
+    prune_containers,
 };
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -36,6 +37,7 @@ pub fn run() {
             container_files,
             remove_container,
             force_remove_container,
+            prune_containers,
             // Images
             list_images,
             list_networks,

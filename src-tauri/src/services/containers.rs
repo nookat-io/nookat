@@ -303,6 +303,19 @@ impl ContainersService {
         Ok(logs)
     }
 
+    pub async fn prune_containers() -> Result<(), String> {
+        let docker = Docker::connect_with_local_defaults()
+            .map_err(|e| format!("Failed to connect to Docker: {}", e))?;
+
+        // Use the prune containers method
+        docker
+            .prune_containers(None::<bollard::container::PruneContainersOptions<String>>)
+            .await
+            .map_err(|e| format!("Failed to prune containers: {}", e))?;
+
+        Ok(())
+    }
+
 
 }
 
