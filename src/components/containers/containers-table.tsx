@@ -481,8 +481,7 @@ export function ContainersTable({
                 variant="outline"
                 size="sm"
                 onClick={() => {
-                  const hasRunning = group.containers.some(c => c.state === 'running');
-                  const action = hasRunning ? 'bulk_force_remove_containers' : 'bulk_remove_containers';
+                  const action = hasRunningContainers ? 'bulk_force_remove_containers' : 'bulk_remove_containers';
                   handleBulkAction(action, groupContainerIds);
                 }}
                 className="h-7 px-2 text-xs text-destructive hover:text-destructive"
