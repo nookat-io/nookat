@@ -1,7 +1,13 @@
 'use client';
 
 import { useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '../ui/card';
 import { Label } from '../ui/label';
 import { Button } from '../ui/button';
 import { Slider } from '../ui/slider';
@@ -38,7 +44,7 @@ export function ResourceSettings() {
             </div>
             <Slider
               value={resources.cpuLimit}
-              onValueChange={(value) => handleResourceChange('cpuLimit', value)}
+              onValueChange={value => handleResourceChange('cpuLimit', value)}
               max={16}
               min={1}
               step={1}
@@ -48,7 +54,7 @@ export function ResourceSettings() {
               Maximum CPU cores available to Docker containers
             </div>
           </div>
-          
+
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <Label>Memory Limit</Label>
@@ -58,7 +64,9 @@ export function ResourceSettings() {
             </div>
             <Slider
               value={resources.memoryLimit}
-              onValueChange={(value) => handleResourceChange('memoryLimit', value)}
+              onValueChange={value =>
+                handleResourceChange('memoryLimit', value)
+              }
               max={32}
               min={2}
               step={1}
@@ -78,7 +86,7 @@ export function ResourceSettings() {
             </div>
             <Slider
               value={resources.swapLimit}
-              onValueChange={(value) => handleResourceChange('swapLimit', value)}
+              onValueChange={value => handleResourceChange('swapLimit', value)}
               max={8}
               min={0}
               step={1}
@@ -108,7 +116,7 @@ export function ResourceSettings() {
             </div>
             <Slider
               value={resources.diskLimit}
-              onValueChange={(value) => handleResourceChange('diskLimit', value)}
+              onValueChange={value => handleResourceChange('diskLimit', value)}
               max={500}
               min={20}
               step={4}
@@ -118,15 +126,11 @@ export function ResourceSettings() {
               Maximum disk space for Docker images and containers
             </div>
           </div>
-          
+
           <div className="space-y-2">
             <Label>Docker Root Directory</Label>
             <div className="flex space-x-2">
-              <Input 
-                value="/var/lib/docker" 
-                readOnly 
-                className="flex-1"
-              />
+              <Input value="/var/lib/docker" readOnly className="flex-1" />
               <Button variant="outline">Change</Button>
             </div>
             <div className="text-xs text-muted-foreground">

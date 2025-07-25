@@ -1,23 +1,17 @@
 'use client';
 
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
 } from '../ui/table';
 import { Checkbox } from '../ui/checkbox';
 import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
-import { 
-  Play, 
-  Trash2, 
-  Tag,
-  MoreHorizontal,
-  Loader2
-} from 'lucide-react';
+import { Play, Trash2, Tag, MoreHorizontal, Loader2 } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -47,13 +41,11 @@ interface ImagesTableProps {
   error: string | null;
 }
 
-
-
 // Convert ImageData to DockerImage format for display
 function convertImageData(imageData: ImageData): DockerImage {
   const repository = imageData.repository || '<none>';
   const tag = imageData.tag || '<none>';
-  
+
   return {
     id: imageData.id,
     repository,
@@ -65,19 +57,20 @@ function convertImageData(imageData: ImageData): DockerImage {
   };
 }
 
-export function ImagesTable({ 
-  filter, 
-  selectedImages, 
+export function ImagesTable({
+  filter,
+  selectedImages,
   onSelectionChange,
   images,
   isLoading,
-  error
+  error,
 }: ImagesTableProps) {
   const dockerImages = images.map(convertImageData);
 
   const filteredImages = dockerImages.filter(image => {
     if (filter === 'used') return image.inUse;
-    if (filter === 'dangling') return image.repository === '<none>' || image.tag === '<none>';
+    if (filter === 'dangling')
+      return image.repository === '<none>' || image.tag === '<none>';
     return true;
   });
 
@@ -122,101 +115,114 @@ export function ImagesTable({
     <div className="border rounded-lg overflow-hidden">
       <div className="overflow-x-auto">
         <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead className="w-12">
-              <Checkbox 
-                checked={selectedImages.length === filteredImages.length && filteredImages.length > 0}
-                onCheckedChange={handleSelectAll}
-              />
-            </TableHead>
-            <TableHead className="w-[30%]">Name</TableHead>
-            <TableHead className="w-[15%]">Tag</TableHead>
-            <TableHead className="w-[15%]">Image ID</TableHead>
-            <TableHead className="w-[15%]">Created</TableHead>
-            <TableHead className="w-[10%]">Size</TableHead>
-            <TableHead className="w-[10%]">Status</TableHead>
-            <TableHead className="w-24">Actions</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {filteredImages.length === 0 ? (
+          <TableHeader>
             <TableRow>
-              <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
-                {images.length === 0 ? 'No Docker images found' : `No images match the "${filter}" filter`}
-              </TableCell>
+              <TableHead className="w-12">
+                <Checkbox
+                  checked={
+                    selectedImages.length === filteredImages.length &&
+                    filteredImages.length > 0
+                  }
+                  onCheckedChange={handleSelectAll}
+                />
+              </TableHead>
+              <TableHead className="w-[30%]">Name</TableHead>
+              <TableHead className="w-[15%]">Tag</TableHead>
+              <TableHead className="w-[15%]">Image ID</TableHead>
+              <TableHead className="w-[15%]">Created</TableHead>
+              <TableHead className="w-[10%]">Size</TableHead>
+              <TableHead className="w-[10%]">Status</TableHead>
+              <TableHead className="w-24">Actions</TableHead>
             </TableRow>
-          ) : (
-            filteredImages.map((image) => (
-              <TableRow key={image.id}>
-                <TableCell>
-                  <Checkbox 
-                    checked={selectedImages.includes(image.id)}
-                    onCheckedChange={(checked) => 
-                      handleSelectImage(image.id, checked as boolean)
-                    }
-                  />
-                </TableCell>
-                <TableCell className="font-medium max-w-[200px]">
-                  <div className="truncate max-w-full" title={image.repository}>
-                    {image.repository}
-                  </div>
-                </TableCell>
-                <TableCell className="text-muted-foreground max-w-[150px]">
-                  <div className="truncate max-w-full" title={image.tag}>
-                    {image.tag}
-                  </div>
-                </TableCell>
-                <TableCell className="text-muted-foreground text-xs font-mono">
-                  {image.imageId.startsWith('sha256:') 
-                    ? image.imageId.substring(7, 19) 
-                    : image.imageId.substring(0, 12)}
-                </TableCell>
-                <TableCell className="text-muted-foreground">
-                  {formatDistanceToNow(image.created)} ago
-                </TableCell>
-                <TableCell className="text-muted-foreground">{image.size}</TableCell>
-                <TableCell>
-                  <Badge 
-                    variant={image.inUse ? 'default' : 'secondary'}
-                    className={
-                      image.inUse 
-                        ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300' 
-                        : ''
-                    }
-                  >
-                    {image.inUse ? 'In Use' : 'Unused'}
-                  </Badge>
-                </TableCell>
-                <TableCell>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="sm">
-                        <MoreHorizontal className="h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem>
-                        <Play className="mr-2 h-4 w-4" />
-                        Run Container
-                      </DropdownMenuItem>
-                      <DropdownMenuItem>
-                        <Tag className="mr-2 h-4 w-4" />
-                        Add Tag
-                      </DropdownMenuItem>
-
-                      <DropdownMenuItem className="text-destructive">
-                        <Trash2 className="mr-2 h-4 w-4" />
-                        Delete
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+          </TableHeader>
+          <TableBody>
+            {filteredImages.length === 0 ? (
+              <TableRow>
+                <TableCell
+                  colSpan={8}
+                  className="text-center text-muted-foreground py-8"
+                >
+                  {images.length === 0
+                    ? 'No Docker images found'
+                    : `No images match the "${filter}" filter`}
                 </TableCell>
               </TableRow>
-            ))
-          )}
-        </TableBody>
-      </Table>
+            ) : (
+              filteredImages.map(image => (
+                <TableRow key={image.id}>
+                  <TableCell>
+                    <Checkbox
+                      checked={selectedImages.includes(image.id)}
+                      onCheckedChange={checked =>
+                        handleSelectImage(image.id, checked as boolean)
+                      }
+                    />
+                  </TableCell>
+                  <TableCell className="font-medium max-w-[200px]">
+                    <div
+                      className="truncate max-w-full"
+                      title={image.repository}
+                    >
+                      {image.repository}
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-muted-foreground max-w-[150px]">
+                    <div className="truncate max-w-full" title={image.tag}>
+                      {image.tag}
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-muted-foreground text-xs font-mono">
+                    {image.imageId.startsWith('sha256:')
+                      ? image.imageId.substring(7, 19)
+                      : image.imageId.substring(0, 12)}
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {formatDistanceToNow(image.created)} ago
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {image.size}
+                  </TableCell>
+                  <TableCell>
+                    <Badge
+                      variant={image.inUse ? 'default' : 'secondary'}
+                      className={
+                        image.inUse
+                          ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300'
+                          : ''
+                      }
+                    >
+                      {image.inUse ? 'In Use' : 'Unused'}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="sm">
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem>
+                          <Play className="mr-2 h-4 w-4" />
+                          Run Container
+                        </DropdownMenuItem>
+                        <DropdownMenuItem>
+                          <Tag className="mr-2 h-4 w-4" />
+                          Add Tag
+                        </DropdownMenuItem>
+
+                        <DropdownMenuItem className="text-destructive">
+                          <Trash2 className="mr-2 h-4 w-4" />
+                          Delete
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
       </div>
     </div>
   );

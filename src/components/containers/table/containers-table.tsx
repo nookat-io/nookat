@@ -1,12 +1,12 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { 
-  Table, 
-  TableBody, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
+import {
+  Table,
+  TableBody,
+  TableHead,
+  TableHeader,
+  TableRow,
 } from '../../ui/table';
 import { Checkbox } from '../../ui/checkbox';
 import { ContainerData } from '../data/container-data-provider';
@@ -23,33 +23,41 @@ interface ContainersTableProps {
   onActionComplete?: () => void;
 }
 
-export function ContainersTable({ 
-  filter, 
-  selectedContainers, 
+export function ContainersTable({
+  filter,
+  selectedContainers,
   onSelectionChange,
   containers,
-  onActionComplete
+  onActionComplete,
 }: ContainersTableProps) {
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   const [logsFormOpen, setLogsFormOpen] = useState(false);
-  const [selectedContainerForLogs, setSelectedContainerForLogs] = useState<ContainerData | null>(null);
+  const [selectedContainerForLogs, setSelectedContainerForLogs] =
+    useState<ContainerData | null>(null);
 
   // Clean up stale selections when containers list changes
   useEffect(() => {
     const existingContainerIds = new Set(containers.map(c => c.id));
-    const staleSelections = selectedContainers.filter(id => !existingContainerIds.has(id));
-    
+    const staleSelections = selectedContainers.filter(
+      id => !existingContainerIds.has(id)
+    );
+
     if (staleSelections.length > 0) {
-      const cleanedSelections = selectedContainers.filter(id => existingContainerIds.has(id));
+      const cleanedSelections = selectedContainers.filter(id =>
+        existingContainerIds.has(id)
+      );
       onSelectionChange(cleanedSelections);
     }
   }, [containers, selectedContainers, onSelectionChange]);
 
-  const { individualContainers, groupedContainers } = organizeContainers(containers, expandedGroups);
+  const { individualContainers, groupedContainers } = organizeContainers(
+    containers,
+    expandedGroups
+  );
 
   const allContainers = [
     ...individualContainers,
-    ...groupedContainers.flatMap(group => group.containers)
+    ...groupedContainers.flatMap(group => group.containers),
   ];
 
   const filteredContainers = allContainers.filter(container => {
@@ -96,8 +104,11 @@ export function ContainersTable({
           <TableHeader>
             <TableRow>
               <TableHead className="w-12">
-                <Checkbox 
-                  checked={selectedContainers.length === filteredContainers.length && filteredContainers.length > 0}
+                <Checkbox
+                  checked={
+                    selectedContainers.length === filteredContainers.length &&
+                    filteredContainers.length > 0
+                  }
                   onCheckedChange={handleSelectAll}
                 />
               </TableHead>
@@ -121,22 +132,22 @@ export function ContainersTable({
                 onOpenLogs={handleOpenLogs}
               />
             ))}
-            
-                         {/* Render grouped containers */}
-             {groupedContainers.map(group => (
-               <ContainerGroupRow
-                 key={group.projectName}
-                 projectName={group.projectName}
-                 containers={group.containers}
-                 isExpanded={group.isExpanded}
-                 filter={filter}
-                 selectedContainers={selectedContainers}
-                 onToggleGroup={toggleGroup}
-                 onSelectionChange={handleSelectContainer}
-                 onActionComplete={onActionComplete}
-                 onOpenLogs={handleOpenLogs}
-               />
-             ))}
+
+            {/* Render grouped containers */}
+            {groupedContainers.map(group => (
+              <ContainerGroupRow
+                key={group.projectName}
+                projectName={group.projectName}
+                containers={group.containers}
+                isExpanded={group.isExpanded}
+                filter={filter}
+                selectedContainers={selectedContainers}
+                onToggleGroup={toggleGroup}
+                onSelectionChange={handleSelectContainer}
+                onActionComplete={onActionComplete}
+                onOpenLogs={handleOpenLogs}
+              />
+            ))}
           </TableBody>
         </Table>
       </div>
@@ -145,7 +156,10 @@ export function ContainersTable({
       {logsFormOpen && selectedContainerForLogs && (
         <ContainerLogsForm
           containerId={selectedContainerForLogs.id}
-          containerName={selectedContainerForLogs.names[0]?.replace(/^\//, '') || selectedContainerForLogs.id}
+          containerName={
+            selectedContainerForLogs.names[0]?.replace(/^\//, '') ||
+            selectedContainerForLogs.id
+          }
           containerState={selectedContainerForLogs.state}
           isOpen={logsFormOpen}
           onClose={() => {

@@ -33,8 +33,6 @@
   "bundle": {
     "active": true,
     "targets": "all",
-    "icon": [
-      "icons/icon_512x512.png"
-    ]
+    "icon": ["icons/icon_512x512.png"]
   }
 }

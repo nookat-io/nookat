@@ -2,7 +2,12 @@ import { EngineSettings } from '../components/settings/engine-settings';
 import { ResourceSettings } from '../components/settings/resource-settings';
 import { ProxySettings } from '../components/settings/proxy-settings';
 import { GeneralSettings } from '../components/settings/general-settings';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from '../components/ui/tabs';
 
 export default function SettingsPage() {
   return (
@@ -19,7 +24,7 @@ export default function SettingsPage() {
             </p>
           </div>
         </div>
-        
+
         <div className="content-section">
           <Tabs defaultValue="general" className="space-y-6">
             <TabsList className="grid w-full grid-cols-4 bg-card/50 backdrop-blur-sm">
@@ -28,19 +33,19 @@ export default function SettingsPage() {
               <TabsTrigger value="engine">Engine</TabsTrigger>
               <TabsTrigger value="proxy">Proxy</TabsTrigger>
             </TabsList>
-            
+
             <TabsContent value="general">
               <GeneralSettings />
             </TabsContent>
-            
+
             <TabsContent value="resources">
               <ResourceSettings />
             </TabsContent>
-            
+
             <TabsContent value="engine">
               <EngineSettings />
             </TabsContent>
-            
+
             <TabsContent value="proxy">
               <ProxySettings />
             </TabsContent>
@@ -49,4 +54,4 @@ export default function SettingsPage() {
       </div>
     </div>
   );
-} 
+}

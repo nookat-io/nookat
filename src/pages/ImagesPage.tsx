@@ -24,11 +24,11 @@ export default function ImagesPage() {
           {/* Sticky header section */}
           <div className="sticky top-0 z-10 bg-background border-b">
             <div className="space-y-6 p-6 max-w-full">
-              <ImageHeader 
-                selectedImages={selectedImages} 
+              <ImageHeader
+                selectedImages={selectedImages}
                 onActionComplete={refreshImages}
               />
-              
+
               <ImageControls
                 filter={filter}
                 onFilterChange={setFilter}
@@ -45,7 +45,7 @@ export default function ImagesPage() {
               filter={filter}
               searchTerm={searchTerm}
             >
-              {(filteredImages) => (
+              {filteredImages => (
                 <div className="p-6 max-w-full h-full overflow-auto">
                   <ImagesTable
                     filter={filter}
@@ -63,4 +63,4 @@ export default function ImagesPage() {
       )}
     </ImageDataProvider>
   );
-} 
+}

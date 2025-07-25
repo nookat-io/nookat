@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { invoke } from "@tauri-apps/api/core";
+import { invoke } from '@tauri-apps/api/core';
 
 export interface Port {
   ip?: string;
@@ -12,7 +12,15 @@ export interface ContainerData {
   id: string;
   names: string[];
   image: string;
-  state: 'running' | 'stopped' | 'paused' | 'restarting' | 'created' | 'exited' | 'removing' | 'dead';
+  state:
+    | 'running'
+    | 'stopped'
+    | 'paused'
+    | 'restarting'
+    | 'created'
+    | 'exited'
+    | 'removing'
+    | 'dead';
   created: number;
   ports: Port[];
   size: string;
@@ -30,7 +38,9 @@ interface ContainerDataProviderProps {
 
 const AUTO_REFRESH_INTERVAL = 500;
 
-export function ContainerDataProvider({ children }: ContainerDataProviderProps) {
+export function ContainerDataProvider({
+  children,
+}: ContainerDataProviderProps) {
   const [containers, setContainers] = useState<ContainerData[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -41,13 +51,13 @@ export function ContainerDataProvider({ children }: ContainerDataProviderProps) 
     try {
       setIsLoading(true);
       setError(null);
-      const result = await invoke<ContainerData[]>("list_containers");
+      const result = await invoke<ContainerData[]>('list_containers');
       setContainers(result);
       lastRefreshTime.current = Date.now();
       console.log(result);
     } catch (error) {
-      console.error("Error getting containers:", error);
-      setError("Failed to fetch containers");
+      console.error('Error getting containers:', error);
+      setError('Failed to fetch containers');
     } finally {
       setIsLoading(false);
     }
@@ -65,7 +75,7 @@ export function ContainerDataProvider({ children }: ContainerDataProviderProps) 
 
     // Initial load
     getContainers();
-    
+
     // Start auto-refresh
     startAutoRefresh();
 
@@ -87,4 +97,4 @@ export function ContainerDataProvider({ children }: ContainerDataProviderProps) 
       })}
     </>
   );
-} 
+}

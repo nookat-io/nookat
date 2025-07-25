@@ -2,10 +2,7 @@
 
 import { useState } from 'react';
 import { Button } from '../ui/button';
-import { 
-  Trash2, 
-  Trash
-} from 'lucide-react';
+import { Trash2, Trash } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -15,7 +12,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '../ui/dialog';
-import { invoke } from "@tauri-apps/api/core";
+import { invoke } from '@tauri-apps/api/core';
 import { formatBytes } from '../../utils/format';
 
 interface ImageActionsProps {
@@ -38,7 +35,7 @@ export function ImageActions({ selectedImages, onRefresh }: ImageActionsProps) {
     setIsPruning(true);
     setConfirmDialogOpen(false);
     try {
-      const result = await invoke<PruneResult>("prune_images");
+      const result = await invoke<PruneResult>('prune_images');
       setPruneResult(result);
       setPruneDialogOpen(true);
       // Refresh the image list after pruning
@@ -46,23 +43,20 @@ export function ImageActions({ selectedImages, onRefresh }: ImageActionsProps) {
         onRefresh();
       }
     } catch (error) {
-      console.error("Error pruning images:", error);
-      alert("Failed to prune images: " + error);
+      console.error('Error pruning images:', error);
+      alert('Failed to prune images: ' + error);
     } finally {
       setIsPruning(false);
     }
   };
 
-
-
   return (
     <div className="flex items-center gap-2">
-
       {/* Confirmation Dialog */}
       <Dialog open={confirmDialogOpen} onOpenChange={setConfirmDialogOpen}>
         <DialogTrigger asChild>
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             size="sm"
             onClick={() => setConfirmDialogOpen(true)}
             disabled={isPruning}
@@ -75,19 +69,19 @@ export function ImageActions({ selectedImages, onRefresh }: ImageActionsProps) {
           <DialogHeader>
             <DialogTitle>Confirm Prune Operation</DialogTitle>
             <DialogDescription>
-              This will remove all unused Docker images from your system. 
-              This action cannot be undone. Are you sure you want to continue?
+              This will remove all unused Docker images from your system. This
+              action cannot be undone. Are you sure you want to continue?
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               onClick={() => setConfirmDialogOpen(false)}
             >
               Cancel
             </Button>
-            <Button 
-              variant="destructive" 
+            <Button
+              variant="destructive"
               onClick={handlePrune}
               disabled={isPruning}
             >
@@ -106,7 +100,8 @@ export function ImageActions({ selectedImages, onRefresh }: ImageActionsProps) {
               {pruneResult ? (
                 <div className="space-y-2">
                   <p>
-                    Successfully removed {pruneResult.images_deleted.length} unused images.
+                    Successfully removed {pruneResult.images_deleted.length}{' '}
+                    unused images.
                   </p>
                   <p>
                     Space reclaimed: {formatBytes(pruneResult.space_reclaimed)}
@@ -130,9 +125,7 @@ export function ImageActions({ selectedImages, onRefresh }: ImageActionsProps) {
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button onClick={() => setPruneDialogOpen(false)}>
-              Close
-            </Button>
+            <Button onClick={() => setPruneDialogOpen(false)}>Close</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

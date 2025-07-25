@@ -1,5 +1,13 @@
 import { Button } from '../../ui/button';
-import { Play, Square, RotateCcw, Trash2, Pause, Play as ResumeIcon, Trash } from 'lucide-react';
+import {
+  Play,
+  Square,
+  RotateCcw,
+  Trash2,
+  Pause,
+  Play as ResumeIcon,
+  Trash,
+} from 'lucide-react';
 import { ContainerData } from '../data/container-data-provider';
 import { useState } from 'react';
 import { ContainerActionService } from '../utils/container-actions';
@@ -11,38 +19,54 @@ interface ContainerActionsProps {
   onSelectionChange?: (selected: string[]) => void;
 }
 
-export function ContainerActions({ selectedContainers, containers, onActionComplete, onSelectionChange }: ContainerActionsProps) {
+export function ContainerActions({
+  selectedContainers,
+  containers,
+  onActionComplete,
+  onSelectionChange,
+}: ContainerActionsProps) {
   const [isLoading, setIsLoading] = useState<string | null>(null);
 
-  const selectedContainerData = containers.filter(container => 
+  const selectedContainerData = containers.filter(container =>
     selectedContainers.includes(container.id)
   );
 
-  const canStart = selectedContainerData.length > 0 && selectedContainerData.every(container => 
-    ['stopped', 'exited', 'created'].includes(container.state)
-  );
+  const canStart =
+    selectedContainerData.length > 0 &&
+    selectedContainerData.every(container =>
+      ['stopped', 'exited', 'created'].includes(container.state)
+    );
 
-  const canStop = selectedContainerData.length > 0 && selectedContainerData.every(container => 
-    ['running', 'restarting'].includes(container.state)
-  );
+  const canStop =
+    selectedContainerData.length > 0 &&
+    selectedContainerData.every(container =>
+      ['running', 'restarting'].includes(container.state)
+    );
 
-  const canPause = selectedContainerData.length > 0 && selectedContainerData.every(container => 
-    container.state === 'running'
-  );
+  const canPause =
+    selectedContainerData.length > 0 &&
+    selectedContainerData.every(container => container.state === 'running');
 
-  const canResume = selectedContainerData.length > 0 && selectedContainerData.every(container => 
-    container.state === 'paused'
-  );
+  const canResume =
+    selectedContainerData.length > 0 &&
+    selectedContainerData.every(container => container.state === 'paused');
 
-  const canRestart = selectedContainerData.length > 0 && selectedContainerData.every(container => 
-    ['running', 'restarting'].includes(container.state)
-  );
+  const canRestart =
+    selectedContainerData.length > 0 &&
+    selectedContainerData.every(container =>
+      ['running', 'restarting'].includes(container.state)
+    );
 
-  const canDelete = selectedContainerData.length > 0 && selectedContainerData.every(container => 
-    ['stopped', 'exited', 'created', "running"].includes(container.state)
-  );
+  const canDelete =
+    selectedContainerData.length > 0 &&
+    selectedContainerData.every(container =>
+      ['stopped', 'exited', 'created', 'running'].includes(container.state)
+    );
 
-  const handleAction = async (action: () => Promise<void>, actionName: string) => {
+  const handleAction = async (
+    action: () => Promise<void>,
+    actionName: string
+  ) => {
     setIsLoading(actionName);
     try {
       await action();
@@ -51,43 +75,74 @@ export function ContainerActions({ selectedContainers, containers, onActionCompl
     }
   };
 
-  const handleStart = () => handleAction(
-    () => ContainerActionService.bulkStartContainers(selectedContainers, { onActionComplete, onSelectionChange }),
-    'start'
-  );
+  const handleStart = () =>
+    handleAction(
+      () =>
+        ContainerActionService.bulkStartContainers(selectedContainers, {
+          onActionComplete,
+          onSelectionChange,
+        }),
+      'start'
+    );
 
-  const handleStop = () => handleAction(
-    () => ContainerActionService.bulkStopContainers(selectedContainers, { onActionComplete, onSelectionChange }),
-    'stop'
-  );
+  const handleStop = () =>
+    handleAction(
+      () =>
+        ContainerActionService.bulkStopContainers(selectedContainers, {
+          onActionComplete,
+          onSelectionChange,
+        }),
+      'stop'
+    );
 
-  const handlePause = () => handleAction(
-    () => ContainerActionService.bulkPauseContainers(selectedContainers, { onActionComplete, onSelectionChange }),
-    'pause'
-  );
+  const handlePause = () =>
+    handleAction(
+      () =>
+        ContainerActionService.bulkPauseContainers(selectedContainers, {
+          onActionComplete,
+          onSelectionChange,
+        }),
+      'pause'
+    );
 
-  const handleResume = () => handleAction(
-    () => ContainerActionService.bulkResumeContainers(selectedContainers, { onActionComplete, onSelectionChange }),
-    'resume'
-  );
+  const handleResume = () =>
+    handleAction(
+      () =>
+        ContainerActionService.bulkResumeContainers(selectedContainers, {
+          onActionComplete,
+          onSelectionChange,
+        }),
+      'resume'
+    );
 
-  const handleRestart = () => handleAction(
-    () => ContainerActionService.bulkRestartContainers(selectedContainers, { onActionComplete, onSelectionChange }),
-    'restart'
-  );
+  const handleRestart = () =>
+    handleAction(
+      () =>
+        ContainerActionService.bulkRestartContainers(selectedContainers, {
+          onActionComplete,
+          onSelectionChange,
+        }),
+      'restart'
+    );
 
   const handleDelete = () => {
     const hasRunning = selectedContainerData.some(c => c.state === 'running');
     handleAction(
-      () => ContainerActionService.bulkDeleteContainers(selectedContainers, hasRunning, { onActionComplete, onSelectionChange }),
+      () =>
+        ContainerActionService.bulkDeleteContainers(
+          selectedContainers,
+          hasRunning,
+          { onActionComplete, onSelectionChange }
+        ),
       'delete'
     );
   };
 
-  const handlePrune = () => handleAction(
-    () => ContainerActionService.pruneContainers({ onActionComplete }),
-    'prune'
-  );
+  const handlePrune = () =>
+    handleAction(
+      () => ContainerActionService.pruneContainers({ onActionComplete }),
+      'prune'
+    );
 
   if (selectedContainers.length === 0) {
     return (

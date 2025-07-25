@@ -1,7 +1,13 @@
 'use client';
 
 import { useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '../ui/card';
 import { Switch } from '../ui/switch';
 import { Label } from '../ui/label';
 import { Button } from '../ui/button';
@@ -33,20 +39,24 @@ export function GeneralSettings() {
         <CardContent className="space-y-4">
           <div className="flex items-center justify-between">
             <div className="space-y-0.5">
-              <Label htmlFor="start-on-boot">Start DockerWeb on system boot</Label>
+              <Label htmlFor="start-on-boot">
+                Start DockerWeb on system boot
+              </Label>
               <div className="text-sm text-muted-foreground">
                 Automatically launch DockerWeb when your system starts
               </div>
             </div>
-            <Switch 
+            <Switch
               id="start-on-boot"
               checked={settings.startOnBoot}
-              onCheckedChange={(checked) => handleSettingChange('startOnBoot', checked)}
+              onCheckedChange={checked =>
+                handleSettingChange('startOnBoot', checked)
+              }
             />
           </div>
-          
+
           <Separator />
-          
+
           <div className="flex items-center justify-between">
             <div className="space-y-0.5">
               <Label htmlFor="minimize-to-tray">Minimize to system tray</Label>
@@ -54,10 +64,12 @@ export function GeneralSettings() {
                 Keep DockerWeb running in the background
               </div>
             </div>
-            <Switch 
+            <Switch
               id="minimize-to-tray"
               checked={settings.minimizeToTray}
-              onCheckedChange={(checked) => handleSettingChange('minimizeToTray', checked)}
+              onCheckedChange={checked =>
+                handleSettingChange('minimizeToTray', checked)
+              }
             />
           </div>
         </CardContent>
@@ -78,15 +90,17 @@ export function GeneralSettings() {
                 Automatically download and install updates
               </div>
             </div>
-            <Switch 
+            <Switch
               id="auto-update"
               checked={settings.autoUpdate}
-              onCheckedChange={(checked) => handleSettingChange('autoUpdate', checked)}
+              onCheckedChange={checked =>
+                handleSettingChange('autoUpdate', checked)
+              }
             />
           </div>
-          
+
           <Separator />
-          
+
           <div className="flex items-center justify-between">
             <div className="space-y-0.5">
               <Label htmlFor="show-notifications">Show notifications</Label>
@@ -94,10 +108,12 @@ export function GeneralSettings() {
                 Display desktop notifications for container events
               </div>
             </div>
-            <Switch 
+            <Switch
               id="show-notifications"
               checked={settings.showNotifications}
-              onCheckedChange={(checked) => handleSettingChange('showNotifications', checked)}
+              onCheckedChange={checked =>
+                handleSettingChange('showNotifications', checked)
+              }
             />
           </div>
         </CardContent>
@@ -117,10 +133,12 @@ export function GeneralSettings() {
               id="docker-username"
               placeholder="Enter your Docker Hub username"
               value={settings.dockerHubUsername}
-              onChange={(e) => handleSettingChange('dockerHubUsername', e.target.value)}
+              onChange={e =>
+                handleSettingChange('dockerHubUsername', e.target.value)
+              }
             />
           </div>
-          
+
           <div className="flex space-x-2">
             <Button variant="outline">Test Connection</Button>
             <Button>Save Settings</Button>

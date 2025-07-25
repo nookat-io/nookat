@@ -12,9 +12,7 @@ export default function NetworksPage() {
           <div className="border border-border/50 rounded-2xl p-6 dark:bg-card/50 w-full flex flex-col items-start justify-start">
             <div className="flex items-start justify-between w-full">
               <div className="flex flex-col items-start justify-start">
-                <h1 className="text-3xl font-bold bg-clip-text">
-                  Networks
-                </h1>
+                <h1 className="text-3xl font-bold bg-clip-text">Networks</h1>
                 <p className="text-muted-foreground mt-2">
                   Manage Docker networks and container connectivity
                 </p>
@@ -25,9 +23,9 @@ export default function NetworksPage() {
             </div>
           </div>
         </div>
-        
+
         <div className="content-section">
-          <NetworksTable 
+          <NetworksTable
             selectedNetworks={selectedNetworks}
             onSelectionChange={setSelectedNetworks}
           />
@@ -35,4 +33,4 @@ export default function NetworksPage() {
       </div>
     </div>
   );
-} 
+}

@@ -11,11 +11,11 @@ interface ContainerGroupActionsProps {
   onActionComplete?: () => void;
 }
 
-export function ContainerGroupActions({ 
-  containerIds, 
-  hasRunningContainers, 
+export function ContainerGroupActions({
+  containerIds,
+  hasRunningContainers,
   allStopped,
-  onActionComplete 
+  onActionComplete,
 }: ContainerGroupActionsProps) {
   const handleAction = async (action: () => Promise<void>) => {
     try {
@@ -32,42 +32,52 @@ export function ContainerGroupActions({
         <Button
           variant="outline"
           size="sm"
-          onClick={() => handleAction(() => 
-            ContainerActionService.bulkStartContainers(containerIds, { onActionComplete })
-          )}
+          onClick={() =>
+            handleAction(() =>
+              ContainerActionService.bulkStartContainers(containerIds, {
+                onActionComplete,
+              })
+            )
+          }
           className="h-7 px-2 text-xs"
         >
           <Play className="mr-1 h-3 w-3" />
           Start
         </Button>
       )}
-      
+
       {/* Stop action for groups with running containers */}
       {hasRunningContainers && (
         <Button
           variant="outline"
           size="sm"
-          onClick={() => handleAction(() => 
-            ContainerActionService.bulkStopContainers(containerIds, { onActionComplete })
-          )}
+          onClick={() =>
+            handleAction(() =>
+              ContainerActionService.bulkStopContainers(containerIds, {
+                onActionComplete,
+              })
+            )
+          }
           className="h-7 px-2 text-xs"
         >
           <Square className="mr-1 h-3 w-3" />
           Stop
         </Button>
       )}
-      
+
       {/* Delete action for all groups */}
       <Button
         variant="outline"
         size="sm"
-        onClick={() => handleAction(() => 
-          ContainerActionService.bulkDeleteContainers(
-            containerIds, 
-            hasRunningContainers, 
-            { onActionComplete }
+        onClick={() =>
+          handleAction(() =>
+            ContainerActionService.bulkDeleteContainers(
+              containerIds,
+              hasRunningContainers,
+              { onActionComplete }
+            )
           )
-        )}
+        }
         className="h-7 px-2 text-xs text-destructive hover:text-destructive"
       >
         <Trash2 className="mr-1 h-3 w-3" />
@@ -75,4 +85,4 @@ export function ContainerGroupActions({
       </Button>
     </div>
   );
-} 
+}

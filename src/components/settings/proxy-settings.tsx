@@ -1,7 +1,13 @@
 'use client';
 
 import { useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '../ui/card';
 import { Label } from '../ui/label';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
@@ -40,43 +46,47 @@ export function ProxySettings() {
                 Use proxy server for Docker registry connections
               </div>
             </div>
-            <Switch 
+            <Switch
               checked={proxy.enableProxy}
-              onCheckedChange={(checked) => handleProxyChange('enableProxy', checked)}
+              onCheckedChange={checked =>
+                handleProxyChange('enableProxy', checked)
+              }
             />
           </div>
-          
+
           {proxy.enableProxy && (
             <>
               <Separator />
-              
+
               <div className="space-y-2">
                 <Label htmlFor="http-proxy">HTTP Proxy</Label>
                 <Input
                   id="http-proxy"
                   placeholder="http://proxy.example.com:8080"
                   value={proxy.httpProxy}
-                  onChange={(e) => handleProxyChange('httpProxy', e.target.value)}
+                  onChange={e => handleProxyChange('httpProxy', e.target.value)}
                 />
               </div>
-              
+
               <div className="space-y-2">
                 <Label htmlFor="https-proxy">HTTPS Proxy</Label>
                 <Input
                   id="https-proxy"
                   placeholder="https://proxy.example.com:8080"
                   value={proxy.httpsProxy}
-                  onChange={(e) => handleProxyChange('httpsProxy', e.target.value)}
+                  onChange={e =>
+                    handleProxyChange('httpsProxy', e.target.value)
+                  }
                 />
               </div>
-              
+
               <div className="space-y-2">
                 <Label htmlFor="no-proxy">No Proxy</Label>
                 <Input
                   id="no-proxy"
                   placeholder="localhost,127.0.0.1,*.local"
                   value={proxy.noProxy}
-                  onChange={(e) => handleProxyChange('noProxy', e.target.value)}
+                  onChange={e => handleProxyChange('noProxy', e.target.value)}
                 />
                 <div className="text-xs text-muted-foreground">
                   Comma-separated list of domains to bypass proxy
@@ -103,33 +113,39 @@ export function ProxySettings() {
                   Proxy server requires username and password
                 </div>
               </div>
-              <Switch 
+              <Switch
                 checked={proxy.proxyAuth}
-                onCheckedChange={(checked) => handleProxyChange('proxyAuth', checked)}
+                onCheckedChange={checked =>
+                  handleProxyChange('proxyAuth', checked)
+                }
               />
             </div>
-            
+
             {proxy.proxyAuth && (
               <>
                 <Separator />
-                
+
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="proxy-username">Username</Label>
                     <Input
                       id="proxy-username"
                       value={proxy.username}
-                      onChange={(e) => handleProxyChange('username', e.target.value)}
+                      onChange={e =>
+                        handleProxyChange('username', e.target.value)
+                      }
                     />
                   </div>
-                  
+
                   <div className="space-y-2">
                     <Label htmlFor="proxy-password">Password</Label>
                     <Input
                       id="proxy-password"
                       type="password"
                       value={proxy.password}
-                      onChange={(e) => handleProxyChange('password', e.target.value)}
+                      onChange={e =>
+                        handleProxyChange('password', e.target.value)
+                      }
                     />
                   </div>
                 </div>

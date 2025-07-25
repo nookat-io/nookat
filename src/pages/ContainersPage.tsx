@@ -24,13 +24,13 @@ export default function ContainersPage() {
           {/* Sticky header section */}
           <div className="sticky top-0 z-10 bg-background border-b">
             <div className="space-y-6 p-6 max-w-full">
-              <ContainerHeader 
-                selectedContainers={selectedContainers} 
-                containers={containers} 
+              <ContainerHeader
+                selectedContainers={selectedContainers}
+                containers={containers}
                 onActionComplete={refreshContainers}
                 onSelectionChange={setSelectedContainers}
               />
-              
+
               <ContainerControls
                 filter={filter}
                 onFilterChange={setFilter}
@@ -47,7 +47,7 @@ export default function ContainersPage() {
               filter={filter}
               searchTerm={searchTerm}
             >
-              {(filteredContainers) => (
+              {filteredContainers => (
                 <div className="p-6 max-w-full h-full overflow-auto">
                   <ContainersTable
                     filter={filter}
@@ -64,4 +64,4 @@ export default function ContainersPage() {
       )}
     </ContainerDataProvider>
   );
-} 
+}

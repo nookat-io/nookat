@@ -12,7 +12,7 @@ export function VolumeActions({ selectedVolumes }: VolumeActionsProps) {
         <Plus className="mr-2 h-4 w-4" />
         Create Volume
       </Button>
-      
+
       {selectedVolumes.length > 0 && (
         <Button variant="outline" size="sm">
           <Trash2 className="mr-2 h-4 w-4" />

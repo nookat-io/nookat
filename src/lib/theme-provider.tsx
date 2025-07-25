@@ -21,7 +21,8 @@ const initialState: ThemeProviderState = {
   setTheme: () => null,
 };
 
-const ThemeProviderContext = React.createContext<ThemeProviderState>(initialState);
+const ThemeProviderContext =
+  React.createContext<ThemeProviderState>(initialState);
 
 export function ThemeProvider({
   children,
@@ -33,13 +34,17 @@ export function ThemeProvider({
 
   React.useEffect(() => {
     const root = window.document.documentElement;
-    const systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-    
-    const currentTheme = theme === 'system' && enableSystem ? systemTheme : theme;
-    
+    const systemTheme = window.matchMedia('(prefers-color-scheme: dark)')
+      .matches
+      ? 'dark'
+      : 'light';
+
+    const currentTheme =
+      theme === 'system' && enableSystem ? systemTheme : theme;
+
     root.classList.remove('light', 'dark');
     root.classList.add(currentTheme);
-    
+
     if (attribute === 'class') {
       root.classList.remove('light', 'dark');
       root.classList.add(currentTheme);
