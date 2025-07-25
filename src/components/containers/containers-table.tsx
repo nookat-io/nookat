@@ -62,16 +62,16 @@ export function ContainersTable({
   const [logsFormOpen, setLogsFormOpen] = useState(false);
   const [selectedContainerForLogs, setSelectedContainerForLogs] = useState<ContainerData | null>(null);
 
-  // Clean up stale selections when containers list changes
+  // Clean up stale selections when containers list changes - optimized to reduce re-renders
   useEffect(() => {
     const existingContainerIds = new Set(containers.map(c => c.id));
-    const staleSelections = selectedContainers.filter(id => !existingContainerIds.has(id));
+    const cleanedSelections = selectedContainers.filter(id => existingContainerIds.has(id));
     
-    if (staleSelections.length > 0) {
-      const cleanedSelections = selectedContainers.filter(id => existingContainerIds.has(id));
+    // Only update if there's actually a difference
+    if (cleanedSelections.length !== selectedContainers.length) {
       onSelectionChange(cleanedSelections);
     }
-  }, [containers, selectedContainers, onSelectionChange]);
+  }, [containers.length]); // Only depend on containers length to reduce unnecessary re-runs
 
   const getProjectName = (container: ContainerData): string | null => {
     return container.labels && container.labels["com.docker.compose.project"] || null;

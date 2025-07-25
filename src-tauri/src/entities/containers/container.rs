@@ -70,21 +70,6 @@ impl From<String> for ContainerState {
     }
 }
 
-// impl From<bollard::models::ContainerSummaryStateEnum> for ContainerState {
-//     fn from(state: bollard::models::ContainerSummaryStateEnum) -> Self {
-//         match state {
-//             bollard::models::ContainerSummaryStateEnum::EMPTY => ContainerState::EMPTY,
-//             bollard::models::ContainerSummaryStateEnum::CREATED => ContainerState::CREATED,
-//             bollard::models::ContainerSummaryStateEnum::RUNNING => ContainerState::RUNNING,
-//             bollard::models::ContainerSummaryStateEnum::PAUSED => ContainerState::PAUSED,
-//             bollard::models::ContainerSummaryStateEnum::RESTARTING => ContainerState::RESTARTING,
-//             bollard::models::ContainerSummaryStateEnum::EXITED => ContainerState::EXITED,
-//             bollard::models::ContainerSummaryStateEnum::REMOVING => ContainerState::REMOVING,
-//             bollard::models::ContainerSummaryStateEnum::DEAD => ContainerState::DEAD,
-//         }
-//     }
-// }
-
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Container {
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -110,12 +95,6 @@ pub struct Container {
     /// The ID (digest) of the image that this container was created from.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub image_id: Option<String>,
-
-    /// OCI descriptor of the platform-specific manifest of the image the container was created from.  
-    /// Note: Only available if the daemon provides a multi-platform image store.
-    /// This field is not populated in the `GET /system/df` endpoint.
-    // #[serde(skip_serializing_if = "Option::is_none")]
-    // pub image_manifest_descriptor: Option<OciDescriptor>,
 
     /// Command to run when starting the container
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -170,9 +149,6 @@ impl From<ContainerSummary> for Container {
             names: container.names,
             image: container.image,
             image_id: container.image_id,
-            // image_manifest_descriptor: container
-            //     .image_manifest_descriptor
-            //     .map(|descriptor| descriptor.into()),
             command: container.command,
             created: container.created,
             ports: container

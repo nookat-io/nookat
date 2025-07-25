@@ -1,6 +1,9 @@
 use bollard::image::ListImagesOptions;
 use bollard::Docker;
 use serde::{Deserialize, Serialize};
+use crate::{AppError, AppResult};
+use crate::services::DockerService;
+use log::{info, error, debug};
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Image {
@@ -13,23 +16,27 @@ pub struct Image {
     pub in_use: bool,
 }
 
-async fn get_images() -> Vec<Image> {
-    let docker = Docker::connect_with_local_defaults().unwrap();
+async fn get_images() -> AppResult<Vec<Image>> {
+    let docker = DockerService::connect()?;
 
     let options: ListImagesOptions<String> = ListImagesOptions::default();
 
-    let images = &docker
+    info!("Fetching Docker images");
+    let images = docker
         .list_images(Some(options))
         .await
-        .expect("Failed to list images");
+        .map_err(|e| {
+            error!("Failed to list images: {}", e);
+            AppError::DockerConnection(e)
+        })?;
 
-    images
+    let processed_images: Vec<Image> = images
         .iter()
         .map(|image| {
             let mut image_name = None;
             let mut image_tag = None;
 
-            if image.repo_tags.len() > 0 {
+            if !image.repo_tags.is_empty() {
                 let tag_full = image.repo_tags[0].clone();
                 let parts: Vec<&str> = tag_full.splitn(2, ':').collect();
 
@@ -39,15 +46,17 @@ async fn get_images() -> Vec<Image> {
                 } else if parts.len() == 1 {
                     // Handle case where there's no tag (just repository name)
                     image_name = Some(parts[0].to_string());
-                    image_tag = Some("unknown".to_string());
+                    image_tag = Some("latest".to_string()); // Use "latest" instead of "unknown"
                 }
             } else {
+                // Handle untagged images
                 let id = image.id.clone();
-                if id.starts_with("sha256:") {
-                    image_name = Some(id.split(":").nth(1).unwrap_or("unknown").to_string());
-                    image_tag = Some("unknown".to_string());
+                if let Some(short_id) = id.strip_prefix("sha256:") {
+                    // Take first 12 characters of SHA for display
+                    image_name = Some(format!("<none>"));
+                    image_tag = Some(short_id.chars().take(12).collect());
                 } else {
-                    image_name = Some(id);
+                    image_name = Some("<none>".to_string());
                     image_tag = Some("unknown".to_string());
                 }
             }
@@ -59,16 +68,19 @@ async fn get_images() -> Vec<Image> {
                 image_id: image.id.clone(),
                 created: image.created,
                 size: image.size,
-                in_use: false,
+                in_use: false, // TODO: Implement actual usage detection
             }
         })
-        .collect()
+        .collect();
+
+    debug!("Found {} images", processed_images.len());
+    Ok(processed_images)
 }
 
 #[tauri::command]
-pub async fn list_images() -> Vec<Image> {
-    println!("Listing images");
-
-    let images = get_images().await;
-    return images;
+pub async fn list_images() -> Result<Vec<Image>, AppError> {
+    info!("Listing images");
+    let images = get_images().await?;
+    info!("Successfully listed {} images", images.len());
+    Ok(images)
 }

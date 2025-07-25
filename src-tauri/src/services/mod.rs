@@ -5,10 +5,11 @@ mod images;
 mod networks;
 mod system_info;
 mod volumes;
+mod docker;
 
-pub use containers::*;
-
-pub use images::*;
-pub use networks::*;
-pub use system_info::*;
-pub use volumes::*;
+pub use self::containers::ContainersService;
+pub use self::images::ImagesService;
+pub use self::networks::NetworksService;
+pub use self::system_info::SystemInfoService;
+pub use self::volumes::VolumesService;
+pub use self::docker::DockerService;
