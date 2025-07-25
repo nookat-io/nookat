@@ -2,10 +2,16 @@ import { useState } from 'react';
 import { ImagesTable } from '../components/images/images-table';
 import { ImageActions } from '../components/images/image-actions';
 import { ImageFilters } from '../components/images/image-filters';
+import { ImageDataProvider } from '../components/images/image-data-provider';
 
 export default function ImagesPage() {
   const [selectedImages, setSelectedImages] = useState<string[]>([]);
   const [filter, setFilter] = useState<'all' | 'used' | 'dangling'>('all');
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  const handleRefresh = () => {
+    setRefreshKey(prev => prev + 1);
+  };
 
   return (
     <div className="page-background min-h-screen">
@@ -22,7 +28,10 @@ export default function ImagesPage() {
                 </p>
               </div>
               <div className="flex items-start">
-                <ImageActions selectedImages={selectedImages} />
+                <ImageActions 
+                  selectedImages={selectedImages} 
+                  onRefresh={handleRefresh}
+                />
               </div>
             </div>
           </div>
@@ -33,11 +42,18 @@ export default function ImagesPage() {
         </div>
         
         <div className="content-section">
-          <ImagesTable 
-            filter={filter}
-            selectedImages={selectedImages}
-            onSelectionChange={setSelectedImages}
-          />
+          <ImageDataProvider key={refreshKey}>
+            {({ images, isLoading, error }) => (
+              <ImagesTable 
+                filter={filter}
+                selectedImages={selectedImages}
+                onSelectionChange={setSelectedImages}
+                images={images}
+                isLoading={isLoading}
+                error={error}
+              />
+            )}
+          </ImageDataProvider>
         </div>
       </div>
     </div>

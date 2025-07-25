@@ -1,6 +1,9 @@
 use bollard::models::ContainerSummary;
 use bollard::{
-    container::{ListContainersOptions, StartContainerOptions, StopContainerOptions, RestartContainerOptions, RemoveContainerOptions, LogsOptions},
+    container::{
+        ListContainersOptions, LogsOptions, RemoveContainerOptions, RestartContainerOptions,
+        StartContainerOptions, StopContainerOptions,
+    },
     Docker,
 };
 use std::process::Command;
@@ -135,20 +138,23 @@ impl ContainersService {
         // First, verify that the container exists and is running
         let docker = Docker::connect_with_local_defaults()
             .map_err(|e| format!("Failed to connect to Docker: {}", e))?;
-        
+
         // Check if container exists and is running
-        let containers = docker.list_containers(None::<ListContainersOptions<String>>)
+        let containers = docker
+            .list_containers(None::<ListContainersOptions<String>>)
             .await
             .map_err(|e| format!("Failed to list containers: {}", e))?;
-        
-        let container_exists = containers.iter().any(|c| c.id.as_ref().unwrap_or(&"".to_string()).starts_with(id));
+
+        let container_exists = containers
+            .iter()
+            .any(|c| c.id.as_ref().unwrap_or(&"".to_string()).starts_with(id));
         if !container_exists {
             return Err("Container not found".to_string());
         }
-        
+
         let container_running = containers.iter().any(|c| {
-            c.id.as_ref().unwrap_or(&"".to_string()).starts_with(id) && 
-            c.state.as_ref().unwrap_or(&"".to_string()) == "running"
+            c.id.as_ref().unwrap_or(&"".to_string()).starts_with(id)
+                && c.state.as_ref().unwrap_or(&"".to_string()) == "running"
         });
         if !container_running {
             return Err("Container is not running".to_string());
@@ -159,15 +165,18 @@ impl ContainersService {
             // Try bash first, then fall back to sh
             let shell_commands = ["bash", "sh"];
             let mut success = false;
-            
+
             for shell in shell_commands.iter() {
                 let status = Command::new("osascript")
                     .args([
                         "-e",
-                        &format!("tell application \"Terminal\" to do script \"docker exec -it {} {}\"", id, shell)
+                        &format!(
+                            "tell application \"Terminal\" to do script \"docker exec -it {} {}\"",
+                            id, shell
+                        ),
                     ])
                     .status();
-                
+
                 match status {
                     Ok(status) if status.success() => {
                         success = true;
@@ -176,7 +185,7 @@ impl ContainersService {
                     _ => continue,
                 }
             }
-            
+
             if !success {
                 return Err("Failed to open terminal".to_string());
             }
@@ -186,7 +195,10 @@ impl ContainersService {
         {
             // Try to detect the default terminal
             let terminal_commands = [
-                ("gnome-terminal", &["--", "docker", "exec", "-it", id, "bash"]),
+                (
+                    "gnome-terminal",
+                    &["--", "docker", "exec", "-it", id, "bash"],
+                ),
                 ("konsole", &["-e", "docker", "exec", "-it", id, "bash"]),
                 ("xterm", &["-e", "docker", "exec", "-it", id, "bash"]),
                 ("alacritty", &["-e", "docker", "exec", "-it", id, "bash"]),
@@ -233,12 +245,12 @@ impl ContainersService {
             // Try bash first, then fall back to sh
             let shell_commands = ["bash", "sh"];
             let mut success = false;
-            
+
             for shell in shell_commands.iter() {
                 let status = Command::new("cmd")
                     .args(["/C", "start", "docker", "exec", "-it", id, shell])
                     .status();
-                
+
                 match status {
                     Ok(status) if status.success() => {
                         success = true;
@@ -247,7 +259,7 @@ impl ContainersService {
                     _ => continue,
                 }
             }
-            
+
             if !success {
                 return Err("Failed to open terminal".to_string());
             }
@@ -271,24 +283,24 @@ impl ContainersService {
 
         // Convert the logs stream to strings
         let mut logs = Vec::new();
-        
+
         // Collect all log entries from the stream
         use futures_util::StreamExt;
-        
+
         let mut stream = logs_stream;
         while let Some(log_entry) = stream.next().await {
             match log_entry {
-                Ok(bollard::container::LogOutput::StdOut { message }) |
-                Ok(bollard::container::LogOutput::StdErr { message }) => {
+                Ok(bollard::container::LogOutput::StdOut { message })
+                | Ok(bollard::container::LogOutput::StdErr { message }) => {
                     // Convert bytes to string
                     if let Ok(log_line) = String::from_utf8(message.to_vec()) {
                         logs.push(log_line);
                     }
-                },
+                }
                 Ok(_) => {
                     // Handle other log output types if needed
                     continue;
-                },
+                }
                 Err(e) => {
                     return Err(format!("Error reading log stream: {}", e));
                 }
@@ -315,8 +327,4 @@ impl ContainersService {
 
         Ok(())
     }
-
-
 }
-
-
