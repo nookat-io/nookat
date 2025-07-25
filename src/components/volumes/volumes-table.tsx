@@ -1,6 +1,5 @@
 'use client';
 
-import { useState } from 'react';
 import {
   Table,
   TableBody,
@@ -10,148 +9,117 @@ import {
   TableRow,
 } from '../ui/table';
 import { Checkbox } from '../ui/checkbox';
-import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
-import { Trash2, HardDrive, MoreHorizontal } from 'lucide-react';
+import { Trash2, MoreHorizontal } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '../ui/dropdown-menu';
-import { formatDistanceToNow } from 'date-fns';
-
-interface Volume {
-  id: string;
-  name: string;
-  driver: string;
-  mountpoint: string;
-  created: Date;
-  size: string;
-  inUse: boolean;
-  containers: string[];
-}
+import { VolumeData } from './data/volume-data-provider';
+import { VolumeActionService } from './utils/volume-actions';
+import { useState } from 'react';
 
 interface VolumesTableProps {
   selectedVolumes: string[];
   onSelectionChange: (_selected: string[]) => void;
+  volumes: VolumeData[];
+  onActionComplete?: () => void;
 }
 
 export function VolumesTable({
   selectedVolumes,
   onSelectionChange,
+  volumes,
+  onActionComplete,
 }: VolumesTableProps) {
-  const [volumes] = useState<Volume[]>([
-    {
-      id: 'vol_1',
-      name: 'postgres_data',
-      driver: 'local',
-      mountpoint: '/var/lib/docker/volumes/postgres_data/_data',
-      created: new Date(Date.now() - 86400000),
-      size: '245 MB',
-      inUse: true,
-      containers: ['postgres-db'],
-    },
-    {
-      id: 'vol_2',
-      name: 'app_logs',
-      driver: 'local',
-      mountpoint: '/var/lib/docker/volumes/app_logs/_data',
-      created: new Date(Date.now() - 172800000),
-      size: '12.3 MB',
-      inUse: true,
-      containers: ['nginx-web'],
-    },
-    {
-      id: 'vol_3',
-      name: 'temp_storage',
-      driver: 'local',
-      mountpoint: '/var/lib/docker/volumes/temp_storage/_data',
-      created: new Date(Date.now() - 259200000),
-      size: '0 B',
-      inUse: false,
-      containers: [],
-    },
-  ]);
+  const [isDeleting, setIsDeleting] = useState<string | null>(null);
+
+  // Sort volumes by name for consistent rendering
+  const sortedVolumes = [...volumes].sort((a, b) =>
+    a.name.localeCompare(b.name)
+  );
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
-      onSelectionChange(volumes.map(v => v.id));
+      onSelectionChange(sortedVolumes.map(v => v.name));
     } else {
       onSelectionChange([]);
     }
   };
 
-  const handleSelectVolume = (volumeId: string, checked: boolean) => {
+  const handleSelectVolume = (volumeName: string, checked: boolean) => {
     if (checked) {
-      onSelectionChange([...selectedVolumes, volumeId]);
+      onSelectionChange([...selectedVolumes, volumeName]);
     } else {
-      onSelectionChange(selectedVolumes.filter(id => id !== volumeId));
+      onSelectionChange(selectedVolumes.filter(name => name !== volumeName));
     }
+  };
+
+  const handleDeleteVolume = async (volumeName: string) => {
+    setIsDeleting(volumeName);
+    try {
+      await VolumeActionService.removeVolume(volumeName, {
+        onActionComplete,
+      });
+    } finally {
+      setIsDeleting(null);
+    }
+  };
+
+  const formatScope = (scope?: string) => {
+    if (!scope || scope === 'EMPTY') return '-';
+    return scope === 'LOCAL' ? 'Local' : 'Global';
   };
 
   return (
     <div className="border rounded-lg overflow-hidden">
       <div className="overflow-x-auto">
-        <Table>
+        <Table className="table-fixed">
           <TableHeader>
             <TableRow>
               <TableHead className="w-12">
                 <Checkbox
-                  checked={selectedVolumes.length === volumes.length}
+                  checked={selectedVolumes.length === sortedVolumes.length}
                   onCheckedChange={handleSelectAll}
                 />
               </TableHead>
-              <TableHead>Name</TableHead>
-              <TableHead>Driver</TableHead>
-              <TableHead>Mount Point</TableHead>
-              <TableHead>Created</TableHead>
-              <TableHead>Size</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Containers</TableHead>
-              <TableHead className="w-24">Actions</TableHead>
+              <TableHead className="w-[40%]">Name</TableHead>
+              <TableHead className="w-[10%]">Driver</TableHead>
+              <TableHead className="w-[10%]">Scope</TableHead>
+              <TableHead className="w-[30%]">Mount Point</TableHead>
+              <TableHead className="w-[10%] text-left">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {volumes.map(volume => (
-              <TableRow key={volume.id}>
+            {sortedVolumes.map(volume => (
+              <TableRow key={volume.name}>
                 <TableCell>
                   <Checkbox
-                    checked={selectedVolumes.includes(volume.id)}
+                    checked={selectedVolumes.includes(volume.name)}
                     onCheckedChange={checked =>
-                      handleSelectVolume(volume.id, checked as boolean)
+                      handleSelectVolume(volume.name, checked as boolean)
                     }
                   />
                 </TableCell>
-                <TableCell className="font-medium">{volume.name}</TableCell>
-                <TableCell className="text-muted-foreground">
+                <TableCell className="font-medium truncate" title={volume.name}>
+                  {volume.name}
+                </TableCell>
+                <TableCell
+                  className="text-muted-foreground truncate"
+                  title={volume.driver}
+                >
                   {volume.driver}
                 </TableCell>
-                <TableCell className="text-muted-foreground text-xs font-mono max-w-xs truncate">
+                <TableCell className="text-muted-foreground">
+                  {formatScope(volume.scope)}
+                </TableCell>
+                <TableCell
+                  className="text-muted-foreground text-xs font-mono truncate"
+                  title={volume.mountpoint}
+                >
                   {volume.mountpoint}
-                </TableCell>
-                <TableCell className="text-muted-foreground">
-                  {formatDistanceToNow(volume.created)} ago
-                </TableCell>
-                <TableCell className="text-muted-foreground">
-                  {volume.size}
-                </TableCell>
-                <TableCell>
-                  <Badge
-                    variant={volume.inUse ? 'default' : 'secondary'}
-                    className={
-                      volume.inUse
-                        ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300'
-                        : ''
-                    }
-                  >
-                    {volume.inUse ? 'In Use' : 'Unused'}
-                  </Badge>
-                </TableCell>
-                <TableCell className="text-muted-foreground">
-                  {volume.containers.length > 0
-                    ? volume.containers.join(', ')
-                    : '-'}
                 </TableCell>
                 <TableCell>
                   <DropdownMenu>
@@ -161,16 +129,13 @@ export function VolumesTable({
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      <DropdownMenuItem>
-                        <HardDrive className="mr-2 h-4 w-4" />
-                        Inspect
-                      </DropdownMenuItem>
                       <DropdownMenuItem
                         className="text-destructive"
-                        disabled={volume.inUse}
+                        onClick={() => handleDeleteVolume(volume.name)}
+                        disabled={isDeleting === volume.name}
                       >
                         <Trash2 className="mr-2 h-4 w-4" />
-                        Delete
+                        {isDeleting === volume.name ? 'Deleting...' : 'Delete'}
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
