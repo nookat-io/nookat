@@ -92,7 +92,7 @@ export function ContainersTable({
   return (
     <div className="border rounded-lg overflow-hidden">
       <div className="overflow-x-auto">
-        <Table>
+        <Table className="table-fixed">
           <TableHeader>
             <TableRow>
               <TableHead className="w-12">
@@ -101,12 +101,12 @@ export function ContainersTable({
                   onCheckedChange={handleSelectAll}
                 />
               </TableHead>
-              <TableHead>Name</TableHead>
-              <TableHead>Image</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Created</TableHead>
-              <TableHead>Ports</TableHead>
-              <TableHead className="w-12">Actions</TableHead>
+              <TableHead className="w-[25%]">Name</TableHead>
+              <TableHead className="w-[25%]">Image</TableHead>
+              <TableHead className="w-[10%]">Status</TableHead>
+              <TableHead className="w-[15%]">Created</TableHead>
+              <TableHead className="w-[15%]">Ports</TableHead>
+              <TableHead className="w-[10%] text-left">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>

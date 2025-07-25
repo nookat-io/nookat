@@ -52,7 +52,7 @@ export function ContainerRow({
       <TableCell className="text-muted-foreground">
         <PortMappings ports={container.ports} />
       </TableCell>
-      <TableCell>
+      <TableCell className="text-left">
         <ContainerRowActions 
           container={container}
           onActionComplete={onActionComplete}

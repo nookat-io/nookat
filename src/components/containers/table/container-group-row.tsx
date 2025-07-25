@@ -81,7 +81,7 @@ export function ContainerGroupRow({
         </TableCell>
         <TableCell className="text-muted-foreground">-</TableCell>
         <TableCell className="text-muted-foreground">-</TableCell>
-        <TableCell>
+        <TableCell className="text-right">
           <ContainerGroupActions 
             containerIds={groupContainerIds}
             hasRunningContainers={hasRunningContainers}
