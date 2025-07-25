@@ -78,7 +78,7 @@ export function ImagesTable({
 
   const filteredImages = dockerImages.filter(image => {
     if (filter === 'used') return image.inUse;
-    if (filter === 'dangling') return !image.inUse;
+    if (filter === 'dangling') return image.repository === '<none>' || image.tag === '<none>';
     return true;
   });
 
