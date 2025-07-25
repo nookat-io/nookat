@@ -2,7 +2,7 @@
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Nookat",
   "version": "0.1.0",
-  "identifier": "net.nookat",
+  "identifier": "io.nookat",
   "build": {
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:1420",
@@ -12,9 +12,9 @@
   "app": {
     "windows": [
       {
-        "title": "nookat",
-        "width": 800,
-        "height": 600,
+        "title": "Nookat",
+        "width": 1280,
+        "height": 800,
         "minWidth": 1280,
         "minHeight": 800,
         "decorations": false,
@@ -33,6 +33,25 @@
   "bundle": {
     "active": true,
     "targets": "all",
-    "icon": ["icons/icon_512x512.png"]
+    "icon": [
+      "icons/32x32.png",
+      "icons/64x64.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico",
+      "icons/icon.png",
+      "icons/icon_512x512.png",
+      "icons/Square30x30.png",
+      "icons/Square44x44.png",
+      "icons/Square71x71.png",
+      "icons/Square89x89.png",
+      "icons/Square107x107.png",
+      "icons/Square142x142.png",
+      "icons/Square150x150.png",
+      "icons/Square284x284.png",
+      "icons/Square310x310.png",
+      "icons/StoreLogo.png"
+    ]
   }
 }
