@@ -34,7 +34,7 @@
     "active": true,
     "targets": "all",
     "icon": [
-      "icons/128x128.png"
+      "icons/icon_512x512.png"
     ]
   }
 }
