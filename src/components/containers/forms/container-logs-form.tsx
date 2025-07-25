@@ -93,7 +93,7 @@ export function ContainerLogsForm({
 
     setIsLoading(true);
     try {
-      const response = await invoke('get_container_logs', { containerId });
+      const response = await invoke('container_logs', { id: containerId });
       if (response && Array.isArray(response)) {
         setLogs(response);
       } else {
