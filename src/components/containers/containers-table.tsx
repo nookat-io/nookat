@@ -107,22 +107,35 @@ function PortMappings({ ports, maxVisible = 3 }: PortMappingsProps) {
   };
 
   const handlePortClick = async (port: Port) => {
-    console.log("handlePortClick", port);
     // Only make clickable if there's a public port mapping
     if (port.public_port === undefined) {
       return;
     }
     
-    console.log("port", port);
-    const hostIp = port.ip || 'localhost';
+    let hostIp = port.ip || 'localhost';
+    // Replace 0.0.0.0 with localhost for better UX
+    if (hostIp === '0.0.0.0') {
+      hostIp = 'localhost';
+    }
     const hostPort = port.public_port;
-    const url = `http://${hostIp}:${hostPort}`;
+    
+    // Determine protocol based on port number or use HTTP as fallback
+    let protocol = 'http';
+    if (hostPort === 443 || hostPort === 8443) {
+      protocol = 'https';
+    } else if (hostPort === 22) {
+      protocol = 'ssh';
+    } else if (hostPort === 21) {
+      protocol = 'ftp';
+    } else if (hostPort === 23) {
+      protocol = 'telnet';
+    }
+    
+    const url = `${protocol}://${hostIp}:${hostPort}`;
     
     // Open in default browser using Tauri opener plugin
     try {
-      console.log("url", url);
       await invoke('open_url', { url });
-      console.log("opened in default browser");
     } catch (error) {
       console.error('Failed to open port URL:', error);
       toast.error(`Failed to open ${url}: ${error}`);
@@ -134,7 +147,11 @@ function PortMappings({ ports, maxVisible = 3 }: PortMappingsProps) {
   };
 
   const getFullPortMapping = (port: Port) => {
-    const hostIp = port.ip || '0.0.0.0';
+    let hostIp = port.ip || 'localhost';
+    // Replace 0.0.0.0 with localhost for better UX
+    if (hostIp === '0.0.0.0') {
+      hostIp = 'localhost';
+    }
     const hostPort = port.public_port ?? port.private_port;
     const containerPort = port.private_port;
     const protocol = port.port_type?.toUpperCase() || 'TCP';
