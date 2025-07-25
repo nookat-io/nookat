@@ -30,7 +30,7 @@
     --chart-5: 27 87% 67%;
     --radius: 0.5rem;
   }
-  
+
   .dark {
     --background: 222 14% 7%;
     --foreground: 0 0% 98%;
@@ -63,29 +63,29 @@
   * {
     @apply border-border;
   }
-  
+
   body {
     @apply bg-background text-foreground;
   }
-  
+
   /* Window frame styles for frameless window */
   .window-frame {
     -webkit-app-region: drag;
     user-select: none;
   }
-  
+
   .window-controls {
     -webkit-app-region: no-drag;
     pointer-events: auto;
     z-index: 1000;
   }
-  
+
   /* Hide scrollbars globally while maintaining scroll functionality */
   * {
     scrollbar-width: none; /* Firefox */
     -ms-overflow-style: none; /* Internet Explorer 10+ */
   }
-  
+
   *::-webkit-scrollbar {
     display: none; /* Chrome, Safari, Opera */
   }

@@ -26,11 +26,8 @@ export function ContainerStatusBadge({ state }: ContainerStatusBadgeProps) {
   };
 
   return (
-    <Badge 
-      variant="secondary"
-      className={getStatusVariant(state)}
-    >
+    <Badge variant="secondary" className={getStatusVariant(state)}>
       {state}
     </Badge>
   );
-} 
+}

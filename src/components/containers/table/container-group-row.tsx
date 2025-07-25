@@ -20,16 +20,16 @@ interface ContainerGroupRowProps {
   onOpenLogs: (container: ContainerData) => void;
 }
 
-export function ContainerGroupRow({ 
-  projectName, 
-  containers, 
-  isExpanded, 
+export function ContainerGroupRow({
+  projectName,
+  containers,
+  isExpanded,
   filter,
   selectedContainers,
   onToggleGroup,
   onSelectionChange,
   onActionComplete,
-  onOpenLogs
+  onOpenLogs,
 }: ContainerGroupRowProps) {
   const filteredGroupContainers = containers.filter(container => {
     if (filter === 'running') return container.state === 'running';
@@ -53,7 +53,11 @@ export function ContainerGroupRow({
             onClick={() => onToggleGroup(projectName)}
             className="p-0 h-auto"
           >
-            {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+            {isExpanded ? (
+              <ChevronDown className="h-4 w-4" />
+            ) : (
+              <ChevronRight className="h-4 w-4" />
+            )}
           </Button>
         </TableCell>
         <TableCell className="font-semibold">
@@ -64,11 +68,16 @@ export function ContainerGroupRow({
             </Badge>
           </div>
         </TableCell>
-        <TableCell className="text-muted-foreground">Docker Compose Project</TableCell>
+        <TableCell className="text-muted-foreground">
+          Docker Compose Project
+        </TableCell>
         <TableCell>
           <div className="flex gap-1">
             {containers.some(c => c.state === 'running') && (
-              <Badge variant="default" className="text-xs bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300">
+              <Badge
+                variant="default"
+                className="text-xs bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300"
+              >
                 Running
               </Badge>
             )}
@@ -82,7 +91,7 @@ export function ContainerGroupRow({
         <TableCell className="text-muted-foreground">-</TableCell>
         <TableCell className="text-muted-foreground">-</TableCell>
         <TableCell className="text-left">
-          <ContainerGroupActions 
+          <ContainerGroupActions
             containerIds={groupContainerIds}
             hasRunningContainers={hasRunningContainers}
             allStopped={allStopped}
@@ -90,19 +99,20 @@ export function ContainerGroupRow({
           />
         </TableCell>
       </TableRow>
-      
+
       {/* Render nested containers when expanded */}
-      {isExpanded && filteredGroupContainers.map(container => (
-        <ContainerRow
-          key={container.id}
-          container={container}
-          isNested={true}
-          isSelected={selectedContainers.includes(container.id)}
-          onSelectionChange={onSelectionChange}
-          onActionComplete={onActionComplete}
-          onOpenLogs={onOpenLogs}
-        />
-      ))}
+      {isExpanded &&
+        filteredGroupContainers.map(container => (
+          <ContainerRow
+            key={container.id}
+            container={container}
+            isNested={true}
+            isSelected={selectedContainers.includes(container.id)}
+            onSelectionChange={onSelectionChange}
+            onActionComplete={onActionComplete}
+            onOpenLogs={onOpenLogs}
+          />
+        ))}
     </>
   );
-} 
+}

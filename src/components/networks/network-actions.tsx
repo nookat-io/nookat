@@ -12,7 +12,7 @@ export function NetworkActions({ selectedNetworks }: NetworkActionsProps) {
         <Plus className="mr-2 h-4 w-4" />
         Create Network
       </Button>
-      
+
       {selectedNetworks.length > 0 && (
         <Button variant="outline" size="sm">
           <Trash2 className="mr-2 h-4 w-4" />

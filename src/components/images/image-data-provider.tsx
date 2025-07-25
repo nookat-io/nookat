@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { invoke } from "@tauri-apps/api/core";
+import { invoke } from '@tauri-apps/api/core';
 
 export interface ImageData {
   id: string;
@@ -33,12 +33,13 @@ export function ImageDataProvider({ children }: ImageDataProviderProps) {
     try {
       setIsLoading(true);
       setError(null);
-      const result = await invoke<ImageData[]>("list_images");
+      const result = await invoke<ImageData[]>('list_images');
       setImages(result);
       lastRefreshTime.current = Date.now();
     } catch (error) {
-      console.error("Error getting images:", error);
-      const errorMessage = error instanceof Error ? error.message : "Failed to fetch images";
+      console.error('Error getting images:', error);
+      const errorMessage =
+        error instanceof Error ? error.message : 'Failed to fetch images';
       setError(errorMessage);
     } finally {
       setIsLoading(false);
@@ -57,7 +58,7 @@ export function ImageDataProvider({ children }: ImageDataProviderProps) {
 
     // Initial load
     getImages();
-    
+
     // Start auto-refresh
     startAutoRefresh();
 
@@ -79,4 +80,4 @@ export function ImageDataProvider({ children }: ImageDataProviderProps) {
       })}
     </>
   );
-} 
+}

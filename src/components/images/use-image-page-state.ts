@@ -13,4 +13,4 @@ export function useImagePageState() {
     searchTerm,
     setSearchTerm,
   };
-} 
+}

@@ -1,0 +1,67 @@
+repos:
+  # Frontend (React/TypeScript) hooks
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-added-large-files
+      - id: check-merge-conflict
+      - id: check-case-conflict
+      - id: check-docstring-first
+      - id: check-json
+
+  # ESLint for TypeScript/React
+  - repo: https://github.com/pre-commit/mirrors-eslint
+    rev: v9.9.1
+    hooks:
+      - id: eslint
+        files: \.(js|ts|tsx)$
+        types: [file]
+        additional_dependencies:
+          - eslint@^9.9.1
+          - '@eslint/js@^9.9.1'
+          - 'typescript-eslint@^8.3.0'
+          - 'eslint-plugin-react-hooks@^5.1.0-rc.0'
+          - 'eslint-plugin-react-refresh@^0.4.11'
+          - '@types/react@^18.3.5'
+          - '@types/react-dom@^18.3.0'
+
+  # Prettier for code formatting
+  - repo: https://github.com/pre-commit/mirrors-prettier
+    rev: v4.0.0-alpha.8
+    hooks:
+      - id: prettier
+        files: \.(js|ts|tsx|json|css|md)$
+        types: [file]
+
+  # TypeScript type checking
+  - repo: local
+    hooks:
+      - id: typescript-check
+        name: TypeScript Check
+        entry: npx tsc --noEmit
+        language: system
+        files: \.(ts|tsx)$
+        pass_filenames: false
+
+  # Cargo check for Rust
+  - repo: local
+    hooks:
+      - id: cargo-check
+        name: Cargo Check
+        entry: bash -c 'cd src-tauri && cargo check'
+        language: system
+        files: \.(rs|toml)$
+        pass_filenames: false
+
+  # Cargo test for Rust
+  - repo: local
+    hooks:
+      - id: cargo-test
+        name: Cargo Test
+        entry: bash -c 'cd src-tauri && cargo test'
+        language: system
+        files: \.(rs|toml)$
+        pass_filenames: false

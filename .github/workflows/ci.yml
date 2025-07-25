@@ -1,0 +1,123 @@
+name: '[CI] Checks'
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  pre-commit:
+    name: pre-commit checks
+    runs-on: ubuntu-22.04
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+
+    - name: Setup Rust toolchain
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        override: true
+
+    - name: Install pre-commit
+      run: |
+        python -m pip install --upgrade pip
+        pip install pre-commit
+
+    - name: Install frontend dependencies
+      run: npm ci
+
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          libgirepository1.0-dev \
+          libglib2.0-dev \
+          libgtk-3-dev \
+          libgdk-pixbuf2.0-dev \
+          libcairo2-dev \
+          libpango1.0-dev \
+          libatk1.0-dev \
+          libwebkit2gtk-4.0-dev \
+          libwebkit2gtk-4.1-dev \
+          libjavascriptcoregtk-4.1-dev \
+          libappindicator3-dev \
+          librsvg2-dev \
+          patchelf \
+          pkg-config \
+          libssl-dev
+
+    - name: Install Rust components
+      run: |
+        rustup component add rustfmt
+        rustup component add clippy
+
+    - name: Run pre-commit on all files
+      run: pre-commit run --all-files
+
+  build:
+    name: build application
+    runs-on: ubuntu-22.04
+    needs: [pre-commit]
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+
+    - name: Setup Rust toolchain
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        override: true
+
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          libgirepository1.0-dev \
+          libglib2.0-dev \
+          libgtk-3-dev \
+          libgdk-pixbuf2.0-dev \
+          libcairo2-dev \
+          libpango1.0-dev \
+          libatk1.0-dev \
+          libwebkit2gtk-4.0-dev \
+          libwebkit2gtk-4.1-dev \
+          libjavascriptcoregtk-4.1-dev \
+          libappindicator3-dev \
+          librsvg2-dev \
+          patchelf \
+          pkg-config \
+          libssl-dev
+
+    - name: Install dependencies
+      run: |
+        npm ci
+        cd src-tauri
+        cargo fetch
+
+    - name: Build frontend
+      run: npm run build
+
+    - name: Build Tauri application
+      run: |
+        cd src-tauri
+        cargo build --release

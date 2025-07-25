@@ -37,7 +37,7 @@ function App() {
       const window = Window.getCurrent();
       const currentMaximized = await window.isMaximized();
       console.log('Current maximize state:', currentMaximized);
-      
+
       if (currentMaximized) {
         await window.unmaximize();
         console.log('Window unmaximized');
@@ -61,28 +61,33 @@ function App() {
         {/* Window Controls */}
         <div className="window-frame h-8 flex items-center justify-between px-4 bg-background border-b border-border/50">
           <div className="flex items-center space-x-2">
-            <div 
+            <div
               className="w-3 h-3 rounded-full bg-red-500 hover:bg-red-600 cursor-pointer transition-colors window-controls"
               onClick={handleClose}
               title="Close"
             />
-            <div 
+            <div
               className="w-3 h-3 rounded-full bg-yellow-500 hover:bg-yellow-600 cursor-pointer transition-colors window-controls"
               onClick={handleMinimize}
               title="Minimize"
             />
-            <div 
+            <div
               className="w-3 h-3 rounded-full bg-green-500 hover:bg-green-600 cursor-pointer transition-colors window-controls"
               onClick={handleMaximize}
               title="Maximize"
             />
           </div>
-          <div className="flex-1 text-center select-none" data-tauri-drag-region>
-            <span className="text-sm font-medium text-foreground/70">Nookat</span>
+          <div
+            className="flex-1 text-center select-none"
+            data-tauri-drag-region
+          >
+            <span className="text-sm font-medium text-foreground/70">
+              Nookat
+            </span>
           </div>
           <div className="w-12" />
         </div>
-        
+
         <div className="flex flex-1 min-h-0">
           <Sidebar />
           <div className="flex-1 flex flex-col min-w-0">
@@ -104,4 +109,4 @@ function App() {
   );
 }
 
-export default App; 
+export default App;

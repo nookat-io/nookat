@@ -7,7 +7,10 @@ import { ContainerData } from '../data/container-data-provider';
 import { PortMappings } from '../ui/port-mappings';
 import { ContainerStatusBadge } from '../ui/container-status-badge';
 import { ContainerRowActions } from '../actions/container-row-actions';
-import { formatContainerName, formatContainerImage } from '../utils/container-utils';
+import {
+  formatContainerName,
+  formatContainerImage,
+} from '../utils/container-utils';
 
 interface ContainerRowProps {
   container: ContainerData;
@@ -18,26 +21,25 @@ interface ContainerRowProps {
   onOpenLogs: (container: ContainerData) => void;
 }
 
-export function ContainerRow({ 
-  container, 
-  isNested = false, 
+export function ContainerRow({
+  container,
+  isNested = false,
   isSelected,
   onSelectionChange,
   onActionComplete,
-  onOpenLogs
+  onOpenLogs,
 }: ContainerRowProps) {
-
   return (
-    <TableRow className={isNested ? "bg-muted/50" : ""}>
-      <TableCell className={isNested ? "pl-8" : ""}>
-        <Checkbox 
+    <TableRow className={isNested ? 'bg-muted/50' : ''}>
+      <TableCell className={isNested ? 'pl-8' : ''}>
+        <Checkbox
           checked={isSelected}
-          onCheckedChange={(checked) => 
+          onCheckedChange={checked =>
             onSelectionChange(container.id, checked as boolean)
           }
         />
       </TableCell>
-      <TableCell className={`font-medium ${isNested ? "pl-8" : ""}`}>
+      <TableCell className={`font-medium ${isNested ? 'pl-8' : ''}`}>
         {formatContainerName(container)}
       </TableCell>
       <TableCell className="text-muted-foreground">
@@ -53,7 +55,7 @@ export function ContainerRow({
         <PortMappings ports={container.ports} />
       </TableCell>
       <TableCell className="text-left">
-        <ContainerRowActions 
+        <ContainerRowActions
           container={container}
           onActionComplete={onActionComplete}
           onOpenLogs={onOpenLogs}
@@ -61,4 +63,4 @@ export function ContainerRow({
       </TableCell>
     </TableRow>
   );
-} 
+}

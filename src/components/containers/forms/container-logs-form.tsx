@@ -1,23 +1,17 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogDescription, 
-  DialogFooter, 
-  DialogHeader, 
-  DialogTitle 
+import { useState, useEffect, useCallback } from 'react';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
 } from '../../ui/dialog';
 import { Button } from '../../ui/button';
 import { Input } from '../../ui/input';
-import { 
-  Download, 
-  RefreshCw, 
-  Copy, 
-  Search,
-  FileText
-} from 'lucide-react';
+import { Download, RefreshCw, Copy, Search, FileText } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
 import { toast } from 'sonner';
 
@@ -42,13 +36,13 @@ const exportLogs = (logs: string[], filename: string) => {
   URL.revokeObjectURL(url);
 };
 
-const SearchInput = ({ 
-  value, 
-  onChange, 
-  placeholder = "Search logs..." 
-}: { 
-  value: string; 
-  onChange: (value: string) => void; 
+const SearchInput = ({
+  value,
+  onChange,
+  placeholder = 'Search logs...',
+}: {
+  value: string;
+  onChange: (value: string) => void;
   placeholder?: string;
 }) => (
   <div className="flex-1 relative">
@@ -56,71 +50,69 @@ const SearchInput = ({
     <Input
       placeholder={placeholder}
       value={value}
-      onChange={(e) => onChange(e.target.value)}
+      onChange={e => onChange(e.target.value)}
       className="pl-10"
     />
   </div>
 );
 
-const ActionButton = ({ 
-  onClick, 
-  icon: Icon, 
-  children, 
+const ActionButton = ({
+  onClick,
+  icon: Icon,
+  children,
   disabled = false,
-  variant = "outline" as const,
-  size = "sm" as const
-}: { 
-  onClick: () => void; 
-  icon: React.ComponentType<{ className?: string }>; 
-  children: React.ReactNode; 
+  variant = 'outline' as const,
+  size = 'sm' as const,
+}: {
+  onClick: () => void;
+  icon: React.ComponentType<{ className?: string }>;
+  children: React.ReactNode;
   disabled?: boolean;
-  variant?: "outline" | "default";
-  size?: "sm" | "default";
+  variant?: 'outline' | 'default';
+  size?: 'sm' | 'default';
 }) => (
-  <Button
-    variant={variant}
-    size={size}
-    onClick={onClick}
-    disabled={disabled}
-  >
+  <Button variant={variant} size={size} onClick={onClick} disabled={disabled}>
     <Icon className="h-4 w-4 mr-2" />
     {children}
   </Button>
 );
 
-export function ContainerLogsForm({ 
-  containerId, 
-  containerName, 
+export function ContainerLogsForm({
+  containerId,
+  containerName,
   containerState,
-  isOpen, 
-  onClose 
+  isOpen,
+  onClose,
 }: ContainerLogsFormProps) {
   const [logs, setLogs] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  
-  const fetchLogs = async () => {
+
+  const fetchLogs = useCallback(async () => {
+    if (!containerId) return;
+
     setIsLoading(true);
     try {
-      const response = await invoke<string[]>('container_logs', { 
-        id: containerId
-      });
-      
-      setLogs(response);
-      toast.success('Logs loaded successfully');
+      const response = await invoke('container_logs', { id: containerId });
+      if (response && Array.isArray(response)) {
+        setLogs(response);
+      } else {
+        setLogs([]);
+      }
     } catch (error) {
-      console.error('Error fetching logs:', error);
-      toast.error(`Failed to fetch logs: ${error}`);
+      console.error('Failed to fetch logs:', error);
+      toast.error('Failed to fetch logs');
+      setLogs([]);
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [containerId]);
 
   useEffect(() => {
     if (isOpen) {
       fetchLogs();
     }
-  }, [isOpen, containerId]);
+  }, [isOpen, fetchLogs]);
 
   const handleCopyLogs = () => {
     const logText = logs.join('\n');
@@ -133,7 +125,7 @@ export function ContainerLogsForm({
     toast.success('Logs downloaded');
   };
 
-  const filteredLogs = logs.filter(log => 
+  const filteredLogs = logs.filter(log =>
     log.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
@@ -160,11 +152,8 @@ export function ContainerLogsForm({
         <div className="flex-1 flex flex-col gap-4">
           {/* Controls */}
           <div className="flex items-center gap-4">
-            <SearchInput 
-              value={searchTerm} 
-              onChange={setSearchTerm} 
-            />
-            
+            <SearchInput value={searchTerm} onChange={setSearchTerm} />
+
             <ActionButton
               onClick={fetchLogs}
               icon={RefreshCw}
@@ -199,23 +188,21 @@ export function ContainerLogsForm({
             <div className="text-sm text-muted-foreground">
               {filteredLogs.length} log entries
             </div>
-            
+
             <div className="flex items-center gap-2">
               <ActionButton onClick={handleCopyLogs} icon={Copy}>
                 Copy
               </ActionButton>
-              
+
               <ActionButton onClick={handleDownloadLogs} icon={Download}>
                 Download
               </ActionButton>
-              
-              <Button onClick={onClose}>
-                Close
-              </Button>
+
+              <Button onClick={onClose}>Close</Button>
             </div>
           </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>
   );
-} 
+}

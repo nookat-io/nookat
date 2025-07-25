@@ -8,21 +8,21 @@ interface ImageFiltersProps {
 export function ImageFilters({ filter, onFilterChange }: ImageFiltersProps) {
   return (
     <div className="flex items-center space-x-2">
-      <Button 
+      <Button
         variant={filter === 'all' ? 'default' : 'outline'}
         size="sm"
         onClick={() => onFilterChange('all')}
       >
         All Images
       </Button>
-      <Button 
+      <Button
         variant={filter === 'used' ? 'default' : 'outline'}
         size="sm"
         onClick={() => onFilterChange('used')}
       >
         In Use
       </Button>
-      <Button 
+      <Button
         variant={filter === 'dangling' ? 'default' : 'outline'}
         size="sm"
         onClick={() => onFilterChange('dangling')}

@@ -96,11 +96,11 @@ pub struct Container {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub names: Option<Vec<String>>,
 
-    /// The name or ID of the image used to create the container.  
+    /// The name or ID of the image used to create the container.
     /// This field shows the image reference as was specified when creating the container,
     /// which can be in its canonical form (e.g., `docker.io/library/ubuntu:latest` or
     /// `docker.io/library/ubuntu@sha256:72297848456d5d37d1262630108ab308d3e9ec7ed1c3286a32fe09856619a782`),
-    /// short form (e.g., `ubuntu:latest`)), or the ID(-prefix) of the image (e.g., `72297848456d`).  
+    /// short form (e.g., `ubuntu:latest`)), or the ID(-prefix) of the image (e.g., `72297848456d`).
     /// The content of this field can be updated at runtime if the image used to create the container is untagged,
     /// in which case the field is updated to contain the the image ID (digest) it was resolved to in its canonical,
     /// non-truncated form (e.g., `sha256:72297848456d5d37d1262630108ab308d3e9ec7ed1c3286a32fe09856619a782`).
@@ -111,7 +111,7 @@ pub struct Container {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub image_id: Option<String>,
 
-    /// OCI descriptor of the platform-specific manifest of the image the container was created from.  
+    /// OCI descriptor of the platform-specific manifest of the image the container was created from.
     /// Note: Only available if the daemon provides a multi-platform image store.
     /// This field is not populated in the `GET /system/df` endpoint.
     // #[serde(skip_serializing_if = "Option::is_none")]
@@ -129,7 +129,7 @@ pub struct Container {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub ports: Option<Vec<Port>>,
 
-    /// The size of files that have been created or changed by this container.  
+    /// The size of files that have been created or changed by this container.
     /// This field is omitted by default, and only set when size is requested in the API request.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub size_rw: Option<i64>,

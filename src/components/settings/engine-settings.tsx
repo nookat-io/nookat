@@ -1,7 +1,13 @@
 'use client';
 
 import { useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '../ui/card';
 import { Label } from '../ui/label';
 import { Button } from '../ui/button';
 import { Textarea } from '../ui/textarea';
@@ -42,10 +48,13 @@ export function EngineSettings() {
                 Enable experimental Docker features (may be unstable)
               </div>
             </div>
-            <Switch 
+            <Switch
               checked={settings.experimentalFeatures}
-              onCheckedChange={(checked) => 
-                setSettings(prev => ({ ...prev, experimentalFeatures: checked }))
+              onCheckedChange={checked =>
+                setSettings(prev => ({
+                  ...prev,
+                  experimentalFeatures: checked,
+                }))
               }
             />
           </div>
@@ -68,23 +77,24 @@ export function EngineSettings() {
               </span>
             </div>
             <p className="text-sm text-amber-700 dark:text-amber-300 mt-2">
-              Modifying daemon configuration requires restarting Docker Engine. Invalid configuration may prevent Docker from starting.
+              Modifying daemon configuration requires restarting Docker Engine.
+              Invalid configuration may prevent Docker from starting.
             </p>
           </div>
-          
+
           <div className="space-y-2">
             <Label htmlFor="daemon-config">Configuration JSON</Label>
             <Textarea
               id="daemon-config"
               value={settings.daemonConfig}
-              onChange={(e) => 
+              onChange={e =>
                 setSettings(prev => ({ ...prev, daemonConfig: e.target.value }))
               }
               className="font-mono text-sm"
               rows={12}
             />
           </div>
-          
+
           <div className="flex space-x-2">
             <Button variant="outline">Validate Config</Button>
             <Button variant="outline">Reset to Default</Button>
