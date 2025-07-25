@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -88,28 +88,31 @@ export function ContainerLogsForm({
   const [isLoading, setIsLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
 
-  const fetchLogs = async () => {
+  const fetchLogs = useCallback(async () => {
+    if (!containerId) return;
+
     setIsLoading(true);
     try {
-      const response = await invoke<string[]>('container_logs', {
-        id: containerId,
-      });
-
-      setLogs(response);
-      toast.success('Logs loaded successfully');
+      const response = await invoke('get_container_logs', { containerId });
+      if (response && Array.isArray(response)) {
+        setLogs(response);
+      } else {
+        setLogs([]);
+      }
     } catch (error) {
-      console.error('Error fetching logs:', error);
-      toast.error(`Failed to fetch logs: ${error}`);
+      console.error('Failed to fetch logs:', error);
+      toast.error('Failed to fetch logs');
+      setLogs([]);
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [containerId]);
 
   useEffect(() => {
     if (isOpen) {
       fetchLogs();
     }
-  }, [isOpen, containerId]);
+  }, [isOpen, fetchLogs]);
 
   const handleCopyLogs = () => {
     const logText = logs.join('\n');

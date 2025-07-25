@@ -1,7 +1,7 @@
 'use client';
 
 import { Moon, Sun, Monitor } from 'lucide-react';
-import { useTheme } from '../../lib/theme-provider';
+import { useTheme } from '../../lib/use-theme';
 
 import { Button } from './button';
 import {
