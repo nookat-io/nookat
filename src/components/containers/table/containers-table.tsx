@@ -8,10 +8,10 @@ import {
   TableHead, 
   TableHeader, 
   TableRow 
-} from '../ui/table';
-import { Checkbox } from '../ui/checkbox';
-import { Badge } from '../ui/badge';
-import { Button } from '../ui/button';
+} from '../../ui/table';
+import { Checkbox } from '../../ui/checkbox';
+import { Badge } from '../../ui/badge';
+import { Button } from '../../ui/button';
 import { 
   Play, 
   Square, 
@@ -29,12 +29,12 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from '../ui/dropdown-menu';
+} from '../../ui/dropdown-menu';
 import { formatDistanceToNow } from 'date-fns';
-import { ContainerData, Port } from './container-data-provider';
+import { ContainerData, Port } from '../data/container-data-provider';
 import { invoke } from '@tauri-apps/api/core';
 import { toast } from 'sonner';
-import { ContainerLogsForm } from './container-logs-form';
+import { ContainerLogsForm } from '../forms/container-logs-form';
 
 interface ContainersTableProps {
   filter: 'all' | 'running' | 'stopped';

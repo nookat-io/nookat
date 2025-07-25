@@ -1,6 +1,6 @@
-import { Button } from '../ui/button';
+import { Button } from '../../ui/button';
 import { Play, Square, RotateCcw, Trash2, Pause, Play as ResumeIcon, Trash } from 'lucide-react';
-import { ContainerData } from './container-data-provider';
+import { ContainerData } from '../data/container-data-provider';
 import { invoke } from '@tauri-apps/api/core';
 import { useState } from 'react';
 import { toast } from 'sonner';
