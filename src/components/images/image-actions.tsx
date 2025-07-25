@@ -4,10 +4,7 @@ import { useState } from 'react';
 import { Button } from '../ui/button';
 import { 
   Trash2, 
-  Download, 
-  Upload, 
-  Plus,
-  Scissors
+  Trash
 } from 'lucide-react';
 import {
   Dialog,
@@ -60,20 +57,6 @@ export function ImageActions({ selectedImages, onRefresh }: ImageActionsProps) {
 
   return (
     <div className="flex items-center gap-2">
-      <Button variant="outline" size="sm">
-        <Download className="mr-2 h-4 w-4" />
-        Pull Image
-      </Button>
-      
-      <Button variant="outline" size="sm">
-        <Upload className="mr-2 h-4 w-4" />
-        Push Image
-      </Button>
-      
-      <Button variant="outline" size="sm">
-        <Plus className="mr-2 h-4 w-4" />
-        Build Image
-      </Button>
 
       {/* Confirmation Dialog */}
       <Dialog open={confirmDialogOpen} onOpenChange={setConfirmDialogOpen}>
@@ -84,7 +67,7 @@ export function ImageActions({ selectedImages, onRefresh }: ImageActionsProps) {
             onClick={() => setConfirmDialogOpen(true)}
             disabled={isPruning}
           >
-            <Scissors className="mr-2 h-4 w-4" />
+            <Trash className="mr-2 h-4 w-4" />
             {isPruning ? 'Pruning...' : 'Prune Unused'}
           </Button>
         </DialogTrigger>

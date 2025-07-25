@@ -1,13 +1,20 @@
 import { useState, useEffect, useRef } from 'react';
 import { invoke } from "@tauri-apps/api/core";
 
+export interface Port {
+  ip?: string;
+  private_port: number;
+  public_port?: number;
+  port_type?: 'tcp' | 'udp' | 'sctp';
+}
+
 export interface ContainerData {
   id: string;
   names: string[];
   image: string;
   state: 'running' | 'stopped' | 'paused' | 'restarting' | 'created' | 'exited' | 'removing' | 'dead';
   created: number;
-  ports: object[];
+  ports: Port[];
   size: string;
   labels: Record<string, string>;
 }
