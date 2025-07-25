@@ -24,7 +24,7 @@ export default function ImagesPage() {
                   Images
                 </h1>
                 <p className="text-muted-foreground mt-2">
-                  Manage your Docker images and registries
+                  Manage your docker images
                 </p>
               </div>
               <div className="flex items-start">

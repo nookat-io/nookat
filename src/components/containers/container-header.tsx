@@ -1,5 +1,5 @@
-import { ContainerActions } from './container-actions';
-import { ContainerData } from './container-data-provider';
+import { ContainerActions } from './actions/container-actions';
+import { ContainerData } from './data/container-data-provider';
 
 interface ContainerHeaderProps {
   selectedContainers: string[];

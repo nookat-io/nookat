@@ -8,9 +8,9 @@ import {
   DialogFooter, 
   DialogHeader, 
   DialogTitle 
-} from '../ui/dialog';
-import { Button } from '../ui/button';
-import { Input } from '../ui/input';
+} from '../../ui/dialog';
+import { Button } from '../../ui/button';
+import { Input } from '../../ui/input';
 import { 
   Download, 
   RefreshCw, 

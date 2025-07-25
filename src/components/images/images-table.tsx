@@ -14,7 +14,6 @@ import { Button } from '../ui/button';
 import { 
   Play, 
   Trash2, 
-  Upload, 
   Tag,
   MoreHorizontal,
   Loader2
@@ -158,13 +157,13 @@ export function ImagesTable({
                     }
                   />
                 </TableCell>
-                <TableCell className="font-medium">
-                  <div className="truncate" title={image.repository}>
+                <TableCell className="font-medium max-w-[200px]">
+                  <div className="truncate max-w-full" title={image.repository}>
                     {image.repository}
                   </div>
                 </TableCell>
-                <TableCell className="text-muted-foreground">
-                  <div className="truncate" title={image.tag}>
+                <TableCell className="text-muted-foreground max-w-[150px]">
+                  <div className="truncate max-w-full" title={image.tag}>
                     {image.tag}
                   </div>
                 </TableCell>
@@ -205,10 +204,7 @@ export function ImagesTable({
                         <Tag className="mr-2 h-4 w-4" />
                         Add Tag
                       </DropdownMenuItem>
-                      <DropdownMenuItem>
-                        <Upload className="mr-2 h-4 w-4" />
-                        Push to Registry
-                      </DropdownMenuItem>
+
                       <DropdownMenuItem className="text-destructive">
                         <Trash2 className="mr-2 h-4 w-4" />
                         Delete
