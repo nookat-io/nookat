@@ -20,7 +20,10 @@ export class ContainerActionService {
         ? params.ids.length === 1 ? 'container' : 'containers'
         : 'container';
       
-      toast.success(`${actionName.charAt(0).toUpperCase() + actionName.slice(1)}ed ${containerText}`);
+      const count = Array.isArray(params.ids) ? params.ids.length : 1;
+      const countText = count === 1 ? '' : `${count} `;
+      
+      toast.success(`${actionName.charAt(0).toUpperCase() + actionName.slice(1)}ed ${countText}${containerText}`);
       
       // Clear selections for destructive actions
       if (action.includes('remove') || action.includes('delete')) {
@@ -34,7 +37,12 @@ export class ContainerActionService {
     } catch (error) {
       console.error(`Error ${action}ing container:`, error);
       const actionName = action.replace('_container', '').replace('unpause', 'resume');
-      toast.error(`Failed to ${actionName} container: ${error}`);
+      const count = Array.isArray(params.ids) ? params.ids.length : 1;
+      const countText = count === 1 ? '' : `${count} `;
+      const containerText = Array.isArray(params.ids) 
+        ? params.ids.length === 1 ? 'container' : 'containers'
+        : 'container';
+      toast.error(`Failed to ${actionName} ${countText}${containerText}: ${error}`);
       
       // Refresh even on error to ensure UI is in sync
       setTimeout(() => {
