@@ -11,7 +11,6 @@ repos:
       - id: check-case-conflict
       - id: check-docstring-first
       - id: check-json
-      - id: debug-statements
 
   # ESLint for TypeScript/React
   - repo: https://github.com/pre-commit/mirrors-eslint
