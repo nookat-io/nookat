@@ -1,10 +1,8 @@
-// Legacy components (kept for backward compatibility)
-export { ContainerFilters } from './container-filters';
+// Main container components
 export { ContainerHeader } from './container-header';
-export { ContainerSearch } from './container-search';
 export { ContainerControls } from './container-controls';
 
-// New organized structure
+// Organized structure
 export * from './table';
 export * from './actions';
 export * from './ui';

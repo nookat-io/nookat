@@ -2,8 +2,7 @@
 
 import { Button } from '../../ui/button';
 import { Play, Square, Trash2 } from 'lucide-react';
-import { invoke } from '@tauri-apps/api/core';
-import { toast } from 'sonner';
+import { ContainerActionService } from '../utils/container-actions';
 
 interface ContainerGroupActionsProps {
   containerIds: string[];
@@ -18,26 +17,11 @@ export function ContainerGroupActions({
   allStopped,
   onActionComplete 
 }: ContainerGroupActionsProps) {
-  const handleBulkAction = async (action: string, containerIds: string[]) => {
+  const handleAction = async (action: () => Promise<void>) => {
     try {
-      await invoke(action, { ids: containerIds });
-      
-      const actionName = action.replace('bulk_', '').replace('_containers', '').replace('unpause', 'resume');
-      toast.success(`${actionName.charAt(0).toUpperCase() + actionName.slice(1)}ed ${containerIds.length} containers`);
-      
-      // Add a small delay to ensure the backend operation completes before refreshing
-      setTimeout(() => {
-        onActionComplete?.();
-      }, 500);
-    } catch (error) {
-      console.error(`Error ${action}ing containers:`, error);
-      const actionName = action.replace('bulk_', '').replace('_containers', '').replace('unpause', 'resume');
-      toast.error(`Failed to ${actionName} containers: ${error}`);
-      
-      // Refresh even on error to ensure UI is in sync
-      setTimeout(() => {
-        onActionComplete?.();
-      }, 500);
+      await action();
+    } catch {
+      // Error handling is done in the service
     }
   };
 
@@ -48,7 +32,9 @@ export function ContainerGroupActions({
         <Button
           variant="outline"
           size="sm"
-          onClick={() => handleBulkAction('bulk_start_containers', containerIds)}
+          onClick={() => handleAction(() => 
+            ContainerActionService.bulkStartContainers(containerIds, { onActionComplete })
+          )}
           className="h-7 px-2 text-xs"
         >
           <Play className="mr-1 h-3 w-3" />
@@ -61,7 +47,9 @@ export function ContainerGroupActions({
         <Button
           variant="outline"
           size="sm"
-          onClick={() => handleBulkAction('bulk_stop_containers', containerIds)}
+          onClick={() => handleAction(() => 
+            ContainerActionService.bulkStopContainers(containerIds, { onActionComplete })
+          )}
           className="h-7 px-2 text-xs"
         >
           <Square className="mr-1 h-3 w-3" />
@@ -73,10 +61,13 @@ export function ContainerGroupActions({
       <Button
         variant="outline"
         size="sm"
-        onClick={() => {
-          const action = hasRunningContainers ? 'bulk_force_remove_containers' : 'bulk_remove_containers';
-          handleBulkAction(action, containerIds);
-        }}
+        onClick={() => handleAction(() => 
+          ContainerActionService.bulkDeleteContainers(
+            containerIds, 
+            hasRunningContainers, 
+            { onActionComplete }
+          )
+        )}
         className="h-7 px-2 text-xs text-destructive hover:text-destructive"
       >
         <Trash2 className="mr-1 h-3 w-3" />

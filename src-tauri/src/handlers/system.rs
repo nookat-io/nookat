@@ -36,9 +36,9 @@ pub async fn open_url(url: String) -> Result<(), String> {
     
     #[cfg(target_os = "windows")]
     {
-        // Use start command directly instead of cmd.exe to avoid command injection
-        let output = Command::new("start")
-            .arg(&url)
+        // Use cmd.exe with /c start to properly invoke the start command
+        let output = Command::new("cmd")
+            .args(["/c", "start", &url])
             .output()
             .map_err(|e| format!("Failed to open URL: {}", e))?;
         

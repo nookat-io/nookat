@@ -18,9 +18,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '../../ui/dropdown-menu';
-import { invoke } from '@tauri-apps/api/core';
-import { toast } from 'sonner';
 import { ContainerData } from '../data/container-data-provider';
+import { ContainerActionService } from '../utils/container-actions';
 
 interface ContainerRowActionsProps {
   container: ContainerData;
@@ -35,61 +34,18 @@ export function ContainerRowActions({
 }: ContainerRowActionsProps) {
   const [openingTerminal, setOpeningTerminal] = useState(false);
 
-  const handleContainerAction = async (action: string, containerId: string) => {
+  const handleAction = async (action: () => Promise<void>) => {
     try {
-      await invoke(action, { id: containerId });
-      
-      const actionName = action.replace('_container', '').replace('unpause', 'resume');
-      toast.success(`${actionName.charAt(0).toUpperCase() + actionName.slice(1)}ed container`);
-      
-      // Add a small delay to ensure the backend operation completes before refreshing
-      setTimeout(() => {
-        onActionComplete?.();
-      }, 500);
-    } catch (error) {
-      console.error(`Error ${action}ing container:`, error);
-      const actionName = action.replace('_container', '').replace('unpause', 'resume');
-      toast.error(`Failed to ${actionName} container: ${error}`);
-      
-      // Refresh even on error to ensure UI is in sync
-      setTimeout(() => {
-        onActionComplete?.();
-      }, 500);
+      await action();
+    } catch {
+      // Error handling is done in the service
     }
   };
 
-  const handleDeleteContainer = async (containerId: string) => {
+  const handleOpenTerminal = async () => {
+    setOpeningTerminal(true);
     try {
-      // Use force removal for running containers, regular removal for others
-      const action = container.state === 'running' ? 'force_remove_container' : 'remove_container';
-      await invoke(action, { id: containerId });
-      
-      const actionText = container.state === 'running' ? 'Force deleted' : 'Deleted';
-      toast.success(`${actionText} container`);
-      
-      // Add a small delay to ensure the backend operation completes before refreshing
-      setTimeout(() => {
-        onActionComplete?.();
-      }, 500);
-    } catch (error) {
-      console.error('Error deleting container:', error);
-      toast.error(`Failed to delete container: ${error}`);
-      
-      // Refresh even on error to ensure UI is in sync
-      setTimeout(() => {
-        onActionComplete?.();
-      }, 500);
-    }
-  };
-
-  const handleOpenTerminal = async (containerId: string) => {
-    try {
-      setOpeningTerminal(true);
-      await invoke('open_terminal', { id: containerId });
-      toast.success('Terminal opened');
-    } catch (error) {
-      console.error('Error opening terminal:', error);
-      toast.error(`Failed to open terminal: ${error}`);
+      await ContainerActionService.openTerminal(container.id);
     } finally {
       setOpeningTerminal(false);
     }
@@ -105,7 +61,9 @@ export function ContainerRowActions({
       <DropdownMenuContent align="end">
         {/* Start action - available for stopped, exited, created containers */}
         {['stopped', 'exited', 'created'].includes(container.state) && (
-          <DropdownMenuItem onClick={() => handleContainerAction('start_container', container.id)}>
+          <DropdownMenuItem onClick={() => handleAction(() => 
+            ContainerActionService.startContainer(container.id, { onActionComplete })
+          )}>
             <Play className="mr-2 h-4 w-4" />
             Start
           </DropdownMenuItem>
@@ -113,7 +71,9 @@ export function ContainerRowActions({
         
         {/* Stop action - available for running, restarting containers */}
         {['running', 'restarting'].includes(container.state) && (
-          <DropdownMenuItem onClick={() => handleContainerAction('stop_container', container.id)}>
+          <DropdownMenuItem onClick={() => handleAction(() => 
+            ContainerActionService.stopContainer(container.id, { onActionComplete })
+          )}>
             <Square className="mr-2 h-4 w-4" />
             Stop
           </DropdownMenuItem>
@@ -121,7 +81,9 @@ export function ContainerRowActions({
         
         {/* Pause action - available for running containers */}
         {container.state === 'running' && (
-          <DropdownMenuItem onClick={() => handleContainerAction('pause_container', container.id)}>
+          <DropdownMenuItem onClick={() => handleAction(() => 
+            ContainerActionService.pauseContainer(container.id, { onActionComplete })
+          )}>
             <Pause className="mr-2 h-4 w-4" />
             Pause
           </DropdownMenuItem>
@@ -129,7 +91,9 @@ export function ContainerRowActions({
         
         {/* Resume action - available for paused containers */}
         {container.state === 'paused' && (
-          <DropdownMenuItem onClick={() => handleContainerAction('unpause_container', container.id)}>
+          <DropdownMenuItem onClick={() => handleAction(() => 
+            ContainerActionService.resumeContainer(container.id, { onActionComplete })
+          )}>
             <Play className="mr-2 h-4 w-4" />
             Resume
           </DropdownMenuItem>
@@ -137,7 +101,9 @@ export function ContainerRowActions({
         
         {/* Restart action - available for running, restarting containers */}
         {['running', 'restarting'].includes(container.state) && (
-          <DropdownMenuItem onClick={() => handleContainerAction('restart_container', container.id)}>
+          <DropdownMenuItem onClick={() => handleAction(() => 
+            ContainerActionService.restartContainer(container.id, { onActionComplete })
+          )}>
             <RotateCcw className="mr-2 h-4 w-4" />
             Restart
           </DropdownMenuItem>
@@ -146,7 +112,7 @@ export function ContainerRowActions({
         {/* Terminal - available for running containers */}
         {container.state === 'running' && (
           <DropdownMenuItem 
-            onClick={() => handleOpenTerminal(container.id)}
+            onClick={handleOpenTerminal}
             disabled={openingTerminal}
           >
             <Terminal className="mr-2 h-4 w-4" />
@@ -160,11 +126,17 @@ export function ContainerRowActions({
           Logs
         </DropdownMenuItem>
         
-        {/* Delete action - available for stopped, exited, created containers */}
-        {['stopped', 'exited', 'created', "running"].includes(container.state) && (
+        {/* Delete action - available for stopped, exited, created, running containers */}
+        {['stopped', 'exited', 'created', 'running'].includes(container.state) && (
           <DropdownMenuItem 
             className="text-destructive"
-            onClick={() => handleDeleteContainer(container.id)}
+            onClick={() => handleAction(() => 
+              ContainerActionService.deleteContainer(
+                container.id, 
+                container.state === 'running', 
+                { onActionComplete }
+              )
+            )}
           >
             <Trash2 className="mr-2 h-4 w-4" />
             {container.state === 'running' ? 'Force Delete' : 'Delete'}

@@ -1,9 +1,8 @@
 import { Button } from '../../ui/button';
 import { Play, Square, RotateCcw, Trash2, Pause, Play as ResumeIcon, Trash } from 'lucide-react';
 import { ContainerData } from '../data/container-data-provider';
-import { invoke } from '@tauri-apps/api/core';
 import { useState } from 'react';
-import { toast } from 'sonner';
+import { ContainerActionService } from '../utils/container-actions';
 
 interface ContainerActionsProps {
   selectedContainers: string[];
@@ -43,228 +42,142 @@ export function ContainerActions({ selectedContainers, containers, onActionCompl
     ['stopped', 'exited', 'created', "running"].includes(container.state)
   );
 
-  const handleAction = async (action: string, containerIds: string[]) => {
-    // Filter out container IDs that no longer exist in the current containers list
-    const existingContainerIds = containerIds.filter(id => 
-      containers.some(container => container.id === id)
+  const handleAction = async (action: () => Promise<void>, actionName: string) => {
+    setIsLoading(actionName);
+    try {
+      await action();
+    } finally {
+      setIsLoading(null);
+    }
+  };
+
+  const handleStart = () => handleAction(
+    () => ContainerActionService.bulkStartContainers(selectedContainers, { onActionComplete, onSelectionChange }),
+    'start'
+  );
+
+  const handleStop = () => handleAction(
+    () => ContainerActionService.bulkStopContainers(selectedContainers, { onActionComplete, onSelectionChange }),
+    'stop'
+  );
+
+  const handlePause = () => handleAction(
+    () => ContainerActionService.bulkPauseContainers(selectedContainers, { onActionComplete, onSelectionChange }),
+    'pause'
+  );
+
+  const handleResume = () => handleAction(
+    () => ContainerActionService.bulkResumeContainers(selectedContainers, { onActionComplete, onSelectionChange }),
+    'resume'
+  );
+
+  const handleRestart = () => handleAction(
+    () => ContainerActionService.bulkRestartContainers(selectedContainers, { onActionComplete, onSelectionChange }),
+    'restart'
+  );
+
+  const handleDelete = () => {
+    const hasRunning = selectedContainerData.some(c => c.state === 'running');
+    handleAction(
+      () => ContainerActionService.bulkDeleteContainers(selectedContainers, hasRunning, { onActionComplete, onSelectionChange }),
+      'delete'
     );
-    
-    if (existingContainerIds.length === 0) {
-      toast.error('No valid containers selected');
-      return;
-    }
-    
-    setIsLoading(action);
-    try {
-      if (existingContainerIds.length === 1) {
-        // Single container operation
-        await invoke(action, { id: existingContainerIds[0] });
-      } else {
-        // Bulk operation - map singular to plural for bulk commands
-        const bulkActionMap: Record<string, string> = {
-          'start_container': 'bulk_start_containers',
-          'stop_container': 'bulk_stop_containers',
-          'pause_container': 'bulk_pause_containers',
-          'unpause_container': 'bulk_unpause_containers',
-          'restart_container': 'bulk_restart_containers',
-          'remove_container': 'bulk_remove_containers'
-        };
-        const bulkAction = bulkActionMap[action] || `bulk_${action}`;
-        await invoke(bulkAction, { ids: existingContainerIds });
-      }
-      
-      const actionName = action.replace('_container', '').replace('unpause', 'resume');
-      const containerText = existingContainerIds.length === 1 ? 'container' : 'containers';
-      
-      toast.success(`${actionName.charAt(0).toUpperCase() + actionName.slice(1)}ed ${existingContainerIds.length} ${containerText}`);
-      
-      // Clear selections for destructive actions
-      if (action === 'remove_container') {
-        onSelectionChange?.([]);
-      }
-      
-      // Add a small delay to ensure the backend operation completes before refreshing
-      setTimeout(() => {
-        onActionComplete?.();
-      }, 500);
-    } catch (error) {
-      console.error(`Error ${action}ing container:`, error);
-      const actionName = action.replace('_container', '').replace('unpause', 'resume');
-      toast.error(`Failed to ${actionName} container: ${error}`);
-      
-      // Refresh even on error to ensure UI is in sync
-      setTimeout(() => {
-        onActionComplete?.();
-      }, 500);
-    } finally {
-      setIsLoading(null);
-    }
   };
 
-  const handleDelete = async () => {
-    // Filter out container IDs that no longer exist in the current containers list
-    const existingContainerIds = selectedContainers.filter(id => 
-      containers.some(container => container.id === id)
+  const handlePrune = () => handleAction(
+    () => ContainerActionService.pruneContainers({ onActionComplete }),
+    'prune'
+  );
+
+  if (selectedContainers.length === 0) {
+    return (
+      <div className="flex items-center gap-2">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handlePrune}
+          disabled={isLoading === 'prune'}
+        >
+          <Trash className="mr-2 h-4 w-4" />
+          {isLoading === 'prune' ? 'Pruning...' : 'Prune Stopped'}
+        </Button>
+      </div>
     );
-    
-    if (existingContainerIds.length === 0) {
-      toast.error('No valid containers selected');
-      return;
-    }
-    
-    setIsLoading('remove_container');
-    try {
-      if (existingContainerIds.length === 1) {
-        // Single container operation - check if it's running
-        const container = containers.find(c => c.id === existingContainerIds[0]);
-        if (!container) {
-          toast.error('Container not found');
-          return;
-        }
-        
-        const action = container.state === 'running' ? 'force_remove_container' : 'remove_container';
-        await invoke(action, { id: existingContainerIds[0] });
-        
-        const actionText = container.state === 'running' ? 'Force deleted' : 'Deleted';
-        toast.success(`${actionText} container`);
-      } else {
-        // For bulk operations, check if any containers are running
-        const hasRunningContainers = selectedContainerData.some(c => c.state === 'running');
-        const action = hasRunningContainers ? 'bulk_force_remove_containers' : 'bulk_remove_containers';
-        await invoke(action, { ids: existingContainerIds });
-        
-        const actionText = hasRunningContainers ? 'Force deleted' : 'Deleted';
-        toast.success(`${actionText} ${existingContainerIds.length} containers`);
-      }
-      
-      // Clear selections for destructive actions
-      onSelectionChange?.([]);
-      
-      // Add a small delay to ensure the backend operation completes before refreshing
-      setTimeout(() => {
-        onActionComplete?.();
-      }, 500);
-    } catch (error) {
-      console.error('Error deleting containers:', error);
-      toast.error(`Failed to delete containers: ${error}`);
-      
-      // Refresh even on error to ensure UI is in sync
-      setTimeout(() => {
-        onActionComplete?.();
-      }, 500);
-    } finally {
-      setIsLoading(null);
-    }
-  };
-
-  const handleStart = () => handleAction('start_container', selectedContainers);
-  const handleStop = () => handleAction('stop_container', selectedContainers);
-  const handlePause = () => handleAction('pause_container', selectedContainers);
-  const handleResume = () => handleAction('unpause_container', selectedContainers);
-  const handleRestart = () => handleAction('restart_container', selectedContainers);
-
-  const handlePrune = async () => {
-    setIsLoading('prune_containers');
-    try {
-      await invoke('prune_containers');
-      toast.success('Successfully cleaned up stopped containers');
-      onActionComplete?.();
-    } catch (error) {
-      console.error('Error cleaning up containers:', error);
-      toast.error(`Failed to clean up containers: ${error}`);
-      onActionComplete?.();
-    } finally {
-      setIsLoading(null);
-    }
-  };
+  }
 
   return (
-    <div className="flex items-center space-x-2">
-      <Button 
-        variant="outline" 
-        size="sm"
-        onClick={handlePrune}
-        disabled={isLoading === 'prune_containers'}
-      >
-        <Trash className="mr-2 h-4 w-4" />
-        {isLoading === 'prune_containers' ? 'Cleaning...' : 'Clean Up'}
-      </Button>
-      
-      {selectedContainers.length > 0 && (
-        <>
-          {canStart && (
-            <Button 
-              variant="outline" 
-              size="sm"
-              onClick={handleStart}
-              disabled={isLoading === 'start_container'}
-            >
-              <Play className="mr-2 h-4 w-4" />
-              {isLoading === 'start_container' ? 'Starting...' : 'Start'}
-            </Button>
-          )}
-          
-          {canStop && (
-            <Button 
-              variant="outline" 
-              size="sm"
-              onClick={handleStop}
-              disabled={isLoading === 'stop_container'}
-            >
-              <Square className="mr-2 h-4 w-4" />
-              {isLoading === 'stop_container' ? 'Stopping...' : 'Stop'}
-            </Button>
-          )}
-          
-          {canPause && (
-            <Button 
-              variant="outline" 
-              size="sm"
-              onClick={handlePause}
-              disabled={isLoading === 'pause_container'}
-            >
-              <Pause className="mr-2 h-4 w-4" />
-              {isLoading === 'pause_container' ? 'Pausing...' : 'Pause'}
-            </Button>
-          )}
-          
-          {canResume && (
-            <Button 
-              variant="outline" 
-              size="sm"
-              onClick={handleResume}
-              disabled={isLoading === 'unpause_container'}
-            >
-              <ResumeIcon className="mr-2 h-4 w-4" />
-              {isLoading === 'unpause_container' ? 'Resuming...' : 'Resume'}
-            </Button>
-          )}
-          
-          {canRestart && (
-            <Button 
-              variant="outline" 
-              size="sm"
-              onClick={handleRestart}
-              disabled={isLoading === 'restart_container'}
-            >
-              <RotateCcw className="mr-2 h-4 w-4" />
-              {isLoading === 'restart_container' ? 'Restarting...' : 'Restart'}
-            </Button>
-          )}
-          
-          {canDelete && (
-            <Button 
-              variant="outline" 
-              size="sm"
-              onClick={handleDelete}
-              disabled={isLoading === 'remove_container'}
-            >
-              <Trash2 className="mr-2 h-4 w-4" />
-              {isLoading === 'remove_container' ? 'Deleting...' : 
-                selectedContainerData.some(c => c.state === 'running') ? 'Force Delete' : 'Delete'}
-            </Button>
-          )}
-        </>
+    <div className="flex items-center gap-2">
+      {canStart && (
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleStart}
+          disabled={isLoading === 'start'}
+        >
+          <Play className="mr-2 h-4 w-4" />
+          {isLoading === 'start' ? 'Starting...' : 'Start'}
+        </Button>
+      )}
+
+      {canStop && (
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleStop}
+          disabled={isLoading === 'stop'}
+        >
+          <Square className="mr-2 h-4 w-4" />
+          {isLoading === 'stop' ? 'Stopping...' : 'Stop'}
+        </Button>
+      )}
+
+      {canPause && (
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handlePause}
+          disabled={isLoading === 'pause'}
+        >
+          <Pause className="mr-2 h-4 w-4" />
+          {isLoading === 'pause' ? 'Pausing...' : 'Pause'}
+        </Button>
+      )}
+
+      {canResume && (
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleResume}
+          disabled={isLoading === 'resume'}
+        >
+          <ResumeIcon className="mr-2 h-4 w-4" />
+          {isLoading === 'resume' ? 'Resuming...' : 'Resume'}
+        </Button>
+      )}
+
+      {canRestart && (
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleRestart}
+          disabled={isLoading === 'restart'}
+        >
+          <RotateCcw className="mr-2 h-4 w-4" />
+          {isLoading === 'restart' ? 'Restarting...' : 'Restart'}
+        </Button>
+      )}
+
+      {canDelete && (
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleDelete}
+          disabled={isLoading === 'delete'}
+          className="text-destructive hover:text-destructive"
+        >
+          <Trash2 className="mr-2 h-4 w-4" />
+          {isLoading === 'delete' ? 'Deleting...' : 'Delete'}
+        </Button>
       )}
     </div>
   );
