@@ -61,13 +61,15 @@ function PortMappings({ ports, maxVisible = 3 }: PortMappingsProps) {
   }
 
   // Create unique port mappings by converting to string format and using Set
+  // Include protocol in deduplication to handle TCP/UDP on same port
   const uniquePortStrings = new Set<string>();
   const uniquePorts: Port[] = [];
   
   ports.forEach(port => {
-    const hostPort = port.public_port || port.private_port;
+    const hostPort = port.public_port ?? port.private_port;
     const containerPort = port.private_port;
-    const portString = port.public_port ? `${hostPort}:${containerPort}` : `${containerPort}`;
+    const protocol = port.port_type?.toLowerCase() || 'tcp';
+    const portString = port.public_port !== undefined ? `${hostPort}:${containerPort}/${protocol}` : `${containerPort}/${protocol}`;
     
     if (!uniquePortStrings.has(portString)) {
       uniquePortStrings.add(portString);
@@ -77,8 +79,8 @@ function PortMappings({ ports, maxVisible = 3 }: PortMappingsProps) {
 
   // Sort unique ports by host port, then by container port for consistent ordering
   const sortedPorts = uniquePorts.sort((a, b) => {
-    const aHostPort = a.public_port || a.private_port;
-    const bHostPort = b.public_port || b.private_port;
+    const aHostPort = a.public_port ?? a.private_port;
+    const bHostPort = b.public_port ?? b.private_port;
     
     // First sort by host port
     if (aHostPort !== bHostPort) {
@@ -93,29 +95,38 @@ function PortMappings({ ports, maxVisible = 3 }: PortMappingsProps) {
   const hiddenCount = sortedPorts.length - maxVisible;
 
   const formatPortMapping = (port: Port) => {
-    const hostPort = port.public_port || port.private_port;
+    const hostPort = port.public_port ?? port.private_port;
     const containerPort = port.private_port;
     
     // Handle case where public_port is not set (container-only port)
-    if (!port.public_port) {
+    if (port.public_port === undefined) {
       return `${containerPort}`;
     }
     
     return `${hostPort}:${containerPort}`;
   };
 
-  const handlePortClick = (port: Port) => {
+  const handlePortClick = async (port: Port) => {
+    console.log("handlePortClick", port);
     // Only make clickable if there's a public port mapping
-    if (!port.public_port) {
+    if (port.public_port === undefined) {
       return;
     }
     
+    console.log("port", port);
     const hostIp = port.ip || 'localhost';
     const hostPort = port.public_port;
     const url = `http://${hostIp}:${hostPort}`;
     
-    // Open in default browser
-    window.open(url, '_blank');
+    // Open in default browser using Tauri opener plugin
+    try {
+      console.log("url", url);
+      await invoke('open_url', { url });
+      console.log("opened in default browser");
+    } catch (error) {
+      console.error('Failed to open port URL:', error);
+      toast.error(`Failed to open ${url}: ${error}`);
+    }
   };
 
   const isPortClickable = (port: Port) => {
@@ -124,11 +135,11 @@ function PortMappings({ ports, maxVisible = 3 }: PortMappingsProps) {
 
   const getFullPortMapping = (port: Port) => {
     const hostIp = port.ip || '0.0.0.0';
-    const hostPort = port.public_port || port.private_port;
+    const hostPort = port.public_port ?? port.private_port;
     const containerPort = port.private_port;
     const protocol = port.port_type?.toUpperCase() || 'TCP';
     
-    if (!port.public_port) {
+    if (port.public_port === undefined) {
       return `${containerPort}/${protocol}`;
     }
     

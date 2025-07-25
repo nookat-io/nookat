@@ -8,6 +8,7 @@ use crate::handlers::{
     container_files, container_logs, force_remove_container, list_containers, list_images,
     list_networks, list_volumes, open_terminal, pause_container, prune_containers, prune_images,
     remove_container, restart_container, start_container, stop_container, unpause_container,
+    open_url,
 };
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -39,7 +40,9 @@ pub fn run() {
             list_images,
             prune_images,
             list_networks,
-            list_volumes
+            list_volumes,
+            // System
+            open_url
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
