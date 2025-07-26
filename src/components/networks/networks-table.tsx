@@ -1,6 +1,5 @@
 'use client';
 
-import { useState } from 'react';
 import {
   Table,
   TableBody,
@@ -12,7 +11,7 @@ import {
 import { Checkbox } from '../ui/checkbox';
 import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
-import { Trash2, Network, MoreHorizontal } from 'lucide-react';
+import { Trash2, MoreHorizontal } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -20,67 +19,32 @@ import {
   DropdownMenuTrigger,
 } from '../ui/dropdown-menu';
 import { formatDistanceToNow } from 'date-fns';
-
-interface DockerNetwork {
-  id: string;
-  name: string;
-  driver: string;
-  scope: string;
-  created: Date;
-  subnet: string;
-  gateway: string;
-  containers: number;
-  internal: boolean;
-}
+import { NetworkData } from './network-data-provider';
+import { removeNetwork } from './network-actions-utils';
+import { toast } from 'sonner';
+import { useState } from 'react';
 
 interface NetworksTableProps {
   selectedNetworks: string[];
   onSelectionChange: (_selected: string[]) => void;
+  networks: NetworkData[];
+  onActionComplete?: () => void;
 }
 
 export function NetworksTable({
   selectedNetworks,
   onSelectionChange,
+  networks,
+  onActionComplete,
 }: NetworksTableProps) {
-  const [networks] = useState<DockerNetwork[]>([
-    {
-      id: 'net_1',
-      name: 'bridge',
-      driver: 'bridge',
-      scope: 'local',
-      created: new Date(Date.now() - 2592000000), // 30 days ago
-      subnet: '172.17.0.0/16',
-      gateway: '172.17.0.1',
-      containers: 3,
-      internal: false,
-    },
-    {
-      id: 'net_2',
-      name: 'host',
-      driver: 'host',
-      scope: 'local',
-      created: new Date(Date.now() - 2592000000),
-      subnet: '',
-      gateway: '',
-      containers: 0,
-      internal: false,
-    },
-    {
-      id: 'net_3',
-      name: 'app-network',
-      driver: 'bridge',
-      scope: 'local',
-      created: new Date(Date.now() - 86400000),
-      subnet: '172.18.0.0/16',
-      gateway: '172.18.0.1',
-      containers: 2,
-      internal: false,
-    },
-  ]);
+  const networksArray = networks || [];
+  const [deletingNetworks, setDeletingNetworks] = useState<Set<string>>(
+    new Set()
+  );
 
   const handleSelectAll = (checked: boolean) => {
-    const selectableNetworks = networks.filter(
-      n => n.name !== 'bridge' && n.name !== 'host'
+    const selectableNetworks = networksArray.filter(
+      n => n.name !== 'bridge' && n.name !== 'host' && n.name !== 'none'
     );
     if (checked) {
       onSelectionChange(selectableNetworks.map(n => n.id));
@@ -97,6 +61,46 @@ export function NetworksTable({
     }
   };
 
+  const handleDeleteNetwork = async (networkName: string) => {
+    setDeletingNetworks(prev => new Set(prev).add(networkName));
+    try {
+      await removeNetwork(networkName);
+      toast.success(`Successfully deleted network "${networkName}"`);
+      onActionComplete?.();
+    } catch (error) {
+      console.error('Failed to delete network:', error);
+      const errorMessage =
+        error instanceof Error ? error.message : 'Failed to delete network';
+      toast.error(errorMessage);
+    } finally {
+      setDeletingNetworks(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(networkName);
+        return newSet;
+      });
+    }
+  };
+
+  // Sort networks: System networks first, then by driver, then by name
+  const sortedNetworks = [...networksArray].sort((a, b) => {
+    const aIsSystem =
+      a.name === 'bridge' || a.name === 'host' || a.name === 'none';
+    const bIsSystem =
+      b.name === 'bridge' || b.name === 'host' || b.name === 'none';
+
+    // First sort by type (System before Custom)
+    if (aIsSystem && !bIsSystem) return -1;
+    if (!aIsSystem && bIsSystem) return 1;
+
+    // Then sort by driver
+    if (a.driver !== b.driver) {
+      return a.driver.localeCompare(b.driver);
+    }
+
+    // Finally sort by name
+    return a.name.localeCompare(b.name);
+  });
+
   return (
     <div className="border rounded-lg overflow-hidden">
       <div className="overflow-x-auto">
@@ -105,25 +109,45 @@ export function NetworksTable({
             <TableRow>
               <TableHead className="w-12">
                 <Checkbox
-                  checked={selectedNetworks.length > 0}
+                  checked={
+                    selectedNetworks.length > 0 &&
+                    selectedNetworks.length ===
+                      networksArray.filter(
+                        n =>
+                          n.name !== 'bridge' &&
+                          n.name !== 'host' &&
+                          n.name !== 'none'
+                      ).length
+                  }
                   onCheckedChange={handleSelectAll}
                 />
               </TableHead>
               <TableHead>Name</TableHead>
               <TableHead>Driver</TableHead>
-              <TableHead>Scope</TableHead>
               <TableHead>Created</TableHead>
               <TableHead>Subnet</TableHead>
               <TableHead>Gateway</TableHead>
-              <TableHead>Containers</TableHead>
               <TableHead>Type</TableHead>
               <TableHead className="w-24">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {networks.map(network => {
+            {sortedNetworks.map(network => {
               const isSystemNetwork =
-                network.name === 'bridge' || network.name === 'host';
+                network.name === 'bridge' ||
+                network.name === 'host' ||
+                network.name === 'none';
+              const createdDate = network.created
+                ? (() => {
+                    try {
+                      const date = new Date(network.created);
+                      return isNaN(date.getTime()) ? null : date;
+                    } catch {
+                      return null;
+                    }
+                  })()
+                : null;
+
               return (
                 <TableRow key={network.id}>
                   <TableCell>
@@ -141,10 +165,9 @@ export function NetworksTable({
                     {network.driver}
                   </TableCell>
                   <TableCell className="text-muted-foreground">
-                    {network.scope}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {formatDistanceToNow(network.created)} ago
+                    {createdDate
+                      ? `${formatDistanceToNow(createdDate)} ago`
+                      : '-'}
                   </TableCell>
                   <TableCell className="text-muted-foreground text-xs font-mono">
                     {network.subnet || '-'}
@@ -152,37 +175,36 @@ export function NetworksTable({
                   <TableCell className="text-muted-foreground text-xs font-mono">
                     {network.gateway || '-'}
                   </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {network.containers}
-                  </TableCell>
                   <TableCell>
                     <Badge variant={isSystemNetwork ? 'secondary' : 'default'}>
                       {isSystemNetwork ? 'System' : 'Custom'}
                     </Badge>
                   </TableCell>
                   <TableCell>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="sm">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem>
-                          <Network className="mr-2 h-4 w-4" />
-                          Inspect
-                        </DropdownMenuItem>
-                        {!isSystemNetwork && (
+                    {!isSystemNetwork && (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="sm">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
                           <DropdownMenuItem
                             className="text-destructive"
-                            disabled={network.containers > 0}
+                            disabled={
+                              network.containers > 0 ||
+                              deletingNetworks.has(network.name)
+                            }
+                            onClick={() => handleDeleteNetwork(network.name)}
                           >
                             <Trash2 className="mr-2 h-4 w-4" />
-                            Delete
+                            {deletingNetworks.has(network.name)
+                              ? 'Deleting...'
+                              : 'Delete'}
                           </DropdownMenuItem>
-                        )}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    )}
                   </TableCell>
                 </TableRow>
               );
