@@ -53,8 +53,8 @@ impl NetworksService {
 
     pub async fn bulk_remove_networks(&self, names: &[String]) -> Result<(), String> {
         let mut errors = Vec::new();
+
         for name in names {
-            // Validate network name
             if name.trim().is_empty() {
                 errors.push(format!("Network name cannot be empty"));
                 continue;
@@ -65,15 +65,23 @@ impl NetworksService {
                 continue;
             }
 
-            // Check for system networks (case-insensitive)
             let lower_name = name.to_lowercase();
             if lower_name == "bridge" || lower_name == "host" || lower_name == "none" {
                 errors.push(format!("Cannot remove system network: {}", name));
                 continue;
             }
+        }
 
-            let docker = Docker::connect_with_local_defaults()
-                .map_err(|e| format!("Failed to connect to Docker: {}", e))?;
+        if !errors.is_empty() {
+            return Err(errors.join("; "));
+        }
+
+        let docker = match Docker::connect_with_local_defaults() {
+            Ok(docker) => docker,
+            Err(e) => return Err(format!("Failed to connect to Docker: {}", e)),
+        };
+
+        for name in names {
             if let Err(e) = docker.remove_network(name).await {
                 errors.push(format!("Failed to remove network {}: {}", name, e));
             }
