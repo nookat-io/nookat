@@ -1,36 +1,66 @@
-import { useState } from 'react';
-import { VolumesTable } from '../components/volumes/volumes-table';
-import { VolumeActions } from '../components/volumes/volume-actions';
+import {
+  VolumeDataProvider,
+  VolumeFilterLogic,
+  VolumeHeader,
+  VolumeControls,
+  VolumesTable,
+  useVolumePageState,
+} from '../components/volumes';
 
 export default function VolumesPage() {
-  const [selectedVolumes, setSelectedVolumes] = useState<string[]>([]);
+  const {
+    selectedVolumes,
+    setSelectedVolumes,
+    filter,
+    setFilter,
+    searchTerm,
+    setSearchTerm,
+  } = useVolumePageState();
 
   return (
-    <div className="page-background min-h-screen">
-      <div className="space-y-6 p-6 max-w-full">
-        <div className="flex items-center justify-between">
-          <div className="border border-border/50 rounded-2xl p-6 dark:bg-card/50 w-full flex flex-col items-start justify-start">
-            <div className="flex items-start justify-between w-full">
-              <div className="flex flex-col items-start justify-start">
-                <h1 className="text-3xl font-bold bg-clip-text">Volumes</h1>
-                <p className="text-muted-foreground mt-2">
-                  Manage Docker volumes for persistent data storage
-                </p>
-              </div>
-              <div className="flex items-start">
-                <VolumeActions selectedVolumes={selectedVolumes} />
-              </div>
+    <VolumeDataProvider>
+      {({ volumes, refreshVolumes }) => (
+        <div className="page-background min-h-screen flex flex-col">
+          {/* Sticky header section */}
+          <div className="sticky top-0 z-10 bg-background border-b">
+            <div className="space-y-6 p-6 max-w-full">
+              <VolumeHeader
+                selectedVolumes={selectedVolumes}
+                volumes={volumes}
+                onActionComplete={refreshVolumes}
+                onSelectionChange={setSelectedVolumes}
+              />
+
+              <VolumeControls
+                filter={filter}
+                onFilterChange={setFilter}
+                searchTerm={searchTerm}
+                onSearchChange={setSearchTerm}
+              />
             </div>
           </div>
-        </div>
 
-        <div className="content-section">
-          <VolumesTable
-            selectedVolumes={selectedVolumes}
-            onSelectionChange={setSelectedVolumes}
-          />
+          {/* Scrollable table section */}
+          <div className="flex-1 overflow-hidden">
+            <VolumeFilterLogic
+              volumes={volumes}
+              filter={filter}
+              searchTerm={searchTerm}
+            >
+              {filteredVolumes => (
+                <div className="p-6 max-w-full h-full overflow-auto">
+                  <VolumesTable
+                    selectedVolumes={selectedVolumes}
+                    onSelectionChange={setSelectedVolumes}
+                    volumes={filteredVolumes}
+                    onActionComplete={refreshVolumes}
+                  />
+                </div>
+              )}
+            </VolumeFilterLogic>
+          </div>
         </div>
-      </div>
-    </div>
+      )}
+    </VolumeDataProvider>
   );
 }

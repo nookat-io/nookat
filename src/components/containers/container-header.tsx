@@ -22,6 +22,8 @@ export function ContainerHeader({
             <h1 className="text-3xl font-bold bg-clip-text">Containers</h1>
             <p className="text-muted-foreground mt-2">
               Manage your Docker containers
+              {containers.length > 0 &&
+                ` - ${containers.length} container${containers.length !== 1 ? 's' : ''} found`}
             </p>
           </div>
           <div className="flex items-start">

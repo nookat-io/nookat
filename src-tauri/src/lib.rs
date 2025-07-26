@@ -8,7 +8,7 @@ use crate::handlers::{
     container_files, container_logs, force_remove_container, list_containers, list_images,
     list_networks, list_volumes, open_terminal, open_url, pause_container, prune_containers,
     prune_images, remove_container, restart_container, start_container, stop_container,
-    unpause_container,
+    unpause_container, remove_volume, bulk_remove_volumes, inspect_volume, prune_volumes,
 };
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -40,7 +40,12 @@ pub fn run() {
             list_images,
             prune_images,
             list_networks,
+            // Volumes
             list_volumes,
+            remove_volume,
+            bulk_remove_volumes,
+            inspect_volume,
+            prune_volumes,
             // System
             open_url
         ])

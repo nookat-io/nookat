@@ -1,4 +1,4 @@
-name: '[CD] Release and Publish'
+name: '[CD] Release'
 
 on:
   workflow_dispatch:

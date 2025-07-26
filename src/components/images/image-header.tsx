@@ -1,12 +1,15 @@
 import { ImageActions } from './image-actions';
+import { ImageData } from './image-data-provider';
 
 interface ImageHeaderProps {
   selectedImages: string[];
+  images: ImageData[];
   onActionComplete: () => void;
 }
 
 export function ImageHeader({
   selectedImages,
+  images,
   onActionComplete,
 }: ImageHeaderProps) {
   return (
@@ -16,6 +19,8 @@ export function ImageHeader({
           <h1 className="text-3xl font-bold bg-clip-text">Images</h1>
           <p className="text-muted-foreground mt-2">
             Manage your docker images
+            {images.length > 0 &&
+              ` - ${images.length} image${images.length !== 1 ? 's' : ''} found`}
           </p>
         </div>
         <div className="flex items-start">

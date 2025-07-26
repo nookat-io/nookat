@@ -26,6 +26,7 @@ export default function ImagesPage() {
             <div className="space-y-6 p-6 max-w-full">
               <ImageHeader
                 selectedImages={selectedImages}
+                images={images}
                 onActionComplete={refreshImages}
               />
 
