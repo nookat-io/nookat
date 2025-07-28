@@ -360,7 +360,10 @@ export function EngineSettings() {
                       </span>
                     </div>
                     <div className="h-2 bg-gray-100 dark:bg-gray-800 rounded-full">
-                      <div className="h-2 bg-gray-300 dark:bg-gray-600 rounded-full" style={{ width: '100%' }} />
+                      <div
+                        className="h-2 bg-gray-300 dark:bg-gray-600 rounded-full"
+                        style={{ width: '100%' }}
+                      />
                     </div>
                     <div className="text-xs text-muted-foreground">
                       Total available CPU cores
@@ -374,7 +377,10 @@ export function EngineSettings() {
                       </span>
                     </div>
                     <div className="h-2 bg-gray-100 dark:bg-gray-800 rounded-full">
-                      <div className="h-2 bg-gray-300 dark:bg-gray-600 rounded-full" style={{ width: '100%' }} />
+                      <div
+                        className="h-2 bg-gray-300 dark:bg-gray-600 rounded-full"
+                        style={{ width: '100%' }}
+                      />
                     </div>
                     <div className="text-xs text-muted-foreground">
                       Total available system memory
@@ -389,7 +395,9 @@ export function EngineSettings() {
                     </span>
                   </div>
                   <p className="text-sm text-blue-700 dark:text-blue-300 mt-1">
-                    This shows system capacity, not current utilization. Real-time resource usage statistics are not available through the Docker API.
+                    This shows system capacity, not current utilization.
+                    Real-time resource usage statistics are not available
+                    through the Docker API.
                   </p>
                 </div>
               </div>
