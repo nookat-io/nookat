@@ -15,7 +15,7 @@ import { Textarea } from '../ui/textarea';
 import { Switch } from '../ui/switch';
 import { Badge } from '../ui/badge';
 import { Separator } from '../ui/separator';
-import { Progress } from '../ui/progress';
+
 import {
   AlertTriangle,
   Server,
@@ -160,7 +160,7 @@ export function EngineSettings() {
   }, []);
 
   const formatBytes = (bytes?: number) => {
-    if (!bytes) return 'Unknown';
+    if (bytes === null || bytes === undefined) return 'Unknown';
     const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
     const i = Math.floor(Math.log(bytes) / Math.log(1024));
     return `${(bytes / Math.pow(1024, i)).toFixed(1)} ${sizes[i]}`;
@@ -345,11 +345,11 @@ export function EngineSettings() {
 
               <Separator />
 
-              {/* Resource Usage */}
+              {/* System Capacity */}
               <div className="space-y-4">
                 <h3 className="text-lg font-semibold flex items-center gap-2">
                   <Cpu className="h-4 w-4" />
-                  Resource Usage
+                  System Capacity
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-3">
@@ -359,7 +359,12 @@ export function EngineSettings() {
                         {dockerInfo.ncpu || 0}
                       </span>
                     </div>
-                    <Progress value={100} className="h-2" />
+                    <div className="h-2 bg-gray-100 dark:bg-gray-800 rounded-full">
+                      <div className="h-2 bg-gray-300 dark:bg-gray-600 rounded-full" style={{ width: '100%' }} />
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      Total available CPU cores
+                    </div>
                   </div>
                   <div className="space-y-3">
                     <div className="flex justify-between text-sm">
@@ -368,8 +373,24 @@ export function EngineSettings() {
                         {formatBytes(dockerInfo.mem_total)}
                       </span>
                     </div>
-                    <Progress value={100} className="h-2" />
+                    <div className="h-2 bg-gray-100 dark:bg-gray-800 rounded-full">
+                      <div className="h-2 bg-gray-300 dark:bg-gray-600 rounded-full" style={{ width: '100%' }} />
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      Total available system memory
+                    </div>
                   </div>
+                </div>
+                <div className="p-3 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                  <div className="flex items-center space-x-2">
+                    <Info className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                    <span className="text-sm font-medium text-blue-800 dark:text-blue-200">
+                      Note
+                    </span>
+                  </div>
+                  <p className="text-sm text-blue-700 dark:text-blue-300 mt-1">
+                    This shows system capacity, not current utilization. Real-time resource usage statistics are not available through the Docker API.
+                  </p>
                 </div>
               </div>
 
