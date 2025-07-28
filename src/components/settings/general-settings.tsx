@@ -13,6 +13,7 @@ import { Label } from '../ui/label';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Separator } from '../ui/separator';
+import { Badge } from '../ui/badge';
 
 export function GeneralSettings() {
   const [settings, setSettings] = useState({
@@ -20,6 +21,7 @@ export function GeneralSettings() {
     minimizeToTray: true,
     autoUpdate: false,
     showNotifications: true,
+    sendUsageStats: false,
     dockerHubUsername: '',
   });
 
@@ -31,19 +33,45 @@ export function GeneralSettings() {
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle>Startup Settings</CardTitle>
+          <CardTitle>Usage Statistics</CardTitle>
           <CardDescription>
-            Configure how DockerWeb starts and behaves
+            Help improve Nookat by sharing anonymous usage data
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex items-center justify-between">
             <div className="space-y-0.5">
-              <Label htmlFor="start-on-boot">
-                Start DockerWeb on system boot
+              <Label htmlFor="send-usage-stats">
+                Send anonymous usage statistics
               </Label>
               <div className="text-sm text-muted-foreground">
-                Automatically launch DockerWeb when your system starts
+                Help improve Nookat by sending anonymous usage data
+              </div>
+            </div>
+            <Switch
+              id="send-usage-stats"
+              checked={settings.sendUsageStats}
+              onCheckedChange={checked =>
+                handleSettingChange('sendUsageStats', checked)
+              }
+            />
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Startup Settings</CardTitle>
+          <CardDescription>
+            Configure how Nookat starts and behaves
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5">
+              <Label htmlFor="start-on-boot">Start Nookat on system boot</Label>
+              <div className="text-sm text-muted-foreground">
+                Automatically launch Nookat when your system starts
               </div>
             </div>
             <Switch
@@ -61,7 +89,7 @@ export function GeneralSettings() {
             <div className="space-y-0.5">
               <Label htmlFor="minimize-to-tray">Minimize to system tray</Label>
               <div className="text-sm text-muted-foreground">
-                Keep DockerWeb running in the background
+                Keep Nookat running in the background
               </div>
             </div>
             <Switch
@@ -85,7 +113,12 @@ export function GeneralSettings() {
         <CardContent className="space-y-4">
           <div className="flex items-center justify-between">
             <div className="space-y-0.5">
-              <Label htmlFor="auto-update">Automatic updates</Label>
+              <div className="flex items-center gap-2">
+                <Label htmlFor="auto-update">Automatic updates</Label>
+                <Badge variant="secondary" className="text-xs">
+                  Not available right now
+                </Badge>
+              </div>
               <div className="text-sm text-muted-foreground">
                 Automatically download and install updates
               </div>
@@ -96,6 +129,7 @@ export function GeneralSettings() {
               onCheckedChange={checked =>
                 handleSettingChange('autoUpdate', checked)
               }
+              disabled
             />
           </div>
 
@@ -127,7 +161,12 @@ export function GeneralSettings() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="space-y-2">
+          <div className="flex items-center gap-2 mb-4">
+            <Badge variant="secondary" className="text-xs">
+              Not available right now
+            </Badge>
+          </div>
+          <div className="space-y-2 opacity-50">
             <Label htmlFor="docker-username">Docker Hub Username</Label>
             <Input
               id="docker-username"
@@ -136,12 +175,15 @@ export function GeneralSettings() {
               onChange={e =>
                 handleSettingChange('dockerHubUsername', e.target.value)
               }
+              disabled
             />
           </div>
 
           <div className="flex space-x-2">
-            <Button variant="outline">Test Connection</Button>
-            <Button>Save Settings</Button>
+            <Button variant="outline" disabled>
+              Test Connection
+            </Button>
+            <Button disabled>Save Settings</Button>
           </div>
         </CardContent>
       </Card>

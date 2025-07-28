@@ -32,13 +32,13 @@ export function Sidebar() {
         'flex flex-col border-r bg-card transition-all duration-200 select-none',
         collapsed ? 'w-20' : 'w-64'
       )}
-      style={{
-        width: collapsed ? '80px' : '256px',
-        minWidth: collapsed ? '80px' : '256px',
-        maxWidth: collapsed ? '80px' : '256px',
-      }}
     >
-      <div className="flex items-center justify-between p-4 border-b">
+      <div
+        className={cn(
+          'flex items-center justify-between px-6 py-4 border-b',
+          collapsed ? 'mt-1' : ''
+        )}
+      >
         {!collapsed && (
           <div className="flex items-center space-x-2">
             <img

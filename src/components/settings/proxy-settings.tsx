@@ -12,7 +12,7 @@ import { Label } from '../ui/label';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Switch } from '../ui/switch';
-import { Separator } from '../ui/separator';
+import { Badge } from '../ui/badge';
 
 export function ProxySettings() {
   const [proxy, setProxy] = useState({
@@ -39,7 +39,12 @@ export function ProxySettings() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2 mb-4">
+            <Badge variant="secondary" className="text-xs">
+              Not available right now
+            </Badge>
+          </div>
+          <div className="flex items-center justify-between opacity-50">
             <div className="space-y-0.5">
               <Label>Enable Proxy</Label>
               <div className="text-sm text-muted-foreground">
@@ -51,113 +56,107 @@ export function ProxySettings() {
               onCheckedChange={checked =>
                 handleProxyChange('enableProxy', checked)
               }
+              disabled
             />
           </div>
 
-          {proxy.enableProxy && (
-            <>
-              <Separator />
+          <div className="space-y-2 opacity-50">
+            <Label htmlFor="http-proxy">HTTP Proxy</Label>
+            <Input
+              id="http-proxy"
+              placeholder="http://proxy.example.com:8080"
+              value={proxy.httpProxy}
+              onChange={e => handleProxyChange('httpProxy', e.target.value)}
+              disabled
+            />
+          </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="http-proxy">HTTP Proxy</Label>
-                <Input
-                  id="http-proxy"
-                  placeholder="http://proxy.example.com:8080"
-                  value={proxy.httpProxy}
-                  onChange={e => handleProxyChange('httpProxy', e.target.value)}
-                />
-              </div>
+          <div className="space-y-2 opacity-50">
+            <Label htmlFor="https-proxy">HTTPS Proxy</Label>
+            <Input
+              id="https-proxy"
+              placeholder="https://proxy.example.com:8080"
+              value={proxy.httpsProxy}
+              onChange={e => handleProxyChange('httpsProxy', e.target.value)}
+              disabled
+            />
+          </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="https-proxy">HTTPS Proxy</Label>
-                <Input
-                  id="https-proxy"
-                  placeholder="https://proxy.example.com:8080"
-                  value={proxy.httpsProxy}
-                  onChange={e =>
-                    handleProxyChange('httpsProxy', e.target.value)
-                  }
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="no-proxy">No Proxy</Label>
-                <Input
-                  id="no-proxy"
-                  placeholder="localhost,127.0.0.1,*.local"
-                  value={proxy.noProxy}
-                  onChange={e => handleProxyChange('noProxy', e.target.value)}
-                />
-                <div className="text-xs text-muted-foreground">
-                  Comma-separated list of domains to bypass proxy
-                </div>
-              </div>
-            </>
-          )}
+          <div className="space-y-2 opacity-50">
+            <Label htmlFor="no-proxy">No Proxy</Label>
+            <Input
+              id="no-proxy"
+              placeholder="localhost,127.0.0.1,*.local"
+              value={proxy.noProxy}
+              onChange={e => handleProxyChange('noProxy', e.target.value)}
+              disabled
+            />
+            <div className="text-xs text-muted-foreground">
+              Comma-separated list of domains to bypass proxy
+            </div>
+          </div>
         </CardContent>
       </Card>
 
-      {proxy.enableProxy && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Proxy Authentication</CardTitle>
-            <CardDescription>
-              Configure authentication for proxy server access
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
-                <Label>Require Authentication</Label>
-                <div className="text-sm text-muted-foreground">
-                  Proxy server requires username and password
-                </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>Proxy Authentication</CardTitle>
+          <CardDescription>
+            Configure authentication for proxy server access
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center gap-2 mb-4">
+            <Badge variant="secondary" className="text-xs">
+              Not available right now
+            </Badge>
+          </div>
+          <div className="flex items-center justify-between opacity-50">
+            <div className="space-y-0.5">
+              <Label>Require Authentication</Label>
+              <div className="text-sm text-muted-foreground">
+                Proxy server requires username and password
               </div>
-              <Switch
-                checked={proxy.proxyAuth}
-                onCheckedChange={checked =>
-                  handleProxyChange('proxyAuth', checked)
-                }
+            </div>
+            <Switch
+              checked={proxy.proxyAuth}
+              onCheckedChange={checked =>
+                handleProxyChange('proxyAuth', checked)
+              }
+              disabled
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4 opacity-50">
+            <div className="space-y-2">
+              <Label htmlFor="proxy-username">Username</Label>
+              <Input
+                id="proxy-username"
+                value={proxy.username}
+                onChange={e => handleProxyChange('username', e.target.value)}
+                disabled
               />
             </div>
 
-            {proxy.proxyAuth && (
-              <>
-                <Separator />
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="proxy-username">Username</Label>
-                    <Input
-                      id="proxy-username"
-                      value={proxy.username}
-                      onChange={e =>
-                        handleProxyChange('username', e.target.value)
-                      }
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="proxy-password">Password</Label>
-                    <Input
-                      id="proxy-password"
-                      type="password"
-                      value={proxy.password}
-                      onChange={e =>
-                        handleProxyChange('password', e.target.value)
-                      }
-                    />
-                  </div>
-                </div>
-              </>
-            )}
-          </CardContent>
-        </Card>
-      )}
+            <div className="space-y-2">
+              <Label htmlFor="proxy-password">Password</Label>
+              <Input
+                id="proxy-password"
+                type="password"
+                value={proxy.password}
+                onChange={e => handleProxyChange('password', e.target.value)}
+                disabled
+              />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       <div className="flex justify-end space-x-2">
-        <Button variant="outline">Test Connection</Button>
-        <Button>Save Settings</Button>
+        <Button variant="outline" disabled>
+          Test Connection
+        </Button>
+        <Button disabled>Save Settings</Button>
       </div>
     </div>
   );
