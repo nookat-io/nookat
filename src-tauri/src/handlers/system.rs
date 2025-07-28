@@ -1,13 +1,13 @@
 use std::process::Command;
+use bollard::Docker;
+use crate::entities::DockerInfo;
 
 #[tauri::command]
 pub async fn open_url(url: String) -> Result<(), String> {
-    // Basic URL validation
     if url.trim().is_empty() {
         return Err("URL cannot be empty".to_string());
     }
 
-    // Open URL using the system's default browser
     #[cfg(target_os = "macos")]
     {
         let output = Command::new("open")
@@ -49,4 +49,25 @@ pub async fn open_url(url: String) -> Result<(), String> {
     }
 
     Ok(())
+}
+
+
+
+#[tauri::command]
+pub async fn get_docker_info() -> Result<DockerInfo, String> {
+    match Docker::connect_with_local_defaults() {
+        Ok(docker) => {
+            match tokio::try_join!(docker.info(), docker.version()) {
+                Ok((info, version)) => {
+                    Ok(DockerInfo::from((info, version)))
+                }
+                Err(e) => {
+                    Err(format!("Docker is running but not responding properly: {}", e))
+                }
+            }
+        }
+        Err(e) => {
+            Err(format!("Docker is not running: {}", e))
+        }
+    }
 }
