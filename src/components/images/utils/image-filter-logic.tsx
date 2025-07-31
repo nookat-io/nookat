@@ -1,5 +1,5 @@
 import React from 'react';
-import { ImageData } from './image-data-provider';
+import { ImageData } from '../image-data-provider';
 
 interface ImageFilterLogicProps {
   images: ImageData[];

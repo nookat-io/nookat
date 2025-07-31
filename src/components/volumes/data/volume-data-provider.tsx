@@ -25,16 +25,40 @@ interface VolumeDataProviderProps {
   }) => React.ReactNode;
 }
 
-const AUTO_REFRESH_INTERVAL = 5000; // 5 seconds instead of 500ms
+const AUTO_REFRESH_INTERVAL = 1000; // 1 second for responsive updates
 
 export function VolumeDataProvider({ children }: VolumeDataProviderProps) {
   const [volumes, setVolumes] = useState<VolumeData[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
   const lastRefreshTime = useRef<number>(Date.now());
   const autoRefreshInterval = useRef<number | null>(null);
 
-  async function getVolumes() {
+  async function getVolumes(silent = false) {
+    try {
+      if (!silent) {
+        setIsLoading(true);
+      }
+      setError(null);
+      const result = await invoke<VolumeData[]>('list_volumes');
+      setVolumes(result);
+      lastRefreshTime.current = Date.now();
+      console.log(result);
+    } catch (error) {
+      console.error('Error getting volumes:', error);
+      setError(
+        error instanceof Error ? error.message : 'Failed to fetch volumes'
+      );
+    } finally {
+      if (!silent) {
+        setIsLoading(false);
+      }
+      setIsInitialLoad(false);
+    }
+  }
+
+  async function refreshVolumes() {
     try {
       setIsLoading(true);
       setError(null);
@@ -57,7 +81,8 @@ export function VolumeDataProvider({ children }: VolumeDataProviderProps) {
       autoRefreshInterval.current = setInterval(() => {
         const timeSinceLastRefresh = Date.now() - lastRefreshTime.current;
         if (timeSinceLastRefresh > AUTO_REFRESH_INTERVAL) {
-          getVolumes();
+          // Silent refresh - don't show loading state
+          getVolumes(true);
         }
       }, AUTO_REFRESH_INTERVAL);
     };
@@ -80,9 +105,9 @@ export function VolumeDataProvider({ children }: VolumeDataProviderProps) {
     <>
       {children({
         volumes,
-        isLoading,
+        isLoading: isInitialLoad || isLoading,
         error,
-        refreshVolumes: getVolumes,
+        refreshVolumes,
       })}
     </>
   );

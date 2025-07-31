@@ -1,4 +1,4 @@
-import { ImageActions } from './image-actions';
+import { ImageActions } from './actions';
 import { ImageData } from './image-data-provider';
 
 interface ImageHeaderProps {

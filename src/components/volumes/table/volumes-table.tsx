@@ -7,18 +7,18 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '../ui/table';
-import { Checkbox } from '../ui/checkbox';
-import { Button } from '../ui/button';
+} from '../../ui/table';
+import { Checkbox } from '../../ui/checkbox';
+import { Button } from '../../ui/button';
 import { Trash2, MoreHorizontal } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from '../ui/dropdown-menu';
-import { VolumeData } from './data/volume-data-provider';
-import { VolumeActionService } from './utils/volume-actions';
+} from '../../ui/dropdown-menu';
+import { VolumeData } from '../data/volume-data-provider';
+import { VolumeActionService } from '../utils/volume-actions';
 import { useState } from 'react';
 
 interface VolumesTableProps {

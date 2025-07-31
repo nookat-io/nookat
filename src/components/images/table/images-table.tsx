@@ -7,20 +7,20 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '../ui/table';
-import { Checkbox } from '../ui/checkbox';
-import { Badge } from '../ui/badge';
-import { Button } from '../ui/button';
-import { Play, Trash2, Tag, MoreHorizontal, Loader2 } from 'lucide-react';
+} from '../../ui/table';
+import { Checkbox } from '../../ui/checkbox';
+import { Badge } from '../../ui/badge';
+import { Button } from '../../ui/button';
+import { Play, Trash2, Tag, MoreHorizontal } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from '../ui/dropdown-menu';
+} from '../../ui/dropdown-menu';
 import { formatDistanceToNow } from 'date-fns';
-import { ImageData } from './image-data-provider';
-import { formatBytes } from '../../utils/format';
+import { ImageData } from '../image-data-provider';
+import { formatBytes } from '../../../utils/format';
 
 interface DockerImage {
   id: string;
@@ -37,8 +37,6 @@ interface ImagesTableProps {
   selectedImages: string[];
   onSelectionChange: (_selected: string[]) => void;
   images: ImageData[];
-  isLoading: boolean;
-  error: string | null;
 }
 
 // Convert ImageData to DockerImage format for display
@@ -62,8 +60,6 @@ export function ImagesTable({
   selectedImages,
   onSelectionChange,
   images,
-  isLoading,
-  error,
 }: ImagesTableProps) {
   const dockerImages = images.map(convertImageData);
 
@@ -89,27 +85,6 @@ export function ImagesTable({
       onSelectionChange(selectedImages.filter(id => id !== imageId));
     }
   };
-
-  if (isLoading) {
-    return (
-      <div className="border rounded-lg p-8">
-        <div className="flex items-center justify-center space-x-2">
-          <Loader2 className="h-4 w-4 animate-spin" />
-          <div className="text-muted-foreground">Loading images...</div>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="border rounded-lg p-8">
-        <div className="flex items-center justify-center">
-          <div className="text-destructive">Error: {error}</div>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="border rounded-lg overflow-hidden">

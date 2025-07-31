@@ -20,16 +20,39 @@ interface ImageDataProviderProps {
   }) => React.ReactNode;
 }
 
-const AUTO_REFRESH_INTERVAL = 5000; // 5 seconds for images
+const AUTO_REFRESH_INTERVAL = 1000; // 1 second for responsive updates
 
 export function ImageDataProvider({ children }: ImageDataProviderProps) {
   const [images, setImages] = useState<ImageData[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
   const lastRefreshTime = useRef<number>(Date.now());
   const autoRefreshInterval = useRef<number | null>(null);
 
-  async function getImages() {
+  async function getImages(silent = false) {
+    try {
+      if (!silent) {
+        setIsLoading(true);
+      }
+      setError(null);
+      const result = await invoke<ImageData[]>('list_images');
+      setImages(result);
+      lastRefreshTime.current = Date.now();
+    } catch (error) {
+      console.error('Error getting images:', error);
+      const errorMessage =
+        error instanceof Error ? error.message : 'Failed to fetch images';
+      setError(errorMessage);
+    } finally {
+      if (!silent) {
+        setIsLoading(false);
+      }
+      setIsInitialLoad(false);
+    }
+  }
+
+  async function refreshImages() {
     try {
       setIsLoading(true);
       setError(null);
@@ -51,7 +74,8 @@ export function ImageDataProvider({ children }: ImageDataProviderProps) {
       autoRefreshInterval.current = setInterval(() => {
         const timeSinceLastRefresh = Date.now() - lastRefreshTime.current;
         if (timeSinceLastRefresh > AUTO_REFRESH_INTERVAL) {
-          getImages();
+          // Silent refresh - don't show loading state
+          getImages(true);
         }
       }, AUTO_REFRESH_INTERVAL);
     };
@@ -74,9 +98,9 @@ export function ImageDataProvider({ children }: ImageDataProviderProps) {
     <>
       {children({
         images,
-        isLoading,
+        isLoading: isInitialLoad || isLoading,
         error,
-        refreshImages: getImages,
+        refreshImages,
       })}
     </>
   );

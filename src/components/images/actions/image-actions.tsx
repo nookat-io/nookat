@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Button } from '../ui/button';
+import { Button } from '../../ui/button';
 import { Trash2, Trash } from 'lucide-react';
 import {
   Dialog,
@@ -11,9 +11,9 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from '../ui/dialog';
+} from '../../ui/dialog';
 import { invoke } from '@tauri-apps/api/core';
-import { formatBytes } from '../../utils/format';
+import { formatBytes } from '../../../utils/format';
 
 interface ImageActionsProps {
   selectedImages: string[];

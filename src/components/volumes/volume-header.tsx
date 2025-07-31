@@ -1,4 +1,4 @@
-import { VolumeActions } from './volume-actions';
+import { VolumeActions } from './actions';
 import { VolumeData } from './data/volume-data-provider';
 
 interface VolumeHeaderProps {

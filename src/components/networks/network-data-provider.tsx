@@ -30,15 +30,43 @@ interface NetworkDataProviderProps {
   }) => React.ReactNode;
 }
 
-const AUTO_REFRESH_INTERVAL = 5000; // 5 seconds
+const AUTO_REFRESH_INTERVAL = 1000; // 1 second for responsive updates
 
 export function NetworkDataProvider({ children }: NetworkDataProviderProps) {
   const [networks, setNetworks] = useState<NetworkData[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
   const autoRefreshInterval = useRef<number | null>(null);
 
-  async function getNetworks() {
+  async function getNetworks(silent = false) {
+    try {
+      if (!silent) {
+        setIsLoading(true);
+      }
+      setError(null);
+      const result = await invoke<NetworkData[]>('list_networks');
+
+      // Validate the result
+      if (!Array.isArray(result)) {
+        throw new Error('Invalid response format from server');
+      }
+
+      setNetworks(result);
+    } catch (error) {
+      console.error('Error getting networks:', error);
+      setError(
+        error instanceof Error ? error.message : 'Failed to fetch networks'
+      );
+    } finally {
+      if (!silent) {
+        setIsLoading(false);
+      }
+      setIsInitialLoad(false);
+    }
+  }
+
+  async function refreshNetworks() {
     try {
       setIsLoading(true);
       setError(null);
@@ -63,7 +91,8 @@ export function NetworkDataProvider({ children }: NetworkDataProviderProps) {
   useEffect(() => {
     getNetworks(); // Initial load
     autoRefreshInterval.current = window.setInterval(() => {
-      getNetworks();
+      // Silent refresh - don't show loading state
+      getNetworks(true);
     }, AUTO_REFRESH_INTERVAL);
     return () => {
       if (autoRefreshInterval.current) {
@@ -76,9 +105,9 @@ export function NetworkDataProvider({ children }: NetworkDataProviderProps) {
     <>
       {children({
         networks: networks || [],
-        isLoading,
+        isLoading: isInitialLoad || isLoading,
         error,
-        refreshNetworks: getNetworks,
+        refreshNetworks,
       })}
     </>
   );

@@ -1,6 +1,6 @@
 import { ReactNode } from 'react';
-import { NetworkData } from './network-data-provider';
-import { NetworkFilter } from './use-network-page-state';
+import { NetworkData } from '../network-data-provider';
+import { NetworkFilter } from '../use-network-page-state';
 
 interface NetworkFilterLogicProps {
   networks: NetworkData[];

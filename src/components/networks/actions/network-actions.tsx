@@ -1,6 +1,6 @@
-import { Button } from '../ui/button';
+import { Button } from '../../ui/button';
 import { Trash2 } from 'lucide-react';
-import { bulkRemoveNetworks } from './network-actions-utils';
+import { bulkRemoveNetworks } from '../utils/network-actions-utils';
 import { toast } from 'sonner';
 import { useState } from 'react';
 

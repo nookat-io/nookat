@@ -1,4 +1,4 @@
-import { Button } from '../ui/button';
+import { Button } from '../../ui/button';
 
 interface ImageFiltersProps {
   filter: 'all' | 'used' | 'dangling';

@@ -1,5 +1,5 @@
 import { NetworkData } from './network-data-provider';
-import { NetworkActions } from './network-actions';
+import { NetworkActions } from './actions';
 
 interface NetworkHeaderProps {
   selectedNetworks: string[];

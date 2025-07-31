@@ -7,20 +7,20 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '../ui/table';
-import { Checkbox } from '../ui/checkbox';
-import { Badge } from '../ui/badge';
-import { Button } from '../ui/button';
+} from '../../ui/table';
+import { Checkbox } from '../../ui/checkbox';
+import { Badge } from '../../ui/badge';
+import { Button } from '../../ui/button';
 import { Trash2, MoreHorizontal } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from '../ui/dropdown-menu';
+} from '../../ui/dropdown-menu';
 import { formatDistanceToNow } from 'date-fns';
-import { NetworkData } from './network-data-provider';
-import { removeNetwork } from './network-actions-utils';
+import { NetworkData } from '../network-data-provider';
+import { removeNetwork } from '../utils/network-actions-utils';
 import { toast } from 'sonner';
 import { useState } from 'react';
 

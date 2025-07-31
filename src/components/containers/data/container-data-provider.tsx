@@ -36,7 +36,7 @@ interface ContainerDataProviderProps {
   }) => React.ReactNode;
 }
 
-const AUTO_REFRESH_INTERVAL = 500;
+const AUTO_REFRESH_INTERVAL = 1000; // 1 second for responsive updates
 
 export function ContainerDataProvider({
   children,
@@ -44,10 +44,32 @@ export function ContainerDataProvider({
   const [containers, setContainers] = useState<ContainerData[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
   const lastRefreshTime = useRef<number>(Date.now());
   const autoRefreshInterval = useRef<number | null>(null);
 
-  async function getContainers() {
+  async function getContainers(silent = false) {
+    try {
+      if (!silent) {
+        setIsLoading(true);
+      }
+      setError(null);
+      const result = await invoke<ContainerData[]>('list_containers');
+      setContainers(result);
+      lastRefreshTime.current = Date.now();
+      console.log(result);
+    } catch (error) {
+      console.error('Error getting containers:', error);
+      setError('Failed to fetch containers');
+    } finally {
+      if (!silent) {
+        setIsLoading(false);
+      }
+      setIsInitialLoad(false);
+    }
+  }
+
+  async function refreshContainers() {
     try {
       setIsLoading(true);
       setError(null);
@@ -68,7 +90,8 @@ export function ContainerDataProvider({
       autoRefreshInterval.current = setInterval(() => {
         const timeSinceLastRefresh = Date.now() - lastRefreshTime.current;
         if (timeSinceLastRefresh > AUTO_REFRESH_INTERVAL) {
-          getContainers();
+          // Silent refresh - don't show loading state
+          getContainers(true);
         }
       }, AUTO_REFRESH_INTERVAL);
     };
@@ -91,9 +114,9 @@ export function ContainerDataProvider({
     <>
       {children({
         containers,
-        isLoading,
+        isLoading: isInitialLoad || isLoading,
         error,
-        refreshContainers: getContainers,
+        refreshContainers,
       })}
     </>
   );
