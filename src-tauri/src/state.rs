@@ -23,7 +23,10 @@ impl SharedDockerState {
             *docker_guard = Some(docker);
         }
 
-        Ok(docker_guard.take().unwrap())
+        match docker_guard.as_ref() {
+            Some(docker) => Ok(docker.clone()),
+            None => Err("Docker instance is not available".to_string()),
+        }
     }
 
     pub async fn return_docker(&self, docker: Docker) {
