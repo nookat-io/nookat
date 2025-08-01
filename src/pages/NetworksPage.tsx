@@ -6,7 +6,6 @@ import {
   NetworksTable,
   useNetworkPageState,
 } from '../components/networks';
-import { DataStateHandler } from '../components/ui/data-state-handler';
 
 export default function NetworksPage() {
   const {
@@ -43,31 +42,25 @@ export default function NetworksPage() {
 
           {/* Scrollable table section */}
           <div className="flex-1 overflow-hidden">
-            <DataStateHandler
-              isLoading={isLoading}
-              error={error}
-              onRetry={refreshNetworks}
-              loadingMessage="Loading networks..."
-              loadingSize="lg"
-              className="h-full flex items-center justify-center"
+            <NetworkFilterLogic
+              networks={networks}
+              filter={filter}
+              searchTerm={searchTerm}
             >
-              <NetworkFilterLogic
-                networks={networks}
-                filter={filter}
-                searchTerm={searchTerm}
-              >
-                {filteredNetworks => (
-                  <div className="p-6 max-w-full h-full overflow-auto">
-                    <NetworksTable
-                      selectedNetworks={selectedNetworks}
-                      onSelectionChange={setSelectedNetworks}
-                      networks={filteredNetworks}
-                      onActionComplete={refreshNetworks}
-                    />
-                  </div>
-                )}
-              </NetworkFilterLogic>
-            </DataStateHandler>
+              {filteredNetworks => (
+                <div className="p-6 max-w-full h-full overflow-auto">
+                  <NetworksTable
+                    selectedNetworks={selectedNetworks}
+                    onSelectionChange={setSelectedNetworks}
+                    networks={filteredNetworks}
+                    onActionComplete={refreshNetworks}
+                    isLoading={isLoading}
+                    error={error}
+                    onRetry={refreshNetworks}
+                  />
+                </div>
+              )}
+            </NetworkFilterLogic>
           </div>
         </div>
       )}

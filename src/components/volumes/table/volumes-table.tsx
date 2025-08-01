@@ -107,16 +107,7 @@ export function VolumesTable({
     }
 
     if (sortedVolumes.length === 0) {
-      return (
-        <TableRow>
-          <TableCell
-            colSpan={6}
-            className="text-center text-muted-foreground py-8"
-          >
-            No Docker volumes found
-          </TableCell>
-        </TableRow>
-      );
+      return <></>;
     }
 
     return sortedVolumes.map(volume => (

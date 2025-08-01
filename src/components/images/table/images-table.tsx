@@ -121,18 +121,7 @@ export function ImagesTable({
     }
 
     if (filteredImages.length === 0) {
-      return (
-        <TableRow>
-          <TableCell
-            colSpan={8}
-            className="text-center text-muted-foreground py-8"
-          >
-            {images.length === 0
-              ? 'No Docker images found'
-              : `No images match the "${filter}" filter`}
-          </TableCell>
-        </TableRow>
-      );
+      return <></>;
     }
 
     return filteredImages.map(image => (
