@@ -6,7 +6,6 @@ import {
   ImagesTable,
   useImagePageState,
 } from '../components/images';
-import { DataStateHandler } from '../components/ui/data-state-handler';
 
 export default function ImagesPage() {
   const {
@@ -42,31 +41,26 @@ export default function ImagesPage() {
 
           {/* Scrollable table section */}
           <div className="flex-1 overflow-hidden">
-            <DataStateHandler
-              isLoading={isLoading}
-              error={error}
-              onRetry={refreshImages}
-              loadingMessage="Loading images..."
-              loadingSize="lg"
-              className="h-full flex items-center justify-center"
+            <ImageFilterLogic
+              images={images}
+              filter={filter}
+              searchTerm={searchTerm}
             >
-              <ImageFilterLogic
-                images={images}
-                filter={filter}
-                searchTerm={searchTerm}
-              >
-                {filteredImages => (
-                  <div className="p-6 max-w-full h-full overflow-auto">
-                    <ImagesTable
-                      filter={filter}
-                      selectedImages={selectedImages}
-                      onSelectionChange={setSelectedImages}
-                      images={filteredImages}
-                    />
-                  </div>
-                )}
-              </ImageFilterLogic>
-            </DataStateHandler>
+              {filteredImages => (
+                <div className="p-6 max-w-full h-full overflow-auto">
+                  <ImagesTable
+                    filter={filter}
+                    selectedImages={selectedImages}
+                    onSelectionChange={setSelectedImages}
+                    images={filteredImages}
+                    onActionComplete={refreshImages}
+                    isLoading={isLoading}
+                    error={error}
+                    onRetry={refreshImages}
+                  />
+                </div>
+              )}
+            </ImageFilterLogic>
           </div>
         </div>
       )}
