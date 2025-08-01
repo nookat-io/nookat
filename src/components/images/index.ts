@@ -1,13 +1,15 @@
-export { ImageDataProvider } from './image-data-provider';
+// Main image components
 export { ImageHeader } from './image-header';
 export { ImageControls } from './image-controls';
-export { useImagePageState } from './use-image-page-state';
 
 // Table components
-export { ImagesTable } from './table';
+export { ImagesTable } from './images-table';
 
-// Actions components
-export { ImageActions } from './actions';
+// Action components
+export { ImageActions } from './image-actions';
 
-// Utils components
-export { ImageFilterLogic, ImageFilters } from './utils';
+// Filter components
+export { ImageFilters } from './image-filters';
+
+// Types
+export { type ImageData } from './image-types';

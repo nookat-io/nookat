@@ -2,11 +2,14 @@
 export { VolumeHeader } from './volume-header';
 export { VolumeControls } from './volume-controls';
 
-// Data components
-export * from './data';
-
 // Table components
-export { VolumesTable } from './table';
+export { VolumesTable } from './volumes-table';
 
-// Actions components
-export { VolumeActions } from './actions';
+// Action components
+export { VolumeActions } from './volume-actions';
+
+// Utility functions
+export { VolumeActionService } from './volume-actions-service';
+
+// Types
+export { type VolumeData } from './volume-types';

@@ -1,70 +1,64 @@
-import {
-  ContainerDataProvider,
-  ContainerFilterLogic,
-  ContainerHeader,
-  ContainerControls,
-  ContainersTable,
-  useContainerPageState,
-} from '../components/containers';
+import { ContainerData } from '../components/containers/container-types';
+import { ContainerHeader } from '../components/containers/container-header';
+import { ContainerControls } from '../components/containers/container-controls';
+import { ContainersTable } from '../components/containers/containers-table';
+import { usePageState } from '../hooks/use-page-state';
+import { useDataProvider } from '../hooks/use-data-provider';
+import { useFilter } from '../utils/use-filter';
+import { PageLayout } from '../components/layout/page-layout';
 
 export default function ContainersPage() {
   const {
-    selectedContainers,
-    setSelectedContainers,
+    selected,
+    setSelected,
     filter,
     setFilter,
     searchTerm,
     setSearchTerm,
-  } = useContainerPageState();
+  } = usePageState<'all' | 'running' | 'stopped'>('all');
+
+  const {
+    data: containers,
+    isLoading,
+    error,
+    refresh,
+  } = useDataProvider<ContainerData>('list_containers');
+
+  const filteredContainers = useFilter(containers, filter, searchTerm, {
+    searchFields: ['names', 'image'],
+    filterField: 'state',
+  });
 
   return (
-    <ContainerDataProvider>
-      {({ containers, refreshContainers, isLoading, error }) => (
-        <div className="page-background min-h-screen flex flex-col">
-          {/* Sticky header section */}
-          <div className="sticky top-0 z-10 bg-background border-b">
-            <div className="space-y-6 p-6 max-w-full">
-              <ContainerHeader
-                selectedContainers={selectedContainers}
-                containers={containers}
-                onActionComplete={refreshContainers}
-                onSelectionChange={setSelectedContainers}
-              />
-
-              <ContainerControls
-                filter={filter}
-                onFilterChange={setFilter}
-                searchTerm={searchTerm}
-                onSearchChange={setSearchTerm}
-              />
-            </div>
-          </div>
-
-          {/* Scrollable table section */}
-          <div className="flex-1 overflow-hidden">
-            <ContainerFilterLogic
-              containers={containers}
-              filter={filter}
-              searchTerm={searchTerm}
-            >
-              {filteredContainers => (
-                <div className="p-6 max-w-full h-full overflow-auto">
-                  <ContainersTable
-                    filter={filter}
-                    selectedContainers={selectedContainers}
-                    onSelectionChange={setSelectedContainers}
-                    containers={filteredContainers}
-                    onActionComplete={refreshContainers}
-                    isLoading={isLoading}
-                    error={error}
-                    onRetry={refreshContainers}
-                  />
-                </div>
-              )}
-            </ContainerFilterLogic>
-          </div>
-        </div>
-      )}
-    </ContainerDataProvider>
+    <PageLayout
+      header={
+        <ContainerHeader
+          selectedContainers={selected}
+          containers={containers}
+          onActionComplete={refresh}
+          onSelectionChange={setSelected}
+        />
+      }
+      controls={
+        <ContainerControls
+          filter={filter}
+          onFilterChange={setFilter}
+          searchTerm={searchTerm}
+          onSearchChange={setSearchTerm}
+        />
+      }
+      table={
+        <ContainersTable
+          filter={filter}
+          selectedContainers={selected}
+          onSelectionChange={setSelected}
+          containers={filteredContainers}
+          onActionComplete={refresh}
+          isLoading={isLoading}
+          error={error}
+          onRetry={refresh}
+        />
+      }
+    />
   );
 }

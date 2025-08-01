@@ -1,5 +1,9 @@
 import { Input } from '../ui/input';
-import { NetworkFilter } from './use-network-page-state';
+export interface NetworkFilter {
+  driver?: string;
+  scope?: string;
+  internal?: boolean;
+}
 
 interface NetworkControlsProps {
   filter: NetworkFilter;

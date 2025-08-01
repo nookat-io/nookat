@@ -1,5 +1,5 @@
-import { VolumeActions } from './actions';
-import { VolumeData } from './data/volume-data-provider';
+import { VolumeActions } from './volume-actions';
+import { VolumeData } from './volume-types';
 
 interface VolumeHeaderProps {
   selectedVolumes: string[];

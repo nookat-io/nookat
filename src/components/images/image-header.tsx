@@ -1,5 +1,5 @@
-import { ImageActions } from './actions';
-import { ImageData } from './image-data-provider';
+import { ImageActions } from './image-actions';
+import { ImageData } from './image-types';
 
 interface ImageHeaderProps {
   selectedImages: string[];
