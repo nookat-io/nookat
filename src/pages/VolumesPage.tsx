@@ -6,7 +6,6 @@ import {
   VolumesTable,
   useVolumePageState,
 } from '../components/volumes';
-import { DataStateHandler } from '../components/ui/data-state-handler';
 
 export default function VolumesPage() {
   const {
@@ -43,31 +42,25 @@ export default function VolumesPage() {
 
           {/* Scrollable table section */}
           <div className="flex-1 overflow-hidden">
-            <DataStateHandler
-              isLoading={isLoading}
-              error={error}
-              onRetry={refreshVolumes}
-              loadingMessage="Loading volumes..."
-              loadingSize="lg"
-              className="h-full flex items-center justify-center"
+            <VolumeFilterLogic
+              volumes={volumes}
+              filter={filter}
+              searchTerm={searchTerm}
             >
-              <VolumeFilterLogic
-                volumes={volumes}
-                filter={filter}
-                searchTerm={searchTerm}
-              >
-                {filteredVolumes => (
-                  <div className="p-6 max-w-full h-full overflow-auto">
-                    <VolumesTable
-                      selectedVolumes={selectedVolumes}
-                      onSelectionChange={setSelectedVolumes}
-                      volumes={filteredVolumes}
-                      onActionComplete={refreshVolumes}
-                    />
-                  </div>
-                )}
-              </VolumeFilterLogic>
-            </DataStateHandler>
+              {filteredVolumes => (
+                <div className="p-6 max-w-full h-full overflow-auto">
+                  <VolumesTable
+                    selectedVolumes={selectedVolumes}
+                    onSelectionChange={setSelectedVolumes}
+                    volumes={filteredVolumes}
+                    onActionComplete={refreshVolumes}
+                    isLoading={isLoading}
+                    error={error}
+                    onRetry={refreshVolumes}
+                  />
+                </div>
+              )}
+            </VolumeFilterLogic>
           </div>
         </div>
       )}

@@ -20,12 +20,17 @@ import {
 import { VolumeData } from '../data/volume-data-provider';
 import { VolumeActionService } from '../utils/volume-actions';
 import { useState } from 'react';
+import { LoadingSpinner } from '../../ui/loading-spinner';
+import { ErrorDisplay } from '../../ui/error-display';
 
 interface VolumesTableProps {
   selectedVolumes: string[];
   onSelectionChange: (_selected: string[]) => void;
   volumes: VolumeData[];
   onActionComplete?: () => void;
+  isLoading?: boolean;
+  error?: string | null;
+  onRetry?: () => void;
 }
 
 export function VolumesTable({
@@ -33,6 +38,9 @@ export function VolumesTable({
   onSelectionChange,
   volumes,
   onActionComplete,
+  isLoading = false,
+  error = null,
+  onRetry,
 }: VolumesTableProps) {
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
 
@@ -73,10 +81,99 @@ export function VolumesTable({
     return scope === 'LOCAL' ? 'Local' : 'Global';
   };
 
+  const renderTableBody = () => {
+    if (isLoading) {
+      return (
+        <TableRow>
+          <TableCell colSpan={6}>
+            <div className="flex items-center justify-center">
+              <LoadingSpinner message="Loading volumes..." size="lg" />
+            </div>
+          </TableCell>
+        </TableRow>
+      );
+    }
+
+    if (error) {
+      return (
+        <TableRow>
+          <TableCell colSpan={6}>
+            <div className="flex items-center justify-center">
+              <ErrorDisplay error={error} onRetry={onRetry} showRetry={true} />
+            </div>
+          </TableCell>
+        </TableRow>
+      );
+    }
+
+    if (sortedVolumes.length === 0) {
+      return (
+        <TableRow>
+          <TableCell
+            colSpan={6}
+            className="text-center text-muted-foreground py-8"
+          >
+            No Docker volumes found
+          </TableCell>
+        </TableRow>
+      );
+    }
+
+    return sortedVolumes.map(volume => (
+      <TableRow key={volume.name}>
+        <TableCell>
+          <Checkbox
+            checked={selectedVolumes.includes(volume.name)}
+            onCheckedChange={checked =>
+              handleSelectVolume(volume.name, checked as boolean)
+            }
+          />
+        </TableCell>
+        <TableCell className="font-medium truncate" title={volume.name}>
+          {volume.name}
+        </TableCell>
+        <TableCell
+          className="text-muted-foreground truncate"
+          title={volume.driver}
+        >
+          {volume.driver}
+        </TableCell>
+        <TableCell className="text-muted-foreground">
+          {formatScope(volume.scope)}
+        </TableCell>
+        <TableCell
+          className="text-muted-foreground text-xs font-mono truncate"
+          title={volume.mountpoint}
+        >
+          {volume.mountpoint}
+        </TableCell>
+        <TableCell>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="sm">
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem
+                className="text-destructive"
+                onClick={() => handleDeleteVolume(volume.name)}
+                disabled={isDeleting === volume.name}
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                {isDeleting === volume.name ? 'Deleting...' : 'Delete'}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </TableCell>
+      </TableRow>
+    ));
+  };
+
   return (
-    <div className="border rounded-lg overflow-hidden">
-      <div className="overflow-x-auto">
-        <Table className="table-fixed">
+    <div className="border rounded-lg overflow-hidden h-full flex flex-col">
+      <div className="overflow-x-auto flex-1">
+        <Table className="table-fixed h-full">
           <TableHeader>
             <TableRow>
               <TableHead className="w-12">
@@ -92,57 +189,7 @@ export function VolumesTable({
               <TableHead className="w-[10%] text-left">Actions</TableHead>
             </TableRow>
           </TableHeader>
-          <TableBody>
-            {sortedVolumes.map(volume => (
-              <TableRow key={volume.name}>
-                <TableCell>
-                  <Checkbox
-                    checked={selectedVolumes.includes(volume.name)}
-                    onCheckedChange={checked =>
-                      handleSelectVolume(volume.name, checked as boolean)
-                    }
-                  />
-                </TableCell>
-                <TableCell className="font-medium truncate" title={volume.name}>
-                  {volume.name}
-                </TableCell>
-                <TableCell
-                  className="text-muted-foreground truncate"
-                  title={volume.driver}
-                >
-                  {volume.driver}
-                </TableCell>
-                <TableCell className="text-muted-foreground">
-                  {formatScope(volume.scope)}
-                </TableCell>
-                <TableCell
-                  className="text-muted-foreground text-xs font-mono truncate"
-                  title={volume.mountpoint}
-                >
-                  {volume.mountpoint}
-                </TableCell>
-                <TableCell>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="sm">
-                        <MoreHorizontal className="h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem
-                        className="text-destructive"
-                        onClick={() => handleDeleteVolume(volume.name)}
-                        disabled={isDeleting === volume.name}
-                      >
-                        <Trash2 className="mr-2 h-4 w-4" />
-                        {isDeleting === volume.name ? 'Deleting...' : 'Delete'}
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
+          <TableBody className="flex-1">{renderTableBody()}</TableBody>
         </Table>
       </div>
     </div>
