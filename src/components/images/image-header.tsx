@@ -18,7 +18,7 @@ export function ImageHeader({
         <div className="flex flex-col items-start justify-start">
           <h1 className="text-3xl font-bold bg-clip-text">Images</h1>
           <p className="text-muted-foreground mt-2">
-            Manage your docker images
+            Manage your images
             {images.length > 0 &&
               ` - ${images.length} image${images.length !== 1 ? 's' : ''} found`}
           </p>
