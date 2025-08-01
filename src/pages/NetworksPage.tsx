@@ -6,7 +6,7 @@ import {
   NetworksTable,
   useNetworkPageState,
 } from '../components/networks';
-import { PageWrapper } from '../components/ui/page-wrapper';
+import { DataStateHandler } from '../components/ui/data-state-handler';
 
 export default function NetworksPage() {
   const {
@@ -21,36 +21,36 @@ export default function NetworksPage() {
   return (
     <NetworkDataProvider>
       {({ networks, refreshNetworks, isLoading, error }) => (
-        <PageWrapper
-          isLoading={isLoading}
-          error={error}
-          onRetry={refreshNetworks}
-          loadingMessage="Loading networks..."
-          fullScreenLoading={true}
-          fullScreenError={true}
-        >
-          <div className="page-background min-h-screen flex flex-col">
-            {/* Sticky header section */}
-            <div className="sticky top-0 z-10 bg-background border-b">
-              <div className="space-y-6 p-6 max-w-full">
-                <NetworkHeader
-                  selectedNetworks={selectedNetworks}
-                  networks={networks}
-                  onActionComplete={refreshNetworks}
-                  onSelectionChange={setSelectedNetworks}
-                />
+        <div className="page-background min-h-screen flex flex-col">
+          {/* Sticky header section */}
+          <div className="sticky top-0 z-10 bg-background border-b">
+            <div className="space-y-6 p-6 max-w-full">
+              <NetworkHeader
+                selectedNetworks={selectedNetworks}
+                networks={networks}
+                onActionComplete={refreshNetworks}
+                onSelectionChange={setSelectedNetworks}
+              />
 
-                <NetworkControls
-                  filter={filter}
-                  onFilterChange={setFilter}
-                  searchTerm={searchTerm}
-                  onSearchChange={setSearchTerm}
-                />
-              </div>
+              <NetworkControls
+                filter={filter}
+                onFilterChange={setFilter}
+                searchTerm={searchTerm}
+                onSearchChange={setSearchTerm}
+              />
             </div>
+          </div>
 
-            {/* Scrollable table section */}
-            <div className="flex-1 overflow-hidden">
+          {/* Scrollable table section */}
+          <div className="flex-1 overflow-hidden">
+            <DataStateHandler
+              isLoading={isLoading}
+              error={error}
+              onRetry={refreshNetworks}
+              loadingMessage="Loading networks..."
+              loadingSize="lg"
+              className="h-full flex items-center justify-center"
+            >
               <NetworkFilterLogic
                 networks={networks}
                 filter={filter}
@@ -67,9 +67,9 @@ export default function NetworksPage() {
                   </div>
                 )}
               </NetworkFilterLogic>
-            </div>
+            </DataStateHandler>
           </div>
-        </PageWrapper>
+        </div>
       )}
     </NetworkDataProvider>
   );

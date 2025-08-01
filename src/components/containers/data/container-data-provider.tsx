@@ -90,19 +90,15 @@ export function ContainerDataProvider({
       autoRefreshInterval.current = setInterval(() => {
         const timeSinceLastRefresh = Date.now() - lastRefreshTime.current;
         if (timeSinceLastRefresh > AUTO_REFRESH_INTERVAL) {
-          // Silent refresh - don't show loading state
           getContainers(true);
         }
       }, AUTO_REFRESH_INTERVAL);
     };
 
-    // Initial load
     getContainers();
 
-    // Start auto-refresh
     startAutoRefresh();
 
-    // Cleanup on unmount
     return () => {
       if (autoRefreshInterval.current) {
         clearInterval(autoRefreshInterval.current);

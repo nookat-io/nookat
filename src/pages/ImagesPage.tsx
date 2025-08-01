@@ -6,7 +6,7 @@ import {
   ImagesTable,
   useImagePageState,
 } from '../components/images';
-import { PageWrapper } from '../components/ui/page-wrapper';
+import { DataStateHandler } from '../components/ui/data-state-handler';
 
 export default function ImagesPage() {
   const {
@@ -21,35 +21,35 @@ export default function ImagesPage() {
   return (
     <ImageDataProvider>
       {({ images, isLoading, error, refreshImages }) => (
-        <PageWrapper
-          isLoading={isLoading}
-          error={error}
-          onRetry={refreshImages}
-          loadingMessage="Loading images..."
-          fullScreenLoading={true}
-          fullScreenError={true}
-        >
-          <div className="page-background min-h-screen flex flex-col">
-            {/* Sticky header section */}
-            <div className="sticky top-0 z-10 bg-background border-b">
-              <div className="space-y-6 p-6 max-w-full">
-                <ImageHeader
-                  selectedImages={selectedImages}
-                  images={images}
-                  onActionComplete={refreshImages}
-                />
+        <div className="page-background min-h-screen flex flex-col">
+          {/* Sticky header section */}
+          <div className="sticky top-0 z-10 bg-background border-b">
+            <div className="space-y-6 p-6 max-w-full">
+              <ImageHeader
+                selectedImages={selectedImages}
+                images={images}
+                onActionComplete={refreshImages}
+              />
 
-                <ImageControls
-                  filter={filter}
-                  onFilterChange={setFilter}
-                  searchTerm={searchTerm}
-                  onSearchChange={setSearchTerm}
-                />
-              </div>
+              <ImageControls
+                filter={filter}
+                onFilterChange={setFilter}
+                searchTerm={searchTerm}
+                onSearchChange={setSearchTerm}
+              />
             </div>
+          </div>
 
-            {/* Scrollable table section */}
-            <div className="flex-1 overflow-hidden">
+          {/* Scrollable table section */}
+          <div className="flex-1 overflow-hidden">
+            <DataStateHandler
+              isLoading={isLoading}
+              error={error}
+              onRetry={refreshImages}
+              loadingMessage="Loading images..."
+              loadingSize="lg"
+              className="h-full flex items-center justify-center"
+            >
               <ImageFilterLogic
                 images={images}
                 filter={filter}
@@ -66,9 +66,9 @@ export default function ImagesPage() {
                   </div>
                 )}
               </ImageFilterLogic>
-            </div>
+            </DataStateHandler>
           </div>
-        </PageWrapper>
+        </div>
       )}
     </ImageDataProvider>
   );

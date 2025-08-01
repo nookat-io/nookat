@@ -6,7 +6,7 @@ import {
   VolumesTable,
   useVolumePageState,
 } from '../components/volumes';
-import { PageWrapper } from '../components/ui/page-wrapper';
+import { DataStateHandler } from '../components/ui/data-state-handler';
 
 export default function VolumesPage() {
   const {
@@ -21,36 +21,36 @@ export default function VolumesPage() {
   return (
     <VolumeDataProvider>
       {({ volumes, refreshVolumes, isLoading, error }) => (
-        <PageWrapper
-          isLoading={isLoading}
-          error={error}
-          onRetry={refreshVolumes}
-          loadingMessage="Loading volumes..."
-          fullScreenLoading={true}
-          fullScreenError={true}
-        >
-          <div className="page-background min-h-screen flex flex-col">
-            {/* Sticky header section */}
-            <div className="sticky top-0 z-10 bg-background border-b">
-              <div className="space-y-6 p-6 max-w-full">
-                <VolumeHeader
-                  selectedVolumes={selectedVolumes}
-                  volumes={volumes}
-                  onActionComplete={refreshVolumes}
-                  onSelectionChange={setSelectedVolumes}
-                />
+        <div className="page-background min-h-screen flex flex-col">
+          {/* Sticky header section */}
+          <div className="sticky top-0 z-10 bg-background border-b">
+            <div className="space-y-6 p-6 max-w-full">
+              <VolumeHeader
+                selectedVolumes={selectedVolumes}
+                volumes={volumes}
+                onActionComplete={refreshVolumes}
+                onSelectionChange={setSelectedVolumes}
+              />
 
-                <VolumeControls
-                  filter={filter}
-                  onFilterChange={setFilter}
-                  searchTerm={searchTerm}
-                  onSearchChange={setSearchTerm}
-                />
-              </div>
+              <VolumeControls
+                filter={filter}
+                onFilterChange={setFilter}
+                searchTerm={searchTerm}
+                onSearchChange={setSearchTerm}
+              />
             </div>
+          </div>
 
-            {/* Scrollable table section */}
-            <div className="flex-1 overflow-hidden">
+          {/* Scrollable table section */}
+          <div className="flex-1 overflow-hidden">
+            <DataStateHandler
+              isLoading={isLoading}
+              error={error}
+              onRetry={refreshVolumes}
+              loadingMessage="Loading volumes..."
+              loadingSize="lg"
+              className="h-full flex items-center justify-center"
+            >
               <VolumeFilterLogic
                 volumes={volumes}
                 filter={filter}
@@ -67,9 +67,9 @@ export default function VolumesPage() {
                   </div>
                 )}
               </VolumeFilterLogic>
-            </div>
+            </DataStateHandler>
           </div>
-        </PageWrapper>
+        </div>
       )}
     </VolumeDataProvider>
   );

@@ -26,7 +26,7 @@ export function PageWrapper({
     );
   }
 
-  if (error) {
+  if (error && fullScreenError) {
     return (
       <ErrorDisplay
         error={error}
