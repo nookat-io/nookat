@@ -75,10 +75,20 @@ jobs:
           echo "CERT_ID=$CERT_ID" >> $GITHUB_ENV
           echo "Certificate imported."
 
-      - name: Read version and set env
+      - name: Read version and set env (Linux/macOS)
+        if: matrix.platform != 'windows-latest'
+        shell: bash
         run: |
           VERSION_TAG=v$(jq -r '.version' < src-tauri/tauri.conf.json)
           echo "VERSION_TAG=$VERSION_TAG" >> $GITHUB_ENV
+
+      - name: Read version and set env (Windows)
+        if: matrix.platform == 'windows-latest'
+        shell: pwsh
+        run: |
+          $version = (Get-Content src-tauri/tauri.conf.json | ConvertFrom-Json).version
+          $VERSION_TAG = "v$version"
+          echo "VERSION_TAG=$VERSION_TAG" >> $env:GITHUB_ENV
 
       - name: Build and Publish
         uses: tauri-apps/tauri-action@v0
@@ -98,10 +108,25 @@ jobs:
           includeDebug: true
           args: ${{ matrix.args }}
 
-      - name: Set Version Tag
+      - name: Set Version Tag (Linux/macOS)
+        if: matrix.platform != 'windows-latest'
+        shell: bash
         run: |
           if git rev-parse "${{ env.VERSION_TAG }}" >/dev/null 2>&1; then echo "Tag ${{ env.VERSION_TAG }} already exists. Skipping tagging."
           else echo "Tagging with version: ${{ env.VERSION_TAG }}"
             git tag ${{ env.VERSION_TAG }}
             git push origin ${{ env.VERSION_TAG }}
           fi
+
+      - name: Set Version Tag (Windows)
+        if: matrix.platform == 'windows-latest'
+        shell: pwsh
+        run: |
+          $tagExists = git rev-parse "${{ env.VERSION_TAG }}" 2>$null
+          if ($LASTEXITCODE -eq 0) {
+            echo "Tag ${{ env.VERSION_TAG }} already exists. Skipping tagging."
+          } else {
+            echo "Tagging with version: ${{ env.VERSION_TAG }}"
+            git tag ${{ env.VERSION_TAG }}
+            git push origin ${{ env.VERSION_TAG }}
+          }
