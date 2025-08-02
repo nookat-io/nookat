@@ -69,8 +69,8 @@ export function ImageActions({ selectedImages, onRefresh }: ImageActionsProps) {
           <DialogHeader>
             <DialogTitle>Confirm Prune Operation</DialogTitle>
             <DialogDescription>
-              This will remove all unused Docker images from your system. This
-              action cannot be undone. Are you sure you want to continue?
+              This will remove all unused images from your system. This action
+              cannot be undone. Are you sure you want to continue?
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>

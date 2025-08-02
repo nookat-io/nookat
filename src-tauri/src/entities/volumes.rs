@@ -1,6 +1,6 @@
+use bollard::models::{VolumeScopeEnum, VolumeUsageData};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use bollard::models::{VolumeScopeEnum, VolumeUsageData};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum VolumeScope {
@@ -21,7 +21,6 @@ impl From<VolumeScopeEnum> for VolumeScope {
         }
     }
 }
-
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UsageData {
@@ -58,7 +57,9 @@ impl From<bollard::models::Volume> for Volume {
             driver: volume.driver,
             mountpoint: volume.mountpoint,
             created_at: volume.created_at,
-            status: volume.status.map(|s| serde_json::to_value(s).unwrap_or_default()),
+            status: volume
+                .status
+                .map(|s| serde_json::to_value(s).unwrap_or_default()),
             labels: volume.labels,
             scope: volume.scope.map(VolumeScope::from),
             options: volume.options,

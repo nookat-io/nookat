@@ -1,5 +1,5 @@
-import { ContainerActions } from './actions/container-actions';
-import { ContainerData } from './data/container-data-provider';
+import { ContainerActions } from './container-actions';
+import { ContainerData } from './container-types';
 
 interface ContainerHeaderProps {
   selectedContainers: string[];
@@ -21,7 +21,7 @@ export function ContainerHeader({
           <div className="flex flex-col items-start justify-start">
             <h1 className="text-3xl font-bold bg-clip-text">Containers</h1>
             <p className="text-muted-foreground mt-2">
-              Manage your Docker containers
+              Manage your containers
               {containers.length > 0 &&
                 ` - ${containers.length} container${containers.length !== 1 ? 's' : ''} found`}
             </p>

@@ -1,5 +1,5 @@
 import { VolumeActions } from './volume-actions';
-import { VolumeData } from './data/volume-data-provider';
+import { VolumeData } from './volume-types';
 
 interface VolumeHeaderProps {
   selectedVolumes: string[];
@@ -20,7 +20,7 @@ export function VolumeHeader({
         <div className="flex flex-col items-start justify-start">
           <h1 className="text-3xl font-bold bg-clip-text">Volumes</h1>
           <p className="text-muted-foreground mt-2">
-            Manage Docker volumes for persistent data storage
+            Manage your volumes
             {volumes.length > 0 &&
               ` - ${volumes.length} volume${volumes.length !== 1 ? 's' : ''} found`}
           </p>

@@ -228,7 +228,7 @@ export function EngineSettings() {
             Engine Status
           </CardTitle>
           <CardDescription>
-            Current Docker engine information and real-time status
+            Current engine information and real-time status
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">

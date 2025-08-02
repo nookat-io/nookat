@@ -1,16 +1,13 @@
 'use client';
 
-import { TableCell, TableRow } from '../../ui/table';
-import { Checkbox } from '../../ui/checkbox';
+import { TableCell, TableRow } from '../ui/table';
+import { Checkbox } from '../ui/checkbox';
 import { formatDistanceToNow } from 'date-fns';
-import { ContainerData } from '../data/container-data-provider';
-import { PortMappings } from '../ui/port-mappings';
-import { ContainerStatusBadge } from '../ui/container-status-badge';
-import { ContainerRowActions } from '../actions/container-row-actions';
-import {
-  formatContainerName,
-  formatContainerImage,
-} from '../utils/container-utils';
+import { ContainerData } from './container-types';
+import { PortMappings } from './port-mappings';
+import { ContainerStatusBadge } from './container-status-badge';
+import { ContainerRowActions } from './container-row-actions';
+import { formatContainerName, formatContainerImage } from './container-utils';
 
 interface ContainerRowProps {
   container: ContainerData;

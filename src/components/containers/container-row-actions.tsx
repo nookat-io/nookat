@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Button } from '../../ui/button';
+import { Button } from '../ui/button';
 import {
   Play,
   Square,
@@ -17,9 +17,9 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from '../../ui/dropdown-menu';
-import { ContainerData } from '../data/container-data-provider';
-import { ContainerActionService } from '../utils/container-actions';
+} from '../ui/dropdown-menu';
+import { ContainerData } from './container-types';
+import { ContainerActionService } from './container-actions-service';
 
 interface ContainerRowActionsProps {
   container: ContainerData;

@@ -1,8 +1,8 @@
 'use client';
 
-import { Button } from '../../ui/button';
+import { Button } from '../ui/button';
 import { Play, Square, Trash2 } from 'lucide-react';
-import { ContainerActionService } from '../utils/container-actions';
+import { ContainerActionService } from './container-actions-service';
 
 interface ContainerGroupActionsProps {
   containerIds: string[];

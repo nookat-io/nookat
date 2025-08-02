@@ -9,16 +9,10 @@ use std::collections::HashSet;
 pub struct ImagesService {}
 
 impl ImagesService {
-    /// Helper function to connect to Docker
-    async fn connect_docker() -> Result<Docker, String> {
-        Docker::connect_with_local_defaults()
-            .map_err(|e| format!("Failed to connect to Docker: {}", e))
-    }
-
     /// Helper function to get all images and containers with used image IDs
-    async fn get_images_and_used_ids() -> Result<(Vec<ImageSummary>, HashSet<String>), String> {
-        let docker = Self::connect_docker().await?;
-
+    async fn get_images_and_used_ids(
+        docker: &Docker,
+    ) -> Result<(Vec<ImageSummary>, HashSet<String>), String> {
         // Get all images
         let image_options: ListImagesOptions<String> = ListImagesOptions::default();
         let images = docker
@@ -47,8 +41,8 @@ impl ImagesService {
         Ok((images, used_image_ids))
     }
 
-    pub async fn get_images() -> Result<Vec<Image>, String> {
-        let (images, used_image_ids) = Self::get_images_and_used_ids().await?;
+    pub async fn get_images(docker: &Docker) -> Result<Vec<Image>, String> {
+        let (images, used_image_ids) = Self::get_images_and_used_ids(docker).await?;
 
         let result: Vec<Image> = images
             .iter()
@@ -99,36 +93,30 @@ impl ImagesService {
             })
             .collect();
 
-        println!("Processed {} images", result.len());
         Ok(result)
     }
 
-    pub async fn perform_prune() -> Result<PruneResult, String> {
-        let (images, used_image_ids) = Self::get_images_and_used_ids().await?;
-        let docker = Self::connect_docker().await?;
+    pub async fn perform_prune(docker: &Docker) -> Result<PruneResult, String> {
+        let options = bollard::image::PruneImagesOptions::<String> {
+            ..Default::default()
+        };
 
-        let mut deleted_images = Vec::new();
-        let mut total_space_reclaimed = 0i64;
+        let result = docker
+            .prune_images(Some(options))
+            .await
+            .map_err(|e| format!("Failed to prune images: {}", e))?;
 
-        // Find and delete unused images
-        for image in images {
-            if !used_image_ids.contains(&image.id) {
-                match docker.remove_image(&image.id, None, None).await {
-                    Ok(_) => {
-                        deleted_images.push(image.id.clone());
-                        total_space_reclaimed += image.size;
-                        println!("Deleted image: {}", image.id);
-                    }
-                    Err(e) => {
-                        println!("Failed to delete image {}: {}", image.id, e);
-                    }
-                }
-            }
-        }
+        // Convert ImageDeleteResponseItem to String
+        let images_deleted = result
+            .images_deleted
+            .unwrap_or_default()
+            .into_iter()
+            .map(|item| item.deleted.unwrap_or_else(|| "unknown".to_string()))
+            .collect();
 
         Ok(PruneResult {
-            images_deleted: deleted_images,
-            space_reclaimed: total_space_reclaimed,
+            images_deleted,
+            space_reclaimed: result.space_reclaimed.unwrap_or_default(),
         })
     }
 }

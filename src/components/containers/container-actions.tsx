@@ -1,4 +1,4 @@
-import { Button } from '../../ui/button';
+import { Button } from '../ui/button';
 import {
   Play,
   Square,
@@ -8,9 +8,9 @@ import {
   Play as ResumeIcon,
   Trash,
 } from 'lucide-react';
-import { ContainerData } from '../data/container-data-provider';
+import { ContainerData } from './container-types';
 import { useState } from 'react';
-import { ContainerActionService } from '../utils/container-actions';
+import { ContainerActionService } from './container-actions-service';
 
 interface ContainerActionsProps {
   selectedContainers: string[];

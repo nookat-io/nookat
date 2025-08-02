@@ -1,11 +1,11 @@
 'use client';
 
-import { TableCell, TableRow } from '../../ui/table';
-import { Button } from '../../ui/button';
-import { Badge } from '../../ui/badge';
+import { TableCell, TableRow } from '../ui/table';
+import { Button } from '../ui/button';
+import { Badge } from '../ui/badge';
 import { ChevronDown, ChevronRight } from 'lucide-react';
-import { ContainerData } from '../data/container-data-provider';
-import { ContainerGroupActions } from '../actions/container-group-actions';
+import { ContainerData } from './container-types';
+import { ContainerGroupActions } from './container-group-actions';
 import { ContainerRow } from './container-row';
 
 interface ContainerGroupRowProps {

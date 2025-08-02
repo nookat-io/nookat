@@ -1,6 +1,7 @@
-use std::process::Command;
-use bollard::Docker;
 use crate::entities::DockerInfo;
+use crate::state::SharedDockerState;
+use std::process::Command;
+use tauri::State;
 
 #[tauri::command]
 pub async fn open_url(url: String) -> Result<(), String> {
@@ -51,23 +52,19 @@ pub async fn open_url(url: String) -> Result<(), String> {
     Ok(())
 }
 
-
-
 #[tauri::command]
-pub async fn get_docker_info() -> Result<DockerInfo, String> {
-    match Docker::connect_with_local_defaults() {
-        Ok(docker) => {
-            match tokio::try_join!(docker.info(), docker.version()) {
-                Ok((info, version)) => {
-                    Ok(DockerInfo::from((info, version)))
-                }
-                Err(e) => {
-                    Err(format!("Docker is running but not responding properly: {}", e))
-                }
-            }
-        }
-        Err(e) => {
-            Err(format!("Docker is not running: {}", e))
-        }
-    }
+pub async fn get_docker_info(state: State<'_, SharedDockerState>) -> Result<DockerInfo, String> {
+    let docker = state.get_docker().await?;
+
+    let info = docker
+        .info()
+        .await
+        .map_err(|e| format!("Failed to get Docker info: {}", e))?;
+    let version = docker
+        .version()
+        .await
+        .map_err(|e| format!("Failed to get Docker version: {}", e))?;
+
+    state.return_docker(docker).await;
+    Ok(DockerInfo::from((info, version)))
 }

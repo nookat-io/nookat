@@ -1,6 +1,6 @@
 'use client';
 
-import { Badge } from '../../ui/badge';
+import { Badge } from '../ui/badge';
 
 interface ContainerStatusBadgeProps {
   state: string;
