@@ -26,6 +26,7 @@ export default function VolumesPage() {
 
   const filteredVolumes = useFilter(volumes, filter, searchTerm, {
     searchFields: ['name', 'driver'],
+    filterField: 'usage_data',
   });
 
   return (
