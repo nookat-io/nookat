@@ -4,19 +4,18 @@ import { NetworkControls } from '../components/networks/network-controls';
 import { NetworksTable } from '../components/networks/networks-table';
 import { useDataProvider } from '../hooks/use-data-provider';
 import { useFilter } from '../utils/use-filter';
+import { usePageState } from '../hooks/use-page-state';
 import { PageLayout } from '../components/layout/page-layout';
-import { useState } from 'react';
-
-export interface NetworkFilter {
-  driver?: string;
-  scope?: string;
-  internal?: boolean;
-}
 
 export default function NetworksPage() {
-  const [selected, setSelected] = useState<string[]>([]);
-  const [filter, setFilter] = useState<NetworkFilter>({});
-  const [searchTerm, setSearchTerm] = useState('');
+  const {
+    selected,
+    setSelected,
+    filter,
+    setFilter,
+    searchTerm,
+    setSearchTerm,
+  } = usePageState<'all' | 'system' | 'others'>('all');
 
   const {
     data: networks,
@@ -25,8 +24,10 @@ export default function NetworksPage() {
     refresh,
   } = useDataProvider<NetworkData>('list_networks');
 
-  const filteredNetworks = useFilter(networks, 'all', searchTerm, {
+  const filteredNetworks = useFilter(networks, filter, searchTerm, {
     searchFields: ['name', 'driver'],
+    filterField: 'name',
+    filterValue: filter === 'system' ? ['bridge', 'host', 'none'] : undefined,
   });
 
   return (

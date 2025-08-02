@@ -35,7 +35,6 @@ interface DockerImage {
 }
 
 interface ImagesTableProps {
-  filter: 'all' | 'used' | 'dangling';
   selectedImages: string[];
   onSelectionChange: (_selected: string[]) => void;
   images: ImageData[];
@@ -62,7 +61,6 @@ function convertImageData(imageData: ImageData): DockerImage {
 }
 
 export function ImagesTable({
-  filter,
   selectedImages,
   onSelectionChange,
   images,
@@ -72,16 +70,9 @@ export function ImagesTable({
 }: ImagesTableProps) {
   const dockerImages = images.map(convertImageData);
 
-  const filteredImages = dockerImages.filter(image => {
-    if (filter === 'used') return image.inUse;
-    if (filter === 'dangling')
-      return image.repository === '<none>' || image.tag === '<none>';
-    return true;
-  });
-
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
-      onSelectionChange(filteredImages.map(img => img.id));
+      onSelectionChange(dockerImages.map(img => img.id));
     } else {
       onSelectionChange([]);
     }
@@ -120,11 +111,11 @@ export function ImagesTable({
       );
     }
 
-    if (filteredImages.length === 0) {
+    if (dockerImages.length === 0) {
       return <></>;
     }
 
-    return filteredImages.map(image => (
+    return dockerImages.map(image => (
       <TableRow key={image.id}>
         <TableCell>
           <Checkbox
@@ -202,8 +193,8 @@ export function ImagesTable({
               <TableHead className="w-12">
                 <Checkbox
                   checked={
-                    selectedImages.length === filteredImages.length &&
-                    filteredImages.length > 0
+                    selectedImages.length === dockerImages.length &&
+                    dockerImages.length > 0
                   }
                   onCheckedChange={handleSelectAll}
                 />

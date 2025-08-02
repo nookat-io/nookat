@@ -48,7 +48,6 @@ export default function ImagesPage() {
       }
       table={
         <ImagesTable
-          filter={filter}
           selectedImages={selected}
           onSelectionChange={setSelected}
           images={filteredImages}

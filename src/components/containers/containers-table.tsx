@@ -19,7 +19,6 @@ import { LoadingSpinner } from '../ui/loading-spinner';
 import { ErrorDisplay } from '../ui/error-display';
 
 interface ContainersTableProps {
-  filter: 'all' | 'running' | 'stopped';
   selectedContainers: string[];
   onSelectionChange: (_selected: string[]) => void;
   containers: ContainerData[];
@@ -30,7 +29,6 @@ interface ContainersTableProps {
 }
 
 export function ContainersTable({
-  filter,
   selectedContainers,
   onSelectionChange,
   containers,
@@ -40,9 +38,9 @@ export function ContainersTable({
   onRetry,
 }: ContainersTableProps) {
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
-  const [logsFormOpen, setLogsFormOpen] = useState(false);
   const [selectedContainerForLogs, setSelectedContainerForLogs] =
     useState<ContainerData | null>(null);
+  const [logsFormOpen, setLogsFormOpen] = useState(false);
 
   useEffect(() => {
     const existingContainerIds = new Set(containers.map(c => c.id));
@@ -68,15 +66,9 @@ export function ContainersTable({
     ...groupedContainers.flatMap(group => group.containers),
   ];
 
-  const filteredContainers = allContainers.filter(container => {
-    if (filter === 'running') return container.state === 'running';
-    if (filter === 'stopped') return container.state !== 'running';
-    return true;
-  });
-
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
-      onSelectionChange(filteredContainers.map(c => c.id));
+      onSelectionChange(allContainers.map(c => c.id));
     } else {
       onSelectionChange([]);
     }
@@ -138,7 +130,6 @@ export function ContainersTable({
             projectName={group.projectName}
             containers={group.containers}
             isExpanded={group.isExpanded}
-            filter={filter}
             selectedContainers={selectedContainers}
             onToggleGroup={toggleGroup}
             onSelectionChange={handleSelectContainer}
@@ -170,8 +161,8 @@ export function ContainersTable({
               <TableHead className="w-12">
                 <Checkbox
                   checked={
-                    selectedContainers.length === filteredContainers.length &&
-                    filteredContainers.length > 0
+                    selectedContainers.length === allContainers.length &&
+                    allContainers.length > 0
                   }
                   onCheckedChange={handleSelectAll}
                 />

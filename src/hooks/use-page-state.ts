@@ -6,7 +6,9 @@ export type FilterType =
   | 'stopped'
   | 'used'
   | 'dangling'
-  | 'unused';
+  | 'unused'
+  | 'system'
+  | 'others';
 
 export interface PageState<T extends FilterType = FilterType> {
   selected: string[];

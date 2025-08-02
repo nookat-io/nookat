@@ -49,7 +49,6 @@ export default function ContainersPage() {
       }
       table={
         <ContainersTable
-          filter={filter}
           selectedContainers={selected}
           onSelectionChange={setSelected}
           containers={filteredContainers}
