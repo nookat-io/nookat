@@ -92,7 +92,10 @@ pub struct DockerInfo {
     pub version_os: Option<String>,
     pub version_arch: Option<String>,
     pub version_kernel_version: Option<String>,
+    #[cfg(not(target_os = "windows"))]
     pub version_experimental: Option<String>,
+    #[cfg(target_os = "windows")]
+    pub version_experimental: Option<bool>,
     pub build_time: Option<String>,
 
     pub status: DockerStatus,
