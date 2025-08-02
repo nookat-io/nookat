@@ -1,67 +1,62 @@
-import {
-  ImageDataProvider,
-  ImageFilterLogic,
-  ImageHeader,
-  ImageControls,
-  ImagesTable,
-  useImagePageState,
-} from '../components/images';
+import { ImageData } from '../components/images/image-types';
+import { ImageHeader } from '../components/images/image-header';
+import { ImageControls } from '../components/images/image-controls';
+import { ImagesTable } from '../components/images/images-table';
+import { usePageState } from '../hooks/use-page-state';
+import { useDataProvider } from '../hooks/use-data-provider';
+import { useFilter } from '../utils/use-filter';
+import { PageLayout } from '../components/layout/page-layout';
 
 export default function ImagesPage() {
   const {
-    selectedImages,
-    setSelectedImages,
+    selected,
+    setSelected,
     filter,
     setFilter,
     searchTerm,
     setSearchTerm,
-  } = useImagePageState();
+  } = usePageState<'all' | 'used' | 'dangling'>('all');
+
+  const {
+    data: images,
+    isLoading,
+    error,
+    refresh,
+  } = useDataProvider<ImageData>('list_images');
+
+  const filteredImages = useFilter(images, filter, searchTerm, {
+    searchFields: ['repository', 'tag'],
+    filterField: 'in_use',
+  });
 
   return (
-    <ImageDataProvider>
-      {({ images, isLoading, error, refreshImages }) => (
-        <div className="page-background min-h-screen flex flex-col">
-          {/* Sticky header section */}
-          <div className="sticky top-0 z-10 bg-background border-b">
-            <div className="space-y-6 p-6 max-w-full">
-              <ImageHeader
-                selectedImages={selectedImages}
-                images={images}
-                onActionComplete={refreshImages}
-              />
-
-              <ImageControls
-                filter={filter}
-                onFilterChange={setFilter}
-                searchTerm={searchTerm}
-                onSearchChange={setSearchTerm}
-              />
-            </div>
-          </div>
-
-          {/* Scrollable table section */}
-          <div className="flex-1 overflow-hidden">
-            <ImageFilterLogic
-              images={images}
-              filter={filter}
-              searchTerm={searchTerm}
-            >
-              {filteredImages => (
-                <div className="p-6 max-w-full h-full overflow-auto">
-                  <ImagesTable
-                    filter={filter}
-                    selectedImages={selectedImages}
-                    onSelectionChange={setSelectedImages}
-                    images={filteredImages}
-                    isLoading={isLoading}
-                    error={error}
-                  />
-                </div>
-              )}
-            </ImageFilterLogic>
-          </div>
-        </div>
-      )}
-    </ImageDataProvider>
+    <PageLayout
+      header={
+        <ImageHeader
+          selectedImages={selected}
+          images={images}
+          onActionComplete={refresh}
+        />
+      }
+      controls={
+        <ImageControls
+          filter={filter}
+          onFilterChange={setFilter}
+          searchTerm={searchTerm}
+          onSearchChange={setSearchTerm}
+        />
+      }
+      table={
+        <ImagesTable
+          selectedImages={selected}
+          onSelectionChange={setSelected}
+          images={filteredImages}
+          onActionComplete={refresh}
+          isLoading={isLoading}
+          error={error}
+          onRetry={refresh}
+        />
+      }
+    />
   );
 }

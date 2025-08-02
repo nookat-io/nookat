@@ -1,4 +1,4 @@
-import { ContainerData } from '../data/container-data-provider';
+import { ContainerData } from './container-types';
 
 export interface ContainerGroup {
   projectName: string;

@@ -12,26 +12,22 @@ use std::process::Command;
 pub struct ContainersService {}
 
 impl ContainersService {
-    pub async fn get_containers() -> Vec<ContainerSummary> {
-        let docker = Docker::connect_with_local_defaults().unwrap();
-
+    pub async fn get_containers(docker: &Docker) -> Result<Vec<ContainerSummary>, String> {
         let options: ListContainersOptions<String> = ListContainersOptions {
             all: true,
             size: true,
             ..Default::default()
         };
 
-        let containers = &docker
+        let containers = docker
             .list_containers(Some(options))
             .await
-            .expect("Failed to list containers");
+            .map_err(|e| format!("Failed to list containers: {}", e))?;
 
-        containers.iter().map(|c| c.clone()).collect()
+        Ok(containers.iter().map(|c| c.clone()).collect())
     }
 
-    pub async fn start_container(id: &str) -> Result<(), String> {
-        let docker = Docker::connect_with_local_defaults().unwrap();
-
+    pub async fn start_container(docker: &Docker, id: &str) -> Result<(), String> {
         let options = StartContainerOptions::<String> {
             ..Default::default()
         };
@@ -44,9 +40,7 @@ impl ContainersService {
         Ok(())
     }
 
-    pub async fn stop_container(id: &str) -> Result<(), String> {
-        let docker = Docker::connect_with_local_defaults().unwrap();
-
+    pub async fn stop_container(docker: &Docker, id: &str) -> Result<(), String> {
         let options = StopContainerOptions {
             t: 0,
             ..Default::default()
@@ -60,9 +54,7 @@ impl ContainersService {
         Ok(())
     }
 
-    pub async fn pause_container(id: &str) -> Result<(), String> {
-        let docker = Docker::connect_with_local_defaults().unwrap();
-
+    pub async fn pause_container(docker: &Docker, id: &str) -> Result<(), String> {
         docker
             .pause_container(id)
             .await
@@ -71,9 +63,7 @@ impl ContainersService {
         Ok(())
     }
 
-    pub async fn unpause_container(id: &str) -> Result<(), String> {
-        let docker = Docker::connect_with_local_defaults().unwrap();
-
+    pub async fn unpause_container(docker: &Docker, id: &str) -> Result<(), String> {
         docker
             .unpause_container(id)
             .await
@@ -82,9 +72,7 @@ impl ContainersService {
         Ok(())
     }
 
-    pub async fn restart_container(id: &str) -> Result<(), String> {
-        let docker = Docker::connect_with_local_defaults().unwrap();
-
+    pub async fn restart_container(docker: &Docker, id: &str) -> Result<(), String> {
         let options = RestartContainerOptions {
             t: 0,
             ..Default::default()
@@ -98,9 +86,7 @@ impl ContainersService {
         Ok(())
     }
 
-    pub async fn remove_container(id: &str) -> Result<(), String> {
-        let docker = Docker::connect_with_local_defaults().unwrap();
-
+    pub async fn remove_container(docker: &Docker, id: &str) -> Result<(), String> {
         let options = RemoveContainerOptions {
             force: false,
             link: false,
@@ -116,9 +102,7 @@ impl ContainersService {
         Ok(())
     }
 
-    pub async fn force_remove_container(id: &str) -> Result<(), String> {
-        let docker = Docker::connect_with_local_defaults().unwrap();
-
+    pub async fn force_remove_container(docker: &Docker, id: &str) -> Result<(), String> {
         let options = RemoveContainerOptions {
             force: true,
             link: false,
@@ -134,11 +118,7 @@ impl ContainersService {
         Ok(())
     }
 
-    pub async fn open_terminal(id: &str) -> Result<(), String> {
-        // First, verify that the container exists and is running
-        let docker = Docker::connect_with_local_defaults()
-            .map_err(|e| format!("Failed to connect to Docker: {}", e))?;
-
+    pub async fn open_terminal(docker: &Docker, id: &str) -> Result<(), String> {
         // Check if container exists and is running
         let containers = docker
             .list_containers(None::<ListContainersOptions<String>>)
@@ -268,10 +248,7 @@ impl ContainersService {
         Ok(())
     }
 
-    pub async fn get_container_logs(id: &str) -> Result<Vec<String>, String> {
-        let docker = Docker::connect_with_local_defaults()
-            .map_err(|e| format!("Failed to connect to Docker: {}", e))?;
-
+    pub async fn get_container_logs(docker: &Docker, id: &str) -> Result<Vec<String>, String> {
         let options = LogsOptions::<String> {
             stdout: true,
             stderr: true,
@@ -315,10 +292,7 @@ impl ContainersService {
         Ok(logs)
     }
 
-    pub async fn prune_containers() -> Result<(), String> {
-        let docker = Docker::connect_with_local_defaults()
-            .map_err(|e| format!("Failed to connect to Docker: {}", e))?;
-
+    pub async fn prune_containers(docker: &Docker) -> Result<(), String> {
         // Use the prune containers method
         docker
             .prune_containers(None::<bollard::container::PruneContainersOptions<String>>)

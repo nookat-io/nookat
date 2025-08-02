@@ -23,7 +23,7 @@ export function ImageControls({
           size="sm"
           onClick={() => onFilterChange('all')}
         >
-          All Images
+          All
         </Button>
         <Button
           variant={filter === 'used' ? 'default' : 'outline'}

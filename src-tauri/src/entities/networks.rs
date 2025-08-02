@@ -42,9 +42,10 @@ impl From<bollard::models::Network> for Network {
             })
         });
 
-        let first_config = network.ipam.as_ref().and_then(|ipam| {
-            ipam.config.as_ref().and_then(|configs| configs.first())
-        });
+        let first_config = network
+            .ipam
+            .as_ref()
+            .and_then(|ipam| ipam.config.as_ref().and_then(|configs| configs.first()));
 
         Network {
             id: network.id.unwrap_or_default(),
@@ -54,7 +55,11 @@ impl From<bollard::models::Network> for Network {
             created: network.created,
             subnet: first_config.as_ref().and_then(|c| c.subnet.clone()),
             gateway: first_config.as_ref().and_then(|c| c.gateway.clone()),
-            containers: network.containers.as_ref().map(|c| c.len() as i64).unwrap_or(0),
+            containers: network
+                .containers
+                .as_ref()
+                .map(|c| c.len() as i64)
+                .unwrap_or(0),
             internal: network.internal.unwrap_or(false),
             ipam: Ipam {
                 driver: network.ipam.as_ref().and_then(|i| i.driver.clone()),

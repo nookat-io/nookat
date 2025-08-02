@@ -1,18 +1,17 @@
 'use client';
 
-import { TableCell, TableRow } from '../../ui/table';
-import { Button } from '../../ui/button';
-import { Badge } from '../../ui/badge';
+import { TableCell, TableRow } from '../ui/table';
+import { Button } from '../ui/button';
+import { Badge } from '../ui/badge';
 import { ChevronDown, ChevronRight } from 'lucide-react';
-import { ContainerData } from '../data/container-data-provider';
-import { ContainerGroupActions } from '../actions/container-group-actions';
+import { ContainerData } from './container-types';
+import { ContainerGroupActions } from './container-group-actions';
 import { ContainerRow } from './container-row';
 
 interface ContainerGroupRowProps {
   projectName: string;
   containers: ContainerData[];
   isExpanded: boolean;
-  filter: 'all' | 'running' | 'stopped';
   selectedContainers: string[];
   onToggleGroup: (projectName: string) => void;
   onSelectionChange: (containerId: string, checked: boolean) => void;
@@ -24,24 +23,17 @@ export function ContainerGroupRow({
   projectName,
   containers,
   isExpanded,
-  filter,
   selectedContainers,
   onToggleGroup,
   onSelectionChange,
   onActionComplete,
   onOpenLogs,
 }: ContainerGroupRowProps) {
-  const filteredGroupContainers = containers.filter(container => {
-    if (filter === 'running') return container.state === 'running';
-    if (filter === 'stopped') return container.state !== 'running';
-    return true;
-  });
-
-  if (filteredGroupContainers.length === 0) return null;
-
   const hasRunningContainers = containers.some(c => c.state === 'running');
   const allStopped = containers.every(c => c.state !== 'running');
   const groupContainerIds = containers.map(c => c.id);
+
+  if (containers.length === 0) return null;
 
   return (
     <>
@@ -64,7 +56,7 @@ export function ContainerGroupRow({
           <div className="flex items-center gap-2">
             <span>{projectName}</span>
             <Badge variant="outline" className="text-xs">
-              {filteredGroupContainers.length} containers
+              {containers.length} containers
             </Badge>
           </div>
         </TableCell>
@@ -102,7 +94,7 @@ export function ContainerGroupRow({
 
       {/* Render nested containers when expanded */}
       {isExpanded &&
-        filteredGroupContainers.map(container => (
+        containers.map(container => (
           <ContainerRow
             key={container.id}
             container={container}
