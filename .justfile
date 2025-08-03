@@ -2,11 +2,20 @@ alias i := install
 alias p := pre_commit
 alias k := kill_tauri_runs
 alias r := tauri_dev
+alias c := clean
 
 kill_tauri_runs:
     echo "Killing tauri runs"
     ps aux | grep "npm run tauri" | grep -v grep | awk '{print $2}' | xargs -r kill -9
 
+clean:
+    echo "Cleaning up..."
+    rm -rf dist
+    rm -rf node_modules
+    rm -rf .next
+    rm -rf .turbo
+    rm -rf .env
+    cd src-tauri && cargo clean && cd ..
 
 tauri_dev:
     npm run tauri dev

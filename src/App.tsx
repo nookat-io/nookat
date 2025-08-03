@@ -11,7 +11,7 @@ import SettingsPage from './pages/SettingsPage';
 function App() {
   return (
     <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
-      <div className="h-screen flex pt-6">
+      <div className="h-screen flex pt-6" data-tauri-drag-region>
         <Sidebar />
         <div className="flex-1 flex flex-col min-w-0">
           <Header />
