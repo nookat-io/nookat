@@ -20,7 +20,9 @@ export function useConfig() {
       const configData = await invoke<AppConfig>('get_config');
       setConfig(configData);
     } catch (err) {
-      setError(err as string);
+      setError(
+        err instanceof Error ? err.message : 'Failed to load configuration'
+      );
     } finally {
       setLoading(false);
     }
@@ -32,7 +34,7 @@ export function useConfig() {
         await invoke('update_theme', { theme });
         await loadConfig(); // Reload config to get updated state
       } catch (err) {
-        setError(err as string);
+        setError(err instanceof Error ? err.message : 'Failed to update theme');
       }
     },
     [loadConfig]
@@ -44,7 +46,9 @@ export function useConfig() {
         await invoke('update_language', { language });
         await loadConfig(); // Reload config to get updated state
       } catch (err) {
-        setError(err as string);
+        setError(
+          err instanceof Error ? err.message : 'Failed to update language'
+        );
       }
     },
     [loadConfig]
@@ -56,7 +60,11 @@ export function useConfig() {
         await invoke('update_telemetry_settings', { settings });
         await loadConfig(); // Reload config to get updated state
       } catch (err) {
-        setError(err as string);
+        setError(
+          err instanceof Error
+            ? err.message
+            : 'Failed to update telemetry settings'
+        );
       }
     },
     [loadConfig]
@@ -68,7 +76,11 @@ export function useConfig() {
         await invoke('update_startup_settings', { settings });
         await loadConfig(); // Reload config to get updated state
       } catch (err) {
-        setError(err as string);
+        setError(
+          err instanceof Error
+            ? err.message
+            : 'Failed to update startup settings'
+        );
       }
     },
     [loadConfig]

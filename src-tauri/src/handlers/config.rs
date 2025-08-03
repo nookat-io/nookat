@@ -2,13 +2,14 @@ use crate::entities::{AppConfig, Theme, Language, TelemetrySettings, StartupSett
 use std::fs;
 use std::path::PathBuf;
 
-fn get_config_path() -> PathBuf {
-    let home_dir = dirs::home_dir().expect("Could not find home directory");
-    home_dir.join(".nookat").join("config.json")
+fn get_config_path() -> Result<PathBuf, String> {
+    dirs::home_dir()
+        .ok_or_else(|| "Could not determine home directory".to_string())
+        .map(|home_dir| home_dir.join(".nookat").join("config.json"))
 }
 
 fn ensure_config_dir() -> Result<(), String> {
-    let config_path = get_config_path();
+    let config_path = get_config_path()?;
     if let Some(parent) = config_path.parent() {
         fs::create_dir_all(parent)
             .map_err(|e| format!("Failed to create config directory: {}", e))?;
@@ -19,7 +20,7 @@ fn ensure_config_dir() -> Result<(), String> {
 /// Get the current configuration
 #[tauri::command]
 pub async fn get_config() -> Result<AppConfig, String> {
-    let config_path = get_config_path();
+    let config_path = get_config_path()?;
 
     if config_path.exists() {
         let content = fs::read_to_string(&config_path)
@@ -39,7 +40,7 @@ pub async fn get_config() -> Result<AppConfig, String> {
 fn save_config(config: &AppConfig) -> Result<(), String> {
     ensure_config_dir()?;
 
-    let config_path = get_config_path();
+    let config_path = get_config_path()?;
     let content = serde_json::to_string_pretty(config)
         .map_err(|e| format!("Failed to serialize config: {}", e))?;
 

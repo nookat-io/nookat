@@ -37,7 +37,7 @@ export function GeneralSettings() {
 
   const languageOptions = [
     { value: Language.English, label: 'English' },
-    { value: Language.Russian, label: 'Русский' },
+    // { value: Language.Russian, label: 'Русский' },
   ];
 
   const handleTelemetryChange = async (sendAnonymousUsageData: boolean) => {
