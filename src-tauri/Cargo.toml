@@ -1,8 +1,8 @@
 [package]
 name = "nookat"
-version = "0.1.0"
+version = "0.1.1"
 description = "Nookat is a tool for managing Docker containers"
-authors = ["Almaz Murzabekov"]
+authors = ["Nookat.io Developers"]
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
