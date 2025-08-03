@@ -1,8 +1,8 @@
-use serde::{Deserialize, Serialize};
 use bollard::models::SystemInfo;
 use bollard::system::Version;
-use std::collections::HashMap;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use std::collections::HashMap;
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub enum DockerStatus {
@@ -110,16 +110,19 @@ impl From<(SystemInfo, Version)> for DockerInfo {
             log: p.log,
         });
 
-        let platform = version.platform.map(|p| DockerInfoPlatform {
-            name: p.name,
-        });
+        let platform = version
+            .platform
+            .map(|p| DockerInfoPlatform { name: p.name });
 
         let components = version.components.map(|comps| {
-            comps.into_iter().map(|comp| DockerInfoComponent {
-                name: comp.name,
-                version: comp.version,
-                details: comp.details,
-            }).collect()
+            comps
+                .into_iter()
+                .map(|comp| DockerInfoComponent {
+                    name: comp.name,
+                    version: comp.version,
+                    details: comp.details,
+                })
+                .collect()
         });
 
         // Determine status based on actual Docker daemon state

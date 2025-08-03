@@ -1,7 +1,7 @@
 import { Button } from '../ui/button';
 import { Trash2, Trash } from 'lucide-react';
 import { useState } from 'react';
-import { VolumeActionService } from './utils/volume-actions';
+import { VolumeActionService } from './volume-actions-service';
 
 interface VolumeActionsProps {
   selectedVolumes: string[];

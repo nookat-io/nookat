@@ -1,8 +1,8 @@
 [package]
 name = "nookat"
-version = "0.1.0"
+version = "0.1.1"
 description = "Nookat is a tool for managing Docker containers"
-authors = ["Almaz Murzabekov"]
+authors = ["Nookat.io Developers"]
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -20,10 +20,11 @@ tauri-build = { version = "2", features = [] }
 [dependencies]
 tokio = { version = "1.46.1", features = ["full"] }
 tokio-util = { version = "0.7", features = ["io"] }
-tauri = { version = "2", features = ["macos-private-api"] }
+tauri = { version = "2", features = [ "tray-icon", "macos-private-api"] }
 tauri-plugin-opener = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 bollard = "0.18"
+image = "0.24"
 futures-util = "0.3"
 chrono = { version = "0.4", features = ["serde"] }

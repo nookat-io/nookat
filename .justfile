@@ -2,11 +2,17 @@ alias i := install
 alias p := pre_commit
 alias k := kill_tauri_runs
 alias r := tauri_dev
+alias c := clean
 
 kill_tauri_runs:
     echo "Killing tauri runs"
     ps aux | grep "npm run tauri" | grep -v grep | awk '{print $2}' | xargs -r kill -9
 
+clean:
+    echo "Cleaning up..."
+    rm -rf dist
+    rm -rf node_modules
+    cd src-tauri && cargo clean && cd ..
 
 tauri_dev:
     npm run tauri dev
@@ -37,3 +43,32 @@ pre_commit:
     #!/usr/bin/env bash
     echo "🔍 Running pre-commit checks on all files..."
     pre-commit run --all-files
+
+upgrade_version version:
+    #!/usr/bin/env bash
+    echo "🔄 Upgrading version number to v{{version}}..."
+
+    # Update version in package.json
+    if [ -f package.json ]; then
+        jq '.version = "{{version}}"' package.json > package.json.tmp && mv package.json.tmp package.json
+        echo "✅ Updated version in package.json"
+    else
+        echo "❌ package.json not found!"
+    fi
+
+    # Update version in src-tauri/tauri.conf.json
+    if [ -f src-tauri/tauri.conf.json ]; then
+        jq '.version = "{{version}}"' src-tauri/tauri.conf.json > src-tauri/tauri.conf.json.tmp && mv src-tauri/tauri.conf.json.tmp src-tauri/tauri.conf.json
+        echo "✅ Updated version in src-tauri/tauri.conf.json"
+    else
+        echo "❌ src-tauri/tauri.conf.json not found!"
+    fi
+
+    # Update version in src-tauri/Cargo.toml
+    if [ -f src-tauri/Cargo.toml ]; then
+        sed -i.bak -E "s/^version = \".*\"/version = \"{{version}}\"/" src-tauri/Cargo.toml && rm src-tauri/Cargo.toml.bak
+        echo "✅ Updated version in src-tauri/Cargo.toml"
+    else
+        echo "❌ src-tauri/Cargo.toml not found!"
+    fi
+    echo "🎉 Version upgrade complete!"

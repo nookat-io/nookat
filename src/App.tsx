@@ -1,5 +1,5 @@
 import { Routes, Route } from 'react-router-dom';
-import { Sidebar, Header, WindowFrame } from './components/layout';
+import { Sidebar, Header } from './components/layout';
 import { Toaster } from './components/ui/sonner';
 import { ThemeProvider } from './lib/theme-provider';
 import ContainersPage from './pages/ContainersPage';
@@ -11,7 +11,7 @@ import SettingsPage from './pages/SettingsPage';
 function App() {
   return (
     <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
-      <WindowFrame>
+      <div className="h-screen flex pt-6" data-tauri-drag-region>
         <Sidebar />
         <div className="flex-1 flex flex-col min-w-0">
           <Header />
@@ -25,7 +25,7 @@ function App() {
             </Routes>
           </main>
         </div>
-      </WindowFrame>
+      </div>
       <Toaster />
     </ThemeProvider>
   );
