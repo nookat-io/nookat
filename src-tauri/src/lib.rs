@@ -18,16 +18,20 @@ use tauri::{App, Manager, image::Image, menu::{MenuBuilder, MenuItem}, tray::Tra
 
 fn build_tray(app: &mut App) -> Result<(), String> {
     // Build the tray menu
-    let show_item = MenuItem::with_id(app, "open", "Open", true, None::<&str>).unwrap();
-    let quit_item = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>).unwrap();
+    let show_item = MenuItem::with_id(app, "open", "Open", true, None::<&str>)
+        .map_err(|e| format!("Failed to create show menu item: {}", e))?;
+    let quit_item = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)
+        .map_err(|e| format!("Failed to create quit menu item: {}", e))?;
+
     let menu = MenuBuilder::new(app)
         .item(&show_item)
         .item(&quit_item)
         .build()
-        .expect("Failed to build tray menu");
+        .map_err(|e| format!("Failed to build tray menu: {}", e))?;
 
     let icon_bytes = include_bytes!("../icons/icon_512x512.png");
-    let icon_image = image::load_from_memory(icon_bytes).expect("Failed to load icon");
+    let icon_image = image::load_from_memory(icon_bytes)
+        .map_err(|e| format!("Failed to load icon: {}", e))?;
     let rgba = icon_image.to_rgba8();
     let (width, height) = rgba.dimensions();
 
@@ -36,9 +40,25 @@ fn build_tray(app: &mut App) -> Result<(), String> {
         .menu(&menu)
         .on_menu_event(|app, event| match event.id.as_ref() {
             "open" => {
-                if let Some(window) = app.get_webview_window("main") {
-                    let _ = window.show();
-                    let _ = window.set_focus();
+                // Try to find the main window by getting the first available window
+                // or by trying common default window IDs
+                let window = app.get_webview_window("main")
+                    .or_else(|| app.get_webview_window("primary"))
+                    .or_else(|| app.get_webview_window("default"))
+                    .or_else(|| {
+                        // If no specific window found, try to get any available window
+                        app.webview_windows().values().next().cloned()
+                    });
+
+                if let Some(window) = window {
+                    if let Err(e) = window.show() {
+                        eprintln!("Failed to show window: {}", e);
+                    }
+                    if let Err(e) = window.set_focus() {
+                        eprintln!("Failed to focus window: {}", e);
+                    }
+                } else {
+                    eprintln!("No main window found to show");
                 }
             }
             "quit" => {
@@ -47,7 +67,8 @@ fn build_tray(app: &mut App) -> Result<(), String> {
             _ => {}
         })
         .build(app)
-        .expect("Failed to build tray icon");
+        .map_err(|e| format!("Failed to build tray icon: {}", e))?;
+
     Ok(())
 }
 
@@ -100,7 +121,9 @@ pub fn run() {
         })
         .on_window_event(|window, event| match event {
             tauri::WindowEvent::CloseRequested { api, .. } => {
-                window.hide().expect("Failed to hide window");
+                if let Err(e) = window.hide() {
+                    eprintln!("Failed to hide window: {}", e);
+                }
                 api.prevent_close();
             }
             // There is no Minimized event in Tauri v2, so we can't handle minimize directly.
