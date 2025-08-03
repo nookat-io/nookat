@@ -74,15 +74,6 @@
     user-select: none;
   }
 
-  /* Allow text selection in interactive elements within window frame */
-  .window-frame input,
-  .window-frame textarea,
-  .window-frame [contenteditable],
-  .window-frame button {
-    user-select: auto;
-    -webkit-app-region: no-drag;
-  }
-
   .window-controls {
     -webkit-app-region: no-drag;
     pointer-events: auto;
