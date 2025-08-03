@@ -66,11 +66,6 @@ pub async fn update_theme(theme: String) -> Result<(), String> {
 #[tauri::command]
 pub async fn get_theme() -> Result<String, String> {
     let config = get_config().await?;
-
-
-    // INSERT_YOUR_CODE
-    std::thread::sleep(std::time::Duration::from_secs(10));
-
     Ok(config.theme.as_str().to_string())
 }
 

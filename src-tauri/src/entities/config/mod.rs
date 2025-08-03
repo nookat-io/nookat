@@ -11,14 +11,15 @@ use chrono::{DateTime, Utc};
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct TelemetrySettings {
     pub send_anonymous_usage_data: bool,
-    // pub feedback_collection: bool -> NEED MORE INFO
-    // pub telemetry_settings: TelemetryConfig -> NEED MORE INFO
-    // pub error_reporting: bool -> NEED MORE INFO
+    // pub feedback_collection: bool,
+    // pub telemetry_settings: TelemetryConfig,
+    // pub error_reporting: bool,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub enum UpdateChannel {
     #[serde(rename = "stable")]
+    #[default]
     Stable,
     #[serde(rename = "beta")]
     Beta,
@@ -42,7 +43,7 @@ impl Default for StartupSettings {
             minimize_to_tray: true,
             check_for_updates: true,
             last_update_check: None,
-            update_channel: UpdateChannel::Stable,
+            update_channel: UpdateChannel::default(),
             auto_update_settings: false,
             crash_reporting: true,
         }
