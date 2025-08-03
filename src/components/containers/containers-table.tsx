@@ -7,35 +7,41 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '../../ui/table';
-import { Checkbox } from '../../ui/checkbox';
-import { ContainerData } from '../data/container-data-provider';
-import { ContainerLogsForm } from '../forms/container-logs-form';
+  TableCell,
+} from '../ui/table';
+import { Checkbox } from '../ui/checkbox';
+import { ContainerData } from './container-types';
+import { ContainerLogsForm } from './container-logs-form';
 import { ContainerRow } from './container-row';
 import { ContainerGroupRow } from './container-group-row';
-import { organizeContainers } from '../utils/container-utils';
+import { organizeContainers } from './container-utils';
+import { LoadingSpinner } from '../ui/loading-spinner';
+import { ErrorDisplay } from '../ui/error-display';
 
 interface ContainersTableProps {
-  filter: 'all' | 'running' | 'stopped';
   selectedContainers: string[];
   onSelectionChange: (_selected: string[]) => void;
   containers: ContainerData[];
   onActionComplete?: () => void;
+  isLoading?: boolean;
+  error?: string | null;
+  onRetry?: () => void;
 }
 
 export function ContainersTable({
-  filter,
   selectedContainers,
   onSelectionChange,
   containers,
   onActionComplete,
+  isLoading = false,
+  error = null,
+  onRetry,
 }: ContainersTableProps) {
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
-  const [logsFormOpen, setLogsFormOpen] = useState(false);
   const [selectedContainerForLogs, setSelectedContainerForLogs] =
     useState<ContainerData | null>(null);
+  const [logsFormOpen, setLogsFormOpen] = useState(false);
 
-  // Clean up stale selections when containers list changes
   useEffect(() => {
     const existingContainerIds = new Set(containers.map(c => c.id));
     const staleSelections = selectedContainers.filter(
@@ -60,15 +66,9 @@ export function ContainersTable({
     ...groupedContainers.flatMap(group => group.containers),
   ];
 
-  const filteredContainers = allContainers.filter(container => {
-    if (filter === 'running') return container.state === 'running';
-    if (filter === 'stopped') return container.state !== 'running';
-    return true;
-  });
-
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
-      onSelectionChange(filteredContainers.map(c => c.id));
+      onSelectionChange(allContainers.map(c => c.id));
     } else {
       onSelectionChange([]);
     }
@@ -97,17 +97,72 @@ export function ContainersTable({
     setLogsFormOpen(true);
   };
 
+  const renderTableBody = () => {
+    if (isLoading) {
+      return (
+        <TableRow>
+          <TableCell colSpan={7}>
+            <div className="flex items-center justify-center">
+              <LoadingSpinner message="Loading containers..." size="lg" />
+            </div>
+          </TableCell>
+        </TableRow>
+      );
+    }
+
+    if (error) {
+      return (
+        <TableRow>
+          <TableCell colSpan={7}>
+            <div className="flex items-center justify-center">
+              <ErrorDisplay error={error} onRetry={onRetry} showRetry={true} />
+            </div>
+          </TableCell>
+        </TableRow>
+      );
+    }
+
+    return (
+      <>
+        {groupedContainers.map(group => (
+          <ContainerGroupRow
+            key={group.projectName}
+            projectName={group.projectName}
+            containers={group.containers}
+            isExpanded={group.isExpanded}
+            selectedContainers={selectedContainers}
+            onToggleGroup={toggleGroup}
+            onSelectionChange={handleSelectContainer}
+            onActionComplete={onActionComplete}
+            onOpenLogs={handleOpenLogs}
+          />
+        ))}
+
+        {individualContainers.map(container => (
+          <ContainerRow
+            key={container.id}
+            container={container}
+            isSelected={selectedContainers.includes(container.id)}
+            onSelectionChange={handleSelectContainer}
+            onActionComplete={onActionComplete}
+            onOpenLogs={handleOpenLogs}
+          />
+        ))}
+      </>
+    );
+  };
+
   return (
-    <div className="border rounded-lg overflow-hidden">
-      <div className="overflow-x-auto">
-        <Table className="table-fixed">
+    <div className="border rounded-lg overflow-hidden h-full flex flex-col">
+      <div className="overflow-x-auto flex-1">
+        <Table className="table-fixed h-full">
           <TableHeader>
             <TableRow>
               <TableHead className="w-12">
                 <Checkbox
                   checked={
-                    selectedContainers.length === filteredContainers.length &&
-                    filteredContainers.length > 0
+                    selectedContainers.length === allContainers.length &&
+                    allContainers.length > 0
                   }
                   onCheckedChange={handleSelectAll}
                 />
@@ -120,39 +175,10 @@ export function ContainersTable({
               <TableHead className="w-[10%] text-left">Actions</TableHead>
             </TableRow>
           </TableHeader>
-          <TableBody>
-            {/* Render individual containers */}
-            {individualContainers.map(container => (
-              <ContainerRow
-                key={container.id}
-                container={container}
-                isSelected={selectedContainers.includes(container.id)}
-                onSelectionChange={handleSelectContainer}
-                onActionComplete={onActionComplete}
-                onOpenLogs={handleOpenLogs}
-              />
-            ))}
-
-            {/* Render grouped containers */}
-            {groupedContainers.map(group => (
-              <ContainerGroupRow
-                key={group.projectName}
-                projectName={group.projectName}
-                containers={group.containers}
-                isExpanded={group.isExpanded}
-                filter={filter}
-                selectedContainers={selectedContainers}
-                onToggleGroup={toggleGroup}
-                onSelectionChange={handleSelectContainer}
-                onActionComplete={onActionComplete}
-                onOpenLogs={handleOpenLogs}
-              />
-            ))}
-          </TableBody>
+          <TableBody className="flex-1">{renderTableBody()}</TableBody>
         </Table>
       </div>
 
-      {/* Logs Form Modal */}
       {logsFormOpen && selectedContainerForLogs && (
         <ContainerLogsForm
           containerId={selectedContainerForLogs.id}
