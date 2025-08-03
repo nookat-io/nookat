@@ -50,7 +50,7 @@ impl ImagesService {
                 let mut image_name = None;
                 let mut image_tag = None;
 
-                if image.repo_tags.len() > 0 {
+                if !image.repo_tags.is_empty() {
                     let tag_full = image.repo_tags[0].clone();
                     let parts: Vec<&str> = tag_full.splitn(2, ':').collect();
 

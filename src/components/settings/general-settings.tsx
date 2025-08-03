@@ -14,23 +14,143 @@ import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Separator } from '../ui/separator';
 import { Badge } from '../ui/badge';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '../ui/select';
+import { useConfig } from '../../hooks/use-config';
+import { UpdateChannel, Language } from '../../types/config';
 
 export function GeneralSettings() {
-  const [settings, setSettings] = useState({
-    startOnBoot: true,
-    minimizeToTray: true,
-    autoUpdate: false,
-    showNotifications: true,
-    sendUsageStats: false,
-    dockerHubUsername: '',
-  });
+  const {
+    config,
+    loading,
+    error,
+    updateTelemetrySettings,
+    updateStartupSettings,
+    updateLanguage,
+  } = useConfig();
+  const [saving, setSaving] = useState(false);
 
-  const handleSettingChange = (key: string, value: boolean | string) => {
-    setSettings(prev => ({ ...prev, [key]: value }));
+  const languageOptions = [
+    { value: Language.English, label: 'English' },
+    // { value: Language.Russian, label: 'Русский' },
+  ];
+
+  const handleTelemetryChange = async (sendAnonymousUsageData: boolean) => {
+    if (!config) return;
+
+    setSaving(true);
+    try {
+      await updateTelemetrySettings({
+        send_anonymous_usage_data: sendAnonymousUsageData,
+      });
+    } finally {
+      setSaving(false);
+    }
   };
+
+  const handleStartupChange = async (key: string, value: boolean | string) => {
+    if (!config) return;
+
+    setSaving(true);
+    try {
+      const updatedSettings = {
+        ...config.startup,
+        [key]: value,
+      };
+      await updateStartupSettings(updatedSettings);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleLanguageChange = async (language: string) => {
+    setSaving(true);
+    try {
+      await updateLanguage(language as Language);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="animate-pulse">
+          <div className="h-8 bg-muted rounded w-1/4 mb-4"></div>
+          <div className="space-y-4">
+            <div className="h-32 bg-muted rounded"></div>
+            <div className="h-32 bg-muted rounded"></div>
+            <div className="h-32 bg-muted rounded"></div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-center text-destructive">
+              <p>Failed to load settings: {error}</p>
+              <Button
+                variant="outline"
+                className="mt-2"
+                onClick={() => window.location.reload()}
+              >
+                Retry
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (!config) {
+    return null;
+  }
 
   return (
     <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle>Language</CardTitle>
+          <CardDescription>
+            Choose your preferred language for the application interface
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="language-select">Interface Language</Label>
+            <Select
+              value={config.language}
+              onValueChange={handleLanguageChange}
+              disabled={saving}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select a language" />
+              </SelectTrigger>
+              <SelectContent>
+                {languageOptions.map(option => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <div className="text-sm text-muted-foreground">
+              Changes will take effect after restarting the application
+            </div>
+          </div>
+        </CardContent>
+      </Card>
       <Card>
         <CardHeader>
           <CardTitle>Usage Statistics</CardTitle>
@@ -50,10 +170,9 @@ export function GeneralSettings() {
             </div>
             <Switch
               id="send-usage-stats"
-              checked={settings.sendUsageStats}
-              onCheckedChange={checked =>
-                handleSettingChange('sendUsageStats', checked)
-              }
+              checked={config.telemetry.send_anonymous_usage_data}
+              onCheckedChange={handleTelemetryChange}
+              disabled={saving}
             />
           </div>
         </CardContent>
@@ -76,10 +195,11 @@ export function GeneralSettings() {
             </div>
             <Switch
               id="start-on-boot"
-              checked={settings.startOnBoot}
+              checked={config.startup.start_on_system_startup}
               onCheckedChange={checked =>
-                handleSettingChange('startOnBoot', checked)
+                handleStartupChange('start_on_system_startup', checked)
               }
+              disabled={saving}
             />
           </div>
 
@@ -94,42 +214,11 @@ export function GeneralSettings() {
             </div>
             <Switch
               id="minimize-to-tray"
-              checked={settings.minimizeToTray}
+              checked={config.startup.minimize_to_tray}
               onCheckedChange={checked =>
-                handleSettingChange('minimizeToTray', checked)
+                handleStartupChange('minimize_to_tray', checked)
               }
-            />
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Updates & Notifications</CardTitle>
-          <CardDescription>
-            Manage update preferences and notifications
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="space-y-0.5">
-              <div className="flex items-center gap-2">
-                <Label htmlFor="auto-update">Automatic updates</Label>
-                <Badge variant="secondary" className="text-xs">
-                  Not available right now
-                </Badge>
-              </div>
-              <div className="text-sm text-muted-foreground">
-                Automatically download and install updates
-              </div>
-            </div>
-            <Switch
-              id="auto-update"
-              checked={settings.autoUpdate}
-              onCheckedChange={checked =>
-                handleSettingChange('autoUpdate', checked)
-              }
-              disabled
+              disabled={saving}
             />
           </div>
 
@@ -137,17 +226,80 @@ export function GeneralSettings() {
 
           <div className="flex items-center justify-between">
             <div className="space-y-0.5">
-              <Label htmlFor="show-notifications">Show notifications</Label>
+              <Label htmlFor="check-for-updates">Check for updates</Label>
               <div className="text-sm text-muted-foreground">
-                Display desktop notifications for container events
+                Automatically check for new versions
               </div>
             </div>
             <Switch
-              id="show-notifications"
-              checked={settings.showNotifications}
+              id="check-for-updates"
+              checked={config.startup.check_for_updates}
               onCheckedChange={checked =>
-                handleSettingChange('showNotifications', checked)
+                handleStartupChange('check_for_updates', checked)
               }
+              disabled={saving}
+            />
+          </div>
+
+          <Separator />
+
+          <div className="space-y-2">
+            <Label htmlFor="update-channel">Update Channel</Label>
+            <Select
+              value={config.startup.update_channel}
+              onValueChange={(value: string) =>
+                handleStartupChange('update_channel', value)
+              }
+              disabled={saving}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={UpdateChannel.Stable}>Stable</SelectItem>
+                <SelectItem value={UpdateChannel.Beta}>Beta</SelectItem>
+              </SelectContent>
+            </Select>
+            <div className="text-sm text-muted-foreground">
+              Choose which update channel to use
+            </div>
+          </div>
+
+          <Separator />
+
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5">
+              <Label htmlFor="auto-update">Automatic updates</Label>
+              <div className="text-sm text-muted-foreground">
+                Automatically download and install updates
+              </div>
+            </div>
+            <Switch
+              id="auto-update"
+              checked={config.startup.auto_update_settings}
+              onCheckedChange={checked =>
+                handleStartupChange('auto_update_settings', checked)
+              }
+              disabled={saving}
+            />
+          </div>
+
+          <Separator />
+
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5">
+              <Label htmlFor="crash-reporting">Crash reporting</Label>
+              <div className="text-sm text-muted-foreground">
+                Send crash reports to help improve stability
+              </div>
+            </div>
+            <Switch
+              id="crash-reporting"
+              checked={config.startup.crash_reporting}
+              onCheckedChange={checked =>
+                handleStartupChange('crash_reporting', checked)
+              }
+              disabled={saving}
             />
           </div>
         </CardContent>
@@ -171,10 +323,6 @@ export function GeneralSettings() {
             <Input
               id="docker-username"
               placeholder="Enter your Docker Hub username"
-              value={settings.dockerHubUsername}
-              onChange={e =>
-                handleSettingChange('dockerHubUsername', e.target.value)
-              }
               disabled
             />
           </div>

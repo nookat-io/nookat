@@ -5,19 +5,19 @@ use std::collections::HashMap;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum VolumeScope {
     #[serde(rename = "")]
-    EMPTY,
+    Empty,
     #[serde(rename = "local")]
-    LOCAL,
+    Local,
     #[serde(rename = "global")]
-    GLOBAL,
+    Global,
 }
 
 impl From<VolumeScopeEnum> for VolumeScope {
     fn from(scope: VolumeScopeEnum) -> Self {
         match scope {
-            VolumeScopeEnum::EMPTY => VolumeScope::EMPTY,
-            VolumeScopeEnum::LOCAL => VolumeScope::LOCAL,
-            VolumeScopeEnum::GLOBAL => VolumeScope::GLOBAL,
+            VolumeScopeEnum::EMPTY => VolumeScope::Empty,
+            VolumeScopeEnum::LOCAL => VolumeScope::Local,
+            VolumeScopeEnum::GLOBAL => VolumeScope::Global,
         }
     }
 }

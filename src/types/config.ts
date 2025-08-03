@@ -1,0 +1,36 @@
+export enum Theme {
+  Light = 'light',
+  Dark = 'dark',
+  System = 'system',
+}
+
+export enum Language {
+  English = 'en',
+  Russian = 'ru',
+}
+
+export enum UpdateChannel {
+  Stable = 'stable',
+  Beta = 'beta',
+}
+
+export interface TelemetrySettings {
+  send_anonymous_usage_data: boolean;
+}
+
+export interface StartupSettings {
+  start_on_system_startup: boolean;
+  minimize_to_tray: boolean;
+  check_for_updates: boolean;
+  last_update_check?: string; // ISO date string
+  update_channel: UpdateChannel;
+  auto_update_settings: boolean;
+  crash_reporting: boolean;
+}
+
+export interface AppConfig {
+  theme: Theme;
+  language: Language;
+  telemetry: TelemetrySettings;
+  startup: StartupSettings;
+}

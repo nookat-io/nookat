@@ -24,7 +24,7 @@ impl ContainersService {
             .await
             .map_err(|e| format!("Failed to list containers: {}", e))?;
 
-        Ok(containers.iter().map(|c| c.clone()).collect())
+        Ok(containers.to_vec())
     }
 
     pub async fn start_container(docker: &Docker, id: &str) -> Result<(), String> {
@@ -43,7 +43,6 @@ impl ContainersService {
     pub async fn stop_container(docker: &Docker, id: &str) -> Result<(), String> {
         let options = StopContainerOptions {
             t: 0,
-            ..Default::default()
         };
 
         docker
@@ -75,7 +74,6 @@ impl ContainersService {
     pub async fn restart_container(docker: &Docker, id: &str) -> Result<(), String> {
         let options = RestartContainerOptions {
             t: 0,
-            ..Default::default()
         };
 
         docker
@@ -91,7 +89,6 @@ impl ContainersService {
             force: false,
             link: false,
             v: false,
-            ..Default::default()
         };
 
         docker
@@ -107,7 +104,6 @@ impl ContainersService {
             force: true,
             link: false,
             v: false,
-            ..Default::default()
         };
 
         docker
