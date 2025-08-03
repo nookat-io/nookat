@@ -13,18 +13,18 @@ use crate::handlers::{
     restart_container, start_container, stop_container, unpause_container,
 };
 use crate::state::SharedDockerState;
-use tauri::{App, Manager, image::Image, menu::{MenuBuilder, MenuItem}, tray::TrayIconBuilder, ActivationPolicy};
+use tauri::{App, Manager, image::Image, menu::{MenuBuilder, MenuItem}, tray::TrayIconBuilder};
 
 
 fn build_tray(app: &mut App) -> Result<(), String> {
     // Build the tray menu
-    let show_item = MenuItem::with_id(app, "show", "Show", true, None::<&str>).unwrap();
+    let show_item = MenuItem::with_id(app, "open", "Open", true, None::<&str>).unwrap();
     let quit_item = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>).unwrap();
     let menu = MenuBuilder::new(app)
         .item(&show_item)
         .item(&quit_item)
         .build()
-        .unwrap();
+        .expect("Failed to build tray menu");
 
     let icon_bytes = include_bytes!("../icons/icon_512x512.png");
     let icon_image = image::load_from_memory(icon_bytes).expect("Failed to load icon");
@@ -35,7 +35,7 @@ fn build_tray(app: &mut App) -> Result<(), String> {
         .icon(Image::new(rgba.as_raw(), width, height))
         .menu(&menu)
         .on_menu_event(|app, event| match event.id.as_ref() {
-            "show" => {
+            "open" => {
                 if let Some(window) = app.get_webview_window("main") {
                     let _ = window.show();
                     let _ = window.set_focus();
@@ -47,14 +47,14 @@ fn build_tray(app: &mut App) -> Result<(), String> {
             _ => {}
         })
         .build(app)
-        .unwrap();
+        .expect("Failed to build tray icon");
     Ok(())
 }
 
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    let mut app = tauri::Builder::default()
+    tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .manage(SharedDockerState::new())
         .invoke_handler(tauri::generate_handler![
@@ -100,7 +100,7 @@ pub fn run() {
         })
         .on_window_event(|window, event| match event {
             tauri::WindowEvent::CloseRequested { api, .. } => {
-                window.hide().unwrap();
+                window.hide().expect("Failed to hide window");
                 api.prevent_close();
             }
             // There is no Minimized event in Tauri v2, so we can't handle minimize directly.
