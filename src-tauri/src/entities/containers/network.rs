@@ -67,11 +67,11 @@ pub struct EndpointSettings {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub driver_opts: Option<HashMap<String, String>>,
 
-    /// This property determines which endpoint will provide the default
-    /// gateway for a container. The endpoint with the highest priority will
-    /// be used. If multiple endpoints have the same priority, endpoints are
-    /// lexicographically sorted based on their network name, and the one that
-    /// sorts first is picked.
+    // This property determines which endpoint will provide the default
+    // gateway for a container. The endpoint with the highest priority will
+    // be used. If multiple endpoints have the same priority, endpoints are
+    // lexicographically sorted based on their network name, and the one that
+    // sorts first is picked.
     // #[serde(skip_serializing_if = "Option::is_none")]
     // pub gw_priority: Option<f64>,
 

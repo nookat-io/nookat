@@ -1,10 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-
-export type Theme = 'light' | 'dark' | 'system';
+import { Theme } from '../types/config';
 
 export function useTheme() {
-  const [theme, setTheme] = useState<Theme>('system');
+  const [theme, setTheme] = useState<Theme>(Theme.System);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -21,7 +20,7 @@ export function useTheme() {
       setTheme(currentTheme as Theme);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load theme');
-      setTheme('system'); // Fallback to system theme
+      setTheme(Theme.System); // Fallback to system theme
     } finally {
       setLoading(false);
     }

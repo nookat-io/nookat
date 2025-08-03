@@ -1,11 +1,12 @@
 import React, { createContext, useContext, useEffect } from 'react';
 import { useTheme } from '../hooks/use-theme';
+import { Theme } from '../types/config';
 
 type ThemeContextType = {
   theme: string;
   loading: boolean;
   error: string | null;
-  updateTheme: (theme: 'light' | 'dark' | 'system') => Promise<boolean>;
+  updateTheme: (theme: Theme) => Promise<boolean>;
 };
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
@@ -24,7 +25,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       body.classList.remove('light', 'dark');
 
       // Apply the current theme
-      if (theme === 'system') {
+      if (theme === Theme.System) {
         // Check system preference
         const systemTheme = window.matchMedia('(prefers-color-scheme: dark)')
           .matches
@@ -41,7 +42,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   // Listen for system theme changes when using 'system' theme
   useEffect(() => {
-    if (theme === 'system') {
+    if (theme === Theme.System) {
       const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
 
       const handleChange = () => {

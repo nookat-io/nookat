@@ -1,27 +1,18 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AppConfig {
-    pub theme: Theme,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub enum Theme {
     #[serde(rename = "light")]
     Light,
+
     #[serde(rename = "dark")]
     Dark,
+
     #[serde(rename = "system")]
+    #[default]
     System,
 }
 
-impl Default for AppConfig {
-    fn default() -> Self {
-        Self {
-            theme: Theme::System,
-        }
-    }
-}
 
 impl Theme {
     pub fn as_str(&self) -> &'static str {

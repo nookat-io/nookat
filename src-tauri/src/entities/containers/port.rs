@@ -3,25 +3,25 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Serialize, Deserialize, Eq, Ord)]
 pub enum PortTypeEnum {
     #[serde(rename = "")]
-    EMPTY,
+    Empty,
 
     #[serde(rename = "tcp")]
-    TCP,
+    Tcp,
 
     #[serde(rename = "udp")]
-    UDP,
+    Udp,
 
     #[serde(rename = "sctp")]
-    SCTP,
+    Sctp,
 }
 
 impl From<bollard::models::PortTypeEnum> for PortTypeEnum {
     fn from(port_type: bollard::models::PortTypeEnum) -> Self {
         match port_type {
-            bollard::models::PortTypeEnum::TCP => PortTypeEnum::TCP,
-            bollard::models::PortTypeEnum::UDP => PortTypeEnum::UDP,
-            bollard::models::PortTypeEnum::SCTP => PortTypeEnum::SCTP,
-            bollard::models::PortTypeEnum::EMPTY => PortTypeEnum::EMPTY,
+            bollard::models::PortTypeEnum::TCP => PortTypeEnum::Tcp,
+            bollard::models::PortTypeEnum::UDP => PortTypeEnum::Udp,
+            bollard::models::PortTypeEnum::SCTP => PortTypeEnum::Sctp,
+            bollard::models::PortTypeEnum::EMPTY => PortTypeEnum::Empty,
         }
     }
 }

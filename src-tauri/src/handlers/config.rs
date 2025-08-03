@@ -1,5 +1,4 @@
-use crate::entities::{AppConfig, Theme};
-use serde_json;
+use crate::entities::{AppConfig, Theme, Language, TelemetrySettings, StartupSettings};
 use std::fs;
 use std::path::PathBuf;
 
@@ -73,4 +72,41 @@ pub async fn get_theme() -> Result<String, String> {
     std::thread::sleep(std::time::Duration::from_secs(10));
 
     Ok(config.theme.as_str().to_string())
+}
+
+/// Update telemetry settings
+#[tauri::command]
+pub async fn update_telemetry_settings(settings: TelemetrySettings) -> Result<(), String> {
+    let mut config = get_config().await?;
+    config.telemetry = settings;
+    save_config(&config)
+}
+
+/// Update startup settings
+#[tauri::command]
+pub async fn update_startup_settings(settings: StartupSettings) -> Result<(), String> {
+    let mut config = get_config().await?;
+    config.startup = settings;
+    save_config(&config)
+}
+
+/// Update language
+#[tauri::command]
+pub async fn update_language(language: String) -> Result<(), String> {
+    let mut config = get_config().await?;
+
+    config.language = match language.as_str() {
+        "en" => Language::English,
+        "ru" => Language::Russian,
+        _ => return Err("Invalid language value".to_string()),
+    };
+
+    save_config(&config)
+}
+
+/// Get the current language
+#[tauri::command]
+pub async fn get_language() -> Result<String, String> {
+    let config = get_config().await?;
+    Ok(config.language.as_str().to_string())
 }
