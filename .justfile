@@ -12,9 +12,6 @@ clean:
     echo "Cleaning up..."
     rm -rf dist
     rm -rf node_modules
-    rm -rf .next
-    rm -rf .turbo
-    rm -rf .env
     cd src-tauri && cargo clean && cd ..
 
 tauri_dev:
