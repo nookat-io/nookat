@@ -7,7 +7,7 @@ import {
   TabsList,
   TabsTrigger,
 } from '../components/ui/tabs';
-import { usePageAnalytics } from '../hooks/use-page-analytics';
+import { usePageAnalytics } from '../hooks/use-analytics';
 
 export default function SettingsPage() {
   usePageAnalytics('settings');

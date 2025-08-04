@@ -14,7 +14,7 @@ import ImagesPage from './pages/ImagesPage';
 import NetworksPage from './pages/NetworksPage';
 import VolumesPage from './pages/VolumesPage';
 import SettingsPage from './pages/SettingsPage';
-import { usePageAnalytics } from './hooks/use-page-analytics';
+import { usePageAnalytics } from './hooks/use-analytics';
 
 function AppContent() {
   const { loading } = useThemeContext();
