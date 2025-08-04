@@ -3,14 +3,23 @@ import { Sidebar, Header } from './components/layout';
 import { Toaster } from './components/ui/sonner';
 import { ThemeProvider, useThemeContext } from './lib/theme-provider';
 import { LoadingScreen } from './components/ui/loading-spinner';
+import {
+  AptabaseProvider,
+  APTABASE_APP_KEY,
+  APP_VERSION,
+} from './lib/analytics';
+
 import ContainersPage from './pages/ContainersPage';
 import ImagesPage from './pages/ImagesPage';
 import NetworksPage from './pages/NetworksPage';
 import VolumesPage from './pages/VolumesPage';
 import SettingsPage from './pages/SettingsPage';
+import { usePageAnalytics } from './hooks/use-page-analytics';
 
 function AppContent() {
   const { loading } = useThemeContext();
+
+  usePageAnalytics('app_started');
 
   if (loading) {
     return <LoadingScreen />;
@@ -38,9 +47,14 @@ function AppContent() {
 
 function App() {
   return (
-    <ThemeProvider>
-      <AppContent />
-    </ThemeProvider>
+    <AptabaseProvider
+      appKey={APTABASE_APP_KEY}
+      options={{ appVersion: APP_VERSION }}
+    >
+      <ThemeProvider>
+        <AppContent />
+      </ThemeProvider>
+    </AptabaseProvider>
   );
 }
 

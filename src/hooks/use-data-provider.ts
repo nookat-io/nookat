@@ -56,6 +56,7 @@ export function useDataProvider<T>(
 
   useEffect(() => {
     const startAutoRefresh = () => {
+      // @ts-expect-error - setInterval is a valid function
       autoRefreshIntervalRef.current = setInterval(() => {
         const timeSinceLastRefresh = Date.now() - lastRefreshTime.current;
         if (timeSinceLastRefresh > autoRefreshInterval) {

@@ -7,8 +7,11 @@ import {
   TabsList,
   TabsTrigger,
 } from '../components/ui/tabs';
+import { usePageAnalytics } from '../hooks/use-page-analytics';
 
 export default function SettingsPage() {
+  usePageAnalytics('settings');
+
   return (
     <div className="page-background min-h-screen flex flex-col">
       {/* Sticky header section */}

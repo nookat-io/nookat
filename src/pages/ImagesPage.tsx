@@ -6,8 +6,11 @@ import { usePageState } from '../hooks/use-page-state';
 import { useDataProvider } from '../hooks/use-data-provider';
 import { useFilter } from '../utils/use-filter';
 import { PageLayout } from '../components/layout/page-layout';
+import { usePageAnalytics } from '../hooks/use-page-analytics';
 
 export default function ImagesPage() {
+  usePageAnalytics('images');
+
   const {
     selected,
     setSelected,

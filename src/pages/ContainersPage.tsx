@@ -6,8 +6,11 @@ import { usePageState } from '../hooks/use-page-state';
 import { useDataProvider } from '../hooks/use-data-provider';
 import { useFilter } from '../utils/use-filter';
 import { PageLayout } from '../components/layout/page-layout';
+import { usePageAnalytics } from '../hooks/use-page-analytics';
 
 export default function ContainersPage() {
+  usePageAnalytics('containers');
+
   const {
     selected,
     setSelected,
@@ -40,12 +43,14 @@ export default function ContainersPage() {
         />
       }
       controls={
-        <ContainerControls
-          filter={filter}
-          onFilterChange={setFilter}
-          searchTerm={searchTerm}
-          onSearchChange={setSearchTerm}
-        />
+        <div className="space-y-4">
+          <ContainerControls
+            filter={filter}
+            onFilterChange={setFilter}
+            searchTerm={searchTerm}
+            onSearchChange={setSearchTerm}
+          />
+        </div>
       }
       table={
         <ContainersTable
