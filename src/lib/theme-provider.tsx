@@ -1,32 +1,29 @@
 import React, { createContext, useContext, useEffect } from 'react';
-import { useTheme } from '../hooks/use-theme';
+import { useConfig } from '../hooks/use-config';
 import { Theme } from '../types/config';
 
 type ThemeContextType = {
   theme: string;
   loading: boolean;
   error: string | null;
-  updateTheme: (theme: Theme) => Promise<boolean>;
+  updateTheme: (theme: Theme) => Promise<void>;
 };
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const { theme, loading, error, updateTheme } = useTheme();
+  const { config, loading, error, updateTheme } = useConfig();
+  const theme = config?.theme || Theme.System;
 
-  // Apply theme to document
   useEffect(() => {
     if (!loading) {
       const root = document.documentElement;
       const body = document.body;
 
-      // Remove existing theme classes
       root.classList.remove('light', 'dark');
       body.classList.remove('light', 'dark');
 
-      // Apply the current theme
       if (theme === Theme.System) {
-        // Check system preference
         const systemTheme = window.matchMedia('(prefers-color-scheme: dark)')
           .matches
           ? 'dark'
@@ -40,7 +37,6 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     }
   }, [theme, loading]);
 
-  // Listen for system theme changes when using 'system' theme
   useEffect(() => {
     if (theme === Theme.System) {
       const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
