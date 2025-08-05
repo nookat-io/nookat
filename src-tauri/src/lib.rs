@@ -7,13 +7,15 @@ use crate::handlers::{
     bulk_force_remove_containers, bulk_pause_containers, bulk_remove_containers,
     bulk_remove_networks, bulk_remove_volumes, bulk_restart_containers, bulk_start_containers,
     bulk_stop_containers, bulk_unpause_containers, container_files, container_logs,
-    force_remove_container, get_docker_info, inspect_volume, list_containers, list_images,
-    list_networks, list_volumes, open_terminal, open_url, pause_container, prune_containers,
-    prune_images, prune_volumes, remove_container, remove_network, remove_volume,
-    restart_container, start_container, stop_container, unpause_container,
+    force_remove_container, get_config, get_docker_info, get_theme, get_language, inspect_volume, list_containers,
+    list_images, list_networks, list_volumes, open_terminal, open_url, pause_container,
+    prune_containers, prune_images, prune_volumes, remove_container, remove_network, remove_volume,
+    restart_container, start_container, stop_container, unpause_container, update_theme, update_language,
+    update_telemetry_settings, update_startup_settings,
 };
 use crate::state::SharedDockerState;
 use tauri::{App, Manager, image::Image, menu::{MenuBuilder, MenuItem}, tray::TrayIconBuilder};
+
 
 
 fn build_tray(app: &mut App) -> Result<(), String> {
@@ -79,6 +81,14 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .manage(SharedDockerState::new())
         .invoke_handler(tauri::generate_handler![
+            // Configuration
+            get_config,
+            get_theme,
+            update_theme,
+            get_language,
+            update_language,
+            update_telemetry_settings,
+            update_startup_settings,
             // Containers
             list_containers,
             start_container,

@@ -1,7 +1,8 @@
 'use client';
 
 import { Moon, Sun, Monitor } from 'lucide-react';
-import { useTheme } from '../../lib/use-theme';
+import { useThemeContext } from '../../lib/theme-provider';
+import { Theme } from '../../types/config';
 
 import { Button } from './button';
 import {
@@ -12,7 +13,11 @@ import {
 } from './dropdown-menu';
 
 export function ThemeToggle() {
-  const { setTheme } = useTheme();
+  const { updateTheme } = useThemeContext();
+
+  const handleThemeChange = async (newTheme: Theme) => {
+    await updateTheme(newTheme);
+  };
 
   return (
     <DropdownMenu>
@@ -29,15 +34,15 @@ export function ThemeToggle() {
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
-        <DropdownMenuItem onClick={() => setTheme('light')}>
+        <DropdownMenuItem onClick={() => handleThemeChange(Theme.Light)}>
           <Sun className="mr-2 h-4 w-4" />
           Light
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => setTheme('dark')}>
+        <DropdownMenuItem onClick={() => handleThemeChange(Theme.Dark)}>
           <Moon className="mr-2 h-4 w-4" />
           Dark
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => setTheme('system')}>
+        <DropdownMenuItem onClick={() => handleThemeChange(Theme.System)}>
           <Monitor className="mr-2 h-4 w-4" />
           System
         </DropdownMenuItem>

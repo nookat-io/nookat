@@ -48,7 +48,7 @@ impl NetworksService {
 
         for name in names {
             if name.trim().is_empty() {
-                errors.push(format!("Network name cannot be empty"));
+                errors.push("Network name cannot be empty".to_string());
                 continue;
             }
 

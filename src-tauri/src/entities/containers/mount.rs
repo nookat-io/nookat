@@ -5,31 +5,31 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Serialize, Deserialize, Eq, Ord)]
 pub enum MountPointType {
     #[serde(rename = "")]
-    EMPTY,
+    Empty,
     #[serde(rename = "bind")]
-    BIND,
+    Bind,
     #[serde(rename = "volume")]
-    VOLUME,
+    Volume,
     #[serde(rename = "image")]
-    IMAGE,
+    Image,
     #[serde(rename = "tmpfs")]
-    TMPFS,
+    Tmpfs,
     #[serde(rename = "npipe")]
-    NPIPE,
+    Npipe,
     #[serde(rename = "cluster")]
-    CLUSTER,
+    Cluster,
 }
 
 impl ::std::fmt::Display for MountPointType {
     fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
         match *self {
-            MountPointType::EMPTY => write!(f, ""),
-            MountPointType::BIND => write!(f, "{}", "bind"),
-            MountPointType::VOLUME => write!(f, "{}", "volume"),
-            MountPointType::IMAGE => write!(f, "{}", "image"),
-            MountPointType::TMPFS => write!(f, "{}", "tmpfs"),
-            MountPointType::NPIPE => write!(f, "{}", "npipe"),
-            MountPointType::CLUSTER => write!(f, "{}", "cluster"),
+            MountPointType::Empty => write!(f, ""),
+            MountPointType::Bind => write!(f, "bind"),
+            MountPointType::Volume => write!(f, "volume"),
+            MountPointType::Image => write!(f, "image"),
+            MountPointType::Tmpfs => write!(f, "tmpfs"),
+            MountPointType::Npipe => write!(f, "npipe"),
+            MountPointType::Cluster => write!(f, "cluster"),
         }
     }
 }
@@ -38,13 +38,13 @@ impl ::std::str::FromStr for MountPointType {
     type Err = String;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "" => Ok(MountPointType::EMPTY),
-            "bind" => Ok(MountPointType::BIND),
-            "volume" => Ok(MountPointType::VOLUME),
-            "image" => Ok(MountPointType::IMAGE),
-            "tmpfs" => Ok(MountPointType::TMPFS),
-            "npipe" => Ok(MountPointType::NPIPE),
-            "cluster" => Ok(MountPointType::CLUSTER),
+            "" => Ok(MountPointType::Empty),
+            "bind" => Ok(MountPointType::Bind),
+            "volume" => Ok(MountPointType::Volume),
+            "image" => Ok(MountPointType::Image),
+            "tmpfs" => Ok(MountPointType::Tmpfs),
+            "npipe" => Ok(MountPointType::Npipe),
+            "cluster" => Ok(MountPointType::Cluster),
             x => Err(format!("Invalid enum type: {}", x)),
         }
     }
@@ -53,13 +53,13 @@ impl ::std::str::FromStr for MountPointType {
 impl ::std::convert::AsRef<str> for MountPointType {
     fn as_ref(&self) -> &str {
         match self {
-            MountPointType::EMPTY => "",
-            MountPointType::BIND => "bind",
-            MountPointType::VOLUME => "volume",
-            MountPointType::IMAGE => "image",
-            MountPointType::TMPFS => "tmpfs",
-            MountPointType::NPIPE => "npipe",
-            MountPointType::CLUSTER => "cluster",
+            MountPointType::Empty => "",
+            MountPointType::Bind => "bind",
+            MountPointType::Volume => "volume",
+            MountPointType::Image => "image",
+            MountPointType::Tmpfs => "tmpfs",
+            MountPointType::Npipe => "npipe",
+            MountPointType::Cluster => "cluster",
         }
     }
 }
@@ -67,13 +67,13 @@ impl ::std::convert::AsRef<str> for MountPointType {
 impl From<bollard::models::MountPointTypeEnum> for MountPointType {
     fn from(mount_point_type: bollard::models::MountPointTypeEnum) -> Self {
         match mount_point_type {
-            bollard::models::MountPointTypeEnum::EMPTY => MountPointType::EMPTY,
-            bollard::models::MountPointTypeEnum::BIND => MountPointType::BIND,
-            bollard::models::MountPointTypeEnum::VOLUME => MountPointType::VOLUME,
+            bollard::models::MountPointTypeEnum::EMPTY => MountPointType::Empty,
+            bollard::models::MountPointTypeEnum::BIND => MountPointType::Bind,
+            bollard::models::MountPointTypeEnum::VOLUME => MountPointType::Volume,
             // bollard::models::MountPointTypeEnum::IMAGE => MountPointType::IMAGE,
-            bollard::models::MountPointTypeEnum::TMPFS => MountPointType::TMPFS,
-            bollard::models::MountPointTypeEnum::NPIPE => MountPointType::NPIPE,
-            bollard::models::MountPointTypeEnum::CLUSTER => MountPointType::CLUSTER,
+            bollard::models::MountPointTypeEnum::TMPFS => MountPointType::Tmpfs,
+            bollard::models::MountPointTypeEnum::NPIPE => MountPointType::Npipe,
+            bollard::models::MountPointTypeEnum::CLUSTER => MountPointType::Cluster,
         }
     }
 }

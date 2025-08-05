@@ -30,42 +30,42 @@ impl From<bollard::models::ContainerSummaryHostConfig> for ContainerHostConfig {
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Serialize, Deserialize, Eq, Ord)]
 pub enum ContainerState {
     #[serde(rename = "")]
-    EMPTY,
+    Empty,
 
     #[serde(rename = "created")]
-    CREATED,
+    Created,
 
     #[serde(rename = "running")]
-    RUNNING,
+    Running,
 
     #[serde(rename = "paused")]
-    PAUSED,
+    Paused,
 
     #[serde(rename = "restarting")]
-    RESTARTING,
+    Restarting,
 
     #[serde(rename = "exited")]
-    EXITED,
+    Exited,
 
     #[serde(rename = "removing")]
-    REMOVING,
+    Removing,
 
     #[serde(rename = "dead")]
-    DEAD,
+    Dead,
 }
 
 impl From<String> for ContainerState {
     fn from(state: String) -> Self {
         match state.to_lowercase().as_str() {
-            "empty" => ContainerState::EMPTY,
-            "created" => ContainerState::CREATED,
-            "running" => ContainerState::RUNNING,
-            "paused" => ContainerState::PAUSED,
-            "restarting" => ContainerState::RESTARTING,
-            "exited" => ContainerState::EXITED,
-            "removing" => ContainerState::REMOVING,
-            "dead" => ContainerState::DEAD,
-            _ => ContainerState::EMPTY,
+            "empty" => ContainerState::Empty,
+            "created" => ContainerState::Created,
+            "running" => ContainerState::Running,
+            "paused" => ContainerState::Paused,
+            "restarting" => ContainerState::Restarting,
+            "exited" => ContainerState::Exited,
+            "removing" => ContainerState::Removing,
+            "dead" => ContainerState::Dead,
+            _ => ContainerState::Empty,
         }
     }
 }
@@ -111,9 +111,9 @@ pub struct Container {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub image_id: Option<String>,
 
-    /// OCI descriptor of the platform-specific manifest of the image the container was created from.
-    /// Note: Only available if the daemon provides a multi-platform image store.
-    /// This field is not populated in the `GET /system/df` endpoint.
+    // OCI descriptor of the platform-specific manifest of the image the container was created from.
+    // Note: Only available if the daemon provides a multi-platform image store.
+    // This field is not populated in the `GET /system/df` endpoint.
     // #[serde(skip_serializing_if = "Option::is_none")]
     // pub image_manifest_descriptor: Option<OciDescriptor>,
 

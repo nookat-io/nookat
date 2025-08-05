@@ -36,6 +36,27 @@ install:
     rustup component add rustfmt
     rustup component add clippy
 
+    # Setup environment variables for Nookat
+    echo "Setting up environment variables for Nookat..."
+
+    # Check if .env file exists
+    if [ ! -f .env ]; then
+        echo "Creating .env file from env.example..."
+        cp env.example .env
+        echo "✅ .env file created"
+    else
+        echo "⚠️  .env file already exists"
+    fi
+
+    echo ""
+    echo "📝 Please edit .env file and add your Aptabase app key:"
+    echo "   VITE_APTABASE_APP_KEY=your_actual_app_key_here"
+    echo ""
+    echo "🔗 Get your app key from: https://aptabase.com/dashboard"
+    echo ""
+    echo "📊 Analytics will be disabled if no app key is provided"
+    echo "📦 App version will be automatically read from package.json"
+
     echo "✅ Development environment setup complete!"
     echo "💡 Run 'just p' to run pre-commit checks"
 

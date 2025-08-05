@@ -6,8 +6,11 @@ import { useDataProvider } from '../hooks/use-data-provider';
 import { useFilter } from '../utils/use-filter';
 import { usePageState } from '../hooks/use-page-state';
 import { PageLayout } from '../components/layout/page-layout';
+import { usePageAnalytics } from '../hooks/use-analytics';
 
 export default function NetworksPage() {
+  usePageAnalytics('networks');
+
   const {
     selected,
     setSelected,
