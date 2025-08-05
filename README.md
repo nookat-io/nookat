@@ -1,14 +1,17 @@
 # Nookat
 
-A modern container management application built with Tauri, React, and TypeScript.
+Nookat is a lightweight container management tool that provides all the essential features you need without the bloat. Fast, intuitive, and completely free.
+Built with Tauri, React, and TypeScript.
+
+**Get started for free.** [Download](https://github.com/nookat-io/nookat/releases) | [Website](https://nookat-io.github.io)
 
 ## Features
 
 - Container management and monitoring
 - Image management
-- Network configuration
+- Network management
 - Volume management
-- Settings and configuration
+- Settings and configurations
 
 ## Development Setup
 
