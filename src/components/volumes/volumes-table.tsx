@@ -169,7 +169,10 @@ export function VolumesTable({
             <TableRow>
               <TableHead className="w-12">
                 <Checkbox
-                  checked={selectedVolumes.length === sortedVolumes.length}
+                  checked={
+                    selectedVolumes.length === sortedVolumes.length &&
+                    sortedVolumes.length > 0
+                  }
                   onCheckedChange={handleSelectAll}
                 />
               </TableHead>
