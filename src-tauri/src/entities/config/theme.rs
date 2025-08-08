@@ -13,7 +13,6 @@ pub enum Theme {
     System,
 }
 
-
 impl Theme {
     pub fn as_str(&self) -> &'static str {
         match self {

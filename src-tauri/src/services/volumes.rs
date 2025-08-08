@@ -1,4 +1,5 @@
-#[allow(unused)]
+use tracing::instrument;
+
 #[derive(Default, Debug)]
 pub struct VolumesService {}
 
@@ -7,6 +8,7 @@ use bollard::volume::{ListVolumesOptions, PruneVolumesOptions, RemoveVolumeOptio
 use bollard::Docker;
 
 impl VolumesService {
+    #[instrument(skip_all, err)]
     pub async fn get_volumes(docker: &Docker) -> Result<Vec<Volume>, String> {
         let options: ListVolumesOptions<String> = ListVolumesOptions::default();
 
@@ -21,6 +23,7 @@ impl VolumesService {
         Ok(bollard_volumes.into_iter().map(Volume::from).collect())
     }
 
+    #[instrument(skip_all, err)]
     pub async fn remove_volume(docker: &Docker, name: &str) -> Result<(), String> {
         let options = RemoveVolumeOptions::default();
         docker
@@ -31,6 +34,7 @@ impl VolumesService {
         Ok(())
     }
 
+    #[instrument(skip_all, err)]
     pub async fn bulk_remove_volumes(docker: &Docker, names: &[String]) -> Result<(), String> {
         for name in names {
             let options = RemoveVolumeOptions::default();
@@ -43,6 +47,7 @@ impl VolumesService {
         Ok(())
     }
 
+    #[instrument(skip_all, err)]
     pub async fn inspect_volume(docker: &Docker, name: &str) -> Result<Volume, String> {
         let bollard_volume = docker
             .inspect_volume(name)
@@ -53,6 +58,7 @@ impl VolumesService {
         Ok(volume)
     }
 
+    #[instrument(skip_all, err)]
     pub async fn prune_volumes(docker: &Docker) -> Result<(), String> {
         let options: PruneVolumesOptions<String> = PruneVolumesOptions::default();
         docker

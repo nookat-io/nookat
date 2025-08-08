@@ -7,11 +7,13 @@ use bollard::{
     Docker,
 };
 use std::process::Command;
+use tracing::instrument;
 
 #[derive(Default, Debug)]
 pub struct ContainersService {}
 
 impl ContainersService {
+    #[instrument(skip_all, err)]
     pub async fn get_containers(docker: &Docker) -> Result<Vec<ContainerSummary>, String> {
         let options: ListContainersOptions<String> = ListContainersOptions {
             all: true,
@@ -27,6 +29,7 @@ impl ContainersService {
         Ok(containers.to_vec())
     }
 
+    #[instrument(skip_all, err)]
     pub async fn start_container(docker: &Docker, id: &str) -> Result<(), String> {
         let options = StartContainerOptions::<String> {
             ..Default::default()
@@ -40,6 +43,7 @@ impl ContainersService {
         Ok(())
     }
 
+    #[instrument(skip_all, err)]
     pub async fn stop_container(docker: &Docker, id: &str) -> Result<(), String> {
         let options = StopContainerOptions {
             t: 0,
@@ -53,6 +57,7 @@ impl ContainersService {
         Ok(())
     }
 
+    #[instrument(skip_all, err)]
     pub async fn pause_container(docker: &Docker, id: &str) -> Result<(), String> {
         docker
             .pause_container(id)
@@ -62,6 +67,7 @@ impl ContainersService {
         Ok(())
     }
 
+    #[instrument(skip_all, err)]
     pub async fn unpause_container(docker: &Docker, id: &str) -> Result<(), String> {
         docker
             .unpause_container(id)
@@ -71,6 +77,7 @@ impl ContainersService {
         Ok(())
     }
 
+    #[instrument(skip_all, err)]
     pub async fn restart_container(docker: &Docker, id: &str) -> Result<(), String> {
         let options = RestartContainerOptions {
             t: 0,
@@ -84,6 +91,7 @@ impl ContainersService {
         Ok(())
     }
 
+    #[instrument(skip_all, err)]
     pub async fn remove_container(docker: &Docker, id: &str) -> Result<(), String> {
         let options = RemoveContainerOptions {
             force: false,
@@ -99,6 +107,7 @@ impl ContainersService {
         Ok(())
     }
 
+    #[instrument(skip_all, err)]
     pub async fn force_remove_container(docker: &Docker, id: &str) -> Result<(), String> {
         let options = RemoveContainerOptions {
             force: true,
@@ -114,6 +123,7 @@ impl ContainersService {
         Ok(())
     }
 
+    #[instrument(skip_all, err)]
     pub async fn open_terminal(docker: &Docker, id: &str) -> Result<(), String> {
         // Check if container exists and is running
         let containers = docker
@@ -244,6 +254,7 @@ impl ContainersService {
         Ok(())
     }
 
+    #[instrument(skip_all, err)]
     pub async fn get_container_logs(docker: &Docker, id: &str) -> Result<Vec<String>, String> {
         let options = LogsOptions::<String> {
             stdout: true,
@@ -288,6 +299,7 @@ impl ContainersService {
         Ok(logs)
     }
 
+    #[instrument(skip_all, err)]
     pub async fn prune_containers(docker: &Docker) -> Result<(), String> {
         // Use the prune containers method
         docker

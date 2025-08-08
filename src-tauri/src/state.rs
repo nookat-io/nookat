@@ -1,4 +1,5 @@
 use bollard::Docker;
+use tracing::instrument;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
@@ -14,6 +15,7 @@ impl SharedDockerState {
         }
     }
 
+    #[instrument(skip_all, err)]
     pub async fn get_docker(&self) -> Result<Docker, String> {
         let mut docker_guard = self.docker.lock().await;
 
@@ -29,6 +31,7 @@ impl SharedDockerState {
         }
     }
 
+    #[instrument(skip_all)]
     pub async fn return_docker(&self, docker: Docker) {
         let mut docker_guard = self.docker.lock().await;
         *docker_guard = Some(docker);

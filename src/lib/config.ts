@@ -36,7 +36,6 @@ export class ConfigService {
   }
 
   private notifySubscribers() {
-    console.log('ConfigService: Notifying subscribers, config:', this.config);
     this.subscribers.forEach(callback => {
       try {
         callback(this.config);
@@ -73,6 +72,7 @@ export class ConfigService {
         language: Language.English,
         telemetry: {
           send_anonymous_usage_data: false,
+          error_reporting: false,
         },
         startup: {
           start_on_system_startup: false,
@@ -80,7 +80,6 @@ export class ConfigService {
           check_for_updates: true,
           update_channel: UpdateChannel.Stable,
           auto_update_settings: false,
-          crash_reporting: true,
         },
       };
       this.notifySubscribers();

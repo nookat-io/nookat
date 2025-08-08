@@ -16,6 +16,7 @@ export enum UpdateChannel {
 
 export interface TelemetrySettings {
   send_anonymous_usage_data: boolean;
+  error_reporting: boolean;
 }
 
 export interface StartupSettings {
@@ -25,7 +26,6 @@ export interface StartupSettings {
   last_update_check?: string; // ISO date string
   update_channel: UpdateChannel;
   auto_update_settings: boolean;
-  crash_reporting: boolean;
 }
 
 export interface AppConfig {
