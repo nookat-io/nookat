@@ -2,8 +2,10 @@ use crate::entities::DockerInfo;
 use crate::state::SharedDockerState;
 use std::process::Command;
 use tauri::State;
+use tracing::instrument;
 
 #[tauri::command]
+#[instrument(skip_all, err)]
 pub async fn open_url(url: String) -> Result<(), String> {
     if url.trim().is_empty() {
         return Err("URL cannot be empty".to_string());
@@ -53,6 +55,7 @@ pub async fn open_url(url: String) -> Result<(), String> {
 }
 
 #[tauri::command]
+#[instrument(skip_all, err)]
 pub async fn get_docker_info(state: State<'_, SharedDockerState>) -> Result<DockerInfo, String> {
     let docker = state.get_docker().await?;
 

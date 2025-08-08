@@ -2,9 +2,10 @@ use crate::entities::{Image, PruneResult};
 use crate::services::ImagesService;
 use crate::state::SharedDockerState;
 use tauri::State;
-use tracing::info;
+use tracing::{info, instrument};
 
 #[tauri::command]
+#[instrument(skip_all, err)]
 pub async fn list_images(state: State<'_, SharedDockerState>) -> Result<Vec<Image>, String> {
     info!("Listing images");
     let docker = state.get_docker().await?;
@@ -14,6 +15,7 @@ pub async fn list_images(state: State<'_, SharedDockerState>) -> Result<Vec<Imag
 }
 
 #[tauri::command]
+#[instrument(skip_all, err)]
 pub async fn prune_images(state: State<'_, SharedDockerState>) -> Result<PruneResult, String> {
     info!("Pruning unused images");
 

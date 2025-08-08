@@ -4,7 +4,7 @@ use bollard::image::ListImagesOptions;
 use bollard::models::ImageSummary;
 use bollard::Docker;
 use std::collections::HashSet;
-use tracing::instrument;
+use tracing::{info, instrument};
 
 #[derive(Default, Debug)]
 pub struct ImagesService {}
@@ -37,7 +37,7 @@ impl ImagesService {
             .filter_map(|container| container.image_id.clone())
             .collect();
 
-        println!("Found {} containers using images", used_image_ids.len());
+        info!("Found {} containers using images", used_image_ids.len());
 
         Ok((images, used_image_ids))
     }

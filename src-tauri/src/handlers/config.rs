@@ -1,13 +1,16 @@
 use crate::entities::{AppConfig, Theme, Language, TelemetrySettings, StartupSettings};
 use std::fs;
 use std::path::PathBuf;
+use tracing::instrument;
 
+#[instrument(skip_all, err)]
 fn get_config_path() -> Result<PathBuf, String> {
     dirs::home_dir()
         .ok_or_else(|| "Could not determine home directory".to_string())
         .map(|home_dir| home_dir.join(".nookat").join("config.json"))
 }
 
+#[instrument(skip_all, err)]
 fn ensure_config_dir() -> Result<(), String> {
     let config_path = get_config_path()?;
     if let Some(parent) = config_path.parent() {
@@ -19,6 +22,7 @@ fn ensure_config_dir() -> Result<(), String> {
 
 /// Get the current configuration
 #[tauri::command]
+#[instrument(skip_all, err)]
 pub async fn get_config() -> Result<AppConfig, String> {
     let config_path = get_config_path()?;
 
@@ -37,6 +41,7 @@ pub async fn get_config() -> Result<AppConfig, String> {
 }
 
 /// Save configuration to file
+#[instrument(skip_all, err)]
 fn save_config(config: &AppConfig) -> Result<(), String> {
     ensure_config_dir()?;
 
@@ -50,6 +55,7 @@ fn save_config(config: &AppConfig) -> Result<(), String> {
 
 /// Update the theme
 #[tauri::command]
+#[instrument(skip_all, err)]
 pub async fn update_theme(theme: String) -> Result<(), String> {
     let mut config = get_config().await?;
 
@@ -65,6 +71,7 @@ pub async fn update_theme(theme: String) -> Result<(), String> {
 
 /// Get the current theme
 #[tauri::command]
+#[instrument(skip_all, err)]
 pub async fn get_theme() -> Result<String, String> {
     let config = get_config().await?;
     Ok(config.theme.as_str().to_string())
@@ -72,6 +79,7 @@ pub async fn get_theme() -> Result<String, String> {
 
 /// Update telemetry settings
 #[tauri::command]
+#[instrument(skip_all, err)]
 pub async fn update_telemetry_settings(settings: TelemetrySettings) -> Result<(), String> {
     let mut config = get_config().await?;
     config.telemetry = settings;
@@ -80,6 +88,7 @@ pub async fn update_telemetry_settings(settings: TelemetrySettings) -> Result<()
 
 /// Update startup settings
 #[tauri::command]
+#[instrument(skip_all, err)]
 pub async fn update_startup_settings(settings: StartupSettings) -> Result<(), String> {
     let mut config = get_config().await?;
     config.startup = settings;
@@ -88,6 +97,7 @@ pub async fn update_startup_settings(settings: StartupSettings) -> Result<(), St
 
 /// Update language
 #[tauri::command]
+#[instrument(skip_all, err)]
 pub async fn update_language(language: String) -> Result<(), String> {
     let mut config = get_config().await?;
 
@@ -102,6 +112,7 @@ pub async fn update_language(language: String) -> Result<(), String> {
 
 /// Get the current language
 #[tauri::command]
+#[instrument(skip_all, err)]
 pub async fn get_language() -> Result<String, String> {
     let config = get_config().await?;
     Ok(config.language.as_str().to_string())
