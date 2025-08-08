@@ -4,6 +4,7 @@ use bollard::image::ListImagesOptions;
 use bollard::models::ImageSummary;
 use bollard::Docker;
 use std::collections::HashSet;
+use tracing::instrument;
 
 #[derive(Default, Debug)]
 pub struct ImagesService {}
@@ -41,6 +42,7 @@ impl ImagesService {
         Ok((images, used_image_ids))
     }
 
+    #[instrument(skip_all, err)]
     pub async fn get_images(docker: &Docker) -> Result<Vec<Image>, String> {
         let (images, used_image_ids) = Self::get_images_and_used_ids(docker).await?;
 
@@ -96,6 +98,7 @@ impl ImagesService {
         Ok(result)
     }
 
+    #[instrument(skip_all, err)]
     pub async fn perform_prune(docker: &Docker) -> Result<PruneResult, String> {
         let options = bollard::image::PruneImagesOptions::<String> {
             ..Default::default()

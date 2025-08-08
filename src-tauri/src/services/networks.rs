@@ -2,11 +2,13 @@ use crate::entities::Network;
 use bollard::models::Network as BollardNetwork;
 use bollard::network::ListNetworksOptions;
 use bollard::Docker;
+use tracing::instrument;
 
 #[derive(Default, Debug)]
 pub struct NetworksService {}
 
 impl NetworksService {
+    #[instrument(skip_all, err)]
     pub async fn get_networks(docker: &Docker) -> Result<Vec<Network>, String> {
         let options: ListNetworksOptions<String> = ListNetworksOptions::default();
 
@@ -19,6 +21,7 @@ impl NetworksService {
         Ok(bollard_networks.into_iter().map(Network::from).collect())
     }
 
+    #[instrument(skip_all, err)]
     pub async fn remove_network(docker: &Docker, name: &str) -> Result<(), String> {
         // Validate network name
         if name.trim().is_empty() {
@@ -43,6 +46,7 @@ impl NetworksService {
         Ok(())
     }
 
+    #[instrument(skip_all, err)]
     pub async fn bulk_remove_networks(docker: &Docker, names: &[String]) -> Result<(), String> {
         let mut errors = Vec::new();
 
