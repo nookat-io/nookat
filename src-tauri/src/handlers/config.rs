@@ -1,7 +1,7 @@
 use crate::entities::{AppConfig, Theme, Language, TelemetrySettings, StartupSettings};
 use tokio::fs;
 use std::path::PathBuf;
-use tracing::instrument;
+use tracing::{info, instrument};
 
 #[instrument(skip_all, err)]
 fn get_config_path() -> Result<PathBuf, String> {
@@ -81,6 +81,7 @@ pub async fn get_theme() -> Result<String, String> {
 #[tauri::command]
 #[instrument(skip_all, err)]
 pub async fn update_telemetry_settings(settings: TelemetrySettings) -> Result<(), String> {
+    info!("Updating telemetry settings: {:?}", settings);
     let mut config = get_config().await?;
     config.telemetry = settings;
     save_config(&config).await

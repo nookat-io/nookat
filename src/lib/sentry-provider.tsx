@@ -20,7 +20,7 @@ export function SentryProvider({ children }: { children: React.ReactNode }) {
     if (loading) return;
 
     const shouldEnableCrashReporting =
-      config?.startup?.crash_reporting ?? false;
+      config?.telemetry?.error_reporting ?? false;
 
     if (shouldEnableCrashReporting && SENTRY_DSN) {
       try {
@@ -52,7 +52,7 @@ export function SentryProvider({ children }: { children: React.ReactNode }) {
       setIsInitialized(false);
       setSentryError(null);
     }
-  }, [config?.startup?.crash_reporting, loading]);
+  }, [config?.telemetry?.error_reporting, loading]);
 
   return (
     <SentryContext.Provider value={{ isInitialized, error: sentryError }}>
