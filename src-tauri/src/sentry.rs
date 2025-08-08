@@ -1,12 +1,12 @@
 use sentry::{ClientInitGuard, init, ClientOptions};
 use std::sync::Once;
-use tracing::warn;
+use tracing::{warn, info};
 use crate::services::ConfigService;
 
 static INIT: Once = Once::new();
 
 pub fn init_sentry() -> Option<ClientInitGuard> {
-    tracing::info!("Initializing Sentry crash reporting");
+    info!("Initializing Sentry crash reporting");
 
     let dsn: String = std::env::var("SENTRY_DSN").unwrap_or_else(|_| "".to_string());
 
@@ -32,14 +32,14 @@ pub fn init_sentry() -> Option<ClientInitGuard> {
                 ..Default::default()
             },
         )));
+        info!("Sentry crash reporting initialized");
+
+        // Set application tags
+        set_tag("app.name", "nookat");
+        set_tag("app.version", env!("CARGO_PKG_VERSION"));
+        set_tag("app.platform", std::env::consts::OS);
     });
 
-    // Set application tags
-    set_tag("app.name", "nookat");
-    set_tag("app.version", env!("CARGO_PKG_VERSION"));
-    set_tag("app.platform", std::env::consts::OS);
-
-    tracing::info!("Sentry crash reporting initialized");
     guard
 }
 

@@ -1,6 +1,6 @@
 use crate::entities::{AppConfig, Theme, Language, TelemetrySettings, StartupSettings};
 use crate::services::ConfigService;
-use tracing::{info, instrument};
+use tracing::{debug, instrument};
 
 
 #[tauri::command]
@@ -37,7 +37,7 @@ pub async fn get_theme() -> Result<String, String> {
 #[tauri::command]
 #[instrument(skip_all, err)]
 pub async fn update_telemetry_settings(settings: TelemetrySettings) -> Result<(), String> {
-    info!("Updating telemetry settings: {:?}", settings);
+    debug!("Updating telemetry settings: {:?}", settings);
     let mut config = get_config().await?;
     config.telemetry = settings;
     ConfigService::save_config(&config)

@@ -29,12 +29,12 @@ export function SentryProvider({ children }: { children: React.ReactNode }) {
           sendDefaultPii: false,
           integrations: [
             Sentry.replayIntegration({
-              maskAllText: false,
-              blockAllMedia: false,
+              maskAllText: true,
+              blockAllMedia: true,
             }),
             Sentry.captureConsoleIntegration({ levels: ['error', 'warn'] }),
           ],
-          replaysSessionSampleRate: 0.1,
+          replaysSessionSampleRate: 0.0,
           replaysOnErrorSampleRate: 1.0,
         });
         setIsInitialized(true);
