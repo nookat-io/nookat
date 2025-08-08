@@ -16,9 +16,10 @@ use crate::handlers::{
 };
 use crate::state::SharedDockerState;
 use tauri::{App, Manager, image::Image, menu::{MenuBuilder, MenuItem}, tray::TrayIconBuilder};
-use tracing::error;
+use tracing::{error, instrument};
 use crate::sentry::{flush_sentry};
 
+#[instrument(skip_all)]
 fn build_tray(app: &mut App) -> Result<(), String> {
     // Build the tray menu
     let show_item = MenuItem::with_id(app, "open", "Open", true, None::<&str>)
