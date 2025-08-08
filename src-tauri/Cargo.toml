@@ -29,3 +29,8 @@ dirs = "5"
 image = "0.24"
 futures-util = "0.3"
 chrono = { version = "0.4", features = ["serde"] }
+
+sentry = { version = "0.35", features = ["panic", "tracing"] }
+sentry-tracing = "0.35"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }

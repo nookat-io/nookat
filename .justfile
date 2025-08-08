@@ -15,7 +15,9 @@ clean:
     cd src-tauri && cargo clean && cd ..
 
 tauri_dev:
-    npm run tauri dev
+    #!/usr/bin/env bash
+    source .env
+    SENTRY_DSN="$SENTRY_DSN" npm run tauri dev
 
 
 install:

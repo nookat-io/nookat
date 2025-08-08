@@ -2,12 +2,13 @@ use crate::entities::Container;
 use crate::services::ContainersService;
 use crate::state::SharedDockerState;
 use tauri::State;
+use tracing::info;
 
 #[tauri::command]
 pub async fn list_containers(
     state: State<'_, SharedDockerState>,
 ) -> Result<Vec<Container>, String> {
-    println!("Listing containers");
+    info!("Listing containers");
 
     let docker = state.get_docker().await?;
     let containers = ContainersService::get_containers(&docker).await?;
@@ -21,7 +22,7 @@ pub async fn start_container(
     state: State<'_, SharedDockerState>,
     id: String,
 ) -> Result<(), String> {
-    println!("Starting container: {}", id);
+    info!("Starting container: {}", id);
 
     let docker = state.get_docker().await?;
     let result = ContainersService::start_container(&docker, &id).await;
@@ -34,7 +35,7 @@ pub async fn stop_container(
     state: State<'_, SharedDockerState>,
     id: String,
 ) -> Result<(), String> {
-    println!("Stopping container: {}", id);
+    info!("Stopping container: {}", id);
 
     let docker = state.get_docker().await?;
     let result = ContainersService::stop_container(&docker, &id).await;
@@ -47,7 +48,7 @@ pub async fn pause_container(
     state: State<'_, SharedDockerState>,
     id: String,
 ) -> Result<(), String> {
-    println!("Pausing container: {}", id);
+    info!("Pausing container: {}", id);
 
     let docker = state.get_docker().await?;
     let result = ContainersService::pause_container(&docker, &id).await;
@@ -60,7 +61,7 @@ pub async fn unpause_container(
     state: State<'_, SharedDockerState>,
     id: String,
 ) -> Result<(), String> {
-    println!("Unpausing container: {}", id);
+    info!("Unpausing container: {}", id);
 
     let docker = state.get_docker().await?;
     let result = ContainersService::unpause_container(&docker, &id).await;
@@ -73,7 +74,7 @@ pub async fn restart_container(
     state: State<'_, SharedDockerState>,
     id: String,
 ) -> Result<(), String> {
-    println!("Restarting container: {}", id);
+    info!("Restarting container: {}", id);
 
     let docker = state.get_docker().await?;
     let result = ContainersService::restart_container(&docker, &id).await;
@@ -86,7 +87,7 @@ pub async fn bulk_start_containers(
     state: State<'_, SharedDockerState>,
     ids: Vec<String>,
 ) -> Result<(), String> {
-    println!("Starting {} containers", ids.len());
+    info!("Starting {} containers", ids.len());
 
     let docker = state.get_docker().await?;
     for id in &ids {
