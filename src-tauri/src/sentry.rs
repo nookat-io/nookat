@@ -1,6 +1,7 @@
 use sentry::{ClientInitGuard, init, ClientOptions};
 use std::sync::Once;
 use tracing::warn;
+use crate::services::ConfigService;
 
 static INIT: Once = Once::new();
 
@@ -12,8 +13,11 @@ pub fn init_sentry() -> Option<ClientInitGuard> {
     // Only initialize once
     let mut guard = None;
     INIT.call_once(|| {
+        let config = ConfigService::get_config().expect("Failed to get config");
+        let error_reporting = config.telemetry.error_reporting;
+
         // Skip initialization if no valid DSN is provided
-        if dsn.is_empty() {
+        if dsn.is_empty() || !error_reporting {
             warn!("Sentry DSN not configured, crash reporting disabled");
             return;
         }

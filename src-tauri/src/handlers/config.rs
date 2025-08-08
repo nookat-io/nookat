@@ -1,56 +1,12 @@
 use crate::entities::{AppConfig, Theme, Language, TelemetrySettings, StartupSettings};
-use tokio::fs;
-use std::path::PathBuf;
+use crate::services::ConfigService;
 use tracing::{info, instrument};
 
-#[instrument(skip_all, err)]
-fn get_config_path() -> Result<PathBuf, String> {
-    dirs::home_dir()
-        .ok_or_else(|| "Could not determine home directory".to_string())
-        .map(|home_dir| home_dir.join(".nookat").join("config.json"))
-}
 
-#[instrument(skip_all, err)]
-async fn ensure_config_dir() -> Result<(), String> {
-    let config_path = get_config_path()?;
-    if let Some(parent) = config_path.parent() {
-        fs::create_dir_all(parent).await
-            .map_err(|e| format!("Failed to create config directory: {}", e))?;
-    }
-    Ok(())
-}
-
-/// Get the current configuration
 #[tauri::command]
 #[instrument(skip_all, err)]
 pub async fn get_config() -> Result<AppConfig, String> {
-    let config_path = get_config_path()?;
-
-    if config_path.exists() {
-        let content = fs::read_to_string(&config_path).await
-            .map_err(|e| format!("Failed to read config file: {}", e))?;
-
-        serde_json::from_str(&content)
-            .map_err(|e| format!("Failed to parse config file: {}", e))
-    } else {
-        // Create default config if it doesn't exist
-        let default_config = AppConfig::default();
-        save_config(&default_config).await?;
-        Ok(default_config)
-    }
-}
-
-/// Save configuration to file
-#[instrument(skip_all, err)]
-async fn save_config(config: &AppConfig) -> Result<(), String> {
-    ensure_config_dir().await?;
-
-    let config_path = get_config_path()?;
-    let content = serde_json::to_string_pretty(config)
-        .map_err(|e| format!("Failed to serialize config: {}", e))?;
-
-    fs::write(&config_path, content).await
-        .map_err(|e| format!("Failed to write config file: {}", e))
+    ConfigService::get_config()
 }
 
 /// Update the theme
@@ -66,7 +22,7 @@ pub async fn update_theme(theme: String) -> Result<(), String> {
         _ => return Err("Invalid theme value".to_string()),
     };
 
-    save_config(&config).await
+    ConfigService::save_config(&config)
 }
 
 /// Get the current theme
@@ -84,7 +40,7 @@ pub async fn update_telemetry_settings(settings: TelemetrySettings) -> Result<()
     info!("Updating telemetry settings: {:?}", settings);
     let mut config = get_config().await?;
     config.telemetry = settings;
-    save_config(&config).await
+    ConfigService::save_config(&config)
 }
 
 /// Update startup settings
@@ -93,7 +49,7 @@ pub async fn update_telemetry_settings(settings: TelemetrySettings) -> Result<()
 pub async fn update_startup_settings(settings: StartupSettings) -> Result<(), String> {
     let mut config = get_config().await?;
     config.startup = settings;
-    save_config(&config).await
+    ConfigService::save_config(&config)
 }
 
 /// Update language
@@ -108,7 +64,7 @@ pub async fn update_language(language: String) -> Result<(), String> {
         _ => return Err("Invalid language value".to_string()),
     };
 
-    save_config(&config).await
+    ConfigService::save_config(&config)
 }
 
 /// Get the current language

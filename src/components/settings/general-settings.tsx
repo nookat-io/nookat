@@ -48,11 +48,6 @@ export function GeneralSettings() {
 
     setSaving(true);
     try {
-      console.log('Updating telemetry settings:', {
-        sendAnonymousUsageData,
-        errorReporting,
-      });
-
       await updateTelemetrySettings({
         send_anonymous_usage_data: sendAnonymousUsageData,
         error_reporting: errorReporting,

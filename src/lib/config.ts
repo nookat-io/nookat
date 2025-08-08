@@ -36,7 +36,6 @@ export class ConfigService {
   }
 
   private notifySubscribers() {
-    console.log('ConfigService: Notifying subscribers, config:', this.config);
     this.subscribers.forEach(callback => {
       try {
         callback(this.config);
