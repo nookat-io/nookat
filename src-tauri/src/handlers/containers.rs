@@ -2,14 +2,14 @@ use crate::entities::Container;
 use crate::services::ContainersService;
 use crate::state::SharedDockerState;
 use tauri::State;
-use tracing::{info, instrument};
+use tracing::{debug, instrument};
 
 #[tauri::command]
 #[instrument(skip_all, err)]
 pub async fn list_containers(
     state: State<'_, SharedDockerState>,
 ) -> Result<Vec<Container>, String> {
-    info!("Listing containers");
+    debug!("Listing containers");
 
     let docker = state.get_docker().await?;
     let containers = ContainersService::get_containers(&docker).await?;
@@ -24,7 +24,7 @@ pub async fn start_container(
     state: State<'_, SharedDockerState>,
     id: String,
 ) -> Result<(), String> {
-    info!("Starting container: {}", id);
+    debug!("Starting container: {}", id);
 
     let docker = state.get_docker().await?;
     let result = ContainersService::start_container(&docker, &id).await;
@@ -38,7 +38,7 @@ pub async fn stop_container(
     state: State<'_, SharedDockerState>,
     id: String,
 ) -> Result<(), String> {
-    info!("Stopping container: {}", id);
+    debug!("Stopping container: {}", id);
 
     let docker = state.get_docker().await?;
     let result = ContainersService::stop_container(&docker, &id).await;
@@ -52,7 +52,7 @@ pub async fn pause_container(
     state: State<'_, SharedDockerState>,
     id: String,
 ) -> Result<(), String> {
-    info!("Pausing container: {}", id);
+    debug!("Pausing container: {}", id);
 
     let docker = state.get_docker().await?;
     let result = ContainersService::pause_container(&docker, &id).await;
@@ -66,7 +66,7 @@ pub async fn unpause_container(
     state: State<'_, SharedDockerState>,
     id: String,
 ) -> Result<(), String> {
-    info!("Unpausing container: {}", id);
+    debug!("Unpausing container: {}", id);
 
     let docker = state.get_docker().await?;
     let result = ContainersService::unpause_container(&docker, &id).await;
@@ -80,7 +80,7 @@ pub async fn restart_container(
     state: State<'_, SharedDockerState>,
     id: String,
 ) -> Result<(), String> {
-    info!("Restarting container: {}", id);
+    debug!("Restarting container: {}", id);
 
     let docker = state.get_docker().await?;
     let result = ContainersService::restart_container(&docker, &id).await;
@@ -94,7 +94,7 @@ pub async fn bulk_start_containers(
     state: State<'_, SharedDockerState>,
     ids: Vec<String>,
 ) -> Result<(), String> {
-    info!("Starting {} containers", ids.len());
+    debug!("Starting {} containers", ids.len());
 
     let docker = state.get_docker().await?;
     for id in &ids {
@@ -113,7 +113,7 @@ pub async fn bulk_stop_containers(
     state: State<'_, SharedDockerState>,
     ids: Vec<String>,
 ) -> Result<(), String> {
-    info!("Stopping {} containers", ids.len());
+    debug!("Stopping {} containers", ids.len());
 
     let docker = state.get_docker().await?;
     for id in &ids {
@@ -132,7 +132,7 @@ pub async fn bulk_pause_containers(
     state: State<'_, SharedDockerState>,
     ids: Vec<String>,
 ) -> Result<(), String> {
-    info!("Pausing {} containers", ids.len());
+    debug!("Pausing {} containers", ids.len());
 
     let docker = state.get_docker().await?;
     for id in &ids {
@@ -151,7 +151,7 @@ pub async fn bulk_unpause_containers(
     state: State<'_, SharedDockerState>,
     ids: Vec<String>,
 ) -> Result<(), String> {
-    info!("Unpausing {} containers", ids.len());
+    debug!("Unpausing {} containers", ids.len());
 
     let docker = state.get_docker().await?;
     for id in &ids {
@@ -170,7 +170,7 @@ pub async fn bulk_restart_containers(
     state: State<'_, SharedDockerState>,
     ids: Vec<String>,
 ) -> Result<(), String> {
-    info!("Restarting {} containers", ids.len());
+    debug!("Restarting {} containers", ids.len());
 
     let docker = state.get_docker().await?;
     for id in &ids {
@@ -189,7 +189,7 @@ pub async fn bulk_remove_containers(
     state: State<'_, SharedDockerState>,
     ids: Vec<String>,
 ) -> Result<(), String> {
-    info!("Removing {} containers", ids.len());
+    debug!("Removing {} containers", ids.len());
 
     let docker = state.get_docker().await?;
     for id in &ids {
@@ -208,7 +208,7 @@ pub async fn bulk_force_remove_containers(
     state: State<'_, SharedDockerState>,
     ids: Vec<String>,
 ) -> Result<(), String> {
-    info!("Force removing {} containers", ids.len());
+    debug!("Force removing {} containers", ids.len());
 
     let docker = state.get_docker().await?;
     for id in &ids {
@@ -227,7 +227,7 @@ pub async fn open_terminal(
     state: State<'_, SharedDockerState>,
     id: String,
 ) -> Result<(), String> {
-    info!("Opening terminal for container: {}", id);
+    debug!("Opening terminal for container: {}", id);
 
     let docker = state.get_docker().await?;
     let result = ContainersService::open_terminal(&docker, &id).await;
@@ -241,7 +241,7 @@ pub async fn container_logs(
     state: State<'_, SharedDockerState>,
     id: String,
 ) -> Result<Vec<String>, String> {
-    info!("Getting logs for container: {}", id);
+    debug!("Getting logs for container: {}", id);
 
     let docker = state.get_docker().await?;
     let result = ContainersService::get_container_logs(&docker, &id).await;
@@ -255,9 +255,9 @@ pub async fn container_files(
     _state: State<'_, SharedDockerState>,
     id: String,
 ) -> Result<(), String> {
-    info!("Opening files for container: {}", id);
+    debug!("Opening files for container: {}", id);
     // TODO: Implement container files functionality
-    Ok(())
+    Err("Container files functionality is not implemented yet".to_string())
 }
 
 #[tauri::command]
@@ -266,7 +266,7 @@ pub async fn remove_container(
     state: State<'_, SharedDockerState>,
     id: String,
 ) -> Result<(), String> {
-    info!("Removing container: {}", id);
+    debug!("Removing container: {}", id);
 
     let docker = state.get_docker().await?;
     let result = ContainersService::remove_container(&docker, &id).await;
@@ -280,7 +280,7 @@ pub async fn force_remove_container(
     state: State<'_, SharedDockerState>,
     id: String,
 ) -> Result<(), String> {
-    info!("Force removing container: {}", id);
+    debug!("Force removing container: {}", id);
 
     let docker = state.get_docker().await?;
     let result = ContainersService::force_remove_container(&docker, &id).await;
@@ -291,7 +291,7 @@ pub async fn force_remove_container(
 #[tauri::command]
 #[instrument(skip_all, err)]
 pub async fn prune_containers(state: State<'_, SharedDockerState>) -> Result<(), String> {
-    info!("Pruning containers");
+    debug!("Pruning containers");
 
     let docker = state.get_docker().await?;
     let result = ContainersService::prune_containers(&docker).await;
