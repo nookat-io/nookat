@@ -1,3 +1,5 @@
+set dotenv-load := true
+
 alias i := install
 alias p := pre_commit
 alias k := kill_tauri_runs
@@ -15,8 +17,6 @@ clean:
     cd src-tauri && cargo clean && cd ..
 
 tauri_dev:
-    #!/usr/bin/env bash
-    source .env
     SENTRY_DSN="$SENTRY_DSN" npm run tauri dev
 
 

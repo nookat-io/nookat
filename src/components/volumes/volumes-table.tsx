@@ -81,6 +81,10 @@ export function VolumesTable({
     return scope === 'LOCAL' ? 'Local' : 'Global';
   };
 
+  const totalVolumes = sortedVolumes.length;
+  const selectedCount = selectedVolumes.length;
+  const isAllSelected = totalVolumes > 0 && selectedCount === totalVolumes;
+
   const renderTableBody = () => {
     if (isLoading) {
       return (
@@ -169,10 +173,7 @@ export function VolumesTable({
             <TableRow>
               <TableHead className="w-12">
                 <Checkbox
-                  checked={
-                    selectedVolumes.length === sortedVolumes.length &&
-                    sortedVolumes.length > 0
-                  }
+                  checked={isAllSelected}
                   onCheckedChange={handleSelectAll}
                 />
               </TableHead>
