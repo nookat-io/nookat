@@ -3,12 +3,11 @@ use std::sync::Once;
 use tracing::{warn, info};
 use crate::services::ConfigService;
 
+static SENTRY_DSN: Option<&'static str> = option_env!("SENTRY_DSN");
 static INIT: Once = Once::new();
 
 pub fn init_sentry() -> Option<ClientInitGuard> {
     info!("Initializing Sentry crash reporting");
-
-    let dsn: String = std::env::var("SENTRY_DSN").unwrap_or_else(|_| "".to_string());
 
     // Only initialize once
     let mut guard = None;
@@ -17,7 +16,7 @@ pub fn init_sentry() -> Option<ClientInitGuard> {
         let error_reporting = config.telemetry.error_reporting;
 
         // Skip initialization if no valid DSN is provided
-        if dsn.is_empty() || !error_reporting {
+        if SENTRY_DSN.is_none() || !error_reporting {
             warn!("Sentry DSN not configured, crash reporting disabled");
             return;
         }
@@ -26,7 +25,7 @@ pub fn init_sentry() -> Option<ClientInitGuard> {
         // registers a robust global panic handler that captures panics (including from
         // other threads) with stacktraces.
         guard = Some(init((
-            dsn,
+            SENTRY_DSN.unwrap(),
             ClientOptions {
                 release: Some(env!("CARGO_PKG_VERSION").into()),
                 ..Default::default()
