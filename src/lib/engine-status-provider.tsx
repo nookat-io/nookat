@@ -71,8 +71,9 @@ export function EngineStatusProvider({ children }: ProviderProps) {
     if (error) {
       base.error = error;
     }
+    base.refetch = fetchEngineInfo;
     return base;
-  }, [engineState, version, error]);
+  }, [engineState, version, error, fetchEngineInfo]);
 
   return (
     <EngineStatusContext.Provider value={value}>

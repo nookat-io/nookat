@@ -17,6 +17,7 @@ import VolumesPage from './pages/VolumesPage';
 import SettingsPage from './pages/SettingsPage';
 import { usePageAnalytics } from './hooks/use-analytics';
 import { EngineStatusProvider } from './lib/engine-status-provider';
+import EngineErrorBoundary from './components/ui/engine-error';
 
 function AppContent() {
   const { loading } = useThemeContext();
@@ -34,13 +35,15 @@ function AppContent() {
         <EngineStatusProvider>
           <Header />
           <main className="flex-1 overflow-auto">
-            <Routes>
-              <Route path="/" element={<ContainersPage />} />
-              <Route path="/images" element={<ImagesPage />} />
-              <Route path="/networks" element={<NetworksPage />} />
-              <Route path="/volumes" element={<VolumesPage />} />
-              <Route path="/settings" element={<SettingsPage />} />
-            </Routes>
+            <EngineErrorBoundary>
+              <Routes>
+                <Route path="/" element={<ContainersPage />} />
+                <Route path="/images" element={<ImagesPage />} />
+                <Route path="/networks" element={<NetworksPage />} />
+                <Route path="/volumes" element={<VolumesPage />} />
+                <Route path="/settings" element={<SettingsPage />} />
+              </Routes>
+            </EngineErrorBoundary>
           </main>
         </EngineStatusProvider>
       </div>
