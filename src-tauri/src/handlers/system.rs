@@ -89,6 +89,7 @@ pub async fn engine_status(state: State<'_, SharedDockerState>) -> Result<Engine
     // Ping daemon, if fails assume it is not running
     let can_ping = docker.ping().await.is_ok();
     if !can_ping {
+        state.return_docker(docker).await;
         return Ok(EngineStatus {
             state: EngineState::NotRunning,
             version: None,
@@ -99,6 +100,7 @@ pub async fn engine_status(state: State<'_, SharedDockerState>) -> Result<Engine
     let version = match docker.version().await {
         Ok(v) => v.version,
         Err(e) => {
+            state.return_docker(docker).await;
             return Ok(EngineStatus {
                 state: EngineState::Malfunctioning,
                 version: None,

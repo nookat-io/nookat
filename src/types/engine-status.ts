@@ -1,4 +1,5 @@
 export enum EngineState {
+  Loading = 'Loading',
   NotInstalled = 'NotInstalled',
   NotRunning = 'NotRunning',
   Malfunctioning = 'Malfunctioning',
@@ -10,3 +11,5 @@ export interface EngineStatus {
   version?: string;
   error?: string;
 }
+
+export type EngineContextValue = EngineStatus;

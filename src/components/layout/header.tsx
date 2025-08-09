@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Search } from 'lucide-react';
 import { Input } from '../ui/input';
 import { ThemeToggle } from '../ui/theme-toggle';
-import { useEngineStatus } from '../../hooks/useEngineStatus';
+import { useEngineStatus } from '../../hooks/use-engine-status';
 import { EngineState } from '../../types/engine-status';
 
 export function Header() {
@@ -43,6 +43,7 @@ export function Header() {
         <span
           className={`w-3 h-3 rounded-full ${statusColor}`}
           title={`Docker status: ${statusLabel}`}
+          aria-hidden="true"
         />
         <p className="text-xs text-muted-foreground">{statusLabel}</p>
       </div>

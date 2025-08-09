@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import {
   Card,
@@ -28,9 +28,9 @@ import {
   Shield,
 } from 'lucide-react';
 
-import { DockerInfo, DockerStatus } from '../../types/docker-info';
+import { DockerInfo } from '../../types/docker-info';
 import { EngineState } from '../../types/engine-status';
-import { useEngineStatus } from '../../hooks/useEngineStatus';
+import { useEngineStatus } from '../../hooks/use-engine-status';
 
 export function EngineSettings() {
   const [settings, setSettings] = useState({
@@ -79,34 +79,67 @@ export function EngineSettings() {
     return `${(bytes / Math.pow(1024, i)).toFixed(1)} ${sizes[i]}`;
   };
 
-  const getDockerStatus = () => {
-    // error from our EngineStatusProvider
+  const dockerStatus = useMemo(() => {
+    // engine-level error takes precedence
     if (engineError) {
       return {
-        status: DockerStatus.Error,
+        status: EngineState.Malfunctioning,
         className:
           'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-300',
         text: 'Error',
       };
     }
 
-    // healthy vs. not running/installed from context
-    if (engineStateCtx === EngineState.Healthy) {
-      return {
-        status: EngineState.Healthy,
-        className:
-          'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300',
-        text: 'Running',
-      };
-    }
+    switch (engineStateCtx) {
+      case EngineState.Loading:
+        return {
+          status: EngineState.Loading,
+          className:
+            'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300',
+          text: 'Loading',
+        };
 
-    // fallback for both NotRunning and NotInstalled
-    return {
-      status: EngineState.NotRunning,
-      className: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300',
-      text: 'Stopped',
-    };
-  };
+      case EngineState.Healthy:
+        return {
+          status: EngineState.Healthy,
+          className:
+            'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300',
+          text: 'Running',
+        };
+
+      case EngineState.NotInstalled:
+        return {
+          status: EngineState.NotInstalled,
+          className:
+            'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300',
+          text: 'Not Installed',
+        };
+
+      case EngineState.NotRunning:
+        return {
+          status: EngineState.NotRunning,
+          className:
+            'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300',
+          text: 'Stopped',
+        };
+
+      case EngineState.Malfunctioning:
+        return {
+          status: EngineState.Malfunctioning,
+          className:
+            'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-300',
+          text: 'Error',
+        };
+
+      default:
+        return {
+          status: EngineState.NotRunning,
+          className:
+            'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300',
+          text: 'Stopped',
+        };
+    }
+  }, [engineStateCtx, engineError]);
 
   return (
     <div className="space-y-6">
@@ -145,8 +178,8 @@ export function EngineSettings() {
                   </div>
                   <div>
                     <div className="text-sm font-medium">Engine Status</div>
-                    <Badge className={getDockerStatus().className}>
-                      {getDockerStatus().text}
+                    <Badge className={dockerStatus.className}>
+                      {dockerStatus.text}
                     </Badge>
                   </div>
                 </div>

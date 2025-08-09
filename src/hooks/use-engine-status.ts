@@ -1,5 +1,5 @@
 import { createContext, useContext } from 'react';
-import type { EngineContextValue } from '../components/system/engine-status-provider';
+import type { EngineContextValue } from '../types/engine-status';
 
 export const EngineStatusContext = createContext<
   EngineContextValue | undefined

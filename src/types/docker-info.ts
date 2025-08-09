@@ -1,10 +1,3 @@
-interface DockerInfoPlugins {
-  volume?: string[];
-  network?: string[];
-  authorization?: string[];
-  log?: string[];
-}
-
 interface DockerInfoComponent {
   name: string;
   version: string;
@@ -90,7 +83,7 @@ export interface DockerInfo {
   version_os?: string;
   version_arch?: string;
   version_kernel_version?: string;
-  version_experimental?: string;
+  version_experimental?: string | boolean;
   build_time?: string;
 
   // Status field using enum

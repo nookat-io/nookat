@@ -16,7 +16,7 @@ import NetworksPage from './pages/NetworksPage';
 import VolumesPage from './pages/VolumesPage';
 import SettingsPage from './pages/SettingsPage';
 import { usePageAnalytics } from './hooks/use-analytics';
-import { EngineStatusProvider } from './components/system/engine-status-provider';
+import { EngineStatusProvider } from './lib/engine-status-provider';
 
 function AppContent() {
   const { loading } = useThemeContext();

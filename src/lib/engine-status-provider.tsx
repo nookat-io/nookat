@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState, useCallback } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import { ErrorDisplay } from '../ui/error-display';
 import type { ReactNode } from 'react';
-import { EngineStatusContext } from '../../hooks/useEngineStatus';
-import { EngineState, EngineStatus } from '../../types/engine-status';
-
-export type EngineContextValue = EngineStatus;
+import { EngineStatusContext } from '../hooks/use-engine-status';
+import {
+  EngineState,
+  EngineStatus,
+  EngineContextValue,
+} from '../types/engine-status';
 
 interface ProviderProps {
   children: ReactNode;
@@ -15,26 +16,32 @@ export function EngineStatusProvider({ children }: ProviderProps) {
   const [version, setVersion] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [engineState, setEngineState] = useState<EngineState>(
-    EngineState.NotRunning
+    EngineState.Loading
   );
 
   const fetchEngineInfo = useCallback(async () => {
     setError(null);
     try {
-      const { state } = await invoke<EngineStatus>('engine_status');
+      const {
+        state,
+        version: statusVersion,
+        error: statusError,
+      } = await invoke<EngineStatus>('engine_status');
       setEngineState(state);
-
-      console.log(state);
-
       if (state !== EngineState.Healthy) {
         setVersion(null);
         if (state === EngineState.NotInstalled) {
           setError('Docker Engine could not be detected on your computer.');
+        } else if (state === EngineState.Malfunctioning && statusError) {
+          setError(statusError);
         }
         return;
       }
-
-      // looks healthy, get info to get version and to confirm connectivity
+      // fallback to info if missing
+      if (statusVersion != null) {
+        setVersion(statusVersion);
+        return;
+      }
       try {
         const { server_version } = await invoke<{ server_version: string }>(
           'get_docker_info'
@@ -47,6 +54,7 @@ export function EngineStatusProvider({ children }: ProviderProps) {
     } catch (e) {
       // shouldn't hit here
       setVersion(null);
+      setEngineState(EngineState.Malfunctioning);
       setError(String((e as Error).message));
     }
   }, []);
@@ -65,10 +73,6 @@ export function EngineStatusProvider({ children }: ProviderProps) {
     }
     return base;
   }, [engineState, version, error]);
-
-  if (error) {
-    return <ErrorDisplay fullScreen error={error} onRetry={fetchEngineInfo} />;
-  }
 
   return (
     <EngineStatusContext.Provider value={value}>
