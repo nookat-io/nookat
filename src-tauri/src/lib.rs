@@ -7,7 +7,7 @@ pub mod sentry;
 use crate::handlers::{
     bulk_force_remove_containers, bulk_pause_containers, bulk_remove_containers,
     bulk_remove_networks, bulk_remove_volumes, bulk_restart_containers, bulk_start_containers,
-    bulk_stop_containers, bulk_unpause_containers, container_files, container_logs,
+    bulk_stop_containers, bulk_unpause_containers, container_files, container_logs, engine_status,
     force_remove_container, get_config, get_docker_info, get_theme, get_language, inspect_volume, list_containers,
     list_images, list_networks, list_volumes, open_terminal, open_url, pause_container,
     prune_containers, prune_images, prune_volumes, remove_container, remove_network, remove_volume,
@@ -34,8 +34,8 @@ fn build_tray(app: &mut App) -> Result<(), String> {
         .map_err(|e| format!("Failed to build tray menu: {}", e))?;
 
     let icon_bytes = include_bytes!("../icons/icon_512x512.png");
-    let icon_image = image::load_from_memory(icon_bytes)
-        .map_err(|e| format!("Failed to load icon: {}", e))?;
+    let icon_image =
+        image::load_from_memory(icon_bytes).map_err(|e| format!("Failed to load icon: {}", e))?;
     let rgba = icon_image.to_rgba8();
     let (width, height) = rgba.dimensions();
 
@@ -46,7 +46,8 @@ fn build_tray(app: &mut App) -> Result<(), String> {
             "open" => {
                 // Try to find the main window by getting the first available window
                 // or by trying common default window IDs
-                let window = app.get_webview_window("main")
+                let window = app
+                    .get_webview_window("main")
                     .or_else(|| app.get_webview_window("primary"))
                     .or_else(|| app.get_webview_window("default"))
                     .or_else(|| {
@@ -126,10 +127,9 @@ pub fn run() {
             // System
             open_url,
             get_docker_info,
+            engine_status,
         ])
-        .setup(|app| {
-            Ok(build_tray(app)?)
-        })
+        .setup(|app| Ok(build_tray(app)?))
         .on_window_event(|window, event| match event {
             tauri::WindowEvent::CloseRequested { api, .. } => {
                 if let Err(e) = window.hide() {

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import {
   Card,
@@ -28,97 +28,9 @@ import {
   Shield,
 } from 'lucide-react';
 
-interface DockerInfoComponent {
-  name: string;
-  version: string;
-  details?: Record<string, unknown>;
-}
-
-interface DockerInfoPlatform {
-  name: string;
-}
-
-interface DockerInfoPlugins {
-  volume?: string[];
-  network?: string[];
-  authorization?: string[];
-  log?: string[];
-}
-
-enum DockerStatus {
-  Running = 'Running',
-  Stopped = 'Stopped',
-  Error = 'Error',
-  Loading = 'Loading',
-}
-
-interface DockerInfo {
-  // Core SystemInfo fields
-  id?: string;
-  containers?: number;
-  containers_running?: number;
-  containers_paused?: number;
-  containers_stopped?: number;
-  images?: number;
-  driver?: string;
-  docker_root_dir?: string;
-  plugins?: DockerInfoPlugins;
-  memory_limit?: boolean;
-  swap_limit?: boolean;
-  kernel_memory_tcp?: boolean;
-  cpu_cfs_period?: boolean;
-  cpu_cfs_quota?: boolean;
-  cpu_shares?: boolean;
-  cpu_set?: boolean;
-  pids_limit?: boolean;
-  oom_kill_disable?: boolean;
-  ipv4_forwarding?: boolean;
-  bridge_nf_iptables?: boolean;
-  bridge_nf_ip6tables?: boolean;
-  debug?: boolean;
-  nfd?: number;
-  n_goroutines?: number;
-  system_time?: string;
-  logging_driver?: string;
-  cgroup_driver?: string;
-  cgroup_version?: string;
-  kernel_version?: string;
-  operating_system?: string;
-  os_type?: string;
-  architecture?: string;
-  ncpu?: number;
-  mem_total?: number;
-  index_server_address?: string;
-  n_events_listener?: number;
-  http_proxy?: string;
-  https_proxy?: string;
-  no_proxy?: string;
-  name?: string;
-  labels?: string[];
-  server_version?: string;
-  live_restore_enabled?: boolean;
-  init_binary?: string;
-  security_options?: string[];
-  product_license?: string;
-  warnings?: string[];
-
-  // Version fields
-  platform?: DockerInfoPlatform;
-  components?: DockerInfoComponent[];
-  version?: string;
-  api_version?: string;
-  min_api_version?: string;
-  git_commit?: string;
-  go_version?: string;
-  version_os?: string;
-  version_arch?: string;
-  version_kernel_version?: string;
-  version_experimental?: string;
-  build_time?: string;
-
-  // Status field using enum
-  status: DockerStatus;
-}
+import { DockerInfo } from '../../types/docker-info';
+import { EngineState } from '../../types/engine-status';
+import { useEngineStatus } from '../../hooks/use-engine-status';
 
 export function EngineSettings() {
   const [settings, setSettings] = useState({
@@ -139,6 +51,7 @@ export function EngineSettings() {
   const [dockerInfo, setDockerInfo] = useState<DockerInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { state: engineStateCtx, error: engineError } = useEngineStatus();
 
   useEffect(() => {
     const fetchDockerInfo = async () => {
@@ -166,57 +79,67 @@ export function EngineSettings() {
     return `${(bytes / Math.pow(1024, i)).toFixed(1)} ${sizes[i]}`;
   };
 
-  const getDockerStatus = (): {
-    status: DockerStatus;
-    className: string;
-    text: string;
-  } => {
-    if (loading) {
+  const dockerStatus = useMemo(() => {
+    // engine-level error takes precedence
+    if (engineError) {
       return {
-        status: DockerStatus.Loading,
+        status: EngineState.Malfunctioning,
         className:
-          'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300',
-        text: 'Loading...',
+          'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-300',
+        text: 'Error',
       };
     }
 
-    if (error) {
-      if (error.includes('not running')) {
+    switch (engineStateCtx) {
+      case EngineState.Loading:
         return {
-          status: DockerStatus.Stopped,
+          status: EngineState.Loading,
+          className:
+            'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300',
+          text: 'Loading',
+        };
+
+      case EngineState.Healthy:
+        return {
+          status: EngineState.Healthy,
+          className:
+            'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300',
+          text: 'Running',
+        };
+
+      case EngineState.NotInstalled:
+        return {
+          status: EngineState.NotInstalled,
+          className:
+            'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300',
+          text: 'Not Installed',
+        };
+
+      case EngineState.NotRunning:
+        return {
+          status: EngineState.NotRunning,
           className:
             'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300',
           text: 'Stopped',
         };
-      } else {
+
+      case EngineState.Malfunctioning:
         return {
-          status: DockerStatus.Error,
+          status: EngineState.Malfunctioning,
           className:
             'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-300',
           text: 'Error',
         };
-      }
-    }
 
-    if (dockerInfo) {
-      return {
-        status: dockerInfo.status,
-        className:
-          dockerInfo.status === DockerStatus.Running
-            ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300'
-            : dockerInfo.status === DockerStatus.Stopped
-              ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300'
-              : 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-300',
-        text: dockerInfo.status,
-      };
+      default:
+        return {
+          status: EngineState.NotRunning,
+          className:
+            'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300',
+          text: 'Stopped',
+        };
     }
-
-    return {
-      status: DockerStatus.Stopped,
-      className: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300',
-      text: 'Stopped',
-    };
-  };
+  }, [engineStateCtx, engineError]);
 
   return (
     <div className="space-y-6">
@@ -255,8 +178,8 @@ export function EngineSettings() {
                   </div>
                   <div>
                     <div className="text-sm font-medium">Engine Status</div>
-                    <Badge className={getDockerStatus().className}>
-                      {getDockerStatus().text}
+                    <Badge className={dockerStatus.className}>
+                      {dockerStatus.text}
                     </Badge>
                   </div>
                 </div>
