@@ -2,26 +2,24 @@ mod entities;
 mod handlers;
 mod services;
 mod state;
+pub mod sentry;
 
 use crate::handlers::{
     bulk_force_remove_containers, bulk_pause_containers, bulk_remove_containers,
     bulk_remove_networks, bulk_remove_volumes, bulk_restart_containers, bulk_start_containers,
     bulk_stop_containers, bulk_unpause_containers, container_files, container_logs, engine_status,
-    force_remove_container, get_config, get_docker_info, get_language, get_theme, inspect_volume,
-    list_containers, list_images, list_networks, list_volumes, open_terminal, open_url,
-    pause_container, prune_containers, prune_images, prune_volumes, remove_container,
-    remove_network, remove_volume, restart_container, start_container, stop_container,
-    unpause_container, update_language, update_startup_settings, update_telemetry_settings,
-    update_theme,
+    force_remove_container, get_config, get_docker_info, get_theme, get_language, inspect_volume, list_containers,
+    list_images, list_networks, list_volumes, open_terminal, open_url, pause_container,
+    prune_containers, prune_images, prune_volumes, remove_container, remove_network, remove_volume,
+    restart_container, start_container, stop_container, unpause_container, update_theme, update_language,
+    update_telemetry_settings, update_startup_settings
 };
 use crate::state::SharedDockerState;
-use tauri::{
-    image::Image,
-    menu::{MenuBuilder, MenuItem},
-    tray::TrayIconBuilder,
-    App, Manager,
-};
+use tauri::{App, Manager, image::Image, menu::{MenuBuilder, MenuItem}, tray::TrayIconBuilder};
+use tracing::{error, instrument};
+use crate::sentry::{flush_sentry};
 
+#[instrument(skip_all)]
 fn build_tray(app: &mut App) -> Result<(), String> {
     // Build the tray menu
     let show_item = MenuItem::with_id(app, "open", "Open", true, None::<&str>)
@@ -59,13 +57,13 @@ fn build_tray(app: &mut App) -> Result<(), String> {
 
                 if let Some(window) = window {
                     if let Err(e) = window.show() {
-                        eprintln!("Failed to show window: {}", e);
+                        error!("Failed to show window: {}", e);
                     }
                     if let Err(e) = window.set_focus() {
-                        eprintln!("Failed to focus window: {}", e);
+                        error!("Failed to focus window: {}", e);
                     }
                 } else {
-                    eprintln!("No main window found to show");
+                    error!("No main window found to show");
                 }
             }
             "quit" => {
@@ -135,7 +133,7 @@ pub fn run() {
         .on_window_event(|window, event| match event {
             tauri::WindowEvent::CloseRequested { api, .. } => {
                 if let Err(e) = window.hide() {
-                    eprintln!("Failed to hide window: {}", e);
+                    error!("Failed to hide window: {}", e);
                 }
                 api.prevent_close();
             }
@@ -144,4 +142,7 @@ pub fn run() {
         })
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+
+    // Flush Sentry events before shutdown
+    flush_sentry();
 }

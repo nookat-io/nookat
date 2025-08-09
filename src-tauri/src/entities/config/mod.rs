@@ -11,6 +11,7 @@ use chrono::{DateTime, Utc};
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct TelemetrySettings {
     pub send_anonymous_usage_data: bool,
+    pub error_reporting: bool,
     // pub feedback_collection: bool,
     // pub telemetry_settings: TelemetryConfig,
     // pub error_reporting: bool,
@@ -33,7 +34,6 @@ pub struct StartupSettings {
     pub last_update_check: Option<DateTime<Utc>>,
     pub update_channel: UpdateChannel,
     pub auto_update_settings: bool,
-    pub crash_reporting: bool,
 }
 
 impl Default for StartupSettings {
@@ -45,7 +45,6 @@ impl Default for StartupSettings {
             last_update_check: None,
             update_channel: UpdateChannel::default(),
             auto_update_settings: false,
-            crash_reporting: true,
         }
     }
 }

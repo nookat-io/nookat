@@ -100,6 +100,11 @@ jobs:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          VITE_APTABASE_APP_KEY: ${{ secrets.VITE_APTABASE_APP_KEY }}
+          # VITE_SENTRY_DSN for frontend (vite)
+          VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
+          # SENTRY_DSN for backend (tauri)
+          SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
         with:
           tagName: ${{ env.VERSION_TAG }}
           releaseName: 'nookat ${{ env.VERSION_TAG }}'

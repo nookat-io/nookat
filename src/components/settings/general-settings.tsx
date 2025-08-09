@@ -40,13 +40,17 @@ export function GeneralSettings() {
     // { value: Language.Russian, label: 'Русский' },
   ];
 
-  const handleTelemetryChange = async (sendAnonymousUsageData: boolean) => {
+  const handleTelemetryChange = async (
+    sendAnonymousUsageData: boolean,
+    errorReporting: boolean
+  ) => {
     if (!config) return;
 
     setSaving(true);
     try {
       await updateTelemetrySettings({
         send_anonymous_usage_data: sendAnonymousUsageData,
+        error_reporting: errorReporting,
       });
     } finally {
       setSaving(false);
@@ -171,7 +175,28 @@ export function GeneralSettings() {
             <Switch
               id="send-usage-stats"
               checked={config.telemetry.send_anonymous_usage_data}
-              onCheckedChange={handleTelemetryChange}
+              onCheckedChange={checked =>
+                handleTelemetryChange(checked, config.telemetry.error_reporting)
+              }
+              disabled={saving}
+            />
+          </div>
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5">
+              <Label htmlFor="crash-reporting">Crash reporting</Label>
+              <div className="text-sm text-muted-foreground">
+                Send crash reports to help improve stability
+              </div>
+            </div>
+            <Switch
+              id="crash-reporting"
+              checked={config.telemetry.error_reporting}
+              onCheckedChange={checked =>
+                handleTelemetryChange(
+                  config.telemetry.send_anonymous_usage_data,
+                  checked
+                )
+              }
               disabled={saving}
             />
           </div>
@@ -279,25 +304,6 @@ export function GeneralSettings() {
               checked={config.startup.auto_update_settings}
               onCheckedChange={checked =>
                 handleStartupChange('auto_update_settings', checked)
-              }
-              disabled={saving}
-            />
-          </div>
-
-          <Separator />
-
-          <div className="flex items-center justify-between">
-            <div className="space-y-0.5">
-              <Label htmlFor="crash-reporting">Crash reporting</Label>
-              <div className="text-sm text-muted-foreground">
-                Send crash reports to help improve stability
-              </div>
-            </div>
-            <Switch
-              id="crash-reporting"
-              checked={config.startup.crash_reporting}
-              onCheckedChange={checked =>
-                handleStartupChange('crash_reporting', checked)
               }
               disabled={saving}
             />

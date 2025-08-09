@@ -2,6 +2,7 @@ import { Routes, Route } from 'react-router-dom';
 import { Sidebar, Header } from './components/layout';
 import { Toaster } from './components/ui/sonner';
 import { ThemeProvider, useThemeContext } from './lib/theme-provider';
+import { SentryProvider } from './lib/sentry-provider';
 import { LoadingScreen } from './components/ui/loading-spinner';
 import {
   AptabaseProvider,
@@ -54,9 +55,11 @@ function App() {
       appKey={APTABASE_APP_KEY}
       options={{ appVersion: APP_VERSION }}
     >
-      <ThemeProvider>
-        <AppContent />
-      </ThemeProvider>
+      <SentryProvider>
+        <ThemeProvider>
+          <AppContent />
+        </ThemeProvider>
+      </SentryProvider>
     </AptabaseProvider>
   );
 }
