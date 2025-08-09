@@ -34,3 +34,4 @@ sentry = { version = "0.35", features = ["panic", "tracing"] }
 sentry-tracing = "0.35"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+tracing-appender = "0.2"
