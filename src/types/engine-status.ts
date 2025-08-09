@@ -12,4 +12,6 @@ export interface EngineStatus {
   error?: string;
 }
 
-export type EngineContextValue = EngineStatus;
+export type EngineContextValue = EngineStatus & {
+  refetch: () => Promise<void>;
+};
