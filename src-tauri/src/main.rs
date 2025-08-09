@@ -57,17 +57,3 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     Ok(())
 }
-
-
-
-// fn main() {
-//     tracing_subscriber::registry()
-//         .with(tracing_subscriber::EnvFilter::try_from_default_env()
-//             .unwrap_or_else(|_| "info".into()))
-//         .with(tracing_subscriber::fmt::layer())
-//         .with(sentry_tracing::layer())
-//         .init();
-
-//     let _guard = init_sentry();
-//     nookat_lib::run()
-// }

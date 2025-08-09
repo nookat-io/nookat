@@ -15,7 +15,7 @@ pub fn init_sentry() -> Option<ClientInitGuard> {
         let config = ConfigService::get_config().expect("Failed to get config");
         let error_reporting = config.telemetry.error_reporting;
 
-        // Skip initialization if no valid DSN is provided
+        // Skip initialization if DSN is not provided or error reporting is disabled
         if SENTRY_DSN.is_none() || !error_reporting {
             warn!("Sentry DSN not configured, crash reporting disabled");
             return;
