@@ -52,13 +52,6 @@ install:
 
     echo ""
     echo "📝 Please edit .env file and add your Aptabase app key:"
-    echo "   VITE_APTABASE_APP_KEY=your_actual_app_key_here"
-    echo ""
-    echo "🔗 Get your app key from: https://aptabase.com/dashboard"
-    echo ""
-    echo "📊 Analytics will be disabled if no app key is provided"
-    echo "📦 App version will be automatically read from package.json"
-
     echo "✅ Development environment setup complete!"
     echo "💡 Run 'just p' to run pre-commit checks"
 

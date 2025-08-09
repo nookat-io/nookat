@@ -4,7 +4,7 @@
 use nookat_lib::sentry::init_sentry;
 use tracing_appender::rolling::{RollingFileAppender, Rotation};
 use tracing_subscriber::EnvFilter;
-use tracing_subscriber::util::SubscriberInitExt;
+use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 fn setup_file_logging() -> Result<RollingFileAppender, Box<dyn std::error::Error>> {
     let home_dir = dirs::home_dir().ok_or("Could not determine home directory")?;
@@ -27,23 +27,19 @@ fn initialize_tracing(
     let env_filter = EnvFilter::try_from_default_env()
         .unwrap_or_else(|_| "info".into());
 
-    // Use a very simple approach that should work with this version
     if let Some(file_appender) = file_appender {
-        // Create subscriber with file output only (console will be handled by default)
-        let subscriber = tracing_subscriber::fmt::Subscriber::builder()
-            .with_env_filter(env_filter)
-            .with_writer(file_appender)
-            .with_ansi(false)
-            .finish();
-
-        subscriber.init();
+        // Create subscriber with file output using registry approach
+        tracing_subscriber::registry()
+            .with(env_filter)
+            .with(tracing_subscriber::fmt::layer().with_writer(file_appender).with_ansi(false))
+            .with(sentry_tracing::layer())
+            .init();
     } else {
-        // Create basic console subscriber
-        let subscriber = tracing_subscriber::fmt::Subscriber::builder()
-            .with_env_filter(env_filter)
-            .finish();
-
-        subscriber.init();
+        tracing_subscriber::registry()
+            .with(env_filter)
+            .with(tracing_subscriber::fmt::layer())
+            .with(sentry_tracing::layer())
+            .init();
     }
 
     Ok(())
