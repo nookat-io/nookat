@@ -5,6 +5,7 @@ alias p := pre_commit
 alias k := kill_tauri_runs
 alias r := tauri_dev
 alias c := clean
+alias v := upgrade_version
 
 kill_tauri_runs:
     echo "Killing tauri runs"
