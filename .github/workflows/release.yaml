@@ -41,7 +41,7 @@ jobs:
         if: matrix.platform == 'ubuntu-22.04' # This must match the platform value defined above.
         run: |
           sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.0-dev libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+          sudo apt-get install -y libwebkit2gtk-4.0-dev libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf jq
 
       - name: install frontend dependencies
         run: yarn install # change this to npm, pnpm or bun depending on which one you use.
@@ -90,6 +90,13 @@ jobs:
           $VERSION_TAG = "v$version"
           echo "VERSION_TAG=$VERSION_TAG" >> $env:GITHUB_ENV
 
+      - name: Set public key for updater
+        run: |
+          echo "TAURI_SIGNING_PUBLIC_KEY=$TAURI_SIGNING_PUBLIC_KEY" >> $env:GITHUB_ENV
+          echo $TAURI_SIGNING_PUBLIC_KEY
+          # Replace the pubkey in tauri.conf.json with the value from the TAURI_SIGNING_PUBLIC_KEY env variable
+          cd src-tauri && sed -i.bak "s/YOUR_PUBLIC_KEY_HERE/$TAURI_SIGNING_PUBLIC_KEY/g" tauri.conf.json && rm tauri.conf.json.bak
+
       - name: Build and Publish
         uses: tauri-apps/tauri-action@v0
         env:
@@ -105,12 +112,18 @@ jobs:
           VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
           # SENTRY_DSN for backend (tauri)
           SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+          # Tauri signing keys for Updater plugin
+          TAURI_SIGNING_PUBLIC_KEY: ${{ secrets.TAURI_SIGNING_PUBLIC_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           tagName: ${{ env.VERSION_TAG }}
           releaseName: 'nookat ${{ env.VERSION_TAG }}'
           releaseBody: 'See the assets to download this version and install.'
           releaseDraft: true
           includeDebug: true
+          updaterJsonPreferNsis: true
+          updaterJsonKeepUniversal: true
           args: ${{ matrix.args }}
 
       - name: Set Version Tag (Linux/macOS)
