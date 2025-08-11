@@ -26,7 +26,7 @@ export function ContainerGroupActions({
   };
 
   return (
-    <div className="flex gap-1">
+    <div className="flex flex-wrap gap-1 items-center min-w-0">
       {/* Start action for stopped groups */}
       {allStopped && (
         <Button
