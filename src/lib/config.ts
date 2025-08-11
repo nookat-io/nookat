@@ -5,7 +5,6 @@ import {
   StartupSettings,
   Theme,
   Language,
-  UpdateChannel,
 } from '../types/config';
 
 export class ConfigService {
@@ -78,7 +77,6 @@ export class ConfigService {
           start_on_system_startup: false,
           minimize_to_tray: true,
           check_for_updates: true,
-          update_channel: UpdateChannel.Stable,
           auto_update_settings: false,
         },
       };
@@ -130,6 +128,16 @@ export class ConfigService {
       await this.refreshConfig();
     } catch (error) {
       console.error('Failed to update startup settings:', error);
+      throw error;
+    }
+  }
+
+  async updateLastUpdateCheck(): Promise<void> {
+    try {
+      await invoke('update_last_update_check');
+      await this.refreshConfig();
+    } catch (error) {
+      console.error('Failed to update last update check:', error);
       throw error;
     }
   }

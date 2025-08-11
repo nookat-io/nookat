@@ -1,7 +1,7 @@
-use sentry::{ClientInitGuard, init, ClientOptions};
-use std::sync::Once;
-use tracing::{warn, info};
 use crate::services::ConfigService;
+use sentry::{init, ClientInitGuard, ClientOptions};
+use std::sync::Once;
+use tracing::{info, warn};
 
 static SENTRY_DSN: Option<&'static str> = option_env!("SENTRY_DSN");
 static INIT: Once = Once::new();

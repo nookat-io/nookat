@@ -45,9 +45,7 @@ impl ContainersService {
 
     #[instrument(skip_all, err)]
     pub async fn stop_container(docker: &Docker, id: &str) -> Result<(), String> {
-        let options = StopContainerOptions {
-            t: 0,
-        };
+        let options = StopContainerOptions { t: 0 };
 
         docker
             .stop_container(id, Some(options))
@@ -79,9 +77,7 @@ impl ContainersService {
 
     #[instrument(skip_all, err)]
     pub async fn restart_container(docker: &Docker, id: &str) -> Result<(), String> {
-        let options = RestartContainerOptions {
-            t: 0,
-        };
+        let options = RestartContainerOptions { t: 0 };
 
         docker
             .restart_container(id, Some(options))

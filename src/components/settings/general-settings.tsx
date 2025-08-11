@@ -11,9 +11,9 @@ import {
 import { Switch } from '../ui/switch';
 import { Label } from '../ui/label';
 import { Button } from '../ui/button';
-import { Input } from '../ui/input';
 import { Separator } from '../ui/separator';
 import { Badge } from '../ui/badge';
+import { Progress } from '../ui/progress';
 import {
   Select,
   SelectContent,
@@ -22,7 +22,9 @@ import {
   SelectValue,
 } from '../ui/select';
 import { useConfig } from '../../hooks/use-config';
-import { UpdateChannel, Language } from '../../types/config';
+import { useUpdater } from '../../hooks/use-updater';
+import { Language } from '../../types/config';
+import { Download, RefreshCw } from 'lucide-react';
 
 export function GeneralSettings() {
   const {
@@ -32,8 +34,23 @@ export function GeneralSettings() {
     updateTelemetrySettings,
     updateStartupSettings,
     updateLanguage,
+    updateLastUpdateCheck,
   } = useConfig();
+  const {
+    isChecking,
+    updateAvailable,
+    currentUpdate,
+    checkForUpdates,
+    downloadAndInstall,
+    isBusy,
+    isDownloading,
+    isInstalling,
+    progress,
+  } = useUpdater(config || undefined, updateLastUpdateCheck);
   const [saving, setSaving] = useState(false);
+
+  // Get current app version from environment
+  const currentVersion = import.meta.env.VITE_APP_VERSION || 'unknown';
 
   const languageOptions = [
     { value: Language.English, label: 'English' },
@@ -255,38 +272,40 @@ export function GeneralSettings() {
               <div className="text-sm text-muted-foreground">
                 Automatically check for new versions
               </div>
+              <div className="text-xs text-muted-foreground mt-1">
+                Current version:{' '}
+                <Badge variant="secondary">{currentVersion}</Badge>
+                {config?.startup.last_update_check && (
+                  <span className="ml-2">
+                    • Last checked:{' '}
+                    {new Date(
+                      config.startup.last_update_check
+                    ).toLocaleDateString()}
+                  </span>
+                )}
+              </div>
             </div>
-            <Switch
-              id="check-for-updates"
-              checked={config.startup.check_for_updates}
-              onCheckedChange={checked =>
-                handleStartupChange('check_for_updates', checked)
-              }
-              disabled={saving}
-            />
-          </div>
-
-          <Separator />
-
-          <div className="space-y-2">
-            <Label htmlFor="update-channel">Update Channel</Label>
-            <Select
-              value={config.startup.update_channel}
-              onValueChange={(value: string) =>
-                handleStartupChange('update_channel', value)
-              }
-              disabled={saving}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={UpdateChannel.Stable}>Stable</SelectItem>
-                <SelectItem value={UpdateChannel.Beta}>Beta</SelectItem>
-              </SelectContent>
-            </Select>
-            <div className="text-sm text-muted-foreground">
-              Choose which update channel to use
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={checkForUpdates}
+                disabled={isChecking || saving}
+                className="flex items-center gap-1"
+              >
+                <RefreshCw
+                  className={`h-3 w-3 ${isChecking ? 'animate-spin' : ''}`}
+                />
+                {isChecking ? 'Checking...' : 'Check Now'}
+              </Button>
+              <Switch
+                id="check-for-updates"
+                checked={config.startup.check_for_updates}
+                onCheckedChange={checked =>
+                  handleStartupChange('check_for_updates', checked)
+                }
+                disabled={saving}
+              />
             </div>
           </div>
 
@@ -298,46 +317,61 @@ export function GeneralSettings() {
               <div className="text-sm text-muted-foreground">
                 Automatically download and install updates
               </div>
+              {updateAvailable && currentUpdate && (
+                <div className="text-xs text-muted-foreground mt-1">
+                  Update available:{' '}
+                  <Badge variant="default">{currentUpdate.version}</Badge>
+                </div>
+              )}
+              {/* Show download progress */}
+              {isDownloading && progress && (
+                <div className="mt-2 space-y-2">
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    <span>Downloading update...</span>
+                    <span>{progress.percentage}%</span>
+                  </div>
+                  <Progress value={progress.percentage} className="h-2" />
+                  <div className="text-xs text-muted-foreground">
+                    {Math.round((progress.downloaded / 1024 / 1024) * 100) /
+                      100}{' '}
+                    MB /{' '}
+                    {Math.round((progress.total / 1024 / 1024) * 100) / 100} MB
+                  </div>
+                </div>
+              )}
+              {/* Show installing state */}
+              {isInstalling && (
+                <div className="mt-2 text-xs text-muted-foreground">
+                  Installing update...
+                </div>
+              )}
             </div>
-            <Switch
-              id="auto-update"
-              checked={config.startup.auto_update_settings}
-              onCheckedChange={checked =>
-                handleStartupChange('auto_update_settings', checked)
-              }
-              disabled={saving}
-            />
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Docker Hub Integration</CardTitle>
-          <CardDescription>
-            Connect your Docker Hub account for seamless image management
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center gap-2 mb-4">
-            <Badge variant="secondary" className="text-xs">
-              Not available right now
-            </Badge>
-          </div>
-          <div className="space-y-2 opacity-50">
-            <Label htmlFor="docker-username">Docker Hub Username</Label>
-            <Input
-              id="docker-username"
-              placeholder="Enter your Docker Hub username"
-              disabled
-            />
-          </div>
-
-          <div className="flex space-x-2">
-            <Button variant="outline" disabled>
-              Test Connection
-            </Button>
-            <Button disabled>Save Settings</Button>
+            <div className="flex items-center gap-2">
+              {updateAvailable && currentUpdate && (
+                <Button
+                  variant="default"
+                  size="sm"
+                  onClick={downloadAndInstall}
+                  disabled={isBusy || saving}
+                  className="flex items-center gap-1"
+                >
+                  <Download className="h-3 w-3" />
+                  {isDownloading
+                    ? 'Downloading...'
+                    : isInstalling
+                      ? 'Installing...'
+                      : 'Install Update'}
+                </Button>
+              )}
+              <Switch
+                id="auto-update"
+                checked={config.startup.auto_update_settings}
+                onCheckedChange={checked =>
+                  handleStartupChange('auto_update_settings', checked)
+                }
+                disabled={saving}
+              />
+            </div>
           </div>
         </CardContent>
       </Card>
