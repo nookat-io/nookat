@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
-import { check } from '@tauri-apps/plugin-updater';
+import { check, Update, DownloadEvent } from '@tauri-apps/plugin-updater';
 import { toast } from 'sonner';
 import { AppConfig } from '../types/config';
 
@@ -31,8 +31,9 @@ export const useUpdater = (
   const [isInstalling, setIsInstalling] = useState(false);
   const [updateAvailable, setUpdateAvailable] = useState(false);
   const [currentUpdate, setCurrentUpdate] = useState<UpdateInfo | null>(null);
-  const [progress] = useState<UpdateProgress | null>(null);
+  const [progress, setProgress] = useState<UpdateProgress | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [updateInstance, setUpdateInstance] = useState<Update | null>(null);
 
   // Check for updates
   const checkForUpdates = useCallback(async () => {
@@ -45,6 +46,7 @@ export const useUpdater = (
 
       if (update) {
         setUpdateAvailable(true);
+        setUpdateInstance(update);
         setCurrentUpdate({
           version: update.version,
           date: update.date?.toString(),
@@ -55,6 +57,7 @@ export const useUpdater = (
       } else {
         setUpdateAvailable(false);
         setCurrentUpdate(null);
+        setUpdateInstance(null);
         console.log('no update', update);
         toast.info('No updates available');
       }
@@ -80,7 +83,7 @@ export const useUpdater = (
 
   // Download and install update
   const downloadAndInstall = useCallback(async () => {
-    if (!currentUpdate) {
+    if (!currentUpdate || !updateInstance) {
       toast.error('No update available to install');
       return;
     }
@@ -89,33 +92,60 @@ export const useUpdater = (
     setError(null);
 
     try {
-      // For now, just simulate the process
-      // TODO: Implement actual download and install when the plugin supports it
-      toast.info('Update download started...');
+      // Handle download progress
+      const handleDownloadEvent = (event: DownloadEvent) => {
+        switch (event.event) {
+          case 'Started':
+            setIsDownloading(true);
+            setProgress({
+              downloaded: 0,
+              total: event.data.contentLength || 0,
+              percentage: 0,
+            });
+            toast.info('Update download started...');
+            break;
+          case 'Progress':
+            if (progress) {
+              const newDownloaded =
+                progress.downloaded + event.data.chunkLength;
+              const newPercentage =
+                progress.total > 0
+                  ? Math.round((newDownloaded / progress.total) * 100)
+                  : 0;
+              setProgress({
+                downloaded: newDownloaded,
+                total: progress.total,
+                percentage: newPercentage,
+              });
+            }
+            break;
+          case 'Finished':
+            setIsDownloading(false);
+            setProgress(null);
+            toast.success('Download completed! Installing update...');
+            break;
+        }
+      };
 
-      // Simulate download progress
-      setTimeout(() => {
-        setIsDownloading(false);
-        setIsInstalling(true);
-        toast.info('Installing update...');
+      // Start the download and install process
+      await updateInstance.downloadAndInstall(handleDownloadEvent);
 
-        setTimeout(() => {
-          setIsInstalling(false);
-          toast.success('Update installed successfully!');
-        }, 2000);
-      }, 3000);
+      // If we reach here, the update was successful
+      setIsInstalling(false);
+      toast.success(
+        'Update installed successfully! The app will restart shortly.'
+      );
     } catch (err) {
+      console.log('error', err);
       const errorMessage =
         err instanceof Error ? err.message : 'Failed to install update';
       setError(errorMessage);
       toast.error(errorMessage);
       setIsDownloading(false);
       setIsInstalling(false);
+      setProgress(null);
     }
-  }, [currentUpdate]);
-
-  // For now, we'll use a simplified approach without event listeners
-  // TODO: Implement proper event handling when the plugin supports it
+  }, [currentUpdate, updateInstance, progress]);
 
   // Auto-check for updates on mount only if enabled in settings
   useEffect(() => {

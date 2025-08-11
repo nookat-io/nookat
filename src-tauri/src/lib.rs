@@ -137,14 +137,6 @@ pub fn run() {
             get_docker_info,
         ])
         .setup(|app| {
-            // Initialize updater service
-            #[cfg(desktop)]
-            {
-                if let Err(e) = crate::services::UpdaterService::init(app) {
-                    error!("Failed to initialize updater service: {}", e);
-                }
-            }
-
             Ok(build_tray(app)?)
         })
         .on_window_event(|window, event| match event {

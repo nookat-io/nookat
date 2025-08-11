@@ -35,6 +35,7 @@ fn initialize_tracing(
                     .with_ansi(false),
             )
             .with(sentry_tracing::layer())
+            .with(tracing_subscriber::fmt::layer())
             .init();
     } else {
         tracing_subscriber::registry()

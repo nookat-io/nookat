@@ -13,6 +13,7 @@ import { Label } from '../ui/label';
 import { Button } from '../ui/button';
 import { Separator } from '../ui/separator';
 import { Badge } from '../ui/badge';
+import { Progress } from '../ui/progress';
 import {
   Select,
   SelectContent,
@@ -42,6 +43,9 @@ export function GeneralSettings() {
     checkForUpdates,
     downloadAndInstall,
     isBusy,
+    isDownloading,
+    isInstalling,
+    progress,
   } = useUpdater(config || undefined, updateLastUpdateCheck);
   const [saving, setSaving] = useState(false);
 
@@ -319,6 +323,28 @@ export function GeneralSettings() {
                   <Badge variant="default">{currentUpdate.version}</Badge>
                 </div>
               )}
+              {/* Show download progress */}
+              {isDownloading && progress && (
+                <div className="mt-2 space-y-2">
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    <span>Downloading update...</span>
+                    <span>{progress.percentage}%</span>
+                  </div>
+                  <Progress value={progress.percentage} className="h-2" />
+                  <div className="text-xs text-muted-foreground">
+                    {Math.round((progress.downloaded / 1024 / 1024) * 100) /
+                      100}{' '}
+                    MB /{' '}
+                    {Math.round((progress.total / 1024 / 1024) * 100) / 100} MB
+                  </div>
+                </div>
+              )}
+              {/* Show installing state */}
+              {isInstalling && (
+                <div className="mt-2 text-xs text-muted-foreground">
+                  Installing update...
+                </div>
+              )}
             </div>
             <div className="flex items-center gap-2">
               {updateAvailable && currentUpdate && (
@@ -330,7 +356,11 @@ export function GeneralSettings() {
                   className="flex items-center gap-1"
                 >
                   <Download className="h-3 w-3" />
-                  Install Update
+                  {isDownloading
+                    ? 'Downloading...'
+                    : isInstalling
+                      ? 'Installing...'
+                      : 'Install Update'}
                 </Button>
               )}
               <Switch
