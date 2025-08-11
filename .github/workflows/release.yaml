@@ -17,10 +17,10 @@ jobs:
         include:
           - platform: 'macos-latest'
             args: '--target universal-apple-darwin'
-          - platform: 'ubuntu-22.04'
-            args: ''
-          - platform: 'windows-latest'
-            args: ''
+          # - platform: 'ubuntu-22.04'
+          #   args: ''
+          # - platform: 'windows-latest'
+          #   args: ''
 
     runs-on: ${{ matrix.platform }}
     steps:
@@ -90,12 +90,28 @@ jobs:
           $VERSION_TAG = "v$version"
           echo "VERSION_TAG=$VERSION_TAG" >> $env:GITHUB_ENV
 
-      - name: Set public key for updater
+      - name: Set public key for updater (Linux/macOS)
+        if: matrix.platform != 'windows-latest'
+        env:
+          TAURI_SIGNING_PUBLIC_KEY: ${{ secrets.TAURI_SIGNING_PUBLIC_KEY }}
         run: |
           echo "TAURI_SIGNING_PUBLIC_KEY=$TAURI_SIGNING_PUBLIC_KEY" >> $env:GITHUB_ENV
           echo $TAURI_SIGNING_PUBLIC_KEY
           # Replace the pubkey in tauri.conf.json with the value from the TAURI_SIGNING_PUBLIC_KEY env variable
           cd src-tauri && sed -i.bak "s/YOUR_PUBLIC_KEY_HERE/$TAURI_SIGNING_PUBLIC_KEY/g" tauri.conf.json && rm tauri.conf.json.bak
+
+      - name: Set public key for updater (Windows)
+        if: matrix.platform == 'windows-latest'
+        env:
+          TAURI_SIGNING_PUBLIC_KEY: ${{ secrets.TAURI_SIGNING_PUBLIC_KEY }}
+        run: |
+          echo "TAURI_SIGNING_PUBLIC_KEY=$TAURI_SIGNING_PUBLIC_KEY" >> $env:GITHUB_ENV
+          echo $TAURI_SIGNING_PUBLIC_KEY
+          # Replace the pubkey in tauri.conf.json with the value from the TAURI_SIGNING_PUBLIC_KEY env variable
+          cd src-tauri
+          $content = Get-Content tauri.conf.json -Raw
+          $content = $content -replace "YOUR_PUBLIC_KEY_HERE", $env:TAURI_SIGNING_PUBLIC_KEY
+          Set-Content tauri.conf.json -Value $content -NoNewline
 
       - name: Build and Publish
         uses: tauri-apps/tauri-action@v0
