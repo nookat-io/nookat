@@ -10,12 +10,6 @@ export interface UpdateInfo {
   pubDate?: string;
 }
 
-export interface UpdateCheckResult {
-  available: boolean;
-  update?: UpdateInfo;
-  currentVersion: string;
-}
-
 export interface UpdateProgress {
   downloaded: number;
   total: number;
@@ -42,14 +36,13 @@ export const useUpdater = (
 
     try {
       const update = await check();
-      console.log('update', update);
 
       if (update) {
         setUpdateAvailable(true);
         setUpdateInstance(update);
         setCurrentUpdate({
           version: update.version,
-          date: update.date?.toString(),
+          date: update.date,
           body: update.body,
           pubDate: undefined,
         });
@@ -58,7 +51,6 @@ export const useUpdater = (
         setUpdateAvailable(false);
         setCurrentUpdate(null);
         setUpdateInstance(null);
-        console.log('no update', update);
         toast.info('No updates available');
       }
 
@@ -71,7 +63,7 @@ export const useUpdater = (
         }
       }
     } catch (err) {
-      console.log('error', err);
+      console.error('Failed to check for updates:', err);
       const errorMessage =
         err instanceof Error ? err.message : 'Failed to check for updates';
       setError(errorMessage);
@@ -97,31 +89,34 @@ export const useUpdater = (
         switch (event.event) {
           case 'Started':
             setIsDownloading(true);
-            setProgress({
+            setProgress(prev => ({
+              ...prev,
               downloaded: 0,
-              total: event.data.contentLength || 0,
+              total: event.data.contentLength ?? prev?.total ?? 0,
               percentage: 0,
-            });
+            }));
             toast.info('Update download started...');
             break;
           case 'Progress':
-            if (progress) {
+            setProgress(prev => {
+              if (!prev) return prev;
               const newDownloaded =
-                progress.downloaded + event.data.chunkLength;
+                (prev.downloaded ?? 0) + event.data.chunkLength;
               const newPercentage =
-                progress.total > 0
-                  ? Math.round((newDownloaded / progress.total) * 100)
+                prev.total && prev.total > 0
+                  ? Math.round((newDownloaded / prev.total) * 100)
                   : 0;
-              setProgress({
+              return {
+                ...prev,
                 downloaded: newDownloaded,
-                total: progress.total,
                 percentage: newPercentage,
-              });
-            }
+              };
+            });
             break;
           case 'Finished':
             setIsDownloading(false);
             setProgress(null);
+            setIsInstalling(true);
             toast.success('Download completed! Installing update...');
             break;
         }
@@ -132,11 +127,15 @@ export const useUpdater = (
 
       // If we reach here, the update was successful
       setIsInstalling(false);
+      setUpdateAvailable(false);
+      setCurrentUpdate(null);
+      setUpdateInstance(null);
+
       toast.success(
-        'Update installed successfully! The app will restart shortly.'
+        'Update installed successfully! Please, restart the app to apply the changes.'
       );
     } catch (err) {
-      console.log('error', err);
+      console.error('Failed to install update:', err);
       const errorMessage =
         err instanceof Error ? err.message : 'Failed to install update';
       setError(errorMessage);
@@ -145,7 +144,7 @@ export const useUpdater = (
       setIsInstalling(false);
       setProgress(null);
     }
-  }, [currentUpdate, updateInstance, progress]);
+  }, [currentUpdate, updateInstance]);
 
   // Auto-check for updates on mount only if enabled in settings
   useEffect(() => {
