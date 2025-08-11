@@ -23,15 +23,17 @@ fn setup_file_logging() -> Result<RollingFileAppender, Box<dyn std::error::Error
 fn initialize_tracing(
     file_appender: Option<RollingFileAppender>,
 ) -> Result<(), Box<dyn std::error::Error>> {
-
-    let env_filter = EnvFilter::try_from_default_env()
-        .unwrap_or_else(|_| "info".into());
+    let env_filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| "info".into());
 
     if let Some(file_appender) = file_appender {
         // Create subscriber with file output using registry approach
         tracing_subscriber::registry()
             .with(env_filter)
-            .with(tracing_subscriber::fmt::layer().with_writer(file_appender).with_ansi(false))
+            .with(
+                tracing_subscriber::fmt::layer()
+                    .with_writer(file_appender)
+                    .with_ansi(false),
+            )
             .with(sentry_tracing::layer())
             .init();
     } else {

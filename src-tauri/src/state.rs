@@ -1,7 +1,7 @@
 use bollard::Docker;
-use tracing::instrument;
 use std::sync::Arc;
 use tokio::sync::Mutex;
+use tracing::instrument;
 
 #[derive(Default)]
 pub struct SharedDockerState {

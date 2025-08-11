@@ -74,7 +74,6 @@ pub struct EndpointSettings {
     // sorts first is picked.
     // #[serde(skip_serializing_if = "Option::is_none")]
     // pub gw_priority: Option<f64>,
-
     /// Unique ID of the network.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub network_id: Option<String>,

@@ -116,7 +116,6 @@ pub struct Container {
     // This field is not populated in the `GET /system/df` endpoint.
     // #[serde(skip_serializing_if = "Option::is_none")]
     // pub image_manifest_descriptor: Option<OciDescriptor>,
-
     /// Command to run when starting the container
     #[serde(skip_serializing_if = "Option::is_none")]
     pub command: Option<String>,

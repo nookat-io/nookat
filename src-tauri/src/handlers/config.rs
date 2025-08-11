@@ -1,7 +1,6 @@
-use crate::entities::{AppConfig, Theme, Language, TelemetrySettings, StartupSettings};
-use crate::services::ConfigService;
+use crate::entities::{AppConfig, Language, StartupSettings, TelemetrySettings, Theme};
+use crate::services::{ConfigService, UpdaterService};
 use tracing::{debug, instrument};
-
 
 #[tauri::command]
 #[instrument(skip_all, err)]
@@ -73,4 +72,13 @@ pub async fn update_language(language: String) -> Result<(), String> {
 pub async fn get_language() -> Result<String, String> {
     let config = get_config().await?;
     Ok(config.language.as_str().to_string())
+}
+
+/// Update last update check timestamp
+#[tauri::command]
+#[instrument(skip_all, err)]
+pub async fn update_last_update_check() -> Result<(), String> {
+    debug!("Updating last update check timestamp");
+    UpdaterService::update_last_update_check()
+        .map_err(|e| format!("Failed to update last update check: {}", e))
 }
