@@ -59,7 +59,7 @@
     "updater": {
       "active": true,
       "endpoints": [
-        "https://github.com/nookat/nookat/releases/latest/download/{{target}}-{{arch}}/{{current_version}}"
+        "https://github.com/nookat-io/nookat/releases/latest/download/latest.json"
       ],
       "dialog": true,
       "pubkey": "YOUR_PUBLIC_KEY_HERE"
