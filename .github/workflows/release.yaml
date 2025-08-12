@@ -6,6 +6,14 @@ on:
     branches:
       - release
 
+concurrency:
+  # This prevents concurrency
+  group: release
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
 jobs:
   # Orchestrator job that coordinates the release process
   release-coordinator:

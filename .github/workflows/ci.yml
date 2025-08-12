@@ -7,6 +7,12 @@ on:
     paths-ignore:
       - 'tickets/**'
 
+concurrency:
+  # This prevents concurrency
+  group: release
+  cancel-in-progress: true
+
+
 jobs:
   pre-commit:
     name: pre-commit checks
