@@ -86,6 +86,7 @@ fn build_tray(app: &mut App) -> Result<(), String> {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_autostart::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_opener::init())
         .manage(SharedDockerState::new())
@@ -136,9 +137,7 @@ pub fn run() {
             open_url,
             get_docker_info,
         ])
-        .setup(|app| {
-            Ok(build_tray(app)?)
-        })
+        .setup(|app| Ok(build_tray(app)?))
         .on_window_event(|window, event| match event {
             tauri::WindowEvent::CloseRequested { api, .. } => {
                 if let Err(e) = window.hide() {

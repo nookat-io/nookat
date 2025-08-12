@@ -2,8 +2,14 @@
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
   "description": "Capability for the main window",
-  "windows": ["main"],
-  "platforms": ["macOS", "windows", "linux"],
+  "windows": [
+    "main"
+  ],
+  "platforms": [
+    "macOS",
+    "windows",
+    "linux"
+  ],
   "permissions": [
     "core:default",
     "opener:default",
@@ -129,6 +135,7 @@
     "core:tray:default",
     "core:webview:default",
     "core:window:default",
-    "updater:default"
+    "updater:default",
+    "autostart:default"
   ]
 }
