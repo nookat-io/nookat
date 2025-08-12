@@ -7,6 +7,11 @@ on:
     paths-ignore:
       - 'tickets/**'
 
+concurrency:
+  # Prevent concurrent releases on the same ref without colliding with other workflows.
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   pre-commit:
     name: pre-commit checks
