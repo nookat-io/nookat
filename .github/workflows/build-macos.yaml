@@ -40,6 +40,7 @@ jobs:
     runs-on: macos-latest
     permissions:
       contents: write
+      packages: write
 
     steps:
       - uses: actions/checkout@v4
@@ -94,7 +95,6 @@ jobs:
       - name: Build and Publish
         uses: tauri-apps/tauri-action@v0
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
           APPLE_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
@@ -107,9 +107,10 @@ jobs:
           TAURI_SIGNING_PUBLIC_KEY: ${{ secrets.TAURI_SIGNING_PUBLIC_KEY }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tagName: ${{ inputs.version-tag }}
-          releaseName: 'nookat ${{ inputs.version-tag }} (macOS)'
+          releaseName: 'Nookat ${{ inputs.version-tag }} (macOS)'
           releaseBody: 'macOS universal binary (aarch64 + x86_64)'
           releaseDraft: true
           includeDebug: true

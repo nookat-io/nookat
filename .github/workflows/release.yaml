@@ -13,6 +13,7 @@ concurrency:
 
 permissions:
   contents: write
+  packages: write
 
 jobs:
   # Orchestrator job that coordinates the release process
