@@ -34,7 +34,7 @@ jobs:
   # macOS build job
   build-macos:
     needs: release-coordinator
-    uses: ./.github/workflows/templates/build-macos.yaml
+    uses: ./.github/workflows/build-macos.yaml
     with:
       version: ${{ needs.release-coordinator.outputs.version }}
       version-tag: ${{ needs.release-coordinator.outputs.version-tag }}
@@ -55,7 +55,7 @@ jobs:
   # Windows build job
   build-windows:
     needs: release-coordinator
-    uses: ./.github/workflows/templates/build-windows.yaml
+    uses: ./.github/workflows/build-windows.yaml
     with:
       version: ${{ needs.release-coordinator.outputs.version }}
       version-tag: ${{ needs.release-coordinator.outputs.version-tag }}
@@ -70,7 +70,7 @@ jobs:
   # Linux build job
   build-linux:
     needs: release-coordinator
-    uses: ./.github/workflows/templates/build-linux.yaml
+    uses: ./.github/workflows/build-linux.yaml
     with:
       version: ${{ needs.release-coordinator.outputs.version }}
       version-tag: ${{ needs.release-coordinator.outputs.version-tag }}
