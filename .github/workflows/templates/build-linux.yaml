@@ -1,0 +1,87 @@
+name: Build Linux
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        required: true
+        type: string
+      version-tag:
+        required: true
+        type: string
+    secrets:
+      TAURI_SIGNING_PUBLIC_KEY:
+        required: true
+      TAURI_SIGNING_PRIVATE_KEY:
+        required: true
+      TAURI_SIGNING_PRIVATE_KEY_PASSWORD:
+        required: true
+      VITE_APTABASE_APP_KEY:
+        required: true
+      VITE_SENTRY_DSN:
+        required: true
+      SENTRY_DSN:
+        required: true
+
+jobs:
+  build-linux:
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install Linux dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.0-dev \
+            libwebkit2gtk-4.1-dev \
+            libappindicator3-dev \
+            librsvg2-dev \
+            patchelf
+
+      - name: Install frontend dependencies
+        run: yarn install
+
+      - name: Set public key for updater
+        env:
+          TAURI_SIGNING_PUBLIC_KEY: ${{ secrets.TAURI_SIGNING_PUBLIC_KEY }}
+        run: |
+          echo "Setting Tauri signing public key..."
+          cd src-tauri && sed -i.bak "s/YOUR_PUBLIC_KEY_HERE/$TAURI_SIGNING_PUBLIC_KEY/g" tauri.conf.json && rm tauri.conf.json.bak
+
+      - name: Build and Publish
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VITE_APTABASE_APP_KEY: ${{ secrets.VITE_APTABASE_APP_KEY }}
+          VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
+          SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+          TAURI_SIGNING_PUBLIC_KEY: ${{ secrets.TAURI_SIGNING_PUBLIC_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          tagName: ${{ inputs.version-tag }}
+          releaseName: 'nookat ${{ inputs.version-tag }} (Linux)'
+          releaseBody: 'Linux AppImage and Debian package'
+          releaseDraft: true
+          includeDebug: true
+          updaterJsonPreferNsis: true
+
+      - name: Build Summary
+        run: |
+          echo "✅ Linux build completed successfully!"
+          echo "Version: ${{ inputs.version }}"
+          echo "Version Tag: ${{ inputs.version-tag }}"
+          echo "Target: x86_64-unknown-linux-gnu"
+          echo "Packages: AppImage, .deb"

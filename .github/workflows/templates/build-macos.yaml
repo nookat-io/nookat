@@ -1,0 +1,120 @@
+name: Build macOS
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        required: true
+        type: string
+      version-tag:
+        required: true
+        type: string
+    secrets:
+      APPLE_CERTIFICATE:
+        required: true
+      APPLE_CERTIFICATE_PASSWORD:
+        required: true
+      KEYCHAIN_PASSWORD:
+        required: true
+      APPLE_ID:
+        required: true
+      APPLE_ID_PASSWORD:
+        required: true
+      APPLE_TEAM_ID:
+        required: true
+      TAURI_SIGNING_PUBLIC_KEY:
+        required: true
+      TAURI_SIGNING_PRIVATE_KEY:
+        required: true
+      TAURI_SIGNING_PRIVATE_KEY_PASSWORD:
+        required: true
+      VITE_APTABASE_APP_KEY:
+        required: true
+      VITE_SENTRY_DSN:
+        required: true
+      SENTRY_DSN:
+        required: true
+
+jobs:
+  build-macos:
+    runs-on: macos-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
+
+      - name: Install frontend dependencies
+        run: yarn install
+
+      - name: Import Apple Developer Certificate
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+        run: |
+          echo $APPLE_CERTIFICATE | base64 --decode > certificate.p12
+          security create-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
+          security set-keychain-settings -t 3600 -u build.keychain
+          security import certificate.p12 -k build.keychain -P "$APPLE_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" build.keychain
+          security find-identity -v -p codesigning build.keychain
+
+      - name: Verify certificate
+        run: |
+          CERT_INFO=$(security find-identity -v -p codesigning build.keychain | grep "Developer ID Application")
+          CERT_ID=$(echo "$CERT_INFO" | awk -F'"' '{print $2}')
+          echo "CERT_ID=$CERT_ID" >> $GITHUB_ENV
+          echo "Certificate imported successfully."
+
+      - name: Set public key for updater
+        env:
+          TAURI_SIGNING_PUBLIC_KEY: ${{ secrets.TAURI_SIGNING_PUBLIC_KEY }}
+        run: |
+          echo "Setting Tauri signing public key..."
+          cd src-tauri && sed -i.bak "s/YOUR_PUBLIC_KEY_HERE/$TAURI_SIGNING_PUBLIC_KEY/g" tauri.conf.json && rm tauri.conf.json.bak
+
+      - name: Build and Publish
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          VITE_APTABASE_APP_KEY: ${{ secrets.VITE_APTABASE_APP_KEY }}
+          VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
+          SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+          TAURI_SIGNING_PUBLIC_KEY: ${{ secrets.TAURI_SIGNING_PUBLIC_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          tagName: ${{ inputs.version-tag }}
+          releaseName: 'nookat ${{ inputs.version-tag }} (macOS)'
+          releaseBody: 'macOS universal binary (aarch64 + x86_64)'
+          releaseDraft: true
+          includeDebug: true
+          updaterJsonPreferNsis: true
+          updaterJsonKeepUniversal: true
+          args: --target universal-apple-darwin
+
+      - name: Build Summary
+        run: |
+          echo "✅ macOS build completed successfully!"
+          echo "Version: ${{ inputs.version }}"
+          echo "Version Tag: ${{ inputs.version-tag }}"
+          echo "Target: universal-apple-darwin (aarch64 + x86_64)"
