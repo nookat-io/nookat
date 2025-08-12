@@ -23,6 +23,8 @@ jobs:
       version-tag: ${{ steps.get-version.outputs.version-tag }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Get version from tauri.conf.json
         id: get-version
@@ -92,7 +94,7 @@ jobs:
 
   # Final release coordination
   release-completion:
-    needs: [build-macos, build-windows, build-linux]
+    needs: [release-coordinator, build-macos, build-windows, build-linux]
     runs-on: ubuntu-latest
     if: always()
     steps:
@@ -110,18 +112,6 @@ jobs:
           else
             echo "❌ Some platform builds failed. Check individual workflow runs for details."
             exit 1
-          fi
-
-      - name: Create Git tag
-        if: needs.build-macos.result == 'success' && needs.build-windows.result == 'success' && needs.build-linux.result == 'success'
-        run: |
-          VERSION_TAG="${{ needs.release-coordinator.outputs.version-tag }}"
-          if git rev-parse "$VERSION_TAG" >/dev/null 2>&1; then
-            echo "Tag $VERSION_TAG already exists. Skipping tagging."
-          else
-            echo "Tagging with version: $VERSION_TAG"
-            git tag $VERSION_TAG
-            git push origin $VERSION_TAG
           fi
 
       - name: Release Summary

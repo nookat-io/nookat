@@ -36,6 +36,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: lts/*
+          cache: 'yarn'
 
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
@@ -53,6 +54,10 @@ jobs:
           $content = Get-Content tauri.conf.json -Raw
           $content = $content -replace "YOUR_PUBLIC_KEY_HERE", $env:TAURI_SIGNING_PUBLIC_KEY
           Set-Content tauri.conf.json -Value $content -NoNewline
+          if (-not (Select-String -Path tauri.conf.json -Pattern [regex]::Escape($env:TAURI_SIGNING_PUBLIC_KEY))) {
+            Write-Error "Updater public key replacement failed."
+            exit 1
+          }
 
       - name: Build and Publish
         uses: tauri-apps/tauri-action@v0

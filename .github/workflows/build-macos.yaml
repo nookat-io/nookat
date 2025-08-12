@@ -48,6 +48,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: lts/*
+          cache: 'yarn'
 
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
@@ -76,7 +77,6 @@ jobs:
         run: |
           CERT_INFO=$(security find-identity -v -p codesigning build.keychain | grep "Developer ID Application")
           CERT_ID=$(echo "$CERT_INFO" | awk -F'"' '{print $2}')
-          echo "CERT_ID=$CERT_ID" >> $GITHUB_ENV
           echo "Certificate imported successfully."
 
       - name: Set public key for updater
@@ -84,7 +84,12 @@ jobs:
           TAURI_SIGNING_PUBLIC_KEY: ${{ secrets.TAURI_SIGNING_PUBLIC_KEY }}
         run: |
           echo "Setting Tauri signing public key..."
-          cd src-tauri && sed -i.bak "s/YOUR_PUBLIC_KEY_HERE/$TAURI_SIGNING_PUBLIC_KEY/g" tauri.conf.json && rm tauri.conf.json.bak
+          cd src-tauri
+          sed -i.bak "s/YOUR_PUBLIC_KEY_HERE/$TAURI_SIGNING_PUBLIC_KEY/g" tauri.conf.json && rm tauri.conf.json.bak
+          if ! grep -q "$TAURI_SIGNING_PUBLIC_KEY" tauri.conf.json; then
+            echo "Updater public key replacement failed."
+            exit 1
+          fi
 
       - name: Build and Publish
         uses: tauri-apps/tauri-action@v0
@@ -108,7 +113,6 @@ jobs:
           releaseBody: 'macOS universal binary (aarch64 + x86_64)'
           releaseDraft: true
           includeDebug: true
-          updaterJsonPreferNsis: true
           updaterJsonKeepUniversal: true
           args: --target universal-apple-darwin
 
