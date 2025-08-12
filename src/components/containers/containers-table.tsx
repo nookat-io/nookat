@@ -172,7 +172,7 @@ export function ContainersTable({
               <TableHead className="w-[10%]">Status</TableHead>
               <TableHead className="w-[15%]">Created</TableHead>
               <TableHead className="w-[15%]">Ports</TableHead>
-              <TableHead className="w-[10%] text-left">Actions</TableHead>
+              <TableHead className="w-[15%]">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody className="flex-1">{renderTableBody()}</TableBody>
