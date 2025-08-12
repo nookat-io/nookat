@@ -36,13 +36,13 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: lts/*
-          cache: 'yarn'
+          cache: 'npm'
 
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
 
       - name: Install frontend dependencies
-        run: yarn install
+        run: npm ci
 
       - name: Set public key for updater
         env:
