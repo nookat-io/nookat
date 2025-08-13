@@ -9,8 +9,8 @@ export enum EngineState {
 export interface EngineStatus {
   name: string;
   state: EngineState;
-  version?: string;
-  error?: string;
+  version?: string | null;
+  error?: string | null;
 }
 
 export type EngineContextValue = EngineStatus & {

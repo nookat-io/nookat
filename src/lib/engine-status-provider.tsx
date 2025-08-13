@@ -28,8 +28,7 @@ export function EngineStatusProvider({ children }: ProviderProps) {
     try {
       const {
         state,
-        name: engineName, // TODO: engineName will be renamed to engineName in follow-up PR
-        version: statusVersion,
+        name: engineName,
         error: statusError,
       } = await invoke<EngineStatus>('engine_status');
       if (!mountedRef.current) return;
@@ -49,24 +48,6 @@ export function EngineStatusProvider({ children }: ProviderProps) {
         if (!mountedRef.current) return;
         setEngineName(engineName);
         return;
-      }
-
-      // fallback to info if missing
-      if (statusVersion != null) {
-        if (!mountedRef.current) return;
-        setVersion(statusVersion);
-        return;
-      }
-      try {
-        const { server_version } = await invoke<{ server_version: string }>(
-          'get_docker_info'
-        );
-        if (!mountedRef.current) return;
-        setVersion(server_version);
-      } catch {
-        if (!mountedRef.current) return;
-        setVersion(null);
-        setError('Could not communicate with Docker Engine.');
       }
     } catch (e) {
       // shouldn't hit here
@@ -97,7 +78,6 @@ export function EngineStatusProvider({ children }: ProviderProps) {
     if (error) {
       base.error = error;
     }
-    base.refetch = fetchEngineInfo;
     return base;
   }, [engineState, version, error, fetchEngineInfo, engineName]);
 

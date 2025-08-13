@@ -15,13 +15,6 @@ interface DockerInfoPlugins {
   log?: string[];
 }
 
-export enum DockerStatus {
-  Running = 'Running',
-  Stopped = 'Stopped',
-  Error = 'Error',
-  Loading = 'Loading',
-}
-
 export interface DockerInfo {
   // Core SystemInfo fields
   id?: string;
@@ -85,7 +78,4 @@ export interface DockerInfo {
   version_kernel_version?: string;
   version_experimental?: string | boolean;
   build_time?: string;
-
-  // Status field using enum
-  status?: DockerStatus;
 }

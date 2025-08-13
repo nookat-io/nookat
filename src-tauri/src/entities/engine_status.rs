@@ -11,7 +11,7 @@ pub enum EngineState {
     /// The container engine is healthy
     Healthy,
     /// The container engine is malfunctioning
-    Malfunctioning
+    Malfunctioning,
 }
 
 /// The status of the container engine
