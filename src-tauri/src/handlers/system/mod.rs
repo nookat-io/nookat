@@ -1,8 +1,11 @@
-use crate::entities::{DockerInfo, EngineState, EngineStatus};
+mod engine;
+
+use crate::entities::DockerInfo;
 use crate::state::SharedDockerState;
 use std::process::Command;
 use tauri::State;
 use tracing::instrument;
+pub use engine::*;
 
 #[tauri::command]
 #[instrument(skip_all, err)]
@@ -70,50 +73,4 @@ pub async fn get_docker_info(state: State<'_, SharedDockerState>) -> Result<Dock
 
     state.return_docker(docker).await;
     Ok(DockerInfo::from((info, version)))
-}
-
-#[tauri::command]
-pub async fn engine_status(state: State<'_, SharedDockerState>) -> Result<EngineStatus, String> {
-    // Check if Docker is installed
-    let docker = match state.get_docker().await {
-        Ok(d) => d,
-        Err(_) => {
-            return Ok(EngineStatus {
-                state: EngineState::NotInstalled,
-                version: None,
-                error: None,
-            });
-        }
-    };
-
-    // Ping daemon, if fails assume it is not running
-    let can_ping = docker.ping().await.is_ok();
-    if !can_ping {
-        state.return_docker(docker).await;
-        return Ok(EngineStatus {
-            state: EngineState::NotRunning,
-            version: None,
-            error: None,
-        });
-    }
-
-    let version = match docker.version().await {
-        Ok(v) => v.version,
-        Err(e) => {
-            state.return_docker(docker).await;
-            return Ok(EngineStatus {
-                state: EngineState::Malfunctioning,
-                version: None,
-                error: Some(format!("Could not get Docker version: {e}")),
-            });
-        }
-    };
-
-    state.return_docker(docker).await;
-    // Installed, running and healthy
-    Ok(EngineStatus {
-        state: EngineState::Healthy,
-        version,
-        error: None,
-    })
 }

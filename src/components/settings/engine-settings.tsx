@@ -51,13 +51,17 @@ export function EngineSettings() {
   const [dockerInfo, setDockerInfo] = useState<DockerInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const { state: engineStateCtx, error: engineError } = useEngineStatus();
+  const {
+    state: engineState,
+    error: engineError,
+    // name: _engineName, // TODO: engineName will be renamed to engineName in follow-up PR
+  } = useEngineStatus();
 
   useEffect(() => {
     const fetchDockerInfo = async () => {
       try {
         setLoading(true);
-        const info = await invoke<DockerInfo>('get_docker_info');
+        const info = await invoke<DockerInfo>('get_docker_info'); // TODO: DockerInfo will be renamed to EngineInfo in follow-up PR
         setDockerInfo(info);
         setError(null);
       } catch (err) {
@@ -90,7 +94,7 @@ export function EngineSettings() {
       };
     }
 
-    switch (engineStateCtx) {
+    switch (engineState) {
       case EngineState.Loading:
         return {
           status: EngineState.Loading,
@@ -139,7 +143,7 @@ export function EngineSettings() {
           text: 'Stopped',
         };
     }
-  }, [engineStateCtx, engineError]);
+  }, [engineState, engineError]);
 
   return (
     <div className="space-y-6">

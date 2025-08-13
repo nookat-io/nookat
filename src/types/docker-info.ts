@@ -87,5 +87,5 @@ export interface DockerInfo {
   build_time?: string;
 
   // Status field using enum
-  status: DockerStatus;
+  status?: DockerStatus;
 }

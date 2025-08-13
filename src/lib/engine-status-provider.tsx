@@ -18,6 +18,7 @@ export function EngineStatusProvider({ children }: ProviderProps) {
   const [engineState, setEngineState] = useState<EngineState>(
     EngineState.Loading
   );
+  const [engineName, setEngineName] = useState<string>('Docker Engine'); // TODO: engineName will be renamed to engineName in follow-up PR
   // ref to track mounted state so async fetch can avoid updating after unmount
   const mountedRef = useRef(true);
 
@@ -27,6 +28,7 @@ export function EngineStatusProvider({ children }: ProviderProps) {
     try {
       const {
         state,
+        name: engineName, // TODO: engineName will be renamed to engineName in follow-up PR
         version: statusVersion,
         error: statusError,
       } = await invoke<EngineStatus>('engine_status');
@@ -42,6 +44,13 @@ export function EngineStatusProvider({ children }: ProviderProps) {
         }
         return;
       }
+
+      if (engineName != null) {
+        if (!mountedRef.current) return;
+        setEngineName(engineName);
+        return;
+      }
+
       // fallback to info if missing
       if (statusVersion != null) {
         if (!mountedRef.current) return;
@@ -78,6 +87,7 @@ export function EngineStatusProvider({ children }: ProviderProps) {
 
   const value = useMemo<EngineContextValue>(() => {
     const base: EngineContextValue = {
+      name: engineName,
       state: engineState,
       refetch: fetchEngineInfo,
     };
@@ -89,7 +99,7 @@ export function EngineStatusProvider({ children }: ProviderProps) {
     }
     base.refetch = fetchEngineInfo;
     return base;
-  }, [engineState, version, error, fetchEngineInfo]);
+  }, [engineState, version, error, fetchEngineInfo, engineName]);
 
   return (
     <EngineStatusContext.Provider value={value}>

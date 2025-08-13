@@ -1,5 +1,3 @@
-'use client';
-
 import React from 'react';
 import { ErrorDisplay } from './error-display';
 import { useEngineStatus } from '../../hooks/use-engine-status';
@@ -23,7 +21,11 @@ export default function EngineErrorGate({ children }: Props): React.ReactNode {
         ? 'Docker Engine is not installed'
         : 'Docker Engine error');
     return (
-      <div className="p-6" role="alert" aria-live="assertive">
+      <div
+        className="p-6 h-full flex items-center justify-center"
+        role="alert"
+        aria-live="assertive"
+      >
         <ErrorDisplay
           error={message}
           onRetry={() => refetch()}
