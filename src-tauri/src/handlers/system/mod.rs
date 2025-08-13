@@ -1,8 +1,11 @@
+mod engine;
+
 use crate::entities::DockerInfo;
 use crate::state::SharedDockerState;
 use std::process::Command;
 use tauri::State;
 use tracing::instrument;
+pub use engine::*;
 
 #[tauri::command]
 #[instrument(skip_all, err)]

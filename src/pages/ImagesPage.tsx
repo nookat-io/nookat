@@ -3,7 +3,7 @@ import { ImageHeader } from '../components/images/image-header';
 import { ImageControls } from '../components/images/image-controls';
 import { ImagesTable } from '../components/images/images-table';
 import { usePageState } from '../hooks/use-page-state';
-import { useDataProvider } from '../hooks/use-data-provider';
+import { useDataProvider } from '../lib/use-data-provider';
 import { useFilter } from '../utils/use-filter';
 import { PageLayout } from '../components/layout/page-layout';
 import { usePageAnalytics } from '../hooks/use-analytics';

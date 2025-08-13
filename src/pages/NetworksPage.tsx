@@ -2,7 +2,7 @@ import { NetworkData } from '../components/networks/network-types';
 import { NetworkHeader } from '../components/networks/network-header';
 import { NetworkControls } from '../components/networks/network-controls';
 import { NetworksTable } from '../components/networks/networks-table';
-import { useDataProvider } from '../hooks/use-data-provider';
+import { useDataProvider } from '../lib/use-data-provider';
 import { useFilter } from '../utils/use-filter';
 import { usePageState } from '../hooks/use-page-state';
 import { PageLayout } from '../components/layout/page-layout';

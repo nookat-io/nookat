@@ -13,7 +13,7 @@ use crate::handlers::{
     pause_container, prune_containers, prune_images, prune_volumes, remove_container,
     remove_network, remove_volume, restart_container, start_container, stop_container,
     unpause_container, update_language, update_last_update_check, update_startup_settings,
-    update_telemetry_settings, update_theme,
+    update_telemetry_settings, update_theme, engine_status
 };
 use crate::sentry::flush_sentry;
 use crate::state::SharedDockerState;
@@ -135,10 +135,9 @@ pub fn run() {
             // System
             open_url,
             get_docker_info,
+            engine_status,
         ])
-        .setup(|app| {
-            Ok(build_tray(app)?)
-        })
+        .setup(|app| Ok(build_tray(app)?))
         .on_window_event(|window, event| match event {
             tauri::WindowEvent::CloseRequested { api, .. } => {
                 if let Err(e) = window.hide() {

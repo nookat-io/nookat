@@ -3,7 +3,7 @@ import { VolumeHeader } from '../components/volumes/volume-header';
 import { VolumeControls } from '../components/volumes/volume-controls';
 import { VolumesTable } from '../components/volumes/volumes-table';
 import { usePageState } from '../hooks/use-page-state';
-import { useDataProvider } from '../hooks/use-data-provider';
+import { useDataProvider } from '../lib/use-data-provider';
 import { useFilter } from '../utils/use-filter';
 import { PageLayout } from '../components/layout/page-layout';
 import { usePageAnalytics } from '../hooks/use-analytics';

@@ -4,14 +4,6 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
-pub enum DockerStatus {
-    Running,
-    Stopped,
-    Error,
-    Loading,
-}
-
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct DockerInfoPlatform {
     pub name: String,
@@ -97,8 +89,6 @@ pub struct DockerInfo {
     #[cfg(target_os = "windows")]
     pub version_experimental: Option<bool>,
     pub build_time: Option<String>,
-
-    pub status: DockerStatus,
 }
 
 impl From<(SystemInfo, Version)> for DockerInfo {
@@ -124,10 +114,6 @@ impl From<(SystemInfo, Version)> for DockerInfo {
                 })
                 .collect()
         });
-
-        // Determine status based on actual Docker daemon state
-        // If we can get SystemInfo, Docker is running and responding
-        let status = DockerStatus::Running;
 
         DockerInfo {
             id: info.id,
@@ -189,8 +175,6 @@ impl From<(SystemInfo, Version)> for DockerInfo {
             version_kernel_version: version.kernel_version,
             version_experimental: version.experimental,
             build_time: version.build_time,
-
-            status,
         }
     }
 }
@@ -258,8 +242,6 @@ impl Default for DockerInfo {
             version_kernel_version: None,
             version_experimental: None,
             build_time: None,
-
-            status: DockerStatus::Stopped,
         }
     }
 }
