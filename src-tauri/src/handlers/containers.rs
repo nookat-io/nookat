@@ -34,10 +34,7 @@ pub async fn start_container(
 
 #[tauri::command]
 #[instrument(skip_all, err)]
-pub async fn stop_container(
-    state: State<'_, SharedDockerState>,
-    id: String,
-) -> Result<(), String> {
+pub async fn stop_container(state: State<'_, SharedDockerState>, id: String) -> Result<(), String> {
     debug!("Stopping container: {}", id);
 
     let docker = state.get_docker().await?;
@@ -223,10 +220,7 @@ pub async fn bulk_force_remove_containers(
 
 #[tauri::command]
 #[instrument(skip_all, err)]
-pub async fn open_terminal(
-    state: State<'_, SharedDockerState>,
-    id: String,
-) -> Result<(), String> {
+pub async fn open_terminal(state: State<'_, SharedDockerState>, id: String) -> Result<(), String> {
     debug!("Opening terminal for container: {}", id);
 
     let docker = state.get_docker().await?;

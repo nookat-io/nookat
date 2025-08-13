@@ -1,7 +1,7 @@
 use crate::entities::AppConfig;
-use std::path::PathBuf;
 use std::fs;
-use tracing::{warn, instrument};
+use std::path::PathBuf;
+use tracing::{instrument, warn};
 
 pub struct ConfigService;
 
@@ -51,7 +51,6 @@ impl ConfigService {
         let content = serde_json::to_string_pretty(config)
             .map_err(|e| format!("Failed to serialize config: {}", e))?;
 
-        fs::write(&config_path, content)
-            .map_err(|e| format!("Failed to write config file: {}", e))
+        fs::write(&config_path, content).map_err(|e| format!("Failed to write config file: {}", e))
     }
 }

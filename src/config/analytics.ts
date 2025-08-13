@@ -4,6 +4,8 @@ export const ANALYTICS_CONFIG = {
 
   // App version - injected from package.json during build
   APP_VERSION: import.meta.env.VITE_APP_VERSION || 'unknown',
+
+  BUILD_MODE: import.meta.env.MODE || 'development',
 } as const;
 
 export const validateAnalyticsConfig = () => {

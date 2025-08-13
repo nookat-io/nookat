@@ -9,11 +9,6 @@ export enum Language {
   Russian = 'ru',
 }
 
-export enum UpdateChannel {
-  Stable = 'stable',
-  Beta = 'beta',
-}
-
 export interface TelemetrySettings {
   send_anonymous_usage_data: boolean;
   error_reporting: boolean;
@@ -24,7 +19,6 @@ export interface StartupSettings {
   minimize_to_tray: boolean;
   check_for_updates: boolean;
   last_update_check?: string; // ISO date string
-  update_channel: UpdateChannel;
   auto_update_settings: boolean;
 }
 

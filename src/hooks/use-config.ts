@@ -98,6 +98,20 @@ export function useConfig() {
     [configService]
   );
 
+  const updateLastUpdateCheck = useCallback(async () => {
+    try {
+      setError(null);
+      await configService.updateLastUpdateCheck();
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : 'Failed to update last update check'
+      );
+      throw err;
+    }
+  }, [configService]);
+
   const reload = useCallback(async () => {
     try {
       setLoading(true);
@@ -120,6 +134,7 @@ export function useConfig() {
     updateLanguage,
     updateTelemetrySettings,
     updateStartupSettings,
+    updateLastUpdateCheck,
     reload,
   };
 }

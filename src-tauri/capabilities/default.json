@@ -3,6 +3,7 @@
   "identifier": "default",
   "description": "Capability for the main window",
   "windows": ["main"],
+  "platforms": ["macOS", "windows", "linux"],
   "permissions": [
     "core:default",
     "opener:default",
@@ -127,6 +128,7 @@
     "core:resources:default",
     "core:tray:default",
     "core:webview:default",
-    "core:window:default"
+    "core:window:default",
+    "updater:default"
   ]
 }

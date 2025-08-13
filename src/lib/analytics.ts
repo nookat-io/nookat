@@ -6,6 +6,10 @@ import { ConfigService } from './config';
 export const APTABASE_APP_KEY = ANALYTICS_CONFIG.APTABASE_APP_KEY;
 export const APP_VERSION = ANALYTICS_CONFIG.APP_VERSION;
 
+export function isAptabaseReleaseEnabled(): boolean {
+  return ANALYTICS_CONFIG.BUILD_MODE !== 'development';
+}
+
 export { AptabaseProvider, useAptabase };
 
 export class AnalyticsService {

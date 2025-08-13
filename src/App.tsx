@@ -8,6 +8,7 @@ import {
   AptabaseProvider,
   APTABASE_APP_KEY,
   APP_VERSION,
+  isAptabaseReleaseEnabled,
 } from './lib/analytics';
 
 import ContainersPage from './pages/ContainersPage';
@@ -56,7 +57,10 @@ function App() {
   return (
     <AptabaseProvider
       appKey={APTABASE_APP_KEY}
-      options={{ appVersion: APP_VERSION }}
+      options={{
+        appVersion: APP_VERSION,
+        isDebug: !isAptabaseReleaseEnabled(),
+      }}
     >
       <SentryProvider>
         <ThemeProvider>

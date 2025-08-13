@@ -6,132 +6,117 @@ on:
     branches:
       - release
 
+concurrency:
+  # This prevents concurrency
+  group: release
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+  packages: write
+
 jobs:
-  publish-tauri:
-    permissions:
-      contents: write
+  # Orchestrator job that coordinates the release process
+  release-coordinator:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.get-version.outputs.version }}
+      version-tag: ${{ steps.get-version.outputs.version-tag }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - platform: 'macos-latest'
-            args: '--target universal-apple-darwin'
-          - platform: 'ubuntu-22.04'
-            args: ''
-          - platform: 'windows-latest'
-            args: ''
+      - name: Get version from tauri.conf.json
+        id: get-version
+        run: |
+          VERSION=$(jq -r '.version' < src-tauri/tauri.conf.json)
+          VERSION_TAG="v$VERSION"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "version-tag=$VERSION_TAG" >> $GITHUB_OUTPUT
+          echo "Version: $VERSION"
+          echo "Version Tag: $VERSION_TAG"
 
-    runs-on: ${{ matrix.platform }}
+      - name: Prepare Release
+        run: |
+          echo "Preparing release ${{ steps.get-version.outputs.version-tag }}..."
+          echo "Release coordination started at $(date)"
+
+  # macOS build job
+  build-macos:
+    needs: release-coordinator
+    uses: ./.github/workflows/build-macos.yaml
+    with:
+      version: ${{ needs.release-coordinator.outputs.version }}
+      version-tag: ${{ needs.release-coordinator.outputs.version-tag }}
+    secrets:
+      APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+      APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+      KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+      APPLE_ID: ${{ secrets.APPLE_ID }}
+      APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      TAURI_SIGNING_PUBLIC_KEY: ${{ secrets.TAURI_SIGNING_PUBLIC_KEY }}
+      TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+      TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+      VITE_APTABASE_APP_KEY: ${{ secrets.VITE_APTABASE_APP_KEY }}
+      VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
+      SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+
+  # Windows build job
+  build-windows:
+    needs: release-coordinator
+    uses: ./.github/workflows/build-windows.yaml
+    with:
+      version: ${{ needs.release-coordinator.outputs.version }}
+      version-tag: ${{ needs.release-coordinator.outputs.version-tag }}
+    secrets:
+      TAURI_SIGNING_PUBLIC_KEY: ${{ secrets.TAURI_SIGNING_PUBLIC_KEY }}
+      TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+      TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+      VITE_APTABASE_APP_KEY: ${{ secrets.VITE_APTABASE_APP_KEY }}
+      VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
+      SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+
+  # Linux build job
+  build-linux:
+    needs: release-coordinator
+    uses: ./.github/workflows/build-linux.yaml
+    with:
+      version: ${{ needs.release-coordinator.outputs.version }}
+      version-tag: ${{ needs.release-coordinator.outputs.version-tag }}
+    secrets:
+      TAURI_SIGNING_PUBLIC_KEY: ${{ secrets.TAURI_SIGNING_PUBLIC_KEY }}
+      TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+      TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+      VITE_APTABASE_APP_KEY: ${{ secrets.VITE_APTABASE_APP_KEY }}
+      VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
+      SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+
+  # Final release coordination
+  release-completion:
+    needs: [release-coordinator, build-macos, build-windows, build-linux]
+    runs-on: ubuntu-latest
+    if: always()
     steps:
       - uses: actions/checkout@v4
 
-      - name: setup node
-        uses: actions/setup-node@v4
-        with:
-          node-version: lts/*
-
-      - name: install Rust stable
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          # Those targets are only used on macos runners so it's in an `if` to slightly speed up windows and linux builds.
-          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
-
-      - name: install dependencies (ubuntu only)
-        if: matrix.platform == 'ubuntu-22.04' # This must match the platform value defined above.
+      - name: Check build status
         run: |
-          sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.0-dev libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+          echo "Build Status Summary:"
+          echo "macOS: ${{ needs.build-macos.result }}"
+          echo "Windows: ${{ needs.build-windows.result }}"
+          echo "Linux: ${{ needs.build-linux.result }}"
 
-      - name: install frontend dependencies
-        run: yarn install # change this to npm, pnpm or bun depending on which one you use.
-
-      - name: Prepare for Release
-        run: |
-          echo "Preparing release..."
-          echo "Tagging version..."
-
-      - name: Import Apple Developer Certificate (macOS only)
-        if: matrix.platform == 'macos-latest'
-        env:
-          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
-          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
-        run: |
-          echo $APPLE_CERTIFICATE | base64 --decode > certificate.p12
-          security create-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
-          security default-keychain -s build.keychain
-          security unlock-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
-          security set-keychain-settings -t 3600 -u build.keychain
-          security import certificate.p12 -k build.keychain -P "$APPLE_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
-          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" build.keychain
-          security find-identity -v -p codesigning build.keychain
-
-      - name: verify certificate (macOS only)
-        if: matrix.platform == 'macos-latest'
-        run: |
-          CERT_INFO=$(security find-identity -v -p codesigning build.keychain | grep "Developer ID Application")
-          CERT_ID=$(echo "$CERT_INFO" | awk -F'"' '{print $2}')
-          echo "CERT_ID=$CERT_ID" >> $GITHUB_ENV
-          echo "Certificate imported."
-
-      - name: Read version and set env (Linux/macOS)
-        if: matrix.platform != 'windows-latest'
-        shell: bash
-        run: |
-          VERSION_TAG=v$(jq -r '.version' < src-tauri/tauri.conf.json)
-          echo "VERSION_TAG=$VERSION_TAG" >> $GITHUB_ENV
-
-      - name: Read version and set env (Windows)
-        if: matrix.platform == 'windows-latest'
-        shell: pwsh
-        run: |
-          $version = (Get-Content src-tauri/tauri.conf.json | ConvertFrom-Json).version
-          $VERSION_TAG = "v$version"
-          echo "VERSION_TAG=$VERSION_TAG" >> $env:GITHUB_ENV
-
-      - name: Build and Publish
-        uses: tauri-apps/tauri-action@v0
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
-          APPLE_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
-          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-          VITE_APTABASE_APP_KEY: ${{ secrets.VITE_APTABASE_APP_KEY }}
-          # VITE_SENTRY_DSN for frontend (vite)
-          VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
-          # SENTRY_DSN for backend (tauri)
-          SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
-        with:
-          tagName: ${{ env.VERSION_TAG }}
-          releaseName: 'nookat ${{ env.VERSION_TAG }}'
-          releaseBody: 'See the assets to download this version and install.'
-          releaseDraft: true
-          includeDebug: true
-          args: ${{ matrix.args }}
-
-      - name: Set Version Tag (Linux/macOS)
-        if: matrix.platform != 'windows-latest'
-        shell: bash
-        run: |
-          if git rev-parse "${{ env.VERSION_TAG }}" >/dev/null 2>&1; then echo "Tag ${{ env.VERSION_TAG }} already exists. Skipping tagging."
-          else echo "Tagging with version: ${{ env.VERSION_TAG }}"
-            git tag ${{ env.VERSION_TAG }}
-            git push origin ${{ env.VERSION_TAG }}
+          if [[ "${{ needs.build-macos.result }}" == "success" && "${{ needs.build-windows.result }}" == "success" && "${{ needs.build-linux.result }}" == "success" ]]; then
+            echo "✅ All platform builds completed successfully!"
+          else
+            echo "❌ Some platform builds failed. Check individual workflow runs for details."
+            exit 1
           fi
 
-      - name: Set Version Tag (Windows)
-        if: matrix.platform == 'windows-latest'
-        shell: pwsh
+      - name: Release Summary
         run: |
-          $tagExists = git rev-parse "${{ env.VERSION_TAG }}" 2>$null
-          if ($LASTEXITCODE -eq 0) {
-            echo "Tag ${{ env.VERSION_TAG }} already exists. Skipping tagging."
-          } else {
-            echo "Tagging with version: ${{ env.VERSION_TAG }}"
-            git tag ${{ env.VERSION_TAG }}
-            git push origin ${{ env.VERSION_TAG }}
-          }
+          echo "🎉 Release ${{ needs.release-coordinator.outputs.version-tag }} completed!"
+          echo "All platform builds have been published to GitHub releases."
+          echo "Release is available as a draft and can be published manually."

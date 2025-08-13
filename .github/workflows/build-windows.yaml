@@ -1,0 +1,94 @@
+name: Build Windows
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        required: true
+        type: string
+      version-tag:
+        required: true
+        type: string
+    secrets:
+      TAURI_SIGNING_PUBLIC_KEY:
+        required: true
+      TAURI_SIGNING_PRIVATE_KEY:
+        required: true
+      TAURI_SIGNING_PRIVATE_KEY_PASSWORD:
+        required: true
+      VITE_APTABASE_APP_KEY:
+        required: true
+      VITE_SENTRY_DSN:
+        required: true
+      SENTRY_DSN:
+        required: true
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    permissions:
+      contents: write
+      packages: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+          cache: 'npm'
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Set public key for updater
+        env:
+          TAURI_SIGNING_PUBLIC_KEY: ${{ secrets.TAURI_SIGNING_PUBLIC_KEY }}
+        shell: pwsh
+        run: |
+          Write-Host "Setting Tauri signing public key..."
+          Set-Location src-tauri
+          $content = Get-Content tauri.conf.json -Raw
+          $content = $content -replace "YOUR_PUBLIC_KEY_HERE", $env:TAURI_SIGNING_PUBLIC_KEY
+          Set-Content tauri.conf.json -Value $content -NoNewline
+
+          # Verify the replacement was successful
+          $updatedContent = Get-Content tauri.conf.json -Raw
+          if ($updatedContent -like "*YOUR_PUBLIC_KEY_HERE*") {
+            Write-Error "Updater public key replacement failed - placeholder still exists."
+            exit 1
+          }
+          if ($updatedContent -notlike "*$($env:TAURI_SIGNING_PUBLIC_KEY)*") {
+            Write-Error "Updater public key replacement failed - new key not found."
+            exit 1
+          }
+
+      - name: Build and Publish
+        uses: tauri-apps/tauri-action@v0
+        env:
+          VITE_APTABASE_APP_KEY: ${{ secrets.VITE_APTABASE_APP_KEY }}
+          VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
+          SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+          TAURI_SIGNING_PUBLIC_KEY: ${{ secrets.TAURI_SIGNING_PUBLIC_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: ${{ inputs.version-tag }}
+          releaseName: 'Nookat ${{ inputs.version-tag }} (Windows)'
+          releaseBody: 'Windows executable (.exe)'
+          releaseDraft: true
+          includeDebug: true
+          updaterJsonPreferNsis: true
+
+      - name: Build Summary
+        shell: pwsh
+        run: |
+          Write-Host "✅ Windows build completed successfully!" -ForegroundColor Green
+          Write-Host "Version: ${{ inputs.version }}"
+          Write-Host "Version Tag: ${{ inputs.version-tag }}"
+          Write-Host "Target: x86_64-pc-windows-msvc"
