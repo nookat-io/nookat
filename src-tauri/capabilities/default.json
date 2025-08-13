@@ -129,6 +129,7 @@
     "core:tray:default",
     "core:webview:default",
     "core:window:default",
-    "updater:default"
+    "updater:default",
+    "autostart:default"
   ]
 }

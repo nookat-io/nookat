@@ -4,6 +4,7 @@ pub mod sentry;
 mod services;
 mod state;
 
+use crate::services::ConfigService;
 use crate::handlers::{
     bulk_force_remove_containers, bulk_pause_containers, bulk_remove_containers,
     bulk_remove_networks, bulk_remove_volumes, bulk_restart_containers, bulk_start_containers,
@@ -87,6 +88,7 @@ fn build_tray(app: &mut App) -> Result<(), String> {
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_autostart::Builder::new().build())
         .plugin(tauri_plugin_opener::init())
         .manage(SharedDockerState::new())
         .invoke_handler(tauri::generate_handler![
@@ -140,10 +142,19 @@ pub fn run() {
         .setup(|app| Ok(build_tray(app)?))
         .on_window_event(|window, event| match event {
             tauri::WindowEvent::CloseRequested { api, .. } => {
-                if let Err(e) = window.hide() {
-                    error!("Failed to hide window: {}", e);
+                if let Ok(config) = ConfigService::get_config() {
+                    if config.startup.minimize_to_tray {
+                        if let Err(e) = window.hide() {
+                            error!("Failed to hide window: {}", e);
+                            window.app_handle().exit(0);
+                        }
+                        api.prevent_close();
+                    } else {
+                        window.app_handle().exit(0);
+                    }
+                } else {
+                    window.app_handle().exit(0);
                 }
-                api.prevent_close();
             }
             // There is no Minimized event in Tauri v2, so we can't handle minimize directly.
             _ => {}
