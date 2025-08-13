@@ -25,6 +25,7 @@ import { useConfig } from '../../hooks/use-config';
 import { useUpdater } from '../../hooks/use-updater';
 import { Language } from '../../types/config';
 import { Download, RefreshCw } from 'lucide-react';
+import { toast } from 'sonner';
 
 export function GeneralSettings() {
   const {
@@ -69,6 +70,28 @@ export function GeneralSettings() {
         send_anonymous_usage_data: sendAnonymousUsageData,
         error_reporting: errorReporting,
       });
+
+      // Show success toast
+      const changes = [];
+      if (
+        sendAnonymousUsageData !== config.telemetry.send_anonymous_usage_data
+      ) {
+        changes.push(sendAnonymousUsageData ? 'enabled' : 'disabled');
+      }
+      if (errorReporting !== config.telemetry.error_reporting) {
+        changes.push(errorReporting ? 'enabled' : 'disabled');
+      }
+
+      if (changes.length > 0) {
+        toast.success(`Telemetry settings updated: ${changes.join(', ')}`);
+      }
+    } catch (error) {
+      console.error('Failed to update telemetry settings:', error);
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : 'Failed to update telemetry settings';
+      toast.error(errorMessage);
     } finally {
       setSaving(false);
     }
@@ -84,6 +107,25 @@ export function GeneralSettings() {
         [key]: value,
       };
       await updateStartupSettings(updatedSettings);
+
+      // Show success toast with descriptive message
+      const settingNames: Record<string, string> = {
+        start_on_system_startup: 'Start on system boot',
+        minimize_to_tray: 'Minimize to system tray',
+        check_for_updates: 'Check for updates',
+        auto_update_settings: 'Automatic updates',
+      };
+
+      const settingName = settingNames[key] || key;
+      const action = value ? 'enabled' : 'disabled';
+      toast.success(`${settingName} ${action}`);
+    } catch (error) {
+      console.error('Failed to update startup settings:', error);
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : 'Failed to update startup settings';
+      toast.error(errorMessage);
     } finally {
       setSaving(false);
     }
@@ -93,6 +135,18 @@ export function GeneralSettings() {
     setSaving(true);
     try {
       await updateLanguage(language as Language);
+
+      // Show success toast
+      const languageLabel =
+        languageOptions.find(opt => opt.value === language)?.label || language;
+      toast.success(
+        `Language changed to ${languageLabel}. Restart the application for changes to take effect.`
+      );
+    } catch (error) {
+      console.error('Failed to update language:', error);
+      const errorMessage =
+        error instanceof Error ? error.message : 'Failed to update language';
+      toast.error(errorMessage);
     } finally {
       setSaving(false);
     }
@@ -251,7 +305,8 @@ export function GeneralSettings() {
             <div className="space-y-0.5">
               <Label htmlFor="minimize-to-tray">Minimize to system tray</Label>
               <div className="text-sm text-muted-foreground">
-                Keep Nookat running in the background
+                Keep Nookat running in the background, when close button is
+                clicked
               </div>
             </div>
             <Switch

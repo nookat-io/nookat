@@ -64,7 +64,7 @@ export class ConfigService {
     try {
       this.config = await invoke<AppConfig>('get_config');
       this.notifySubscribers();
-      
+
       // Sync autostart status after loading config
       setTimeout(() => {
         this.syncAutostartStatus().catch(error => {
@@ -134,12 +134,14 @@ export class ConfigService {
     try {
       // Get current settings to check if autostart changed
       const currentConfig = this.config;
-      const autostartChanged = currentConfig && 
-        currentConfig.startup.start_on_system_startup !== settings.start_on_system_startup;
+      const autostartChanged =
+        currentConfig &&
+        currentConfig.startup.start_on_system_startup !==
+          settings.start_on_system_startup;
 
       // Update the config first
       await invoke('update_startup_settings', { settings });
-      
+
       // Handle autostart functionality if it changed
       if (autostartChanged) {
         if (settings.start_on_system_startup) {
@@ -148,7 +150,7 @@ export class ConfigService {
           await disable();
         }
       }
-      
+
       await this.refreshConfig();
     } catch (error) {
       console.error('Failed to update startup settings:', error);
@@ -186,14 +188,17 @@ export class ConfigService {
     try {
       const actualAutostartEnabled = await isEnabled();
       const currentConfig = this.config;
-      
-      if (currentConfig && currentConfig.startup.start_on_system_startup !== actualAutostartEnabled) {
+
+      if (
+        currentConfig &&
+        currentConfig.startup.start_on_system_startup !== actualAutostartEnabled
+      ) {
         // Update config to match actual autostart status
         const updatedSettings = {
           ...currentConfig.startup,
           start_on_system_startup: actualAutostartEnabled,
         };
-        
+
         await invoke('update_startup_settings', { settings: updatedSettings });
         await this.refreshConfig();
       }
