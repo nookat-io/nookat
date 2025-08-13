@@ -6,6 +6,7 @@ use std::collections::HashMap;
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub enum DockerStatus {
+    NotInstalled,
     Running,
     Stopped,
     Error,

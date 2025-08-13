@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
+import { useEngineSetup } from '../../hooks/use-engine-setup';
 import {
   Card,
   CardContent,
@@ -139,6 +140,14 @@ export function EngineSettings() {
   const [dockerInfo, setDockerInfo] = useState<DockerInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Engine setup hook for Colima detection
+  const {
+    colimaStatus,
+    requirements,
+    loading: engineLoading,
+    refresh: refreshEngine,
+  } = useEngineSetup();
 
   useEffect(() => {
     const fetchDockerInfo = async () => {
@@ -285,6 +294,104 @@ export function EngineSettings() {
                     </div>
                   </div>
                 </div>
+              </div>
+
+              <Separator />
+
+              {/* Colima Status Section */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold flex items-center gap-2">
+                  <Server className="h-4 w-4" />
+                  Colima VM Status
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="flex items-center gap-3 p-4 bg-gradient-to-r from-orange-50 to-amber-50 dark:from-orange-950/20 dark:to-amber-950/20 rounded-lg border">
+                    <div className="p-2 bg-orange-100 dark:bg-orange-900/30 rounded-lg">
+                      <Server className="h-4 w-4 text-orange-600 dark:text-orange-400" />
+                    </div>
+                    <div>
+                      <div className="text-sm font-medium">Colima Status</div>
+                      <Badge
+                        className={
+                          !colimaStatus?.is_installed
+                            ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300'
+                            : !colimaStatus?.is_running
+                              ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300'
+                              : 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300'
+                        }
+                      >
+                        {!colimaStatus?.is_installed
+                          ? 'Not Installed'
+                          : !colimaStatus?.is_running
+                            ? 'Stopped'
+                            : 'Running'}
+                      </Badge>
+                    </div>
+                  </div>
+
+                  {colimaStatus?.vm_info && (
+                    <div className="flex items-center gap-3 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/20 dark:to-indigo-950/20 rounded-lg border">
+                      <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
+                        <Cpu className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                      </div>
+                      <div>
+                        <div className="text-sm font-medium">VM Resources</div>
+                        <div className="text-sm">
+                          {colimaStatus.vm_info.cpu} CPU,{' '}
+                          {formatBytes(colimaStatus.vm_info.memory)} RAM
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Requirements and Actions */}
+                {requirements && (
+                  <div className="space-y-3">
+                    {requirements.needs_docker_install && (
+                      <div className="flex items-center gap-2 p-3 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 rounded-lg">
+                        <AlertTriangle className="h-4 w-4 text-red-600 dark:text-red-400" />
+                        <div className="text-sm text-red-800 dark:text-red-200">
+                          Docker needs to be installed on your system
+                        </div>
+                      </div>
+                    )}
+                    {requirements.needs_docker_start && (
+                      <div className="flex items-center gap-2 p-3 bg-orange-50 dark:bg-orange-950/20 border border-orange-200 dark:border-orange-800 rounded-lg">
+                        <AlertTriangle className="h-4 w-4 text-orange-600 dark:text-orange-400" />
+                        <div className="text-sm text-orange-800 dark:text-orange-200">
+                          Docker is installed but the daemon is not running
+                        </div>
+                      </div>
+                    )}
+                    {requirements.needs_colima_install && (
+                      <div className="flex items-center gap-2 p-3 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-lg">
+                        <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                        <div className="text-sm text-amber-800 dark:text-amber-200">
+                          Colima needs to be installed to run Docker containers
+                        </div>
+                      </div>
+                    )}
+                    {requirements.needs_colima_start && (
+                      <div className="flex items-center gap-2 p-3 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                        <Info className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                        <div className="text-sm text-blue-800 dark:text-blue-200">
+                          Colima VM is installed but not running
+                        </div>
+                      </div>
+                    )}
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={refreshEngine}
+                        disabled={engineLoading}
+                      >
+                        {engineLoading ? 'Refreshing...' : 'Refresh Status'}
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <Separator />
