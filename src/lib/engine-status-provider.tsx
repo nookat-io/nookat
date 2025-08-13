@@ -29,6 +29,7 @@ export function EngineStatusProvider({ children }: ProviderProps) {
       const {
         state,
         name: engineName,
+        version: engineVersion,
         error: statusError,
       } = await invoke<EngineStatus>('engine_status');
       if (!mountedRef.current) return;
@@ -44,10 +45,12 @@ export function EngineStatusProvider({ children }: ProviderProps) {
         return;
       }
 
+      // Set all state fields for healthy engine state
       if (engineName != null) {
-        if (!mountedRef.current) return;
         setEngineName(engineName);
-        return;
+      }
+      if (engineVersion != null) {
+        setVersion(engineVersion);
       }
     } catch (e) {
       // shouldn't hit here

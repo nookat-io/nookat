@@ -12,13 +12,13 @@
   "app": {
     "windows": [
       {
-        "title": "",
+        "title": "Nookat",
         "width": 1280,
         "height": 800,
         "minWidth": 1280,
         "minHeight": 800,
         "decorations": true,
-        "transparent": true,
+        "transparent": false,
         "titleBarStyle": "Overlay",
         "resizable": true,
         "center": true,
