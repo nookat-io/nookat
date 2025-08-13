@@ -18,13 +18,14 @@ export function EngineStatusProvider({ children }: ProviderProps) {
   const [engineState, setEngineState] = useState<EngineState>(
     EngineState.Loading
   );
-  const [engineName, setEngineName] = useState<string>('Docker Engine'); // TODO: engineName will be renamed to engineName in follow-up PR
+  const [engineName, setEngineName] = useState<string>('Container Engine');
   // ref to track mounted state so async fetch can avoid updating after unmount
   const mountedRef = useRef(true);
 
   const fetchEngineInfo = useCallback(async () => {
     if (!mountedRef.current) return;
     setError(null);
+    setEngineState(EngineState.Loading);
     try {
       const {
         state,
@@ -45,19 +46,15 @@ export function EngineStatusProvider({ children }: ProviderProps) {
         return;
       }
 
-      // Set all state fields for healthy engine state
-      if (engineName != null) {
-        setEngineName(engineName);
-      }
-      if (engineVersion != null) {
-        setVersion(engineVersion);
-      }
+      setEngineName(engineName);
+      setVersion(engineVersion ?? null);
     } catch (e) {
       // shouldn't hit here
       if (!mountedRef.current) return;
       setVersion(null);
       setEngineState(EngineState.Malfunctioning);
-      setError(String((e as Error).message));
+      const message = e instanceof Error ? e.message : String(e);
+      setError(message);
     }
   }, []);
 
