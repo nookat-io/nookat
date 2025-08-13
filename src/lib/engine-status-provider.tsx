@@ -38,9 +38,9 @@ export function EngineStatusProvider({ children }: ProviderProps) {
         if (!mountedRef.current) return;
         setVersion(null);
         if (state === EngineState.NotInstalled) {
-          setError('Docker Engine could not be detected on your computer.');
+          setError('Container Engine could not be detected on your computer.');
         } else if (state === EngineState.Malfunctioning) {
-          setError(statusError ?? 'Docker Engine error');
+          setError(statusError ?? 'Container Engine error');
         }
         return;
       }

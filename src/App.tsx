@@ -36,15 +36,41 @@ function AppContent() {
         <EngineStatusProvider>
           <Header />
           <main className="flex-1 overflow-auto">
-            <EngineErrorBoundary>
-              <Routes>
-                <Route path="/" element={<ContainersPage />} />
-                <Route path="/images" element={<ImagesPage />} />
-                <Route path="/networks" element={<NetworksPage />} />
-                <Route path="/volumes" element={<VolumesPage />} />
-                <Route path="/settings" element={<SettingsPage />} />
-              </Routes>
-            </EngineErrorBoundary>
+            <Routes>
+              <Route
+                path="/"
+                element={
+                  <EngineErrorBoundary>
+                    <ContainersPage />
+                  </EngineErrorBoundary>
+                }
+              />
+              <Route
+                path="/images"
+                element={
+                  <EngineErrorBoundary>
+                    <ImagesPage />
+                  </EngineErrorBoundary>
+                }
+              />
+              <Route
+                path="/networks"
+                element={
+                  <EngineErrorBoundary>
+                    <NetworksPage />
+                  </EngineErrorBoundary>
+                }
+              />
+              <Route
+                path="/volumes"
+                element={
+                  <EngineErrorBoundary>
+                    <VolumesPage />
+                  </EngineErrorBoundary>
+                }
+              />
+              <Route path="/settings" element={<SettingsPage />} />
+            </Routes>
           </main>
         </EngineStatusProvider>
       </div>
