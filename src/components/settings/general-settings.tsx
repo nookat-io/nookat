@@ -305,7 +305,7 @@ export function GeneralSettings() {
             <div className="space-y-0.5">
               <Label htmlFor="minimize-to-tray">Minimize to system tray</Label>
               <div className="text-sm text-muted-foreground">
-                Keep Nookat running in the background, when close button is
+                Keep Nookat running in the background when the close button is
                 clicked
               </div>
             </div>
