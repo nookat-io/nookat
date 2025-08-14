@@ -16,6 +16,7 @@ import ImagesPage from './pages/ImagesPage';
 import NetworksPage from './pages/NetworksPage';
 import VolumesPage from './pages/VolumesPage';
 import SettingsPage from './pages/SettingsPage';
+import LimaVMPage from './pages/LimaVMPage';
 import { usePageAnalytics } from './hooks/use-analytics';
 
 function AppContent() {
@@ -38,6 +39,7 @@ function AppContent() {
             <Route path="/images" element={<ImagesPage />} />
             <Route path="/networks" element={<NetworksPage />} />
             <Route path="/volumes" element={<VolumesPage />} />
+            <Route path="/lima-vm" element={<LimaVMPage />} />
             <Route path="/settings" element={<SettingsPage />} />
           </Routes>
         </main>

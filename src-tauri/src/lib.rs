@@ -13,7 +13,8 @@ use crate::handlers::{
     pause_container, prune_containers, prune_images, prune_volumes, remove_container,
     remove_network, remove_volume, restart_container, start_container, stop_container,
     unpause_container, update_language, update_last_update_check, update_startup_settings,
-    update_telemetry_settings, update_theme,
+    update_telemetry_settings, update_theme, check_homebrew_availability, start_colima_installation,
+    get_installation_logs, start_colima_vm, start_colima_vm_background, get_vm_startup_logs,
 };
 use crate::sentry::flush_sentry;
 use crate::state::SharedDockerState;
@@ -138,6 +139,12 @@ pub fn run() {
             // Engine Setup
             detect_engine_status,
             check_colima_availability,
+            check_homebrew_availability,
+            start_colima_installation,
+            get_installation_logs,
+            start_colima_vm,
+            start_colima_vm_background,
+            get_vm_startup_logs,
         ])
         .setup(|app| {
             Ok(build_tray(app)?)

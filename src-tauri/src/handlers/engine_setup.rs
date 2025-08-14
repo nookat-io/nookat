@@ -1,12 +1,12 @@
-use crate::entities::{ColimaStatus, DockerStatus, EngineSetupStatus};
+use crate::entities::{ColimaStatus, DockerStatus, EngineSetupStatus, VmConfig, HomebrewStatus};
 use crate::services::EngineSetupService;
 use crate::state::SharedDockerState;
 use tauri::State;
 use tracing::{info, instrument};
 
 #[tauri::command]
-  #[instrument(skip_all, err)]
-  pub async fn detect_engine_status(state: State<'_, SharedDockerState>) -> Result<EngineSetupStatus, String> {
+#[instrument(skip_all, err)]
+pub async fn detect_engine_status(state: State<'_, SharedDockerState>) -> Result<EngineSetupStatus, String> {
     // First, check if Docker is installed by running `docker version`
     let docker_version_output = std::process::Command::new("docker")
         .arg("version")
@@ -36,7 +36,6 @@ use tracing::{info, instrument};
     // Docker is installed, now check if it's running via the state
     let docker_result = state.get_docker().await;
 
-
     if docker_result.is_err() {
         info!("docker is installed but not running");
 
@@ -62,10 +61,46 @@ use tracing::{info, instrument};
         docker_status,
         colima_status,
     })
-  }
+}
 
 #[tauri::command]
 #[instrument(skip_all, err)]
 pub async fn check_colima_availability() -> Result<ColimaStatus, String> {
     EngineSetupService::check_colima_status().await
+}
+
+#[tauri::command]
+#[instrument(skip_all, err)]
+pub async fn check_homebrew_availability() -> Result<HomebrewStatus, String> {
+    EngineSetupService::check_homebrew_availability().await
+}
+
+#[tauri::command]
+#[instrument(skip_all, err)]
+pub async fn start_colima_installation() -> Result<(), String> {
+    EngineSetupService::start_colima_installation().await
+}
+
+#[tauri::command]
+#[instrument(skip_all, err)]
+pub async fn get_installation_logs() -> Result<Vec<String>, String> {
+    EngineSetupService::get_installation_logs().await
+}
+
+#[tauri::command]
+#[instrument(skip_all, err)]
+pub async fn start_colima_vm(config: VmConfig) -> Result<(), String> {
+    EngineSetupService::start_colima_vm(config).await
+}
+
+#[tauri::command]
+#[instrument(skip_all, err)]
+pub async fn start_colima_vm_background(config: VmConfig) -> Result<(), String> {
+    EngineSetupService::start_colima_vm_background(config).await
+}
+
+#[tauri::command]
+#[instrument(skip_all, err)]
+pub async fn get_vm_startup_logs() -> Result<Vec<String>, String> {
+    EngineSetupService::get_vm_startup_logs().await
 }

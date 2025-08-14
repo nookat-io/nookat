@@ -10,6 +10,7 @@ import {
   Layers,
   ChevronLeft,
   ChevronRight,
+  Monitor,
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { Button } from '../ui/button';
@@ -19,6 +20,7 @@ const navigation = [
   { name: 'Images', href: '/images', icon: Layers },
   { name: 'Volumes', href: '/volumes', icon: HardDrive },
   { name: 'Networks', href: '/networks', icon: Network },
+  { name: 'Lima VM', href: '/lima-vm', icon: Monitor },
   { name: 'Settings', href: '/settings', icon: Settings },
 ];
 
