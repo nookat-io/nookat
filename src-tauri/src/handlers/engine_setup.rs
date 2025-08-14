@@ -1,4 +1,4 @@
-use crate::entities::{ColimaStatus, DockerStatus, EngineSetupStatus, VmConfig, HomebrewStatus};
+use crate::entities::{ColimaStatus, DockerStatus, EngineSetupStatus, VmConfig, HomebrewStatus, VersionInfo, DownloadResult};
 use crate::services::EngineSetupService;
 use crate::state::SharedDockerState;
 use tauri::State;
@@ -103,4 +103,40 @@ pub async fn start_colima_vm_background(config: VmConfig) -> Result<(), String> 
 #[instrument(skip_all, err)]
 pub async fn get_vm_startup_logs() -> Result<Vec<String>, String> {
     EngineSetupService::get_vm_startup_logs().await
+}
+
+#[tauri::command]
+#[instrument(skip_all, err)]
+pub async fn get_colima_versions() -> Result<VersionInfo, String> {
+    EngineSetupService::get_colima_versions().await
+}
+
+#[tauri::command]
+#[instrument(skip_all, err)]
+pub async fn download_colima_binaries() -> Result<DownloadResult, String> {
+    EngineSetupService::download_colima_binaries().await
+}
+
+#[tauri::command]
+#[instrument(skip_all, err)]
+pub async fn verify_binary_checksums() -> Result<bool, String> {
+    EngineSetupService::verify_binary_checksums().await
+}
+
+#[tauri::command]
+#[instrument(skip_all, err)]
+pub async fn binary_install_colima() -> Result<(), String> {
+    EngineSetupService::install_colima_binary().await
+}
+
+#[tauri::command]
+#[instrument(skip_all, err)]
+pub async fn get_binary_installation_logs() -> Result<Vec<String>, String> {
+    EngineSetupService::get_binary_installation_logs().await
+}
+
+#[tauri::command]
+#[instrument(skip_all, err)]
+pub async fn clear_binary_installation_logs() -> Result<(), String> {
+    EngineSetupService::clear_binary_installation_logs().await
 }

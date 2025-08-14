@@ -1,0 +1,12 @@
+{
+  "colima": {
+    "version": "0.6.3",
+    "checksum": "a904000c09033afbdb0080635a8018c109f4181315ab59b1a30168eee50d0785",
+    "download_url": "https://github.com/abiosoft/colima/releases/download/v0.6.3/colima-Darwin-x86_64"
+  },
+  "lima": {
+    "version": "0.23.0",
+    "checksum": "9e1ac782034b1c9cae010304ccb6f39ff8604da4a84d5d32b6f689340380d45d",
+    "download_url": "https://github.com/lima-vm/lima/releases/download/v0.23.0/lima-0.23.0-Darwin-x86_64.tar.gz"
+  }
+}

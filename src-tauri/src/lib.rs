@@ -15,6 +15,8 @@ use crate::handlers::{
     unpause_container, update_language, update_last_update_check, update_startup_settings,
     update_telemetry_settings, update_theme, check_homebrew_availability, start_colima_installation,
     get_installation_logs, start_colima_vm, start_colima_vm_background, get_vm_startup_logs,
+    get_colima_versions, download_colima_binaries, verify_binary_checksums, binary_install_colima,
+    get_binary_installation_logs, clear_binary_installation_logs,
 };
 use crate::sentry::flush_sentry;
 use crate::state::SharedDockerState;
@@ -145,6 +147,12 @@ pub fn run() {
             start_colima_vm,
             start_colima_vm_background,
             get_vm_startup_logs,
+            get_colima_versions,
+            download_colima_binaries,
+            verify_binary_checksums,
+            binary_install_colima,
+            get_binary_installation_logs,
+            clear_binary_installation_logs,
         ])
         .setup(|app| {
             Ok(build_tray(app)?)

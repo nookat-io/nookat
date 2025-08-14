@@ -10,7 +10,6 @@ import {
 import { Badge } from '../ui/badge';
 import { LoadingSpinner } from '../ui/loading-spinner';
 import { invoke } from '@tauri-apps/api/core';
-import { VmResourceConfig, VmConfig } from './vm-resource-config';
 
 interface HomebrewStatus {
   is_available: boolean;
@@ -29,13 +28,6 @@ export function HomebrewInstallation() {
   const [error, setError] = useState<string | null>(null);
   const installationIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const vmStartupIntervalRef = useRef<NodeJS.Timeout | null>(null);
-
-  const [vmConfig, setVmConfig] = useState<VmConfig>({
-    cpu_cores: 2,
-    memory_gb: 4,
-    disk_gb: 20,
-    architecture: 'auto',
-  });
 
   useEffect(() => {
     checkHomebrewAvailability();
@@ -113,7 +105,7 @@ export function HomebrewInstallation() {
       setVmStartupLogs([]);
 
       // Start the background VM startup
-      await invoke('start_colima_vm_background', { config: vmConfig });
+      await invoke('start_colima_vm_background', { config: {} });
 
       // Start polling for logs every 500ms
       vmStartupIntervalRef.current = setInterval(async () => {
@@ -264,13 +256,9 @@ export function HomebrewInstallation() {
                 <span>VM startup in progress...</span>
               </div>
             ) : (
-              <VmResourceConfig
-                config={vmConfig}
-                onConfigChange={setVmConfig}
-                onSubmit={startVm}
-                isSubmitting={isStartingVm}
-                submitLabel="Start Colima VM"
-              />
+              <Button onClick={startVm} disabled={isStartingVm}>
+                Start Colima VM
+              </Button>
             )}
           </CardContent>
         </Card>

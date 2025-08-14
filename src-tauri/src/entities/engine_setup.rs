@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use std::time::Duration;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct VmInfo {
@@ -52,4 +53,36 @@ pub struct InstallationProgress {
 pub struct HomebrewStatus {
     pub is_available: bool,
     pub version: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct VersionInfo {
+    pub colima_version: String,
+    pub lima_version: String,
+    pub colima_checksum: String,
+    pub lima_checksum: String,
+    pub download_urls: DownloadUrls,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct DownloadUrls {
+    pub colima: String,
+    pub lima: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct DownloadResult {
+    pub colima_path: String,
+    pub lima_path: String,
+    pub download_size: u64,
+    pub download_time: Duration,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct DownloadProgress {
+    pub binary: String,
+    pub downloaded_bytes: u64,
+    pub total_bytes: u64,
+    pub speed_bytes_per_sec: u64,
+    pub eta_seconds: u64,
 }
