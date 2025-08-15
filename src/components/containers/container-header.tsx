@@ -1,9 +1,9 @@
 import { ContainerActions } from './container-actions';
-import { ContainerData } from './container-types';
+import { Container } from './container-types';
 
 interface ContainerHeaderProps {
   selectedContainers: string[];
-  containers: ContainerData[];
+  containers: Container[];
   onActionComplete?: () => void;
   onSelectionChange?: (selected: string[]) => void;
 }

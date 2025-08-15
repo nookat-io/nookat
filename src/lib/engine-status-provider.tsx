@@ -2,59 +2,70 @@ import { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import type { ReactNode } from 'react';
 import { EngineStatusContext } from '../hooks/use-engine-status';
-import {
-  EngineState,
-  EngineStatus,
-  EngineContextValue,
-} from '../types/engine-status';
+import { EngineStatus, EngineContextValue } from '../types/engine-status';
 
 interface ProviderProps {
   children: ReactNode;
 }
 
 export function EngineStatusProvider({ children }: ProviderProps) {
-  const [version, setVersion] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [engineState, setEngineState] = useState<EngineState>(
-    EngineState.Loading
-  );
-  const [engineName, setEngineName] = useState<string>('Container Engine');
+  const [engineStatus, setEngineStatus] = useState<EngineStatus>('Unknown');
   // ref to track mounted state so async fetch can avoid updating after unmount
   const mountedRef = useRef(true);
 
   const fetchEngineInfo = useCallback(async () => {
     if (!mountedRef.current) return;
-    setError(null);
-    setEngineState(EngineState.Loading);
+
     try {
-      const {
-        state,
-        name: engineName,
-        version: engineVersion,
-        error: statusError,
-      } = await invoke<EngineStatus>('engine_status');
+      const backendStatus = await invoke<EngineStatus>('engine_status');
       if (!mountedRef.current) return;
-      setEngineState(state);
-      if (state !== EngineState.Healthy) {
-        if (!mountedRef.current) return;
-        setVersion(null);
-        if (state === EngineState.NotInstalled) {
-          setError('Container Engine could not be detected on your computer.');
-        } else if (state === EngineState.Malfunctioning) {
-          setError(statusError ?? 'Container Engine error');
-        }
+
+      console.log('Backend engine status response:', backendStatus);
+      console.log('Backend status type:', typeof backendStatus);
+      console.log(
+        'Backend status keys:',
+        backendStatus ? Object.keys(backendStatus) : 'null/undefined'
+      );
+
+      // Validate that we received a valid status
+      if (!backendStatus) {
+        console.error('Null/undefined engine status response:', backendStatus);
+        setEngineStatus('Unknown');
         return;
       }
 
-      setEngineName(engineName);
-      setVersion(engineVersion ?? null);
+      // Check if it's a string (Unknown) or an object (Installed/Running)
+      if (typeof backendStatus === 'string') {
+        if (backendStatus !== 'Unknown') {
+          console.error('Unexpected string engine status:', backendStatus);
+          setEngineStatus('Unknown');
+          return;
+        }
+      } else if (typeof backendStatus === 'object') {
+        // Should have either Installed or Running key
+        if (!('Installed' in backendStatus) && !('Running' in backendStatus)) {
+          console.error(
+            'Invalid engine status object structure:',
+            backendStatus
+          );
+          setEngineStatus('Unknown');
+          return;
+        }
+      } else {
+        console.error(
+          'Unexpected engine status type:',
+          typeof backendStatus,
+          backendStatus
+        );
+        setEngineStatus('Unknown');
+        return;
+      }
+
+      setEngineStatus(backendStatus);
     } catch (e) {
-      // shouldn't hit here
       if (!mountedRef.current) return;
-      setVersion(null);
-      setEngineState(EngineState.Malfunctioning);
-      const message = e instanceof Error ? e.message : String(e);
-      setError(message);
+      console.error('Error fetching engine status:', e);
+      setEngineStatus('Unknown');
     }
   }, []);
 
@@ -66,26 +77,15 @@ export function EngineStatusProvider({ children }: ProviderProps) {
     };
   }, [fetchEngineInfo]);
 
-  const value = useMemo<EngineContextValue>(() => {
-    const base: EngineContextValue = {
-      name: engineName,
-      state: engineState,
+  const value = useMemo<EngineContextValue>(
+    () => ({
+      status: engineStatus,
       refetch: fetchEngineInfo,
-    };
-    if (engineState === EngineState.Healthy && version !== null) {
-      base.version = version;
-    }
-    if (error) {
-      base.error = error;
-    }
-    return base;
-  }, [engineState, version, error, fetchEngineInfo, engineName]);
+    }),
+    [engineStatus, fetchEngineInfo]
+  );
 
-  console.log('value', value);
-  console.log('engineState', engineState);
-  console.log('version', version);
-  console.log('error', error);
-  console.log('engineName', engineName);
+  console.log('Engine status context value:', value);
 
   return (
     <EngineStatusContext.Provider value={value}>

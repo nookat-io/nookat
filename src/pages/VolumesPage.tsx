@@ -1,9 +1,8 @@
-import { VolumeData } from '../components/volumes/volume-types';
 import { VolumeHeader } from '../components/volumes/volume-header';
 import { VolumeControls } from '../components/volumes/volume-controls';
 import { VolumesTable } from '../components/volumes/volumes-table';
 import { usePageState } from '../hooks/use-page-state';
-import { useDataProvider } from '../lib/use-data-provider';
+import { useVolumesProvider } from '../lib/use-data-provider';
 import { useFilter } from '../utils/use-filter';
 import { PageLayout } from '../components/layout/page-layout';
 import { usePageAnalytics } from '../hooks/use-analytics';
@@ -20,12 +19,7 @@ export default function VolumesPage() {
     setSearchTerm,
   } = usePageState<'all' | 'used' | 'unused'>('all');
 
-  const {
-    data: volumes,
-    isLoading,
-    error,
-    refresh,
-  } = useDataProvider<VolumeData>('list_volumes');
+  const { data: volumes, isLoading, error, refresh } = useVolumesProvider();
 
   const filteredVolumes = useFilter(volumes, filter, searchTerm, {
     searchFields: ['name', 'driver'],

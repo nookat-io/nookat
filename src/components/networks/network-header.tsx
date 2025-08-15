@@ -1,9 +1,9 @@
-import { NetworkData } from './network-types';
+import { Network } from './network-types';
 import { NetworkActions } from './network-actions';
 
 interface NetworkHeaderProps {
   selectedNetworks: string[];
-  networks: NetworkData[];
+  networks: Network[];
   onActionComplete: () => void;
   onSelectionChange: (selected: string[]) => void;
 }

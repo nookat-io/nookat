@@ -19,7 +19,7 @@ import {
   DropdownMenuTrigger,
 } from '../ui/dropdown-menu';
 import { formatDistanceToNow } from 'date-fns';
-import { NetworkData } from './network-types';
+import { Network } from './network-types';
 import { removeNetwork } from './network-actions-utils';
 import { toast } from 'sonner';
 import { useState } from 'react';
@@ -29,7 +29,7 @@ import { ErrorDisplay } from '../ui/error-display';
 interface NetworksTableProps {
   selectedNetworks: string[];
   onSelectionChange: (_selected: string[]) => void;
-  networks: NetworkData[];
+  networks: Network[];
   onActionComplete?: () => void;
   isLoading?: boolean;
   error?: string | null;

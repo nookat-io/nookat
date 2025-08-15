@@ -1,25 +1,19 @@
 import React from 'react';
 import { ErrorDisplay } from './error-display';
 import { useEngineStatus } from '../../hooks/use-engine-status';
-import { EngineState } from '../../types/engine-status';
 
 interface Props {
   children: React.ReactNode;
 }
 
 export default function EngineErrorGate({ children }: Props): React.ReactNode {
-  const { state, error, refetch } = useEngineStatus();
-  // If there's an engine-level error
-  if (
-    error ||
-    state === EngineState.NotInstalled ||
-    state === EngineState.Malfunctioning
-  ) {
-    const message =
-      error ??
-      (state === EngineState.NotInstalled
-        ? 'Docker Engine is not installed'
-        : 'Docker Engine error');
+  const { status, refetch } = useEngineStatus();
+
+  // Check if there's an engine-level error
+  const shouldShowError = status === 'Unknown';
+
+  if (shouldShowError) {
+    const message = 'Engine status is unknown';
     return (
       <div
         className="p-6 h-full flex items-center justify-center"
@@ -34,5 +28,6 @@ export default function EngineErrorGate({ children }: Props): React.ReactNode {
       </div>
     );
   }
+
   return <>{children}</>;
 }

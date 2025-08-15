@@ -19,7 +19,7 @@ import {
   DropdownMenuTrigger,
 } from '../ui/dropdown-menu';
 import { formatDistanceToNow } from 'date-fns';
-import { ImageData } from './image-types';
+import { Image } from './image-types';
 import { formatBytes } from '../../utils/format';
 import { LoadingSpinner } from '../ui/loading-spinner';
 import { ErrorDisplay } from '../ui/error-display';
@@ -37,15 +37,15 @@ interface DockerImage {
 interface ImagesTableProps {
   selectedImages: string[];
   onSelectionChange: (_selected: string[]) => void;
-  images: ImageData[];
+  images: Image[];
   onActionComplete?: () => void;
   isLoading?: boolean;
   error?: string | null;
   onRetry?: () => void;
 }
 
-// Convert ImageData to DockerImage format for display
-function convertImageData(imageData: ImageData): DockerImage {
+// Convert Image to DockerImage format for display
+function convertImageData(imageData: Image): DockerImage {
   const repository = imageData.repository || '<none>';
   const tag = imageData.tag || '<none>';
 

@@ -12,4 +12,4 @@ export { ImageActions } from './image-actions';
 export { ImageFilters } from './image-filters';
 
 // Types
-export { type ImageData } from './image-types';
+export { type Image } from './image-types';

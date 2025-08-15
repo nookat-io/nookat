@@ -1,5 +1,3 @@
-'use client';
-
 import { Button } from '../ui/button';
 import { Play, Square, Trash2 } from 'lucide-react';
 import { ContainerActionService } from './container-actions-service';

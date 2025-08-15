@@ -1,22 +1,20 @@
-'use client';
-
 import { TableCell, TableRow } from '../ui/table';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { ChevronDown, ChevronRight } from 'lucide-react';
-import { ContainerData } from './container-types';
+import { Container } from './container-types';
 import { ContainerGroupActions } from './container-group-actions';
 import { ContainerRow } from './container-row';
 
 interface ContainerGroupRowProps {
   projectName: string;
-  containers: ContainerData[];
+  containers: Container[];
   isExpanded: boolean;
   selectedContainers: string[];
   onToggleGroup: (projectName: string) => void;
   onSelectionChange: (containerId: string, checked: boolean) => void;
   onActionComplete?: () => void;
-  onOpenLogs: (container: ContainerData) => void;
+  onOpenLogs: (container: Container) => void;
 }
 
 export function ContainerGroupRow({
@@ -31,7 +29,9 @@ export function ContainerGroupRow({
 }: ContainerGroupRowProps) {
   const hasRunningContainers = containers.some(c => c.state === 'running');
   const allStopped = containers.every(c => c.state !== 'running');
-  const groupContainerIds = containers.map(c => c.id);
+  const groupContainerIds = containers
+    .map(c => c.id || '')
+    .filter(id => id !== '');
 
   if (containers.length === 0) return null;
 
@@ -55,13 +55,12 @@ export function ContainerGroupRow({
         <TableCell className="font-semibold">
           <div className="flex items-center gap-2">
             <span>{projectName}</span>
-            <Badge variant="outline" className="text-xs">
-              {containers.length} containers
-            </Badge>
           </div>
         </TableCell>
         <TableCell className="text-muted-foreground">
-          Docker Compose Project
+          <Badge variant="outline" className="text-xs">
+            {containers.length} containers
+          </Badge>
         </TableCell>
         <TableCell>
           <div className="flex gap-1">
@@ -99,7 +98,7 @@ export function ContainerGroupRow({
             key={container.id}
             container={container}
             isNested={true}
-            isSelected={selectedContainers.includes(container.id)}
+            isSelected={selectedContainers.includes(container.id || '')}
             onSelectionChange={onSelectionChange}
             onActionComplete={onActionComplete}
             onOpenLogs={onOpenLogs}

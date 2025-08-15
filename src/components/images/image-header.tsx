@@ -1,9 +1,9 @@
 import { ImageActions } from './image-actions';
-import { ImageData } from './image-types';
+import { Image } from './image-types';
 
 interface ImageHeaderProps {
   selectedImages: string[];
-  images: ImageData[];
+  images: Image[];
   onActionComplete: () => void;
 }
 
