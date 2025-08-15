@@ -1,8 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import { Search } from 'lucide-react';
+import { Search, RefreshCw } from 'lucide-react';
 import { Input } from '../ui/input';
+import { Button } from '../ui/button';
 import { ThemeToggle } from '../ui/theme-toggle';
 import { useEngineStatus } from '../../hooks/use-engine-status';
 import { EngineStatus } from '../../types/engine-status';
@@ -57,13 +58,19 @@ const getEngineName = (status: EngineStatus) => {
 
 export function Header() {
   const [searchTerm, setSearchTerm] = useState('');
-  const { status } = useEngineStatus();
-
-  console.log('Engine status in header:', status);
+  const { status, refetch, isChecking } = useEngineStatus();
 
   const statusColor = engineStatusToColor(status);
   const statusLabel = engineStatusToLabel(status);
   const engineName = getEngineName(status);
+
+  const handleRefresh = async () => {
+    try {
+      await refetch();
+    } catch (error) {
+      console.error('Failed to refresh engine status:', error);
+    }
+  };
 
   return (
     <header className="flex items-center justify-between px-6 py-4 border-b bg-card">
@@ -86,6 +93,18 @@ export function Header() {
           aria-hidden="true"
         />
         <p className="text-xs text-muted-foreground">{statusLabel}</p>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={handleRefresh}
+          disabled={isChecking}
+          className="h-6 w-6 p-0"
+          title="Refresh engine status"
+        >
+          <RefreshCw
+            className={`h-3 w-3 ${isChecking ? 'animate-spin' : ''}`}
+          />
+        </Button>
       </div>
       <ThemeToggle />
     </header>

@@ -10,26 +10,25 @@ interface ProviderProps {
 
 export function EngineStatusProvider({ children }: ProviderProps) {
   const [engineStatus, setEngineStatus] = useState<EngineStatus>('Unknown');
+  const [isChecking, setIsChecking] = useState(false);
   // ref to track mounted state so async fetch can avoid updating after unmount
   const mountedRef = useRef(true);
+  // ref to track the interval ID for cleanup
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  const fetchEngineInfo = useCallback(async () => {
+  const fetchEngineInfo = useCallback(async (showLoading = false) => {
     if (!mountedRef.current) return;
+
+    if (showLoading) {
+      setIsChecking(true);
+    }
 
     try {
       const backendStatus = await invoke<EngineStatus>('engine_status');
       if (!mountedRef.current) return;
 
-      console.log('Backend engine status response:', backendStatus);
-      console.log('Backend status type:', typeof backendStatus);
-      console.log(
-        'Backend status keys:',
-        backendStatus ? Object.keys(backendStatus) : 'null/undefined'
-      );
-
       // Validate that we received a valid status
       if (!backendStatus) {
-        console.error('Null/undefined engine status response:', backendStatus);
         setEngineStatus('Unknown');
         return;
       }
@@ -37,55 +36,77 @@ export function EngineStatusProvider({ children }: ProviderProps) {
       // Check if it's a string (Unknown) or an object (Installed/Running)
       if (typeof backendStatus === 'string') {
         if (backendStatus !== 'Unknown') {
-          console.error('Unexpected string engine status:', backendStatus);
           setEngineStatus('Unknown');
           return;
         }
       } else if (typeof backendStatus === 'object') {
         // Should have either Installed or Running key
         if (!('Installed' in backendStatus) && !('Running' in backendStatus)) {
-          console.error(
-            'Invalid engine status object structure:',
-            backendStatus
-          );
           setEngineStatus('Unknown');
           return;
         }
       } else {
-        console.error(
-          'Unexpected engine status type:',
-          typeof backendStatus,
-          backendStatus
-        );
         setEngineStatus('Unknown');
         return;
       }
 
+      // If the status is "Running", actively test the connection to ensure it's still reachable
+      if (typeof backendStatus === 'object' && 'Running' in backendStatus) {
+        try {
+          // Test the actual connection by calling get_docker_info
+          // This will fail if the Docker daemon becomes unavailable
+          await invoke('get_docker_info');
+        } catch {
+          // If the connection test fails, the engine is no longer reachable
+          setEngineStatus('Unknown');
+          return;
+        }
+      }
+
       setEngineStatus(backendStatus);
-    } catch (e) {
+    } catch {
       if (!mountedRef.current) return;
-      console.error('Error fetching engine status:', e);
+      // When there's an error, set status to Unknown
       setEngineStatus('Unknown');
+    } finally {
+      if (mountedRef.current) {
+        setIsChecking(false);
+      }
     }
   }, []);
 
+  // Manual refresh function for user-initiated status checks
+  const manualRefresh = useCallback(async () => {
+    await fetchEngineInfo(true); // Show loading state for manual refresh
+  }, [fetchEngineInfo]);
+
   useEffect(() => {
-    mountedRef.current = true; // set ref to track mounted state for async fetch
-    fetchEngineInfo();
+    mountedRef.current = true;
+
+    // Initial fetch
+    fetchEngineInfo(true);
+
+    // Check status every second
+    intervalRef.current = setInterval(() => {
+      fetchEngineInfo(false);
+    }, 1000);
+
     return () => {
       mountedRef.current = false;
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
     };
   }, [fetchEngineInfo]);
 
   const value = useMemo<EngineContextValue>(
     () => ({
       status: engineStatus,
-      refetch: fetchEngineInfo,
+      refetch: manualRefresh,
+      isChecking,
     }),
-    [engineStatus, fetchEngineInfo]
+    [engineStatus, manualRefresh, isChecking]
   );
-
-  console.log('Engine status context value:', value);
 
   return (
     <EngineStatusContext.Provider value={value}>

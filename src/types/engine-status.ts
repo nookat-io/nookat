@@ -21,4 +21,5 @@ export type EngineStatus =
 export type EngineContextValue = {
   status: EngineStatus;
   refetch: () => Promise<void>;
+  isChecking: boolean;
 };

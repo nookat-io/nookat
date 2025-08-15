@@ -7,13 +7,16 @@ interface Props {
 }
 
 export default function EngineErrorGate({ children }: Props): React.ReactNode {
-  const { status, refetch } = useEngineStatus();
+  const { status, refetch, isChecking } = useEngineStatus();
 
   // Check if there's an engine-level error
   const shouldShowError = status === 'Unknown';
 
   if (shouldShowError) {
-    const message = 'Engine status is unknown';
+    const message = isChecking
+      ? 'Checking engine status...'
+      : 'Engine status is unknown';
+
     return (
       <div
         className="p-6 h-full flex items-center justify-center"
