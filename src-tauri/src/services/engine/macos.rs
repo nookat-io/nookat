@@ -2,26 +2,26 @@ use crate::entities::{Engine, EngineInfo, EngineStatus};
 use bollard::Docker;
 use std::env;
 use std::process::Command;
-use tracing::{debug, info, instrument};
+use tracing::{debug, info, warn,instrument};
 
 
 #[instrument(skip_all, err)]
 async fn connect_to_docker_with_local_defaults() -> Result<Docker, String> {
-    tracing::info!("Trying to connect to Docker via local defaults");
+    info!("Trying to connect to Docker via local defaults");
 
     let docker = Docker::connect_with_local_defaults().map_err(|e| format!("Failed to connect to Docker: {}", e))?;
 
     if let Ok(_) = docker.info().await {
-        tracing::info!("Successfully connected to Docker via local defaults");
+        info!("Successfully connected to Docker via local defaults");
         return Ok(docker);
     }
-    tracing::warn!("local defaults connection failed, trying fallback");
+    warn!("local defaults connection failed, trying fallback");
     Err("Failed to connect to Docker via local defaults".to_string())
 }
 
 #[instrument(skip_all, err)]
 async fn connect_to_docker_using_different_contexts() -> Result<Docker, String> {
-    tracing::info!("Trying to connect to Docker via different contexts");
+    info!("Trying to connect to Docker via different contexts");
 
     let context_output = Command::new("docker")
         .arg("context")
@@ -38,19 +38,19 @@ async fn connect_to_docker_using_different_contexts() -> Result<Docker, String> 
             for socket_path in socket_paths {
                 if socket_path.starts_with("unix://") {
                     let socket_path = socket_path.trim_start_matches("unix://");
-                    tracing::info!("Current Docker context socket: {}", socket_path);
+                    info!("Current Docker context socket: {}", socket_path);
 
                     // Set DOCKER_HOST environment variable for this process
                     env::set_var("DOCKER_HOST", format!("unix://{}", socket_path));
 
                     if let Ok(docker) = Docker::connect_with_local_defaults() {
                         if let Ok(_) = docker.info().await {
-                            tracing::info!("Successfully connected to Docker via context socket");
+                            info!("Successfully connected to Docker via context socket");
                             return Ok(docker);
                         }
                     }
                 } else {
-                    tracing::warn!("Current Docker context socket is not a Unix socket: {}", socket_path);
+                    warn!("Current Docker context socket is not a Unix socket: {}", socket_path);
                 }
 
             }
@@ -76,7 +76,7 @@ pub async fn connect_to_docker_macos() -> Result<Docker, String> {
     debug!("context connection failed, trying fallback");
 
     // Last resort: try the default connection method
-    tracing::info!("Trying default Docker connection method");
+    info!("Trying default Docker connection method");
     Docker::connect_with_local_defaults().map_err(|e| format!("Failed to connect to Docker: {}", e))
 }
 
@@ -102,6 +102,27 @@ pub async fn is_docker_command_available() -> Result<bool, String> {
     let result = is_docker_installed(&output_str);
     debug!("Docker command is available, result: {}", result);
     Ok(result)
+}
+
+#[instrument(skip_all, err)]
+pub async fn is_homebrew_available() -> Result<bool, String> {
+    // Check if 'brew' command exists in PATH
+    let output = Command::new("which")
+        .arg("brew")
+        .output()
+        .map_err(|e| format!("Failed to check Homebrew availability: {}", e))?;
+
+    if output.status.success() {
+        // Additional check: try to run 'brew --version' to ensure it's working
+        let version_output = Command::new("brew")
+            .arg("--version")
+            .output()
+            .map_err(|e| format!("Failed to check Homebrew version: {}", e))?;
+
+        Ok(version_output.status.success())
+    } else {
+        Ok(false)
+    }
 }
 
 // #[instrument(skip_all, err)]

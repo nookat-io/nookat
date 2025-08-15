@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { invoke } from '@tauri-apps/api/core';
 import {
   Card,
   CardContent,
@@ -29,6 +30,7 @@ import {
   CheckCircle,
   AlertCircle,
   Loader2,
+  AlertTriangle,
 } from 'lucide-react';
 
 type InstallationMethod = 'homebrew' | 'binary';
@@ -57,6 +59,9 @@ interface ColimaConfig {
 export function EngineInstallation() {
   const [method, setMethod] = useState<InstallationMethod>('homebrew');
   const [step, setStep] = useState<InstallationStep>('selecting');
+  const [homebrewAvailable, setHomebrewAvailable] = useState<boolean | null>(
+    null
+  );
   const [config, setConfig] = useState<ColimaConfig>({
     cpu: 4,
     memory: 8,
@@ -70,6 +75,32 @@ export function EngineInstallation() {
     logs: [],
   });
   const [error, setError] = useState<string | null>(null);
+
+  // Check if Homebrew is available on the system
+  useEffect(() => {
+    const checkHomebrew = async () => {
+      try {
+        // Call the real Tauri backend endpoint
+        const isAvailable = await invoke<boolean>(
+          'check_homebrew_availability'
+        );
+        setHomebrewAvailable(isAvailable);
+
+        // If Homebrew is not available, default to binary method
+        if (!isAvailable && method === 'homebrew') {
+          setMethod('binary');
+        }
+      } catch (error) {
+        console.error('Error checking Homebrew availability:', error);
+        setHomebrewAvailable(false);
+        if (method === 'homebrew') {
+          setMethod('binary');
+        }
+      }
+    };
+
+    checkHomebrew();
+  }, [method]);
 
   const handleInstall = async () => {
     setStep('installing');
@@ -170,10 +201,13 @@ export function EngineInstallation() {
           </div>
 
           <div className="flex gap-2">
-            <Button onClick={handleRetry} variant="outline">
-              Install Again
+            <Button
+              onClick={() => {
+                window.location.href = '/';
+              }}
+            >
+              Continue to App
             </Button>
-            <Button>Continue to App</Button>
           </div>
         </CardContent>
       </Card>
@@ -232,12 +266,16 @@ export function EngineInstallation() {
             {/* Method Selection */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div
-                className={`p-4 border-2 rounded-lg cursor-pointer transition-colors ${
-                  method === 'homebrew'
-                    ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/20'
-                    : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
+                className={`p-4 border-2 rounded-lg transition-colors ${
+                  homebrewAvailable === null
+                    ? 'border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900'
+                    : homebrewAvailable
+                      ? method === 'homebrew'
+                        ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/20 cursor-pointer'
+                        : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 cursor-pointer'
+                      : 'border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-800 opacity-60 cursor-not-allowed'
                 }`}
-                onClick={() => setMethod('homebrew')}
+                onClick={() => homebrewAvailable && setMethod('homebrew')}
               >
                 <div className="flex items-center gap-3">
                   <Package className="h-5 w-5 text-blue-600 dark:text-blue-400" />
@@ -252,6 +290,26 @@ export function EngineInstallation() {
                   Uses Homebrew package manager for easy installation and
                   updates
                 </div>
+
+                {/* Homebrew availability status */}
+                {homebrewAvailable === null && (
+                  <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                    Checking Homebrew availability...
+                  </div>
+                )}
+
+                {homebrewAvailable === false && (
+                  <div className="mt-3 p-2 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded">
+                    <div className="flex items-center gap-2 text-xs text-amber-700 dark:text-amber-300">
+                      <AlertTriangle className="h-3 w-3" />
+                      <span className="font-medium">Homebrew not found</span>
+                    </div>
+                    <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
+                      Install Homebrew first or use Binary installation method
+                    </p>
+                  </div>
+                )}
               </div>
 
               <div
@@ -391,17 +449,15 @@ export function EngineInstallation() {
                 <div>
                   • <strong>Lima</strong> - Linux virtual machine manager
                 </div>
-                <div>
-                  • <strong>Docker CLI</strong> - Command line interface
-                </div>
-                <div>
-                  • <strong>Docker Compose</strong> - Multi-container
-                  orchestration
-                </div>
               </div>
             </div>
 
-            <Button onClick={handleInstall} className="w-full" size="lg">
+            <Button
+              onClick={handleInstall}
+              className="w-full"
+              size="lg"
+              disabled={homebrewAvailable === false && method === 'homebrew'}
+            >
               <Download className="h-4 w-4 mr-2" />
               Install Container Engine
             </Button>
