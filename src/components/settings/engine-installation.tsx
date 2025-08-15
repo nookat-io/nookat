@@ -18,7 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '../ui/select';
-import { Separator } from '../ui/separator';
+
 import {
   Download,
   Package,
@@ -32,11 +32,16 @@ import {
   AlertCircle,
   Loader2,
   AlertTriangle,
+  ChevronDown,
+  ChevronRight,
 } from 'lucide-react';
+
+import { DockerInfo } from '../../types/docker-info';
+import { EngineStatus } from './engine-status';
 
 type InstallationMethod = 'homebrew' | 'binary';
 type InstallationStep =
-  | 'selecting'
+  | 'idle'
   | 'installing'
   | 'starting-vm'
   | 'validating'
@@ -59,10 +64,11 @@ interface ColimaConfig {
 
 export function EngineInstallation() {
   const [method, setMethod] = useState<InstallationMethod>('homebrew');
-  const [step, setStep] = useState<InstallationStep>('selecting');
+  const [step, setStep] = useState<InstallationStep>('idle');
   const [homebrewAvailable, setHomebrewAvailable] = useState<boolean | null>(
     null
   );
+  const [colimaAvailable, setColimaAvailable] = useState<boolean | null>(null);
   const [config, setConfig] = useState<ColimaConfig>({
     cpu: 4,
     memory: 8,
@@ -76,32 +82,65 @@ export function EngineInstallation() {
     logs: [],
   });
   const [error, setError] = useState<string | null>(null);
+  const [dockerInfo, setDockerInfo] = useState<DockerInfo | null>(null);
 
-  // Check if Homebrew is available on the system
+  // Collapsible sections state
+  const [showReinstallSection, setShowReinstallSection] = useState(false);
+  const [showEngineConfig, setShowEngineConfig] = useState(true);
+
+  // Check if Homebrew and Colima are available on the system
   useEffect(() => {
-    const checkHomebrew = async () => {
+    const checkAvailability = async () => {
       try {
-        // Call the real Tauri backend endpoint
-        const isAvailable = await invoke<boolean>(
+        // Check Homebrew availability
+        const isHomebrewAvailable = await invoke<boolean>(
           'check_homebrew_availability'
         );
-        setHomebrewAvailable(isAvailable);
+        setHomebrewAvailable(isHomebrewAvailable);
+
+        // Check Colima availability
+        const isColimaAvailable = await invoke<boolean>(
+          'check_colima_availability'
+        );
+        setColimaAvailable(isColimaAvailable);
 
         // If Homebrew is not available, default to binary method
-        if (!isAvailable && method === 'homebrew') {
+        if (!isHomebrewAvailable && method === 'homebrew') {
           setMethod('binary');
         }
+
+        // If Colima is available, fetch Docker info
+        if (isColimaAvailable) {
+          fetchDockerInfo();
+        }
       } catch (error) {
-        console.error('Error checking Homebrew availability:', error);
+        console.error('Error checking availability:', error);
         setHomebrewAvailable(false);
+        setColimaAvailable(false);
         if (method === 'homebrew') {
           setMethod('binary');
         }
       }
     };
 
-    checkHomebrew();
+    checkAvailability();
   }, [method]);
+
+  // Fetch Docker info when Colima becomes available
+  const fetchDockerInfo = async () => {
+    try {
+      const info = await invoke<DockerInfo>('get_docker_info');
+      setDockerInfo(info);
+    } catch (err) {
+      console.error('Error fetching Docker info:', err);
+      setDockerInfo(null);
+    }
+  };
+
+  // Check if engine is already running
+  const isEngineRunning = Boolean(
+    dockerInfo && dockerInfo.containers_running !== undefined
+  );
 
   // Set up event listeners for real-time progress updates
   useEffect(() => {
@@ -119,17 +158,17 @@ export function EngineInstallation() {
         const unlistenComplete = listen('installation-complete', async () => {
           setStep('starting-vm');
           setProgress({
-            step: 'Starting Colima VM...',
-            message: 'Preparing to start virtual machine',
+            step: 'Starting Engine...',
+            message: 'Initializing Colima virtual machine',
             percentage: 0,
-            logs: ['[INFO] Colima installation completed, starting VM...'],
+            logs: ['[INFO] Colima installation completed, starting engine...'],
           });
 
           try {
             // Step 2: Start Colima VM with the configured resources
             await invoke('start_colima_vm_command', { config });
           } catch (error) {
-            console.error('VM startup failed:', error);
+            console.error('Engine startup failed:', error);
             setError(error as string);
             setStep('error');
           }
@@ -156,10 +195,13 @@ export function EngineInstallation() {
           setStep('validating');
           setProgress(prev => ({
             ...prev,
-            step: 'Validating installation...',
-            message: 'Testing Docker connectivity and Colima status',
+            step: 'Validating engine...',
+            message: 'Testing Docker connectivity and engine status',
             percentage: 95,
-            logs: [...prev.logs, '[INFO] VM startup completed successfully'],
+            logs: [
+              ...prev.logs,
+              '[INFO] Engine startup completed successfully',
+            ],
           }));
 
           // Simulate validation time
@@ -167,13 +209,10 @@ export function EngineInstallation() {
             setStep('complete');
             setProgress(prev => ({
               ...prev,
-              step: 'Installation Complete!',
-              message: 'Colima is ready to use',
+              step: 'Engine Ready!',
+              message: 'Colima engine is ready to use',
               percentage: 100,
-              logs: [
-                ...prev.logs,
-                '[INFO] Installation completed successfully',
-              ],
+              logs: [...prev.logs, '[INFO] Engine started successfully'],
             }));
           }, 2000);
         });
@@ -220,8 +259,31 @@ export function EngineInstallation() {
     }
   };
 
+  const handleStartEngine = async () => {
+    setStep('starting-vm');
+    setError(null);
+    setProgress({
+      step: 'Starting Engine...',
+      message: 'Initializing Colima virtual machine',
+      percentage: 0,
+      logs: ['[INFO] Starting Colima engine...'],
+    });
+
+    try {
+      // Start Colima VM with the configured resources
+      await invoke('start_colima_vm_command', { config });
+
+      // Progress updates will come via Tauri events
+      // The component will automatically transition to the next step
+    } catch (error) {
+      console.error('Engine startup failed:', error);
+      setError(error as string);
+      setStep('error');
+    }
+  };
+
   const handleRetry = () => {
-    setStep('selecting');
+    setStep('idle');
     setError(null);
     setProgress({
       step: '',
@@ -234,94 +296,340 @@ export function EngineInstallation() {
   const isInstalling =
     step === 'installing' || step === 'starting-vm' || step === 'validating';
 
+  // Collapsible section component
+  const CollapsibleSection = ({
+    title,
+    children,
+    isOpen,
+    onToggle,
+  }: {
+    title: string;
+    children: React.ReactNode;
+    isOpen: boolean;
+    onToggle: () => void;
+  }) => (
+    <Card className="mb-4">
+      <CardHeader
+        className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-900/50 transition-colors"
+        onClick={onToggle}
+      >
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-lg">{title}</CardTitle>
+          {isOpen ? (
+            <ChevronDown className="h-5 w-5 text-gray-500" />
+          ) : (
+            <ChevronRight className="h-5 w-5 text-gray-500" />
+          )}
+        </div>
+      </CardHeader>
+      {isOpen && <CardContent>{children}</CardContent>}
+    </Card>
+  );
+
+  // Only show progress/status cards when actively working
+  if (
+    step === 'installing' ||
+    step === 'starting-vm' ||
+    step === 'validating'
+  ) {
+    return (
+      <div className="space-y-6">
+        {/* Progress Card */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Loader2 className="h-5 w-5 animate-spin" />
+              {step === 'installing' ? 'Installing Colima' : 'Starting Engine'}
+            </CardTitle>
+            <CardDescription>{progress.step}</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {/* Progress Bar */}
+            <div className="space-y-2">
+              <div className="flex justify-between text-sm">
+                <span>{progress.message}</span>
+                <span>{progress.percentage}%</span>
+              </div>
+              <div className="h-2 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
+                <div
+                  className="h-2 bg-blue-600 dark:bg-blue-400 transition-all duration-300 ease-out"
+                  style={{ width: `${progress.percentage}%` }}
+                />
+              </div>
+            </div>
+
+            {/* Installation Logs */}
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Progress Logs</Label>
+              <div className="h-48 bg-gray-50 dark:bg-gray-900 rounded-lg p-3 overflow-y-auto font-mono text-xs">
+                {progress.logs.map((log, index) => (
+                  <div key={index} className="text-gray-700 dark:text-gray-300">
+                    {log}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="text-sm text-muted-foreground">
+              This process may take several minutes. Please don't close the
+              application.
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // Show completion or error cards when appropriate
   if (step === 'complete') {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-green-600 dark:text-green-400">
-            <CheckCircle className="h-5 w-5" />
-            Installation Complete!
-          </CardTitle>
-          <CardDescription>
-            Colima has been successfully installed and configured
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="p-4 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-lg">
-            <div className="flex items-center gap-2 text-green-800 dark:text-green-200">
-              <CheckCircle className="h-4 w-4" />
-              <span className="font-medium">Engine is ready to use</span>
+      <div className="space-y-6">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-blue-600 dark:text-blue-400">
+              <CheckCircle className="h-5 w-5" />
+              Engine Ready!
+            </CardTitle>
+            <CardDescription>
+              Colima engine has been successfully started and configured
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="p-4 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+              <div className="flex items-center gap-2 text-blue-800 dark:text-blue-200">
+                <CheckCircle className="h-4 w-4" />
+                <span className="font-medium">Engine is ready to use</span>
+              </div>
+              <p className="text-sm text-blue-700 dark:text-blue-300 mt-1">
+                Docker commands are now available and Colima VM is running with
+                your specified configuration.
+              </p>
             </div>
-            <p className="text-sm text-green-700 dark:text-green-300 mt-1">
-              Docker commands are now available and Colima VM is running with
-              your specified configuration.
-            </p>
-          </div>
 
-          <div className="flex gap-2">
-            <Button
-              onClick={() => {
-                window.location.href = '/';
-              }}
-            >
-              Continue to App
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+            <div className="flex gap-2">
+              <Button
+                onClick={() => {
+                  window.location.href = '/';
+                }}
+              >
+                Continue to App
+              </Button>
+              <Button onClick={handleRetry} variant="outline">
+                Start Another Engine
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     );
   }
 
   if (step === 'error') {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-red-600 dark:text-red-400">
-            <AlertCircle className="h-5 w-5" />
-            Installation Failed
-          </CardTitle>
-          <CardDescription>
-            There was an error during the installation process
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="p-4 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 rounded-lg">
-            <div className="flex items-center gap-2 text-red-800 dark:text-red-200">
-              <AlertCircle className="h-4 w-4" />
-              <span className="font-medium">Error Details</span>
+      <div className="space-y-6">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-red-600 dark:text-red-400">
+              <AlertCircle className="h-5 w-5" />
+              Operation Failed
+            </CardTitle>
+            <CardDescription>
+              There was an error during the process
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="p-4 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 rounded-lg">
+              <div className="flex items-center gap-2 text-red-800 dark:text-red-200">
+                <AlertCircle className="h-4 w-4" />
+                <span className="font-medium">Error Details</span>
+              </div>
+              <p className="text-sm text-red-700 dark:text-red-300 mt-1">
+                {error || 'An unexpected error occurred.'}
+              </p>
             </div>
-            <p className="text-sm text-red-700 dark:text-red-300 mt-1">
-              {error || 'An unexpected error occurred during installation.'}
-            </p>
-          </div>
 
-          <div className="flex gap-2">
-            <Button onClick={handleRetry} variant="outline">
-              Try Again
-            </Button>
-            <Button onClick={handleRetry}>Retry Installation</Button>
-          </div>
-        </CardContent>
-      </Card>
+            <div className="flex gap-2">
+              <Button onClick={handleRetry} variant="outline">
+                Try Again
+              </Button>
+              <Button onClick={handleRetry}>Retry Operation</Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     );
   }
 
   return (
     <div className="space-y-6">
-      {/* Installation Method Selection */}
-      {step === 'selecting' && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Download className="h-5 w-5" />
-              Choose Installation Method
-            </CardTitle>
-            <CardDescription>
-              Select how you'd like to install the container engine
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            {/* Method Selection */}
+      {/* Engine Status - Always visible */}
+      <EngineStatus dockerInfo={dockerInfo} />
+
+      {/* Engine Configuration - Always visible */}
+      <CollapsibleSection
+        title="Engine Configuration"
+        isOpen={showEngineConfig}
+        onToggle={() => setShowEngineConfig(!showEngineConfig)}
+      >
+        <div className="space-y-6">
+          {colimaAvailable ? (
+            // Engine is available - show full configuration
+            <>
+              {/* Status Display */}
+              <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-900/50 rounded-lg">
+                <div className="flex items-center gap-3">
+                  <CheckCircle className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                  <div>
+                    <div className="font-medium">Colima Available</div>
+                    <div className="text-sm text-muted-foreground">
+                      Ready to start engine
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* VM Configuration */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold">VM Resources</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="cpu">CPU Cores</Label>
+                    <Input
+                      id="cpu"
+                      type="number"
+                      min="1"
+                      max="16"
+                      value={config.cpu}
+                      onChange={e =>
+                        setConfig(prev => ({
+                          ...prev,
+                          cpu: parseInt(e.target.value) || 1,
+                        }))
+                      }
+                    />
+                    <div className="text-xs text-muted-foreground">
+                      <Cpu className="h-3 w-3 inline mr-1" />
+                      {config.cpu} cores
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="memory">Memory (GB)</Label>
+                    <Input
+                      id="memory"
+                      type="number"
+                      min="2"
+                      max="32"
+                      value={config.memory}
+                      onChange={e =>
+                        setConfig(prev => ({
+                          ...prev,
+                          memory: parseInt(e.target.value) || 2,
+                        }))
+                      }
+                    />
+                    <div className="text-xs text-muted-foreground">
+                      <MemoryStick className="h-3 w-3 inline mr-1" />
+                      {config.memory} GB
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="disk">Disk (GB)</Label>
+                    <Input
+                      id="disk"
+                      type="number"
+                      min="20"
+                      max="200"
+                      value={config.disk}
+                      onChange={e =>
+                        setConfig(prev => ({
+                          ...prev,
+                          disk: parseInt(e.target.value) || 20,
+                        }))
+                      }
+                    />
+                    <div className="text-xs text-muted-foreground">
+                      <HardDrive className="h-3 w-3 inline mr-1" />
+                      {config.disk} GB
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="architecture">Architecture</Label>
+                    <Select
+                      value={config.architecture}
+                      onValueChange={value =>
+                        setConfig(prev => ({ ...prev, architecture: value }))
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="x86_64">x86_64</SelectItem>
+                        <SelectItem value="aarch64">ARM64</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <div className="text-xs text-muted-foreground">
+                      <Server className="h-3 w-3 inline mr-1" />
+                      {config.architecture}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Start Engine Button - Bottom Right */}
+              <div className="flex justify-end pt-4 border-t">
+                <Button
+                  onClick={handleStartEngine}
+                  disabled={isInstalling || isEngineRunning}
+                  size="lg"
+                  className="px-8"
+                  variant={isEngineRunning ? 'secondary' : 'default'}
+                >
+                  <Server className="h-4 w-4 mr-2" />
+                  {isEngineRunning ? 'Engine Running' : 'Start Engine'}
+                </Button>
+              </div>
+            </>
+          ) : (
+            // Engine is not available - show status only
+            <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-900/50 rounded-lg">
+              <div className="flex items-center gap-3">
+                {colimaAvailable === null ? (
+                  <Loader2 className="h-5 w-5 animate-spin text-gray-500" />
+                ) : (
+                  <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+                )}
+                <div>
+                  <div className="font-medium">
+                    {colimaAvailable === null
+                      ? 'Checking status...'
+                      : 'Colima Not Installed'}
+                  </div>
+                  <div className="text-sm text-muted-foreground">
+                    {colimaAvailable === null
+                      ? 'Verifying system configuration'
+                      : 'Installation required'}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </CollapsibleSection>
+
+      {/* Reinstall Section - Always visible */}
+      <CollapsibleSection
+        title="Reinstall Colima"
+        isOpen={showReinstallSection}
+        onToggle={() => setShowReinstallSection(!showReinstallSection)}
+      >
+        <div className="space-y-6">
+          {/* Installation Method Selection */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold">Installation Method</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div
                 className={`p-4 border-2 rounded-lg transition-colors ${
@@ -392,181 +700,38 @@ export function EngineInstallation() {
                 </div>
               </div>
             </div>
+          </div>
 
-            <Separator />
-
-            {/* Configuration Options */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold flex items-center gap-2">
-                <Server className="h-4 w-4" />
-                VM Configuration
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="cpu">CPU Cores</Label>
-                  <Input
-                    id="cpu"
-                    type="number"
-                    min="1"
-                    max="16"
-                    value={config.cpu}
-                    onChange={e =>
-                      setConfig(prev => ({
-                        ...prev,
-                        cpu: parseInt(e.target.value) || 1,
-                      }))
-                    }
-                  />
-                  <div className="text-xs text-muted-foreground">
-                    <Cpu className="h-3 w-3 inline mr-1" />
-                    {config.cpu} cores
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="memory">Memory (GB)</Label>
-                  <Input
-                    id="memory"
-                    type="number"
-                    min="2"
-                    max="32"
-                    value={config.memory}
-                    onChange={e =>
-                      setConfig(prev => ({
-                        ...prev,
-                        memory: parseInt(e.target.value) || 2,
-                      }))
-                    }
-                  />
-                  <div className="text-xs text-muted-foreground">
-                    <MemoryStick className="h-3 w-3 inline mr-1" />
-                    {config.memory} GB
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="disk">Disk (GB)</Label>
-                  <Input
-                    id="disk"
-                    type="number"
-                    min="20"
-                    max="200"
-                    value={config.disk}
-                    onChange={e =>
-                      setConfig(prev => ({
-                        ...prev,
-                        disk: parseInt(e.target.value) || 20,
-                      }))
-                    }
-                  />
-                  <div className="text-xs text-muted-foreground">
-                    <HardDrive className="h-3 w-3 inline mr-1" />
-                    {config.disk} GB
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="architecture">Architecture</Label>
-                  <Select
-                    value={config.architecture}
-                    onValueChange={value =>
-                      setConfig(prev => ({ ...prev, architecture: value }))
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="x86_64">x86_64</SelectItem>
-                      <SelectItem value="aarch64">ARM64</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <div className="text-xs text-muted-foreground">
-                    <Server className="h-3 w-3 inline mr-1" />
-                    {config.architecture}
-                  </div>
-                </div>
+          {/* Installation Info */}
+          <div className="p-4 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+            <div className="flex items-center space-x-2">
+              <Info className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+              <span className="text-sm font-medium text-blue-800 dark:text-blue-200">
+                What will be installed
+              </span>
+            </div>
+            <div className="mt-2 space-y-1 text-sm text-blue-700 dark:text-blue-300">
+              <div>
+                • <strong>Colima</strong> - Lightweight Docker-compatible
+                runtime
+              </div>
+              <div>
+                • <strong>Lima</strong> - Linux virtual machine manager
               </div>
             </div>
+          </div>
 
-            <Separator />
-
-            {/* Installation Info */}
-            <div className="p-4 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg">
-              <div className="flex items-center space-x-2">
-                <Info className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                <span className="text-sm font-medium text-blue-800 dark:text-blue-200">
-                  What will be installed
-                </span>
-              </div>
-              <div className="mt-2 space-y-1 text-sm text-blue-700 dark:text-blue-300">
-                <div>
-                  • <strong>Colima</strong> - Lightweight Docker-compatible
-                  runtime
-                </div>
-                <div>
-                  • <strong>Lima</strong> - Linux virtual machine manager
-                </div>
-              </div>
-            </div>
-
-            <Button
-              onClick={handleInstall}
-              className="w-full"
-              size="lg"
-              disabled={homebrewAvailable === false && method === 'homebrew'}
-            >
-              <Download className="h-4 w-4 mr-2" />
-              Install Container Engine
-            </Button>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Installation Progress */}
-      {isInstalling && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Loader2 className="h-5 w-5 animate-spin" />
-              Installing Container Engine
-            </CardTitle>
-            <CardDescription>{progress.step}</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {/* Progress Bar */}
-            <div className="space-y-2">
-              <div className="flex justify-between text-sm">
-                <span>{progress.message}</span>
-                <span>{progress.percentage}%</span>
-              </div>
-              <div className="h-2 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
-                <div
-                  className="h-2 bg-blue-600 dark:bg-blue-400 transition-all duration-300 ease-out"
-                  style={{ width: `${progress.percentage}%` }}
-                />
-              </div>
-            </div>
-
-            {/* Installation Logs */}
-            <div className="space-y-2">
-              <Label className="text-sm font-medium">Installation Logs</Label>
-              <div className="h-48 bg-gray-50 dark:bg-gray-900 rounded-lg p-3 overflow-y-auto font-mono text-xs">
-                {progress.logs.map((log, index) => (
-                  <div key={index} className="text-gray-700 dark:text-gray-300">
-                    {log}
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="text-sm text-muted-foreground">
-              This process may take several minutes. Please don't close the
-              application.
-            </div>
-          </CardContent>
-        </Card>
-      )}
+          <Button
+            onClick={handleInstall}
+            className="w-full"
+            size="lg"
+            disabled={homebrewAvailable === false && method === 'homebrew'}
+          >
+            <Download className="h-4 w-4 mr-2" />
+            Install Colima
+          </Button>
+        </div>
+      </CollapsibleSection>
     </div>
   );
 }

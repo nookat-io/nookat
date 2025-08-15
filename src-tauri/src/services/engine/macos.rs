@@ -127,6 +127,37 @@ pub async fn is_homebrew_available() -> Result<bool, String> {
     }
 }
 
+#[instrument(skip_all, err)]
+pub async fn is_colima_available() -> Result<bool, String> {
+    info!("Checking if Colima is available on the system");
+
+    // Check if colima command exists in PATH
+    let output = Command::new("which")
+        .arg("colima")
+        .output()
+        .map_err(|e| format!("Failed to check Colima availability: {}", e))?;
+
+    if !output.status.success() {
+        info!("Colima command not found in PATH");
+        return Ok(false);
+    }
+
+    // Additional check: try to run 'colima --version' to ensure it's working
+    let version_output = Command::new("colima")
+        .arg("--version")
+        .output()
+        .map_err(|e| format!("Failed to check Colima version: {}", e))?;
+
+    if !version_output.status.success() {
+        info!("Colima command exists but failed to execute");
+        return Ok(false);
+    }
+
+    let version = String::from_utf8_lossy(&version_output.stdout).trim().to_string();
+    info!("Colima is available, version: {}", version);
+    Ok(true)
+}
+
 // #[instrument(skip_all, err)]
 // pub async fn is_colima_installed() -> Result<(), String> {
 //     debug!("Checking if Colima is installed");

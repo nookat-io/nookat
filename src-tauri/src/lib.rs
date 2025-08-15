@@ -14,7 +14,7 @@ use crate::handlers::{
     pause_container, prune_containers, prune_images, prune_volumes, remove_container,
     remove_network, remove_volume, restart_container, start_container, stop_container,
     unpause_container, update_language, update_last_update_check, update_startup_settings,
-    update_telemetry_settings, update_theme, engine_status, install_colima_command, start_colima_vm_command
+    update_telemetry_settings, update_theme, engine_status, install_colima_command, start_colima_vm_command, check_colima_availability
 };
 use crate::sentry::flush_sentry;
 use crate::state::SharedEngineState;
@@ -139,6 +139,7 @@ pub fn run() {
             get_docker_info,
             engine_status,
             check_homebrew_availability,
+            check_colima_availability,
             install_colima_command,
             start_colima_vm_command,
         ])

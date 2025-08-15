@@ -1,6 +1,6 @@
 use crate::entities::EngineStatus;
 use crate::state::SharedEngineState;
-use crate::services::engine::{is_homebrew_available, install_colima, start_colima_vm};
+use crate::services::engine::{is_homebrew_available, install_colima, start_colima_vm, is_colima_available};
 use crate::entities::{InstallationMethod, ColimaConfig};
 use tauri::State;
 use tracing::{info, instrument};
@@ -53,4 +53,11 @@ pub async fn start_colima_vm_command(
 ) -> Result<(), String> {
     info!("Starting Colima VM with config: {:?}", config);
     start_colima_vm(app, config).await
+}
+
+#[tauri::command]
+#[instrument(skip_all, err)]
+pub async fn check_colima_availability() -> Result<bool, String> {
+    info!("Checking Colima availability");
+    is_colima_available().await
 }

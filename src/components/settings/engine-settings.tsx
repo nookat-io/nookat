@@ -1,9 +1,8 @@
 import { useEngineStatus } from '../../hooks/use-engine-status';
-import { EngineStatus } from './engine-status';
 import { EngineInstallation } from './engine-installation';
 
 export function EngineSettings() {
-  const { status, isChecking } = useEngineStatus();
+  const { isChecking } = useEngineStatus();
 
   // Show loading state while checking engine status
   if (isChecking) {
@@ -16,14 +15,6 @@ export function EngineSettings() {
     );
   }
 
-  // If engine is running or installed, show the status
-  if (
-    typeof status === 'object' &&
-    ('Running' in status || 'Installed' in status)
-  ) {
-    return <EngineStatus />;
-  }
-
-  // If no engine is available, show the installation component
+  // Always render the merged component - it handles all states internally
   return <EngineInstallation />;
 }
