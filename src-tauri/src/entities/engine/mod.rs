@@ -37,12 +37,12 @@ pub enum HomebrewStatus {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ColimaEngineInfo {
     pub colima_version: String,
-    pub colima_checksum: String,
-    pub colima_download_url: String,
+    pub colima_checksum: Option<String>,
+    pub colima_download_url: Option<String>,
 
-    pub lima_version: String,
-    pub lima_checksum: String,
-    pub lima_download_url: String,
+    pub lima_version: Option<String>,
+    pub lima_checksum: Option<String>,
+    pub lima_download_url: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -69,4 +69,10 @@ pub enum EngineStatus {
 pub struct Engine {
     pub engine_status: EngineStatus,
     pub docker: Option<Docker>,
+}
+
+impl Engine {
+    pub fn is_running(&self) -> bool {
+        matches!(self.engine_status, EngineStatus::Running(_))
+    }
 }

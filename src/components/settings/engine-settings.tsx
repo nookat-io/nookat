@@ -9,9 +9,6 @@ import {
 } from '../ui/card';
 import { Label } from '../ui/label';
 import { Button } from '../ui/button';
-import { Textarea } from '../ui/textarea';
-import { Switch } from '../ui/switch';
-import { Badge } from '../ui/badge';
 import { Separator } from '../ui/separator';
 
 import {
@@ -23,27 +20,11 @@ import {
   Info,
   Activity,
   Settings,
-  Shield,
 } from 'lucide-react';
 
 import { DockerInfo } from '../../types/docker-info';
 
 export function EngineSettings() {
-  const [settings, setSettings] = useState({
-    experimentalFeatures: false,
-    daemonConfig: `{
-  "log-driver": "json-file",
-  "log-opts": {
-    "max-size": "10m",
-    "max-file": "3"
-  },
-  "storage-driver": "overlay2",
-  "registry-mirrors": [],
-  "insecure-registries": [],
-  "debug": false
-}`,
-  });
-
   const [dockerInfo, setDockerInfo] = useState<DockerInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -379,93 +360,6 @@ export function EngineSettings() {
               No engine information available
             </div>
           )}
-        </CardContent>
-      </Card>
-
-      {/* Docker Engine Configuration */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Settings className="h-5 w-5" />
-            Docker Engine Configuration
-          </CardTitle>
-          <CardDescription>
-            Configure the Docker daemon settings and behavior
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="space-y-0.5">
-              <Label>Experimental Features</Label>
-              <div className="text-sm text-muted-foreground">
-                Enable experimental Docker features (may be unstable)
-              </div>
-            </div>
-            <Switch
-              checked={settings.experimentalFeatures}
-              onCheckedChange={checked =>
-                setSettings(prev => ({
-                  ...prev,
-                  experimentalFeatures: checked,
-                }))
-              }
-            />
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Daemon Configuration */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Shield className="h-5 w-5" />
-            Daemon Configuration (daemon.json)
-          </CardTitle>
-          <CardDescription>
-            Edit the Docker daemon configuration file directly
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center gap-2 mb-4">
-            <Badge variant="secondary" className="text-xs">
-              Not available right now
-            </Badge>
-          </div>
-          <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-lg p-4 opacity-50">
-            <div className="flex items-center space-x-2">
-              <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
-              <span className="text-sm font-medium text-amber-800 dark:text-amber-200">
-                Warning
-              </span>
-            </div>
-            <p className="text-sm text-amber-700 dark:text-amber-300 mt-2">
-              Modifying daemon configuration requires restarting Docker Engine.
-              Invalid configuration may prevent Docker from starting.
-            </p>
-          </div>
-
-          <div className="space-y-2 opacity-50">
-            <Label htmlFor="daemon-config">Configuration JSON</Label>
-            <Textarea
-              id="daemon-config"
-              value={settings.daemonConfig}
-              onChange={e =>
-                setSettings(prev => ({ ...prev, daemonConfig: e.target.value }))
-              }
-              className="font-mono text-sm"
-              rows={12}
-              disabled
-            />
-          </div>
-
-          <div className="flex space-x-2">
-            <Button variant="outline" disabled>
-              Validate Config
-            </Button>
-            <Button variant="outline" disabled>
-              Reset to Default
-            </Button>
-          </div>
         </CardContent>
       </Card>
 

@@ -104,6 +104,61 @@ pub async fn is_docker_command_available() -> Result<bool, String> {
     Ok(result)
 }
 
+// #[instrument(skip_all, err)]
+// pub async fn is_colima_installed() -> Result<(), String> {
+//     debug!("Checking if Colima is installed");
+//     todo!()
+// }
+
+// #[instrument(skip_all, err)]
+// pub async fn check_colima_status() -> Result<ColimaStatus, String> {
+//     // Check if colima is installed
+//     let colima_installed = Command::new("which")
+//         .arg("colima")
+//         .output()
+//         .map(|output| output.status.success())
+//         .unwrap_or(false);
+
+//     if !colima_installed {
+//         return Ok(ColimaStatus {
+//             is_installed: false,
+//             is_running: false,
+//             vm_info: None,
+//         });
+//     }
+
+//     // Check colima status
+//     let status_output = Command::new("colima")
+//         .arg("status")
+//         .output()
+//         .map_err(|e| format!("Failed to execute colima status: {}", e))?;
+
+//     if !status_output.status.success() {
+//         return Ok(ColimaStatus {
+//             is_installed: true,
+//             is_running: false,
+//             vm_info: None,
+//         });
+//     }
+
+//     let status_text = String::from_utf8_lossy(&status_output.stdout);
+//     let is_running = status_text.contains("Running");
+
+//     // Parse VM info if running
+//     let vm_info = if is_running {
+//         Self::parse_colima_vm_info(&status_text)
+//     } else {
+//         None
+//     };
+
+//     Ok(ColimaStatus {
+//         is_installed: true,
+//         is_running,
+//         vm_info,
+//     })
+// }
+
+
 #[instrument(skip_all, err)]
 pub async fn create_engine() -> Result<Engine, String> {
     info!("Creating an engine instance");
@@ -124,11 +179,8 @@ pub async fn create_engine() -> Result<Engine, String> {
         });
     }
 
-    // TODO: Check if Colima is installed
-
-    todo!()
-    // Ok(Engine {
-    //     engine_status: EngineStatus::Unknown,
-    //     docker: None,
-    // })
+    Ok(Engine {
+        engine_status: EngineStatus::Unknown,
+        docker: None,
+    })
 }

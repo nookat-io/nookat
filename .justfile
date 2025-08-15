@@ -12,6 +12,7 @@ alias rc := remove_colima
 kill_tauri_runs:
     echo "Killing tauri runs"
     ps aux | grep "npm run tauri" | grep -v grep | awk '{print $2}' | xargs -r kill -9
+    lsof -i:1420 | awk 'NR>1 {print $2}' | xargs -r kill -9
 
 remove_colima:
     echo "Removing Colima..."
