@@ -1,4 +1,4 @@
-mod engine;
+pub mod engine;
 
 use crate::entities::{DockerInfo, EngineInfo, EngineStatus};
 use crate::state::SharedEngineState;

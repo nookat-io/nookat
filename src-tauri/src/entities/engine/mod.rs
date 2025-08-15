@@ -76,3 +76,37 @@ impl Engine {
         matches!(self.engine_status, EngineStatus::Running(_))
     }
 }
+
+// Installation-related types
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub enum InstallationMethod {
+    Homebrew,
+    Binary,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct InstallationProgress {
+    pub step: String,
+    pub message: String,
+    pub percentage: u8,
+    pub logs: Vec<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct ColimaConfig {
+    pub cpu: u8,
+    pub memory: u8,
+    pub disk: u8,
+    pub architecture: String,
+}
+
+impl Default for ColimaConfig {
+    fn default() -> Self {
+        Self {
+            cpu: 4,
+            memory: 8,
+            disk: 60,
+            architecture: "x86_64".to_string(),
+        }
+    }
+}

@@ -1,6 +1,7 @@
 use crate::entities::EngineStatus;
 use crate::state::SharedEngineState;
-use crate::services::engine::is_homebrew_available;
+use crate::services::engine::{is_homebrew_available, install_colima, start_colima_vm};
+use crate::entities::{InstallationMethod, ColimaConfig};
 use tauri::State;
 use tracing::{info, instrument};
 
@@ -32,4 +33,24 @@ pub async fn check_homebrew_availability() -> Result<bool, String> {
         // Homebrew is only available on macOS
         Ok(false)
     }
+}
+
+#[tauri::command]
+#[instrument(skip_all, err)]
+pub async fn install_colima_command(
+    app: tauri::AppHandle,
+    method: InstallationMethod,
+) -> Result<(), String> {
+    info!("Installing Colima via {:?}", method);
+    install_colima(app, method).await
+}
+
+#[tauri::command]
+#[instrument(skip_all, err)]
+pub async fn start_colima_vm_command(
+    app: tauri::AppHandle,
+    config: ColimaConfig,
+) -> Result<(), String> {
+    info!("Starting Colima VM with config: {:?}", config);
+    start_colima_vm(app, config).await
 }

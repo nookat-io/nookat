@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
+import { listen } from '@tauri-apps/api/event';
 import {
   Card,
   CardContent,
@@ -37,7 +38,7 @@ type InstallationMethod = 'homebrew' | 'binary';
 type InstallationStep =
   | 'selecting'
   | 'installing'
-  | 'configuring'
+  | 'starting-vm'
   | 'validating'
   | 'complete'
   | 'error';
@@ -102,64 +103,121 @@ export function EngineInstallation() {
     checkHomebrew();
   }, [method]);
 
+  // Set up event listeners for real-time progress updates
+  useEffect(() => {
+    if (step === 'installing' || step === 'starting-vm') {
+      const unlistenPromises: Promise<() => void>[] = [];
+
+      // Listen for installation progress
+      if (step === 'installing') {
+        const unlistenInstall = listen('installation-progress', event => {
+          const progressData = event.payload as InstallationProgress;
+          setProgress(progressData);
+        });
+        unlistenPromises.push(unlistenInstall);
+
+        const unlistenComplete = listen('installation-complete', async () => {
+          setStep('starting-vm');
+          setProgress({
+            step: 'Starting Colima VM...',
+            message: 'Preparing to start virtual machine',
+            percentage: 0,
+            logs: ['[INFO] Colima installation completed, starting VM...'],
+          });
+
+          try {
+            // Step 2: Start Colima VM with the configured resources
+            await invoke('start_colima_vm_command', { config });
+          } catch (error) {
+            console.error('VM startup failed:', error);
+            setError(error as string);
+            setStep('error');
+          }
+        });
+        unlistenPromises.push(unlistenComplete);
+
+        const unlistenError = listen('installation-error', event => {
+          const errorMsg = event.payload as string;
+          setError(errorMsg);
+          setStep('error');
+        });
+        unlistenPromises.push(unlistenError);
+      }
+
+      // Listen for VM startup progress
+      if (step === 'starting-vm') {
+        const unlistenVMProgress = listen('vm-startup-progress', event => {
+          const progressData = event.payload as InstallationProgress;
+          setProgress(progressData);
+        });
+        unlistenPromises.push(unlistenVMProgress);
+
+        const unlistenVMComplete = listen('vm-startup-complete', () => {
+          setStep('validating');
+          setProgress(prev => ({
+            ...prev,
+            step: 'Validating installation...',
+            message: 'Testing Docker connectivity and Colima status',
+            percentage: 95,
+            logs: [...prev.logs, '[INFO] VM startup completed successfully'],
+          }));
+
+          // Simulate validation time
+          setTimeout(() => {
+            setStep('complete');
+            setProgress(prev => ({
+              ...prev,
+              step: 'Installation Complete!',
+              message: 'Colima is ready to use',
+              percentage: 100,
+              logs: [
+                ...prev.logs,
+                '[INFO] Installation completed successfully',
+              ],
+            }));
+          }, 2000);
+        });
+        unlistenPromises.push(unlistenVMComplete);
+
+        const unlistenVMError = listen('vm-startup-error', event => {
+          const errorMsg = event.payload as string;
+          setError(errorMsg);
+          setStep('error');
+        });
+        unlistenPromises.push(unlistenVMError);
+      }
+
+      // Cleanup function
+      return () => {
+        unlistenPromises.forEach(unlisten => {
+          unlisten.then(cleanup => cleanup());
+        });
+      };
+    }
+  }, [step]);
+
   const handleInstall = async () => {
     setStep('installing');
     setError(null);
+    setProgress({
+      step: 'Starting installation...',
+      message: 'Preparing to install Colima',
+      percentage: 0,
+      logs: ['[INFO] Starting Colima installation...'],
+    });
 
-    // Mock installation process for now
-    const mockSteps = [
-      {
-        step: 'Checking prerequisites...',
-        message: 'Verifying system requirements',
-        percentage: 10,
-      },
-      {
-        step: 'Installing dependencies...',
-        message: 'Downloading and installing required packages',
-        percentage: 30,
-      },
-      {
-        step: 'Setting up Colima...',
-        message: 'Configuring Colima VM environment',
-        percentage: 60,
-      },
-      {
-        step: 'Starting VM...',
-        message: 'Launching Colima virtual machine',
-        percentage: 80,
-      },
-      {
-        step: 'Finalizing...',
-        message: 'Completing setup and configuration',
-        percentage: 95,
-      },
-    ];
+    try {
+      // Step 1: Install Colima
+      const methodEnum = method === 'homebrew' ? 'Homebrew' : 'Binary';
+      await invoke('install_colima_command', { method: methodEnum });
 
-    for (const mockStep of mockSteps) {
-      setProgress(prev => ({
-        ...prev,
-        step: mockStep.step,
-        message: mockStep.message,
-        percentage: mockStep.percentage,
-        logs: [...prev.logs, `[INFO] ${mockStep.step}`],
-      }));
-
-      // Simulate installation time
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      // Progress updates will come via Tauri events
+      // The component will automatically transition to the next step
+    } catch (error) {
+      console.error('Installation failed:', error);
+      setError(error as string);
+      setStep('error');
     }
-
-    setStep('validating');
-    setProgress(prev => ({
-      step: 'Validating installation...',
-      message: 'Testing Docker connectivity and Colima status',
-      percentage: 100,
-      logs: [...prev.logs, '[INFO] Installation completed successfully'],
-    }));
-
-    // Simulate validation
-    await new Promise(resolve => setTimeout(resolve, 2000));
-
-    setStep('complete');
   };
 
   const handleRetry = () => {
@@ -174,7 +232,7 @@ export function EngineInstallation() {
   };
 
   const isInstalling =
-    step === 'installing' || step === 'configuring' || step === 'validating';
+    step === 'installing' || step === 'starting-vm' || step === 'validating';
 
   if (step === 'complete') {
     return (
