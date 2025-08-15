@@ -41,6 +41,8 @@ export function Header() {
   const [searchTerm, setSearchTerm] = useState('');
   const { state, name } = useEngineStatus();
 
+  console.log('state', state);
+
   const statusColor = engineStatusToColor(state);
 
   const statusLabel = engineStatusToLabel(state);

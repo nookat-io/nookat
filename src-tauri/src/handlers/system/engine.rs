@@ -1,62 +1,69 @@
-use crate::entities::{EngineState, EngineStatus};
-use crate::state::SharedDockerState;
+use crate::entities::EngineStatus;
+use crate::state::SharedEngineState;
 use tauri::State;
-use tracing::{instrument, debug};
+use tracing::{debug, info, instrument};
 
 /// Get the status of the container engine
 #[tauri::command]
 #[instrument(skip_all, err)]
-pub async fn engine_status(state: State<'_, SharedDockerState>) -> Result<EngineStatus, String> {
-    debug!("Getting engine status");
-    // Check if Docker is installed
-    let docker = match state.get_docker().await {
-        Ok(d) => d,
-        Err(_) => {
-            return Ok(EngineStatus {
-                name: "Docker Engine".to_string(), // TODO: will be implemented in follow-up PR
-                state: EngineState::NotInstalled,
-                version: None,
-                error: None,
-            });
-        }
-    };
+pub async fn engine_status(state: State<'_, SharedEngineState>) -> Result<EngineStatus, String> {
+    info!("Getting engine status");
 
-    debug!("Docker is installed");
-    debug!("Pinging daemon");
-    // Ping daemon, if fails assume it is not running
-    if docker.ping().await.is_err() {
-        state.return_docker(docker).await;
-        return Ok(EngineStatus {
-            name: "Docker Engine".to_string(), // TODO: will be implemented in follow-up PR
-            state: EngineState::NotRunning,
-            version: None,
-            error: None,
-        });
-    }
+    let engine = state.get_engine().await?;
+    let status = engine.engine_status.clone();
+    info!("Engine status: {:?}", status);
+    state.return_engine(engine).await;
+    Ok(status)
 
-    debug!("Daemon is running");
-    debug!("Getting version");
-    let version = match docker.version().await {
-        Ok(v) => v.version,
-        Err(e) => {
-            state.return_docker(docker).await;
-            return Ok(EngineStatus {
-                name: "Docker Engine".to_string(), // TODO: will be implemented in follow-up PR
-                state: EngineState::Malfunctioning,
-                version: None,
-                error: Some(format!("Could not get Docker version: {e}")),
-            });
-        }
-    };
+    // // Check if Docker is installed
+    // let docker = match state.get_docker().await {
+    //     Ok(d) => d,
+    //     Err(_) => {
+    //         return Ok(EngineStatus {
+    //             name: "Docker Engine".to_string(), // TODO: will be implemented in follow-up PR
+    //             state: EngineState::NotInstalled,
+    //             version: None,
+    //             error: None,
+    //         });
+    //     }
+    // };
 
-    debug!("Version: {:?}", version);
+    // debug!("Docker is installed");
+    // debug!("Pinging daemon");
+    // // Ping daemon, if fails assume it is not running
+    // if docker.ping().await.is_err() {
+    //     state.return_docker(docker).await;
+    //     return Ok(EngineStatus {
+    //         name: "Docker Engine".to_string(), // TODO: will be implemented in follow-up PR
+    //         state: EngineState::NotRunning,
+    //         version: None,
+    //         error: None,
+    //     });
+    // }
 
-    state.return_docker(docker).await;
-    // Installed, running and healthy
-    Ok(EngineStatus {
-        name: "Docker Engine".to_string(), // TODO: will be implemented in follow-up PR
-        state: EngineState::Healthy,
-        version,
-        error: None,
-    })
+    // debug!("Daemon is running");
+    // debug!("Getting version");
+    // let version = match docker.version().await {
+    //     Ok(v) => v.version,
+    //     Err(e) => {
+    //         state.return_docker(docker).await;
+    //         return Ok(EngineStatus {
+    //             name: "Docker Engine".to_string(), // TODO: will be implemented in follow-up PR
+    //             state: EngineState::Malfunctioning,
+    //             version: None,
+    //             error: Some(format!("Could not get Docker version: {e}")),
+    //         });
+    //     }
+    // };
+
+    // debug!("Version: {:?}", version);
+
+    // state.return_docker(docker).await;
+    // // Installed, running and healthy
+    // Ok(EngineStatus {
+    //     name: "Docker Engine".to_string(), // TODO: will be implemented in follow-up PR
+    //     state: EngineState::Healthy,
+    //     version,
+    //     error: None,
+    // })
 }

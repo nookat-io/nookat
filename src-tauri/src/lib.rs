@@ -17,7 +17,7 @@ use crate::handlers::{
     update_telemetry_settings, update_theme, engine_status
 };
 use crate::sentry::flush_sentry;
-use crate::state::SharedDockerState;
+use crate::state::SharedEngineState;
 use tauri::{
     image::Image,
     menu::{MenuBuilder, MenuItem},
@@ -90,7 +90,7 @@ pub fn run() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_autostart::Builder::new().build())
         .plugin(tauri_plugin_opener::init())
-        .manage(SharedDockerState::new())
+        .manage(SharedEngineState::new())
         .invoke_handler(tauri::generate_handler![
             // Configuration
             get_config,

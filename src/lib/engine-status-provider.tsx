@@ -81,6 +81,12 @@ export function EngineStatusProvider({ children }: ProviderProps) {
     return base;
   }, [engineState, version, error, fetchEngineInfo, engineName]);
 
+  console.log('value', value);
+  console.log('engineState', engineState);
+  console.log('version', version);
+  console.log('error', error);
+  console.log('engineName', engineName);
+
   return (
     <EngineStatusContext.Provider value={value}>
       {children}

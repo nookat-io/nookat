@@ -7,10 +7,25 @@ alias r := tauri_dev
 alias b := tauri_build
 alias c := clean
 alias v := upgrade_version
+alias rc := remove_colima
 
 kill_tauri_runs:
     echo "Killing tauri runs"
     ps aux | grep "npm run tauri" | grep -v grep | awk '{print $2}' | xargs -r kill -9
+
+remove_colima:
+    echo "Removing Colima..."
+    rm -rf ~/.colima
+    rm -rf ~/.local/bin/colima
+    rm -rf ~/.local/bin/lima
+    rm -rf ~/.local/bin/limactl
+    rm -rf ~/.local/bin/nerdctl
+    rm -rf ~/.local/bin/nerdctl.lima
+    rm -rf ~/.local/bin/podman.lima
+    rm -rf ~/.local/bin/apptainer.lima
+    rm -rf ~/.local/bin/kubectl.lima
+    rm -rf ~/.local/bin/docker.lima
+    rm -rf ~/.local/share/lima
 
 clean:
     echo "Cleaning up..."

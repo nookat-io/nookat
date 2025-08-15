@@ -1,7 +1,7 @@
 mod engine;
 
-use crate::entities::DockerInfo;
-use crate::state::SharedDockerState;
+use crate::entities::{DockerInfo, EngineInfo, EngineStatus};
+use crate::state::SharedEngineState;
 use std::process::Command;
 use tauri::State;
 use tracing::instrument;
@@ -59,18 +59,25 @@ pub async fn open_url(url: String) -> Result<(), String> {
 
 #[tauri::command]
 #[instrument(skip_all, err)]
-pub async fn get_docker_info(state: State<'_, SharedDockerState>) -> Result<DockerInfo, String> {
-    let docker = state.get_docker().await?;
+pub async fn get_docker_info(state: State<'_, SharedEngineState>) -> Result<DockerInfo, String> {
+    let engine = state.get_engine().await?;
 
-    let info = docker
-        .info()
-        .await
-        .map_err(|e| format!("Failed to get Docker info: {}", e))?;
-    let version = docker
-        .version()
-        .await
-        .map_err(|e| format!("Failed to get Docker version: {}", e))?;
-
-    state.return_docker(docker).await;
-    Ok(DockerInfo::from((info, version)))
+    match engine.engine_status {
+        EngineStatus::Running(EngineInfo::Docker) => {
+            let docker = engine.docker.as_ref().ok_or("Docker not found")?;
+            let info = docker
+                .info()
+                .await
+                .map_err(|e| format!("Failed to get Docker info: {}", e))?;
+            let version = docker
+                .version()
+                .await
+                .map_err(|e| format!("Failed to get Docker version: {}", e))?;
+            state.return_engine(engine).await;
+            Ok(DockerInfo::from((info, version)))
+        }
+        _ => {
+            return Err("DockerInfo is not available".to_string());
+        }
+    }
 }
