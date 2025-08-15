@@ -1,7 +1,6 @@
-use crate::entities::Network;
+use crate::entities::{Engine, Network};
 use bollard::models::Network as BollardNetwork;
 use bollard::network::ListNetworksOptions;
-use bollard::Docker;
 use tracing::instrument;
 
 #[derive(Default, Debug)]
@@ -9,10 +8,10 @@ pub struct NetworksService {}
 
 impl NetworksService {
     #[instrument(skip_all, err)]
-    pub async fn get_networks(docker: &Docker) -> Result<Vec<Network>, String> {
+    pub async fn get_networks(engine: &Engine) -> Result<Vec<Network>, String> {
         let options: ListNetworksOptions<String> = ListNetworksOptions::default();
 
-        let bollard_networks: Vec<BollardNetwork> = docker
+        let bollard_networks: Vec<BollardNetwork> = engine.docker.as_ref().ok_or("Docker not found")?
             .list_networks(Some(options))
             .await
             .map_err(|e| format!("Failed to list networks: {}", e))?;
@@ -22,7 +21,7 @@ impl NetworksService {
     }
 
     #[instrument(skip_all, err)]
-    pub async fn remove_network(docker: &Docker, name: &str) -> Result<(), String> {
+    pub async fn remove_network(engine: &Engine, name: &str) -> Result<(), String> {
         // Validate network name
         if name.trim().is_empty() {
             return Err("Network name cannot be empty".to_string());
@@ -38,7 +37,7 @@ impl NetworksService {
             return Err(format!("Cannot remove system network: {}", name));
         }
 
-        docker
+        engine.docker.as_ref().ok_or("Docker not found")?
             .remove_network(name)
             .await
             .map_err(|e| format!("Failed to remove network {}: {}", name, e))?;
@@ -47,7 +46,7 @@ impl NetworksService {
     }
 
     #[instrument(skip_all, err)]
-    pub async fn bulk_remove_networks(docker: &Docker, names: &[String]) -> Result<(), String> {
+    pub async fn bulk_remove_networks(engine: &Engine, names: &[String]) -> Result<(), String> {
         let mut errors = Vec::new();
 
         for name in names {
@@ -76,7 +75,7 @@ impl NetworksService {
         }
 
         for name in names {
-            if let Err(e) = docker.remove_network(name).await {
+            if let Err(e) = engine.docker.as_ref().ok_or("Docker not found")?.remove_network(name).await {
                 errors.push(format!("Failed to remove network {}: {}", name, e));
             }
         }

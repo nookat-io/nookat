@@ -1,4 +1,4 @@
-use crate::services::ConfigService;
+use crate::services::config::ConfigService;
 use sentry::{init, ClientInitGuard, ClientOptions};
 use std::sync::Once;
 use tracing::{info, warn};

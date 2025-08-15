@@ -3,13 +3,15 @@ use tracing::instrument;
 #[derive(Default, Debug)]
 pub struct VolumesService {}
 
-use crate::entities::Volume;
+use crate::entities::{Engine, Volume};
 use bollard::volume::{ListVolumesOptions, PruneVolumesOptions, RemoveVolumeOptions};
 use bollard::Docker;
 
 impl VolumesService {
     #[instrument(skip_all, err)]
-    pub async fn get_volumes(docker: &Docker) -> Result<Vec<Volume>, String> {
+    pub async fn get_volumes(engine: &Engine) -> Result<Vec<Volume>, String> {
+        let docker = engine.docker.as_ref().ok_or("Docker not found")?;
+
         let options: ListVolumesOptions<String> = ListVolumesOptions::default();
 
         let bollard_volumes = docker
@@ -24,7 +26,9 @@ impl VolumesService {
     }
 
     #[instrument(skip_all, err)]
-    pub async fn remove_volume(docker: &Docker, name: &str) -> Result<(), String> {
+    pub async fn remove_volume(engine: &Engine, name: &str) -> Result<(), String> {
+        let docker = engine.docker.as_ref().ok_or("Docker not found")?;
+
         let options = RemoveVolumeOptions::default();
         docker
             .remove_volume(name, Some(options))
@@ -35,7 +39,9 @@ impl VolumesService {
     }
 
     #[instrument(skip_all, err)]
-    pub async fn bulk_remove_volumes(docker: &Docker, names: &[String]) -> Result<(), String> {
+    pub async fn bulk_remove_volumes(engine: &Engine, names: &[String]) -> Result<(), String> {
+        let docker = engine.docker.as_ref().ok_or("Docker not found")?;
+
         for name in names {
             let options = RemoveVolumeOptions::default();
             docker
@@ -48,7 +54,9 @@ impl VolumesService {
     }
 
     #[instrument(skip_all, err)]
-    pub async fn inspect_volume(docker: &Docker, name: &str) -> Result<Volume, String> {
+    pub async fn inspect_volume(engine: &Engine, name: &str) -> Result<Volume, String> {
+        let docker = engine.docker.as_ref().ok_or("Docker not found")?;
+
         let bollard_volume = docker
             .inspect_volume(name)
             .await
@@ -59,7 +67,9 @@ impl VolumesService {
     }
 
     #[instrument(skip_all, err)]
-    pub async fn prune_volumes(docker: &Docker) -> Result<(), String> {
+    pub async fn prune_volumes(engine: &Engine) -> Result<(), String> {
+        let docker = engine.docker.as_ref().ok_or("Docker not found")?;
+
         let options: PruneVolumesOptions<String> = PruneVolumesOptions::default();
         docker
             .prune_volumes(Some(options))

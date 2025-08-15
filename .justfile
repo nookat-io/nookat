@@ -7,6 +7,7 @@ alias r := tauri_dev
 alias b := tauri_build
 alias c := clean
 alias v := upgrade_version
+alias rc := remove_colima
 
 kill_tauri_runs:
     echo "Killing tauri runs"
@@ -18,6 +19,20 @@ clean:
     rm -rf dist
     rm -rf node_modules
     cd src-tauri && cargo clean && cd ..
+
+remove_colima:
+    echo "Removing Colima..."
+    rm -rf ~/.colima
+    rm -rf ~/.local/bin/colima
+    rm -rf ~/.local/bin/lima
+    rm -rf ~/.local/bin/limactl
+    rm -rf ~/.local/bin/nerdctl
+    rm -rf ~/.local/bin/nerdctl.lima
+    rm -rf ~/.local/bin/podman.lima
+    rm -rf ~/.local/bin/apptainer.lima
+    rm -rf ~/.local/bin/kubectl.lima
+    rm -rf ~/.local/bin/docker.lima
+    rm -rf ~/.local/share/lima
 
 tauri_dev:
     SENTRY_DSN="$SENTRY_DSN" npm run tauri dev

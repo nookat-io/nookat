@@ -1,4 +1,4 @@
-use crate::services::ConfigService;
+use crate::services::config::ConfigService;
 use chrono::Utc;
 
 pub struct UpdaterService;

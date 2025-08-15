@@ -4,10 +4,14 @@ import { useState } from 'react';
 import { Search } from 'lucide-react';
 import { Input } from '../ui/input';
 import { ThemeToggle } from '../ui/theme-toggle';
+// import { EngineStatusIndicator } from '../ui/engine-status-indicator';
+// import { useEngineSetup } from '../../hooks/use-engine-setup';
 
 export function Header() {
   const [searchTerm, setSearchTerm] = useState('');
+  // const { engineStatus, detectEngineStatus } = useEngineSetup();
 
+  // console.log(engineStatus);
   return (
     <header className="flex items-center justify-between px-6 py-4 border-b bg-card">
       <div className="flex items-center space-x-4 flex-1">
@@ -23,6 +27,10 @@ export function Header() {
       </div>
 
       <div className="flex items-center space-x-4">
+        {/* <EngineStatusIndicator
+          status={engineStatus}
+          onStatusChange={detectEngineStatus}
+        /> */}
         <ThemeToggle />
       </div>
     </header>

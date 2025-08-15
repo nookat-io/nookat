@@ -44,6 +44,7 @@ pub struct AppConfig {
 
     pub telemetry: TelemetrySettings,
     pub startup: StartupSettings,
+    // pub engine: EngineSettings,
     // pub docker_engine: DockerEngineSettings,
     // pub network: NetworkSettings,
     // pub security: SecuritySettings,

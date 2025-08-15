@@ -1,3 +1,4 @@
+use crate::entities::Engine;
 use bollard::models::ContainerSummary;
 use bollard::{
     container::{
@@ -14,7 +15,9 @@ pub struct ContainersService {}
 
 impl ContainersService {
     #[instrument(skip_all, err)]
-    pub async fn get_containers(docker: &Docker) -> Result<Vec<ContainerSummary>, String> {
+    pub async fn get_containers(engine: &Engine) -> Result<Vec<ContainerSummary>, String> {
+        let docker = engine.docker.as_ref().ok_or("Docker not found")?;
+
         let options: ListContainersOptions<String> = ListContainersOptions {
             all: true,
             size: true,
@@ -30,7 +33,9 @@ impl ContainersService {
     }
 
     #[instrument(skip_all, err)]
-    pub async fn start_container(docker: &Docker, id: &str) -> Result<(), String> {
+    pub async fn start_container(engine: &Engine, id: &str) -> Result<(), String> {
+        let docker = engine.docker.as_ref().ok_or("Docker not found")?;
+
         let options = StartContainerOptions::<String> {
             ..Default::default()
         };
@@ -44,7 +49,9 @@ impl ContainersService {
     }
 
     #[instrument(skip_all, err)]
-    pub async fn stop_container(docker: &Docker, id: &str) -> Result<(), String> {
+    pub async fn stop_container(engine: &Engine, id: &str) -> Result<(), String> {
+        let docker = engine.docker.as_ref().ok_or("Docker not found")?;
+
         let options = StopContainerOptions { t: 0 };
 
         docker
@@ -56,7 +63,9 @@ impl ContainersService {
     }
 
     #[instrument(skip_all, err)]
-    pub async fn pause_container(docker: &Docker, id: &str) -> Result<(), String> {
+    pub async fn pause_container(engine: &Engine, id: &str) -> Result<(), String> {
+        let docker = engine.docker.as_ref().ok_or("Docker not found")?;
+
         docker
             .pause_container(id)
             .await
@@ -66,7 +75,9 @@ impl ContainersService {
     }
 
     #[instrument(skip_all, err)]
-    pub async fn unpause_container(docker: &Docker, id: &str) -> Result<(), String> {
+    pub async fn unpause_container(engine: &Engine, id: &str) -> Result<(), String> {
+        let docker = engine.docker.as_ref().ok_or("Docker not found")?;
+
         docker
             .unpause_container(id)
             .await
@@ -76,7 +87,9 @@ impl ContainersService {
     }
 
     #[instrument(skip_all, err)]
-    pub async fn restart_container(docker: &Docker, id: &str) -> Result<(), String> {
+    pub async fn restart_container(engine: &Engine, id: &str) -> Result<(), String> {
+        let docker = engine.docker.as_ref().ok_or("Docker not found")?;
+
         let options = RestartContainerOptions { t: 0 };
 
         docker
@@ -88,7 +101,9 @@ impl ContainersService {
     }
 
     #[instrument(skip_all, err)]
-    pub async fn remove_container(docker: &Docker, id: &str) -> Result<(), String> {
+    pub async fn remove_container(engine: &Engine, id: &str) -> Result<(), String> {
+        let docker = engine.docker.as_ref().ok_or("Docker not found")?;
+
         let options = RemoveContainerOptions {
             force: false,
             link: false,
@@ -104,7 +119,9 @@ impl ContainersService {
     }
 
     #[instrument(skip_all, err)]
-    pub async fn force_remove_container(docker: &Docker, id: &str) -> Result<(), String> {
+    pub async fn force_remove_container(engine: &Engine, id: &str) -> Result<(), String> {
+        let docker = engine.docker.as_ref().ok_or("Docker not found")?;
+
         let options = RemoveContainerOptions {
             force: true,
             link: false,
@@ -120,7 +137,9 @@ impl ContainersService {
     }
 
     #[instrument(skip_all, err)]
-    pub async fn open_terminal(docker: &Docker, id: &str) -> Result<(), String> {
+    pub async fn open_terminal(engine: &Engine, id: &str) -> Result<(), String> {
+        let docker = engine.docker.as_ref().ok_or("Docker not found")?;
+
         // Check if container exists and is running
         let containers = docker
             .list_containers(None::<ListContainersOptions<String>>)
@@ -251,7 +270,9 @@ impl ContainersService {
     }
 
     #[instrument(skip_all, err)]
-    pub async fn get_container_logs(docker: &Docker, id: &str) -> Result<Vec<String>, String> {
+    pub async fn get_container_logs(engine: &Engine, id: &str) -> Result<Vec<String>, String> {
+        let docker = engine.docker.as_ref().ok_or("Docker not found")?;
+
         let options = LogsOptions::<String> {
             stdout: true,
             stderr: true,
@@ -296,7 +317,9 @@ impl ContainersService {
     }
 
     #[instrument(skip_all, err)]
-    pub async fn prune_containers(docker: &Docker) -> Result<(), String> {
+    pub async fn prune_containers(engine: &Engine) -> Result<(), String> {
+        let docker = engine.docker.as_ref().ok_or("Docker not found")?;
+
         // Use the prune containers method
         docker
             .prune_containers(None::<bollard::container::PruneContainersOptions<String>>)

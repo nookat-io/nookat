@@ -1,5 +1,5 @@
 use crate::entities::DockerInfo;
-use crate::state::SharedDockerState;
+use crate::state::SharedEngineState;
 use std::process::Command;
 use tauri::State;
 use tracing::instrument;
@@ -56,8 +56,9 @@ pub async fn open_url(url: String) -> Result<(), String> {
 
 #[tauri::command]
 #[instrument(skip_all, err)]
-pub async fn get_docker_info(state: State<'_, SharedDockerState>) -> Result<DockerInfo, String> {
-    let docker = state.get_docker().await?;
+pub async fn get_docker_info(state: State<'_, SharedEngineState>) -> Result<DockerInfo, String> {
+    let engine = state.get_engine().await?;
+    let docker = engine.docker.as_ref().ok_or("Docker not found")?;
 
     let info = docker
         .info()
@@ -68,6 +69,6 @@ pub async fn get_docker_info(state: State<'_, SharedDockerState>) -> Result<Dock
         .await
         .map_err(|e| format!("Failed to get Docker version: {}", e))?;
 
-    state.return_docker(docker).await;
+    state.return_engine(engine).await;
     Ok(DockerInfo::from((info, version)))
 }

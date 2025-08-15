@@ -31,6 +31,14 @@ interface DownloadResult {
   download_time: number;
 }
 
+// NEW: Validation result interface for PHASE-004
+interface ValidationResult {
+  docker_working: boolean;
+  colima_running: boolean;
+  vm_accessible: boolean;
+  issues: string[];
+}
+
 export function BinaryInstallation({ onComplete }: { onComplete: () => void }) {
   const [versionInfo, setVersionInfo] = useState<VersionInfo | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -38,6 +46,9 @@ export function BinaryInstallation({ onComplete }: { onComplete: () => void }) {
   const [isVerifying, setIsVerifying] = useState(false);
   const [isInstalling, setIsInstalling] = useState(false);
   const [isStartingVm, setIsStartingVm] = useState(false);
+  const [isValidating, setIsValidating] = useState(false);
+  const [validationResult, setValidationResult] =
+    useState<ValidationResult | null>(null);
   const [downloadProgress] = useState<{
     [key: string]: {
       total_bytes: number;
@@ -48,7 +59,7 @@ export function BinaryInstallation({ onComplete }: { onComplete: () => void }) {
   } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [currentStep, setCurrentStep] = useState<
-    'info' | 'download' | 'verify' | 'install' | 'start'
+    'info' | 'download' | 'verify' | 'install' | 'start' | 'validate'
   >('info');
   const [installationLogs, setInstallationLogs] = useState<string[]>([]);
   const installationIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -146,24 +157,83 @@ export function BinaryInstallation({ onComplete }: { onComplete: () => void }) {
       await invoke('binary_install_colima');
 
       setCurrentStep('start');
-      await startColimaVm();
+      await startVm();
     } catch (err) {
       setError(`Installation failed: ${err}`);
       setIsInstalling(false);
     }
   };
 
-  const startColimaVm = async () => {
+  // NEW: Start validation after VM startup
+  const startValidation = async () => {
+    try {
+      setIsValidating(true);
+      setError(null);
+
+      const result = await invoke<ValidationResult>(
+        'validate_colima_installation'
+      );
+      setValidationResult(result);
+
+      if (
+        result.docker_working &&
+        result.colima_running &&
+        result.vm_accessible
+      ) {
+        // Save engine configuration
+        const config = {
+          installation_method: 'binary',
+          vm_config: {
+            cpu_cores: 2,
+            memory_gb: 4,
+            disk_gb: 20,
+            architecture: 'auto',
+          },
+          installation_date: new Date().toISOString(),
+          colima_version: versionInfo?.colima_version,
+        };
+
+        try {
+          await invoke('save_engine_config', { config });
+        } catch (err) {
+          console.warn('Failed to save engine config:', err);
+        }
+
+        // Show success and redirect after a short delay
+        setTimeout(() => {
+          onComplete();
+        }, 2000);
+      }
+    } catch (err) {
+      setError(`Validation failed: ${err}`);
+    } finally {
+      setIsValidating(false);
+    }
+  };
+
+  // Enhanced VM startup to include validation
+  const startVm = async () => {
     try {
       setIsStartingVm(true);
       setError(null);
 
-      await invoke('start_colima_vm', { config: {} });
+      const config = {
+        cpu_cores: 2,
+        memory_gb: 4,
+        disk_gb: 20,
+        architecture: 'auto',
+      };
 
-      // Installation complete
-      onComplete();
+      await invoke('start_colima_vm', { config });
+      setCurrentStep('validate');
+
+      // Start validation automatically after VM startup
+      setTimeout(() => {
+        startValidation();
+      }, 3000); // Give VM time to fully start
     } catch (err) {
-      setError(`Failed to start Colima VM: ${err}`);
+      setError(`Failed to start VM: ${err}`);
+    } finally {
       setIsStartingVm(false);
     }
   };
@@ -266,6 +336,91 @@ export function BinaryInstallation({ onComplete }: { onComplete: () => void }) {
               <div className="flex items-center space-x-2">
                 <LoadingSpinner />
                 <span>Starting Colima VM...</span>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* NEW: Validation Step */}
+        {currentStep === 'validate' && (
+          <div className="space-y-4">
+            <div className="text-center">
+              <h3 className="text-lg font-semibold">Validating Installation</h3>
+              <p className="text-sm text-muted-foreground">
+                Verifying that Colima is working correctly...
+              </p>
+            </div>
+
+            {isValidating && (
+              <div className="flex items-center justify-center space-x-2 py-8">
+                <LoadingSpinner />
+                <span>Running validation tests...</span>
+              </div>
+            )}
+
+            {validationResult && (
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="text-center p-4 rounded-lg border">
+                    <div className="text-2xl mb-2">
+                      {validationResult.docker_working ? '✅' : '❌'}
+                    </div>
+                    <div className="text-sm font-medium">Docker CLI</div>
+                    <div className="text-xs text-muted-foreground">
+                      {validationResult.docker_working ? 'Working' : 'Failed'}
+                    </div>
+                  </div>
+
+                  <div className="text-center p-4 rounded-lg border">
+                    <div className="text-2xl mb-2">
+                      {validationResult.colima_running ? '✅' : '❌'}
+                    </div>
+                    <div className="text-sm font-medium">Colima VM</div>
+                    <div className="text-xs text-muted-foreground">
+                      {validationResult.colima_running ? 'Running' : 'Stopped'}
+                    </div>
+                  </div>
+
+                  <div className="text-center p-4 rounded-lg border">
+                    <div className="text-2xl mb-2">
+                      {validationResult.vm_accessible ? '✅' : '❌'}
+                    </div>
+                    <div className="text-sm font-medium">Docker Access</div>
+                    <div className="text-xs text-muted-foreground">
+                      {validationResult.vm_accessible
+                        ? 'Accessible'
+                        : 'Blocked'}
+                    </div>
+                  </div>
+                </div>
+
+                {validationResult.issues.length > 0 && (
+                  <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-md">
+                    <h4 className="font-medium text-yellow-800 mb-2">
+                      Issues Found:
+                    </h4>
+                    <ul className="text-sm text-yellow-700 space-y-1">
+                      {validationResult.issues.map((issue, index) => (
+                        <li key={index}>• {issue}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {validationResult.docker_working &&
+                  validationResult.colima_running &&
+                  validationResult.vm_accessible && (
+                    <div className="text-center p-4 bg-green-50 border border-green-200 rounded-md">
+                      <div className="text-2xl mb-2">🎉</div>
+                      <h4 className="font-medium text-green-800">
+                        Installation Successful!
+                      </h4>
+                      <p className="text-sm text-green-700">
+                        Colima is now running and ready to use. Redirecting to
+                        main app...
+                      </p>
+                    </div>
+                  )}
               </div>
             )}
           </div>

@@ -1,4 +1,4 @@
-use crate::entities::{Image, PruneResult};
+use crate::entities::{Engine, Image, PruneResult};
 use bollard::container::ListContainersOptions;
 use bollard::image::ListImagesOptions;
 use bollard::models::ImageSummary;
@@ -12,11 +12,11 @@ pub struct ImagesService {}
 impl ImagesService {
     /// Helper function to get all images and containers with used image IDs
     async fn get_images_and_used_ids(
-        docker: &Docker,
+        engine: &Engine,
     ) -> Result<(Vec<ImageSummary>, HashSet<String>), String> {
         // Get all images
         let image_options: ListImagesOptions<String> = ListImagesOptions::default();
-        let images = docker
+        let images = engine.docker.as_ref().ok_or("Docker not found")?
             .list_images(Some(image_options))
             .await
             .map_err(|e| format!("Failed to list images: {}", e))?;
@@ -26,7 +26,7 @@ impl ImagesService {
             all: true,
             ..Default::default()
         };
-        let containers = docker
+        let containers = engine.docker.as_ref().ok_or("Docker not found")?
             .list_containers(Some(container_options))
             .await
             .map_err(|e| format!("Failed to list containers: {}", e))?;
@@ -43,8 +43,8 @@ impl ImagesService {
     }
 
     #[instrument(skip_all, err)]
-    pub async fn get_images(docker: &Docker) -> Result<Vec<Image>, String> {
-        let (images, used_image_ids) = Self::get_images_and_used_ids(docker).await?;
+    pub async fn get_images(engine: &Engine) -> Result<Vec<Image>, String> {
+        let (images, used_image_ids) = Self::get_images_and_used_ids(engine).await?;
 
         let result: Vec<Image> = images
             .iter()
@@ -99,12 +99,12 @@ impl ImagesService {
     }
 
     #[instrument(skip_all, err)]
-    pub async fn perform_prune(docker: &Docker) -> Result<PruneResult, String> {
+    pub async fn perform_prune(engine: &Engine) -> Result<PruneResult, String> {
         let options = bollard::image::PruneImagesOptions::<String> {
             ..Default::default()
         };
 
-        let result = docker
+        let result = engine.docker.as_ref().ok_or("Docker not found")?
             .prune_images(Some(options))
             .await
             .map_err(|e| format!("Failed to prune images: {}", e))?;

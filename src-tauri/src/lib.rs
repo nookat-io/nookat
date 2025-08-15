@@ -7,19 +7,16 @@ mod state;
 use crate::handlers::{
     bulk_force_remove_containers, bulk_pause_containers, bulk_remove_containers,
     bulk_remove_networks, bulk_remove_volumes, bulk_restart_containers, bulk_start_containers,
-    bulk_stop_containers, bulk_unpause_containers, check_colima_availability, container_files, container_logs,
+    bulk_stop_containers, bulk_unpause_containers, container_files, container_logs,
     detect_engine_status, force_remove_container, get_config, get_docker_info, get_language, get_theme, inspect_volume,
     list_containers, list_images, list_networks, list_volumes, open_terminal, open_url,
     pause_container, prune_containers, prune_images, prune_volumes, remove_container,
     remove_network, remove_volume, restart_container, start_container, stop_container,
     unpause_container, update_language, update_last_update_check, update_startup_settings,
-    update_telemetry_settings, update_theme, check_homebrew_availability, start_colima_installation,
-    get_installation_logs, start_colima_vm, start_colima_vm_background, get_vm_startup_logs,
-    get_colima_versions, download_colima_binaries, verify_binary_checksums, binary_install_colima,
-    get_binary_installation_logs, clear_binary_installation_logs,
+    update_telemetry_settings, update_theme
 };
 use crate::sentry::flush_sentry;
-use crate::state::SharedDockerState;
+use crate::state::SharedEngineState;
 use tauri::{
     image::Image,
     menu::{MenuBuilder, MenuItem},
@@ -91,7 +88,7 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_opener::init())
-        .manage(SharedDockerState::new())
+        .manage(SharedEngineState::new())
         .invoke_handler(tauri::generate_handler![
             // Configuration
             get_config,
@@ -140,19 +137,6 @@ pub fn run() {
             get_docker_info,
             // Engine Setup
             detect_engine_status,
-            check_colima_availability,
-            check_homebrew_availability,
-            start_colima_installation,
-            get_installation_logs,
-            start_colima_vm,
-            start_colima_vm_background,
-            get_vm_startup_logs,
-            get_colima_versions,
-            download_colima_binaries,
-            verify_binary_checksums,
-            binary_install_colima,
-            get_binary_installation_logs,
-            clear_binary_installation_logs,
         ])
         .setup(|app| {
             Ok(build_tray(app)?)
