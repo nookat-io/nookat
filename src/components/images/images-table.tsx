@@ -68,7 +68,11 @@ export function ImagesTable({
   error = null,
   onRetry,
 }: ImagesTableProps) {
-  const dockerImages = images.map(convertImageData);
+  const dockerImages = images.map(convertImageData).sort((a, b) => {
+    const dateDiff = b.created.getTime() - a.created.getTime();
+    if (dateDiff !== 0) return dateDiff;
+    return a.repository.localeCompare(b.repository);
+  });
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
@@ -135,16 +139,16 @@ export function ImagesTable({
             {image.tag}
           </div>
         </TableCell>
-        <TableCell className="text-muted-foreground text-xs font-mono">
+        {/* <TableCell className="text-muted-foreground text-xs font-mono">
           {image.imageId.startsWith('sha256:')
             ? image.imageId.substring(7, 19)
             : image.imageId.substring(0, 12)}
-        </TableCell>
+        </TableCell> */}
         <TableCell className="text-muted-foreground">
           {formatDistanceToNow(image.created)} ago
         </TableCell>
         <TableCell className="text-muted-foreground">{image.size}</TableCell>
-        <TableCell>
+        <TableCell className="text-center">
           <Badge
             variant={image.inUse ? 'default' : 'secondary'}
             className={
@@ -199,13 +203,13 @@ export function ImagesTable({
                   onCheckedChange={handleSelectAll}
                 />
               </TableHead>
-              <TableHead className="w-[30%]">Name</TableHead>
+              <TableHead className="w-[35%]">Name</TableHead>
               <TableHead className="w-[15%]">Tag</TableHead>
-              <TableHead className="w-[15%]">Image ID</TableHead>
-              <TableHead className="w-[15%]">Created</TableHead>
+              {/* <TableHead className="w-[15%]">Image ID</TableHead> */}
+              <TableHead className="w-[10%]">Created</TableHead>
               <TableHead className="w-[10%]">Size</TableHead>
               <TableHead className="w-[10%]">Status</TableHead>
-              <TableHead className="w-24">Actions</TableHead>
+              <TableHead className="w-[10%]">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody className="flex-1">{renderTableBody()}</TableBody>
