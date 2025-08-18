@@ -144,10 +144,12 @@ export function ImagesTable({
             ? image.imageId.substring(7, 19)
             : image.imageId.substring(0, 12)}
         </TableCell> */}
-        <TableCell className="text-muted-foreground">
+        <TableCell className="text-muted-foreground text-center">
           {formatDistanceToNow(image.created)} ago
         </TableCell>
-        <TableCell className="text-muted-foreground">{image.size}</TableCell>
+        <TableCell className="text-muted-foreground text-center">
+          {image.size}
+        </TableCell>
         <TableCell className="text-center">
           <Badge
             variant={image.inUse ? 'default' : 'secondary'}
