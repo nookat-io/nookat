@@ -2,10 +2,10 @@ pub mod engine;
 
 use crate::entities::{DockerInfo, EngineInfo, EngineStatus};
 use crate::state::SharedEngineState;
+pub use engine::*;
 use std::process::Command;
 use tauri::State;
 use tracing::instrument;
-pub use engine::*;
 
 #[tauri::command]
 #[instrument(skip_all, err)]

@@ -2,7 +2,7 @@ use crate::entities::Engine;
 use crate::services::engine;
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use tracing::{debug, warn, instrument};
+use tracing::{debug, instrument, warn};
 
 #[derive(Default)]
 pub struct SharedEngineState {
@@ -39,7 +39,7 @@ impl SharedEngineState {
                     *engine_guard = Some(new_engine);
                     Ok(engine_guard.as_ref().unwrap().clone())
                 }
-            },
+            }
             None => Err("Engine instance is not available".to_string()),
         }
     }

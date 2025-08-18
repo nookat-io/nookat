@@ -1,9 +1,11 @@
 use crate::entities::EngineStatus;
+use crate::entities::{ColimaConfig, InstallationMethod};
+use crate::services::engine::{
+    install_colima, is_colima_available, is_homebrew_available, start_colima_vm,
+};
 use crate::state::SharedEngineState;
-use crate::services::engine::{is_homebrew_available, install_colima, start_colima_vm, is_colima_available};
-use crate::entities::{InstallationMethod, ColimaConfig};
 use tauri::State;
-use tracing::{info, debug, instrument};
+use tracing::{debug, info, instrument};
 
 /// Get the status of the container engine
 #[tauri::command]
@@ -17,21 +19,11 @@ pub async fn engine_status(state: State<'_, SharedEngineState>) -> Result<Engine
     Ok(status)
 }
 
-
 #[tauri::command]
 #[instrument(skip_all, err)]
 pub async fn check_homebrew_availability() -> Result<bool, String> {
-    #[cfg(target_os = "macos")]
-    {
-        let is_homebrew_available = is_homebrew_available().await?;
-        Ok(is_homebrew_available)
-    }
-
-    #[cfg(not(target_os = "macos"))]
-    {
-        // Homebrew is only available on macOS
-        Ok(false)
-    }
+    let is_homebrew_available = is_homebrew_available().await?;
+    Ok(is_homebrew_available)
 }
 
 #[tauri::command]
