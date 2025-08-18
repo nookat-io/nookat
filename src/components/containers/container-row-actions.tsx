@@ -43,9 +43,7 @@ export function ContainerRowActions({
   const handleOpenTerminal = async () => {
     setOpeningTerminal(true);
     try {
-      if (container.id) {
-        await ContainerActionService.openTerminal(container.id);
-      }
+      await ContainerActionService.openTerminal(container.id);
     } finally {
       setOpeningTerminal(false);
     }
@@ -59,14 +57,13 @@ export function ContainerRowActions({
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
-        {/* Start action - available for stopped, exited, created containers */}
+        {/* Start action - available for exited, created containers */}
         {container.state &&
           [ContainerState.Exited, ContainerState.Created].includes(
             container.state
           ) && (
             <DropdownMenuItem
               onClick={() =>
-                container.id &&
                 handleAction(() =>
                   ContainerActionService.startContainer(container.id, {
                     onActionComplete,
@@ -81,7 +78,9 @@ export function ContainerRowActions({
 
         {/* Stop action - available for running, restarting containers */}
         {container.state &&
-          ['running', 'restarting'].includes(container.state) && (
+          [ContainerState.Running, ContainerState.Restarting].includes(
+            container.state
+          ) && (
             <DropdownMenuItem
               onClick={() =>
                 handleAction(() =>
@@ -97,7 +96,7 @@ export function ContainerRowActions({
           )}
 
         {/* Pause action - available for running containers */}
-        {container.state && container.state === 'running' && (
+        {container.state && container.state === ContainerState.Running && (
           <DropdownMenuItem
             onClick={() =>
               handleAction(() =>
@@ -113,7 +112,7 @@ export function ContainerRowActions({
         )}
 
         {/* Resume action - available for paused containers */}
-        {container.state && container.state === 'paused' && (
+        {container.state && container.state === ContainerState.Paused && (
           <DropdownMenuItem
             onClick={() =>
               handleAction(() =>
@@ -130,7 +129,9 @@ export function ContainerRowActions({
 
         {/* Restart action - available for running, restarting containers */}
         {container.state &&
-          ['running', 'restarting'].includes(container.state) && (
+          [ContainerState.Running, ContainerState.Restarting].includes(
+            container.state
+          ) && (
             <DropdownMenuItem
               onClick={() =>
                 handleAction(() =>
@@ -146,7 +147,7 @@ export function ContainerRowActions({
           )}
 
         {/* Terminal - available for running containers */}
-        {container.state && container.state === 'running' && (
+        {container.state && container.state === ContainerState.Running && (
           <DropdownMenuItem
             onClick={handleOpenTerminal}
             disabled={openingTerminal}
@@ -164,23 +165,27 @@ export function ContainerRowActions({
 
         {/* Delete action - available for stopped, exited, created, running containers */}
         {container.state &&
-          ['stopped', 'exited', 'created', 'running'].includes(
-            container.state
-          ) && (
+          [
+            ContainerState.Exited,
+            ContainerState.Created,
+            ContainerState.Running,
+          ].includes(container.state) && (
             <DropdownMenuItem
               className="text-destructive"
               onClick={() =>
                 handleAction(() =>
                   ContainerActionService.deleteContainer(
                     container.id,
-                    container.state === 'running',
+                    container.state === ContainerState.Running,
                     { onActionComplete }
                   )
                 )
               }
             >
               <Trash2 className="mr-2 h-4 w-4" />
-              {container.state === 'running' ? 'Force Delete' : 'Delete'}
+              {container.state === ContainerState.Running
+                ? 'Force Delete'
+                : 'Delete'}
             </DropdownMenuItem>
           )}
       </DropdownMenuContent>

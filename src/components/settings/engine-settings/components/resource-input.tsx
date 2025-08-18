@@ -21,8 +21,6 @@ export const ResourceInput = ({
   min,
   max,
   onChange,
-  icon: Icon,
-  unit,
   className = '',
 }: ResourceInputProps) => {
   return (
@@ -36,10 +34,6 @@ export const ResourceInput = ({
         value={value}
         onChange={e => onChange(parseInt(e.target.value) || min)}
       />
-      <div className="text-xs text-muted-foreground">
-        <Icon className="h-3 w-3 inline mr-1" />
-        {value} {unit}
-      </div>
     </div>
   );
 };

@@ -13,12 +13,12 @@ mod stub;
 pub use stub::*;
 
 
+#[cfg(target_os = "macos")]
 pub async fn create_engine() -> Result<Engine, String> {
-    #[cfg(target_os = "macos")]
-    let engine = macos::create_engine().await?;
+    Ok(macos::create_engine().await?)
+}
 
-    #[cfg(not(target_os = "macos"))]
+#[cfg(not(target_os = "macos"))]
+pub async fn create_engine() -> Result<Engine, String> {
     let engine = stub::create_engine().await?;
-
-    Ok(engine)
 }

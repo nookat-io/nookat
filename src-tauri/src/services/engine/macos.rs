@@ -4,17 +4,17 @@ use std::env;
 use std::process::Command;
 use tokio::sync::mpsc;
 use tauri::{AppHandle, Emitter};
-use tracing::{debug, info, warn, instrument};
+use tracing::{debug, warn, instrument};
 
 
 #[instrument(skip_all, err)]
 async fn connect_to_docker_with_local_defaults() -> Result<Docker, String> {
-    info!("Trying to connect to Docker via local defaults");
+    debug!("Trying to connect to Docker via local defaults");
 
     let docker = Docker::connect_with_local_defaults().map_err(|e| format!("Failed to connect to Docker: {}", e))?;
 
     if let Ok(_) = docker.info().await {
-        info!("Successfully connected to Docker via local defaults");
+        debug!("Successfully connected to Docker via local defaults");
         return Ok(docker);
     }
     warn!("local defaults connection failed, trying fallback");
@@ -23,7 +23,7 @@ async fn connect_to_docker_with_local_defaults() -> Result<Docker, String> {
 
 #[instrument(skip_all, err)]
 async fn connect_to_docker_using_different_contexts() -> Result<Docker, String> {
-    info!("Trying to connect to Docker via different contexts");
+    debug!("Trying to connect to Docker via different contexts");
 
     let context_output = Command::new("docker")
         .arg("context")
@@ -35,19 +35,19 @@ async fn connect_to_docker_using_different_contexts() -> Result<Docker, String> 
     if let Ok(output) = context_output {
         if output.status.success() {
             let output_str = String::from_utf8_lossy(&output.stdout).trim().to_string();
-            let socket_paths = output_str.split("\n");
+            let socket_paths = output_str.lines();
 
             for socket_path in socket_paths {
                 if socket_path.starts_with("unix://") {
                     let socket_path = socket_path.trim_start_matches("unix://");
-                    info!("Current Docker context socket: {}", socket_path);
+                    debug!("Current Docker context socket: {}", socket_path);
 
                     // Set DOCKER_HOST environment variable for this process
                     env::set_var("DOCKER_HOST", format!("unix://{}", socket_path));
 
                     if let Ok(docker) = Docker::connect_with_local_defaults() {
                         if let Ok(_) = docker.info().await {
-                            info!("Successfully connected to Docker via context socket");
+                            debug!("Successfully connected to Docker via context socket");
                             return Ok(docker);
                         }
                     }
@@ -78,7 +78,7 @@ pub async fn connect_to_docker_macos() -> Result<Docker, String> {
     debug!("context connection failed, trying fallback");
 
     // Last resort: try the default connection method
-    info!("Trying default Docker connection method");
+    debug!("Trying default Docker connection method");
     Docker::connect_with_local_defaults().map_err(|e| format!("Failed to connect to Docker: {}", e))
 }
 
@@ -129,7 +129,7 @@ pub async fn is_homebrew_available() -> Result<bool, String> {
 
 #[instrument(skip_all, err)]
 pub async fn is_colima_available() -> Result<bool, String> {
-    info!("Checking if Colima is available on the system");
+    debug!("Checking if Colima is available on the system");
 
     // Check if colima command exists in PATH
     let output = Command::new("which")
@@ -138,7 +138,7 @@ pub async fn is_colima_available() -> Result<bool, String> {
         .map_err(|e| format!("Failed to check Colima availability: {}", e))?;
 
     if !output.status.success() {
-        info!("Colima command not found in PATH");
+        debug!("Colima command not found in PATH");
         return Ok(false);
     }
 
@@ -149,76 +149,21 @@ pub async fn is_colima_available() -> Result<bool, String> {
         .map_err(|e| format!("Failed to check Colima version: {}", e))?;
 
     if !version_output.status.success() {
-        info!("Colima command exists but failed to execute");
+        debug!("Colima command exists but failed to execute");
         return Ok(false);
     }
 
     let version = String::from_utf8_lossy(&version_output.stdout).trim().to_string();
-    info!("Colima is available, version: {}", version);
+    debug!("Colima is available, version: {}", version);
     Ok(true)
 }
 
-// #[instrument(skip_all, err)]
-// pub async fn is_colima_installed() -> Result<(), String> {
-//     debug!("Checking if Colima is installed");
-//     todo!()
-// }
-
-// #[instrument(skip_all, err)]
-// pub async fn check_colima_status() -> Result<ColimaStatus, String> {
-//     // Check if colima is installed
-//     let colima_installed = Command::new("which")
-//         .arg("colima")
-//         .output()
-//         .map(|output| output.status.success())
-//         .unwrap_or(false);
-
-//     if !colima_installed {
-//         return Ok(ColimaStatus {
-//             is_installed: false,
-//             is_running: false,
-//             vm_info: None,
-//         });
-//     }
-
-//     // Check colima status
-//     let status_output = Command::new("colima")
-//         .arg("status")
-//         .output()
-//         .map_err(|e| format!("Failed to execute colima status: {}", e))?;
-
-//     if !status_output.status.success() {
-//         return Ok(ColimaStatus {
-//             is_installed: true,
-//             is_running: false,
-//             vm_info: None,
-//         });
-//     }
-
-//     let status_text = String::from_utf8_lossy(&status_output.stdout);
-//     let is_running = status_text.contains("Running");
-
-//     // Parse VM info if running
-//     let vm_info = if is_running {
-//         Self::parse_colima_vm_info(&status_text)
-//     } else {
-//         None
-//     };
-
-//     Ok(ColimaStatus {
-//         is_installed: true,
-//         is_running,
-//         vm_info,
-//     })
-// }
-
-
 #[instrument(skip_all, err)]
 pub async fn create_engine() -> Result<Engine, String> {
-    info!("Creating an engine instance");
+    debug!("Creating an engine instance");
 
     if !is_docker_command_available().await? {
-        info!("Docker command is not available, creating an engine instance with unknown status");
+        debug!("Docker command is not available, creating an engine instance with unknown status");
         return Ok(Engine {
             engine_status: EngineStatus::Unknown,
             docker: None,
@@ -226,7 +171,7 @@ pub async fn create_engine() -> Result<Engine, String> {
     }
 
     if let Ok(docker) = connect_to_docker_macos().await {
-        info!("Docker command is available, creating an engine instance with running status");
+        debug!("Docker command is available, creating an engine instance with running status");
         return Ok(Engine {
             engine_status: EngineStatus::Running(EngineInfo::Docker),
             docker: Some(docker),
@@ -244,7 +189,7 @@ pub async fn install_colima(
     app_handle: AppHandle,
     method: InstallationMethod,
 ) -> Result<(), String> {
-    info!("Starting Colima installation via {:?}", method);
+    debug!("Starting Colima installation via {:?}", method);
 
     match method {
         InstallationMethod::Homebrew => {
@@ -258,7 +203,7 @@ pub async fn install_colima(
 
 #[instrument(skip_all, err)]
 async fn install_colima_via_homebrew(app_handle: AppHandle) -> Result<(), String> {
-    info!("Installing Colima via Homebrew");
+    debug!("Installing Colima via Homebrew");
 
     // Create a channel for progress updates
     let (tx, mut rx) = mpsc::channel::<InstallationProgress>(100);
@@ -303,7 +248,7 @@ async fn install_colima_via_homebrew(app_handle: AppHandle) -> Result<(), String
 
     // Handle progress updates and send them to the frontend
     let app_handle_clone = app_handle.clone();
-    let progress_handle = tokio::spawn(async move {
+    let _progress_handle = tokio::spawn(async move {
         while let Some(progress) = rx.recv().await {
             let _ = app_handle_clone.emit("installation-progress", progress);
         }
@@ -315,23 +260,26 @@ async fn install_colima_via_homebrew(app_handle: AppHandle) -> Result<(), String
         .and_then(|r| Ok(r));
 
     // Send completion event
-    if result.is_ok() {
-        let _ = app_handle.emit("installation-complete", ());
-    } else {
-        let _ = app_handle.emit("installation-error", result.as_ref().unwrap_err());
+    match &result {
+        Ok(_) => {
+            let _ = app_handle.emit("installation-complete", ());
+        }
+        Err(e) => {
+            let _ = app_handle.emit("installation-error", e);
+        }
     }
 
-    Ok(result?)
+    result
 }
 
 #[instrument(skip_all, err)]
 async fn install_colima_packages() -> Result<(), String> {
-    info!("Installing Colima packages via Homebrew");
+    debug!("Installing Colima packages via Homebrew");
 
     let packages = vec!["colima", "docker", "docker-compose"];
 
     for package in packages {
-        info!("Installing package: {}", package);
+        debug!("Installing package: {}", package);
 
         let output = Command::new("brew")
             .arg("install")
@@ -344,7 +292,7 @@ async fn install_colima_packages() -> Result<(), String> {
             return Err(format!("Failed to install {}: {}", package, stderr));
         }
 
-        info!("Successfully installed package: {}", package);
+        debug!("Successfully installed package: {}", package);
     }
 
     Ok(())
@@ -355,7 +303,7 @@ pub async fn start_colima_vm(
     app_handle: AppHandle,
     config: ColimaConfig,
 ) -> Result<(), String> {
-    info!("Starting Colima VM with config: {:?}", config);
+    debug!("Starting Colima VM with config: {:?}", config);
 
     // Create a channel for progress updates
     let (tx, mut rx) = mpsc::channel::<InstallationProgress>(100);
@@ -440,7 +388,7 @@ pub async fn start_colima_vm(
 
     // Handle progress updates and send them to the frontend
     let app_handle_clone = app_handle.clone();
-    let progress_handle = tokio::spawn(async move {
+    let _progress_handle = tokio::spawn(async move {
         while let Some(progress) = rx.recv().await {
             let _ = app_handle_clone.emit("vm-startup-progress", progress);
         }
@@ -452,13 +400,16 @@ pub async fn start_colima_vm(
         .and_then(|r| Ok(r));
 
     // Send completion event
-    if result.is_ok() {
-        let _ = app_handle.emit("vm-startup-complete", ());
-    } else {
-        let _ = app_handle.emit("vm-startup-error", result.as_ref().unwrap_err());
+    match &result {
+        Ok(_) => {
+            let _ = app_handle.emit("vm-startup-complete", ());
+        }
+        Err(e) => {
+            let _ = app_handle.emit("vm-startup-error", e);
+        }
     }
 
-    Ok(result?)
+    result
 }
 
 #[instrument(skip_all, err)]
@@ -478,7 +429,7 @@ async fn check_colima_status() -> Result<bool, String> {
 
 #[instrument(skip_all, err)]
 async fn start_colima_with_config(config: &ColimaConfig) -> Result<(), String> {
-    info!("Starting Colima with config: {:?}", config);
+    debug!("Starting Colima with config: {:?}", config);
 
     let mut args = vec!["start"];
 
@@ -495,12 +446,10 @@ async fn start_colima_with_config(config: &ColimaConfig) -> Result<(), String> {
     args.extend_from_slice(&["--disk", &disk_str]);
 
     // Add architecture configuration
-    if config.architecture == "aarch64" {
-        args.push("--arch");
-        args.push("aarch64");
-    }
+    let architecture_str = config.architecture.to_string();
+    args.extend_from_slice(&["--arch", &architecture_str]);
 
-    info!("Executing: colima {}", args.join(" "));
+    debug!("Executing: colima {}", args.join(" "));
 
     let output = Command::new("colima")
         .args(&args)
@@ -512,13 +461,13 @@ async fn start_colima_with_config(config: &ColimaConfig) -> Result<(), String> {
         return Err(format!("Failed to start Colima: {}", stderr));
     }
 
-    info!("Colima started successfully");
+    debug!("Colima started successfully");
     Ok(())
 }
 
 #[instrument(skip_all, err)]
 async fn validate_colima_startup() -> Result<(), String> {
-    info!("Validating Colima startup");
+    debug!("Validating Colima startup");
 
     // Check if Docker is responding
     let docker_check = Command::new("docker")
@@ -540,6 +489,6 @@ async fn validate_colima_startup() -> Result<(), String> {
         return Err("Cannot connect to Docker daemon".to_string());
     }
 
-    info!("Colima startup validation successful");
+    debug!("Colima startup validation successful");
     Ok(())
 }

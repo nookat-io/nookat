@@ -14,7 +14,6 @@ pub async fn list_containers(
     let engine = state.get_engine().await?;
     let docker = engine.docker.as_ref().ok_or("Docker not found")?;
     let containers = ContainersService::get_containers(&docker).await?;
-    state.return_engine(engine).await;
 
     Ok(containers.into_iter().map(|c| c.into()).collect())
 }
@@ -30,7 +29,6 @@ pub async fn start_container(
     let engine = state.get_engine().await?;
     let docker = engine.docker.as_ref().ok_or("Docker not found")?;
     let result = ContainersService::start_container(&docker, &id).await;
-    state.return_engine(engine).await;
     result
 }
 
@@ -42,7 +40,6 @@ pub async fn stop_container(state: State<'_, SharedEngineState>, id: String) -> 
     let engine = state.get_engine().await?;
     let docker = engine.docker.as_ref().ok_or("Docker not found")?;
     let result = ContainersService::stop_container(&docker, &id).await;
-    state.return_engine(engine).await;
     result
 }
 
@@ -57,7 +54,6 @@ pub async fn pause_container(
     let engine = state.get_engine().await?;
     let docker = engine.docker.as_ref().ok_or("Docker not found")?;
     let result = ContainersService::pause_container(&docker, &id).await;
-    state.return_engine(engine).await;
     result
 }
 
@@ -72,7 +68,6 @@ pub async fn unpause_container(
     let engine = state.get_engine().await?;
     let docker = engine.docker.as_ref().ok_or("Docker not found")?;
     let result = ContainersService::unpause_container(&docker, &id).await;
-    state.return_engine(engine).await;
     result
 }
 
@@ -87,7 +82,6 @@ pub async fn restart_container(
     let engine = state.get_engine().await?;
     let docker = engine.docker.as_ref().ok_or("Docker not found")?;
     let result = ContainersService::restart_container(&docker, &id).await;
-    state.return_engine(engine).await;
     result
 }
 
@@ -103,11 +97,9 @@ pub async fn bulk_start_containers(
     let docker = engine.docker.as_ref().ok_or("Docker not found")?;
     for id in &ids {
         if let Err(e) = ContainersService::start_container(&docker, id).await {
-            state.return_engine(engine).await;
             return Err(format!("Failed to start container {}: {}", id, e));
         }
     }
-    state.return_engine(engine).await;
     Ok(())
 }
 
@@ -123,11 +115,9 @@ pub async fn bulk_stop_containers(
     let docker = engine.docker.as_ref().ok_or("Docker not found")?;
     for id in &ids {
         if let Err(e) = ContainersService::stop_container(&docker, id).await {
-            state.return_engine(engine).await;
             return Err(format!("Failed to stop container {}: {}", id, e));
         }
     }
-    state.return_engine(engine).await;
     Ok(())
 }
 
@@ -143,11 +133,9 @@ pub async fn bulk_pause_containers(
     let docker = engine.docker.as_ref().ok_or("Docker not found")?;
     for id in &ids {
         if let Err(e) = ContainersService::pause_container(&docker, id).await {
-            state.return_engine(engine).await;
             return Err(format!("Failed to pause container {}: {}", id, e));
         }
     }
-    state.return_engine(engine).await;
     Ok(())
 }
 
@@ -163,11 +151,9 @@ pub async fn bulk_unpause_containers(
     let docker = engine.docker.as_ref().ok_or("Docker not found")?;
     for id in &ids {
         if let Err(e) = ContainersService::unpause_container(&docker, id).await {
-            state.return_engine(engine).await;
             return Err(format!("Failed to unpause container {}: {}", id, e));
         }
     }
-    state.return_engine(engine).await;
     Ok(())
 }
 
@@ -183,11 +169,9 @@ pub async fn bulk_restart_containers(
     let docker = engine.docker.as_ref().ok_or("Docker not found")?;
     for id in &ids {
         if let Err(e) = ContainersService::restart_container(&docker, id).await {
-            state.return_engine(engine).await;
             return Err(format!("Failed to restart container {}: {}", id, e));
         }
     }
-    state.return_engine(engine).await;
     Ok(())
 }
 
@@ -203,11 +187,9 @@ pub async fn bulk_remove_containers(
     let docker = engine.docker.as_ref().ok_or("Docker not found")?;
     for id in &ids {
         if let Err(e) = ContainersService::remove_container(&docker, id).await {
-            state.return_engine(engine).await;
             return Err(format!("Failed to remove container {}: {}", id, e));
         }
     }
-    state.return_engine(engine).await;
     Ok(())
 }
 
@@ -223,11 +205,9 @@ pub async fn bulk_force_remove_containers(
     let docker = engine.docker.as_ref().ok_or("Docker not found")?;
     for id in &ids {
         if let Err(e) = ContainersService::force_remove_container(&docker, id).await {
-            state.return_engine(engine).await;
             return Err(format!("Failed to force remove container {}: {}", id, e));
         }
     }
-    state.return_engine(engine).await;
     Ok(())
 }
 
@@ -239,7 +219,6 @@ pub async fn open_terminal(state: State<'_, SharedEngineState>, id: String) -> R
     let engine = state.get_engine().await?;
     let docker = engine.docker.as_ref().ok_or("Docker not found")?;
     let result = ContainersService::open_terminal(&docker, &id).await;
-    state.return_engine(engine).await;
     result
 }
 
@@ -254,7 +233,6 @@ pub async fn container_logs(
     let engine = state.get_engine().await?;
     let docker = engine.docker.as_ref().ok_or("Docker not found")?;
     let result = ContainersService::get_container_logs(&docker, &id).await;
-    state.return_engine(engine).await;
     result
 }
 
@@ -280,7 +258,6 @@ pub async fn remove_container(
     let engine = state.get_engine().await?;
     let docker = engine.docker.as_ref().ok_or("Docker not found")?;
     let result = ContainersService::remove_container(&docker, &id).await;
-    state.return_engine(engine).await;
     result
 }
 
@@ -295,7 +272,6 @@ pub async fn force_remove_container(
     let engine = state.get_engine().await?;
     let docker = engine.docker.as_ref().ok_or("Docker not found")?;
     let result = ContainersService::force_remove_container(&docker, &id).await;
-    state.return_engine(engine).await;
     result
 }
 
@@ -307,6 +283,5 @@ pub async fn prune_containers(state: State<'_, SharedEngineState>) -> Result<(),
     let engine = state.get_engine().await?;
     let docker = engine.docker.as_ref().ok_or("Docker not found")?;
     let result = ContainersService::prune_containers(&docker).await;
-    state.return_engine(engine).await;
     result
 }

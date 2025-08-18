@@ -14,7 +14,7 @@ export function EngineStatusProvider({ children }: ProviderProps) {
   // ref to track mounted state so async fetch can avoid updating after unmount
   const mountedRef = useRef(true);
   // ref to track the interval ID for cleanup
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const fetchEngineInfo = useCallback(async (showLoading = false) => {
     if (!mountedRef.current) return;

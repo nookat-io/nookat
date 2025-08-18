@@ -3,18 +3,17 @@ use crate::state::SharedEngineState;
 use crate::services::engine::{is_homebrew_available, install_colima, start_colima_vm, is_colima_available};
 use crate::entities::{InstallationMethod, ColimaConfig};
 use tauri::State;
-use tracing::{info, instrument};
+use tracing::{info, debug, instrument};
 
 /// Get the status of the container engine
 #[tauri::command]
 #[instrument(skip_all, err)]
 pub async fn engine_status(state: State<'_, SharedEngineState>) -> Result<EngineStatus, String> {
-    info!("Getting engine status");
+    debug!("Getting engine status");
 
     let engine = state.get_engine().await?;
     let status = engine.engine_status.clone();
-    info!("Engine status: {:?}", status);
-    state.return_engine(engine).await;
+    debug!("Engine status: {:?}", status);
     Ok(status)
 }
 

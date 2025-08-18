@@ -62,7 +62,7 @@ pub async fn open_url(url: String) -> Result<(), String> {
 pub async fn get_docker_info(state: State<'_, SharedEngineState>) -> Result<DockerInfo, String> {
     let engine = state.get_engine().await?;
 
-    match engine.engine_status {
+    let result = match engine.engine_status {
         EngineStatus::Running(EngineInfo::Docker) => {
             let docker = engine.docker.as_ref().ok_or("Docker not found")?;
             let info = docker
@@ -73,11 +73,11 @@ pub async fn get_docker_info(state: State<'_, SharedEngineState>) -> Result<Dock
                 .version()
                 .await
                 .map_err(|e| format!("Failed to get Docker version: {}", e))?;
-            state.return_engine(engine).await;
             Ok(DockerInfo::from((info, version)))
         }
         _ => {
             return Err("DockerInfo is not available".to_string());
         }
-    }
+    };
+    result
 }

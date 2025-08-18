@@ -29,9 +29,10 @@ export function ContainerRow({
       <TableCell className={isNested ? 'pl-8' : ''}>
         <Checkbox
           checked={isSelected}
-          onCheckedChange={checked =>
-            container.id && onSelectionChange(container.id, checked as boolean)
-          }
+          onCheckedChange={checked => {
+            const isChecked = checked === true;
+            onSelectionChange(container.id, isChecked);
+          }}
         />
       </TableCell>
       <TableCell className={`font-medium ${isNested ? 'pl-8' : ''}`}>
@@ -44,9 +45,9 @@ export function ContainerRow({
         {container.state && <ContainerStatusBadge state={container.state} />}
       </TableCell>
       <TableCell className="text-muted-foreground">
-        {container.created &&
-          formatDistanceToNow(new Date(container.created * 1000))}{' '}
-        ago
+        {container.created
+          ? `${formatDistanceToNow(new Date(container.created * 1000))} ago`
+          : ''}
       </TableCell>
       <TableCell className="text-muted-foreground">
         {container.ports && <PortMappings ports={container.ports} />}

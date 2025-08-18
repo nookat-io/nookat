@@ -11,8 +11,7 @@ pub async fn list_networks(state: State<'_, SharedEngineState>) -> Result<Vec<Ne
 
     let engine = state.get_engine().await?;
     let docker = engine.docker.as_ref().ok_or("Docker not found")?;
-    let result = NetworksService::get_networks(&docker).await;
-    state.return_engine(engine).await;
+    let result = NetworksService::get_networks(docker).await;
     result
 }
 
@@ -26,8 +25,7 @@ pub async fn remove_network(
 
     let engine = state.get_engine().await?;
     let docker = engine.docker.as_ref().ok_or("Docker not found")?;
-    let result = NetworksService::remove_network(&docker, &name).await;
-    state.return_engine(engine).await;
+    let result = NetworksService::remove_network(docker, &name).await;
     result
 }
 
@@ -41,7 +39,6 @@ pub async fn bulk_remove_networks(
 
     let engine = state.get_engine().await?;
     let docker = engine.docker.as_ref().ok_or("Docker not found")?;
-    let result = NetworksService::bulk_remove_networks(&docker, &names).await;
-    state.return_engine(engine).await;
+    let result = NetworksService::bulk_remove_networks(docker, &names).await;
     result
 }

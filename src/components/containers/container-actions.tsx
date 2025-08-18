@@ -28,7 +28,7 @@ export function ContainerActions({
   const [isLoading, setIsLoading] = useState<string | null>(null);
 
   const selectedContainerData = containers.filter(container =>
-    selectedContainers.includes(container.id || '')
+    selectedContainers.includes(container.id)
   );
 
   const canStart =
@@ -36,14 +36,19 @@ export function ContainerActions({
     selectedContainerData.every(
       container =>
         container.state &&
-        ['stopped', 'exited', 'created'].includes(container.state)
+        [ContainerState.Exited, ContainerState.Created].includes(
+          container.state
+        )
     );
 
   const canStop =
     selectedContainerData.length > 0 &&
     selectedContainerData.every(
       container =>
-        container.state && ['running', 'restarting'].includes(container.state)
+        container.state &&
+        [ContainerState.Running, ContainerState.Restarting].includes(
+          container.state
+        )
     );
 
   const canPause =

@@ -1,8 +1,8 @@
 // Image interface matching backend
 export interface Image {
   id: string;
-  repository?: string;
-  tag?: string;
+  repository?: string | null;
+  tag?: string | null;
   image_id: string;
   created: number;
   size: number;

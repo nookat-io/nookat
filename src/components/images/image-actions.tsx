@@ -14,15 +14,11 @@ import {
 } from '../ui/dialog';
 import { invoke } from '@tauri-apps/api/core';
 import { formatBytes } from '../../utils/format';
+import { PruneResult } from './image-types';
 
 interface ImageActionsProps {
   selectedImages: string[];
   onRefresh?: () => void;
-}
-
-interface PruneResult {
-  images_deleted: string[];
-  space_reclaimed: number;
 }
 
 export function ImageActions({ selectedImages, onRefresh }: ImageActionsProps) {

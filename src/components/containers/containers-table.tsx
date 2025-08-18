@@ -66,9 +66,7 @@ export function ContainersTable({
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
-      onSelectionChange(
-        allContainers.map(c => c.id || '').filter(id => id !== '')
-      );
+      onSelectionChange(allContainers.map(c => c.id));
     } else {
       onSelectionChange([]);
     }
@@ -142,7 +140,7 @@ export function ContainersTable({
           <ContainerRow
             key={container.id}
             container={container}
-            isSelected={selectedContainers.includes(container.id || '')}
+            isSelected={selectedContainers.includes(container.id)}
             onSelectionChange={handleSelectContainer}
             onActionComplete={onActionComplete}
             onOpenLogs={handleOpenLogs}
@@ -181,7 +179,7 @@ export function ContainersTable({
 
       {logsFormOpen && selectedContainerForLogs && (
         <ContainerLogsForm
-          containerId={selectedContainerForLogs.id || ''}
+          containerId={selectedContainerForLogs.id}
           containerName={
             selectedContainerForLogs.names?.[0]?.replace(/^\//, '') ||
             selectedContainerForLogs.id ||

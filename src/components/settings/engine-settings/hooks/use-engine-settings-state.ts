@@ -1,30 +1,45 @@
 import { useState, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
-import { useEngineStatus } from '../../hooks/use-engine-status';
+import { DockerInfo } from '../../../../types/docker-info';
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '../ui/card';
-import { Activity } from 'lucide-react';
-import { DockerInfo } from '../../types/docker-info';
-import {
-  CollapsibleSection,
-  EngineStatusSection,
-  EngineConfiguration,
-  InstallationSection,
   InstallationMethod,
   InstallationStep,
   InstallationProgress,
   ColimaConfig,
-} from './engine-settings/index';
+} from '../types';
 
-export function EngineSettings() {
-  const { isChecking } = useEngineStatus();
+export interface EngineSettingsState {
+  // Installation state
+  method: InstallationMethod;
+  step: InstallationStep;
+  homebrewAvailable: boolean | null;
+  colimaAvailable: boolean | null;
+  config: ColimaConfig;
+  progress: InstallationProgress;
+  error: string | null;
+  dockerInfo: DockerInfo | null;
 
+  // UI state
+  showEngineConfig: boolean;
+}
+
+export interface EngineSettingsActions {
+  setMethod: (method: InstallationMethod) => void;
+  setStep: (step: InstallationStep) => void;
+  setConfig: (config: ColimaConfig) => void;
+  setError: (error: string | null) => void;
+  setShowEngineConfig: (show: boolean) => void;
+  handleInstall: () => Promise<void>;
+  handleStartEngine: () => Promise<void>;
+  handleRetry: () => void;
+  fetchDockerInfo: () => Promise<void>;
+}
+
+export function useEngineSettingsState(): [
+  EngineSettingsState,
+  EngineSettingsActions,
+] {
   // Installation state
   const [method, setMethod] = useState<InstallationMethod>('homebrew');
   const [step, setStep] = useState<InstallationStep>('idle');
@@ -33,10 +48,10 @@ export function EngineSettings() {
   );
   const [colimaAvailable, setColimaAvailable] = useState<boolean | null>(null);
   const [config, setConfig] = useState<ColimaConfig>({
-    cpu: 4,
-    memory: 8,
-    disk: 60,
-    architecture: 'x86_64',
+    cpu: 2,
+    memory: 2,
+    disk: 100,
+    architecture: 'host',
   });
   const [progress, setProgress] = useState<InstallationProgress>({
     step: '',
@@ -48,7 +63,6 @@ export function EngineSettings() {
   const [dockerInfo, setDockerInfo] = useState<DockerInfo | null>(null);
 
   // UI state
-  const [showReinstallSection, setShowReinstallSection] = useState(false);
   const [showEngineConfig, setShowEngineConfig] = useState(true);
 
   // Check availability on mount
@@ -109,21 +123,18 @@ export function EngineSettings() {
         unlistenPromises.push(unlistenInstall);
 
         const unlistenComplete = listen('installation-complete', async () => {
-          setStep('starting-vm');
+          setStep('complete');
+          setColimaAvailable(true);
           setProgress({
-            step: 'Starting Engine...',
-            message: 'Initializing Colima virtual machine',
-            percentage: 0,
-            logs: ['[INFO] Colima installation completed, starting engine...'],
+            step: 'Installation Complete!',
+            message:
+              'Colima has been successfully installed. You can now start the engine.',
+            percentage: 100,
+            logs: [
+              ...progress.logs,
+              '[INFO] Colima installation completed successfully',
+            ],
           });
-
-          try {
-            await invoke('start_colima_vm_command', { config });
-          } catch (error) {
-            console.error('Engine startup failed:', error);
-            setError(error as string);
-            setStep('error');
-          }
         });
         unlistenPromises.push(unlistenComplete);
 
@@ -200,7 +211,7 @@ export function EngineSettings() {
       await invoke('install_colima_command', { method: methodEnum });
     } catch (error) {
       console.error('Installation failed:', error);
-      setError(error as string);
+      setError(error instanceof Error ? error.message : String(error));
       setStep('error');
     }
   };
@@ -219,7 +230,7 @@ export function EngineSettings() {
       await invoke('start_colima_vm_command', { config });
     } catch (error) {
       console.error('Engine startup failed:', error);
-      setError(error as string);
+      setError(error instanceof Error ? error.message : String(error));
       setStep('error');
     }
   };
@@ -235,76 +246,29 @@ export function EngineSettings() {
     });
   };
 
-  // Computed values
-  const isEngineRunning = Boolean(
-    dockerInfo && dockerInfo.containers_running !== undefined
-  );
-  const isInstalling =
-    step === 'installing' || step === 'starting-vm' || step === 'validating';
+  const state: EngineSettingsState = {
+    method,
+    step,
+    homebrewAvailable,
+    colimaAvailable,
+    config,
+    progress,
+    error,
+    dockerInfo,
+    showEngineConfig,
+  };
 
-  // Show loading state while checking engine status
-  if (isChecking) {
-    return (
-      <div className="flex items-center justify-center py-8">
-        <div className="text-sm text-muted-foreground">
-          Checking engine status...
-        </div>
-      </div>
-    );
-  }
+  const actions: EngineSettingsActions = {
+    setMethod,
+    setStep,
+    setConfig,
+    setError,
+    setShowEngineConfig,
+    handleInstall,
+    handleStartEngine,
+    handleRetry,
+    fetchDockerInfo,
+  };
 
-  // Main UI
-  return (
-    <div className="space-y-6">
-      {/* Engine Status Card */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Activity className="h-5 w-5" />
-            Engine Status
-          </CardTitle>
-          <CardDescription>
-            Current engine information and real-time status
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <EngineStatusSection dockerInfo={dockerInfo} />
-        </CardContent>
-      </Card>
-
-      {/* Engine Configuration */}
-      <CollapsibleSection
-        title="Engine Configuration"
-        isOpen={showEngineConfig}
-        onToggle={() => setShowEngineConfig(!showEngineConfig)}
-      >
-        <EngineConfiguration
-          colimaAvailable={colimaAvailable}
-          config={config}
-          onConfigChange={setConfig}
-          onStartEngine={handleStartEngine}
-          isInstalling={isInstalling}
-          isEngineRunning={isEngineRunning}
-          step={step}
-          progress={progress}
-          error={error}
-          onRetry={handleRetry}
-        />
-      </CollapsibleSection>
-
-      {/* Reinstall Section */}
-      <CollapsibleSection
-        title="Reinstall Colima"
-        isOpen={showReinstallSection}
-        onToggle={() => setShowReinstallSection(!showReinstallSection)}
-      >
-        <InstallationSection
-          method={method}
-          onMethodChange={setMethod}
-          homebrewAvailable={homebrewAvailable}
-          onInstall={handleInstall}
-        />
-      </CollapsibleSection>
-    </div>
-  );
+  return [state, actions];
 }

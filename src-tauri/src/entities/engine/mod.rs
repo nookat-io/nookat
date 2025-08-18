@@ -106,7 +106,7 @@ impl Default for ColimaConfig {
             cpu: 4,
             memory: 8,
             disk: 60,
-            architecture: "x86_64".to_string(),
+            architecture: "host".to_string(),
         }
     }
 }

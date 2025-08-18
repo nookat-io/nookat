@@ -2,7 +2,7 @@ import { TableCell, TableRow } from '../ui/table';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { ChevronDown, ChevronRight } from 'lucide-react';
-import { Container } from './container-types';
+import { Container, ContainerState } from './container-types';
 import { ContainerGroupActions } from './container-group-actions';
 import { ContainerRow } from './container-row';
 
@@ -27,11 +27,11 @@ export function ContainerGroupRow({
   onActionComplete,
   onOpenLogs,
 }: ContainerGroupRowProps) {
-  const hasRunningContainers = containers.some(c => c.state === 'running');
-  const allStopped = containers.every(c => c.state !== 'running');
-  const groupContainerIds = containers
-    .map(c => c.id || '')
-    .filter(id => id !== '');
+  const hasRunningContainers = containers.some(
+    c => c.state === ContainerState.Running
+  );
+  const allStopped = containers.every(c => c.state !== ContainerState.Running);
+  const groupContainerIds = containers.map(c => c.id);
 
   if (containers.length === 0) return null;
 
@@ -98,7 +98,7 @@ export function ContainerGroupRow({
             key={container.id}
             container={container}
             isNested={true}
-            isSelected={selectedContainers.includes(container.id || '')}
+            isSelected={selectedContainers.includes(container.id)}
             onSelectionChange={onSelectionChange}
             onActionComplete={onActionComplete}
             onOpenLogs={onOpenLogs}

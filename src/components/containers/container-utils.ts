@@ -36,7 +36,7 @@ export const organizeContainers = (
 
   // Sort containers by creation time (newest first)
   const sortByCreatedTime = (a: Container, b: Container) =>
-    (b.created || 0) - (a.created || 0);
+    (b.created ?? 0) - (a.created ?? 0);
 
   const groups: ContainerGroup[] = Object.entries(groupedContainers).map(
     ([projectName, containers]) => ({
@@ -48,8 +48,8 @@ export const organizeContainers = (
 
   // Sort groups by the creation time of their newest container
   const sortedGroups = groups.sort((a, b) => {
-    const newestA = Math.max(...a.containers.map(c => c.created || 0));
-    const newestB = Math.max(...b.containers.map(c => c.created || 0));
+    const newestA = Math.max(...a.containers.map(c => c.created ?? 0));
+    const newestB = Math.max(...b.containers.map(c => c.created ?? 0));
     return newestB - newestA;
   });
 

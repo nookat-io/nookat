@@ -1,7 +1,7 @@
 import { Separator } from '../../ui/separator';
 import { AlertTriangle, Cpu, Package, Info } from 'lucide-react';
 import { DockerInfo } from '../../../types/docker-info';
-import { formatBytes } from './utils';
+import { formatBytes } from '../../../utils/format';
 import {
   StatCard,
   InfoItem,
@@ -58,12 +58,12 @@ const SystemCapacity = ({ dockerInfo }: { dockerInfo: DockerInfo }) => (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
       <CapacityBar
         label="CPU Cores"
-        value={dockerInfo.ncpu || 0}
+        value={dockerInfo.ncpu || 'Unknown'}
         description="Total available CPU cores"
       />
       <CapacityBar
         label="Memory"
-        value={formatBytes(dockerInfo.mem_total)}
+        value={formatBytes(dockerInfo.mem_total || -1)}
         description="Total available system memory"
       />
     </div>

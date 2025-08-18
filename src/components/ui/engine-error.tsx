@@ -10,7 +10,7 @@ export default function EngineErrorGate({ children }: Props): React.ReactNode {
   const { status, refetch, isChecking } = useEngineStatus();
 
   // Check if there's an engine-level error
-  const shouldShowError = status === 'Unknown';
+  const shouldShowError = !isChecking && status === 'Unknown';
 
   if (shouldShowError) {
     const message = isChecking
