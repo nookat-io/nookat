@@ -117,6 +117,7 @@ async fn install_colima_via_homebrew(app_handle: AppHandle) -> Result<(), String
         progress
             .logs
             .push("[INFO] Colima installation completed successfully".to_string());
+        progress.percentage = 100;
         let _ = tx_clone.send(progress.clone()).await;
 
         Ok(())

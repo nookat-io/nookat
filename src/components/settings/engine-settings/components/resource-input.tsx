@@ -1,6 +1,5 @@
 import { Label } from '../../../ui/label';
 import { Input } from '../../../ui/input';
-import { LucideIcon } from 'lucide-react';
 
 interface ResourceInputProps {
   id: string;
@@ -9,8 +8,6 @@ interface ResourceInputProps {
   min: number;
   max: number;
   onChange: (value: number) => void;
-  icon: LucideIcon;
-  unit: string;
   className?: string;
 }
 

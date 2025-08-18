@@ -44,6 +44,8 @@ export function InstallationProgress({
     return 'text-blue-600';
   };
 
+  const logs = progress.logs ?? [];
+
   return (
     <Card className={className}>
       <CardHeader className="pb-3">
@@ -89,12 +91,12 @@ export function InstallationProgress({
         )}
 
         {/* Logs */}
-        {progress.logs.length > 0 && (
+        {logs.length > 0 && (
           <div className="space-y-2">
             <h4 className="text-sm font-medium text-muted-foreground">Logs</h4>
             <div className="bg-muted/50 rounded-md p-3 max-h-32 overflow-y-auto">
               <div className="space-y-1">
-                {progress.logs.map((log, index) => (
+                {logs.map((log, index) => (
                   <div
                     key={index}
                     className="text-xs font-mono text-muted-foreground"

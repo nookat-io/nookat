@@ -30,7 +30,7 @@ export const InfoBanner = ({
       className={`p-4 border rounded-lg ${variantStyles[variant]} ${className}`}
     >
       <div className="flex items-center space-x-2">
-        <Icon className="h-4 w-4" />
+        <Icon className="h-4 w-4" aria-hidden="true" />
         <span className="text-sm font-medium">{title}</span>
       </div>
       <p className="text-sm mt-1">{message}</p>

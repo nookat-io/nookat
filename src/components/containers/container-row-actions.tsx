@@ -163,7 +163,7 @@ export function ContainerRowActions({
           Logs
         </DropdownMenuItem>
 
-        {/* Delete action - available for stopped, exited, created, running containers */}
+        {/* Delete action - available for exited, created, running containers */}
         {container.state &&
           [
             ContainerState.Exited,

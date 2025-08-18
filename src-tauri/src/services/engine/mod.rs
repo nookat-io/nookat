@@ -38,10 +38,11 @@ async fn connect_to_docker_using_different_contexts() -> Result<Docker, String> 
                     let socket_path = socket_path.trim_start_matches("unix://");
                     debug!("Current Docker context socket: {}", socket_path);
 
-                    // Set DOCKER_HOST environment variable for this process
-                    env::set_var("DOCKER_HOST", format!("unix://{}", socket_path));
-
-                    if let Ok(docker) = Docker::connect_with_local_defaults() {
+                    if let Ok(docker) = Docker::connect_with_unix(
+                        socket_path,
+                        5,
+                        bollard::API_DEFAULT_VERSION,
+                    ) {
                         if let Ok(_) = docker.info().await {
                             debug!("Successfully connected to Docker via context socket");
                             return Ok(docker);
@@ -67,7 +68,7 @@ async fn connect_to_docker_with_local_defaults() -> Result<Docker, String> {
     let docker = Docker::connect_with_local_defaults()
         .map_err(|e| format!("Failed to connect to Docker: {}", e))?;
 
-    if let Ok(_) = docker.info().await {
+    if docker.ping().await.is_ok() {
         debug!("Successfully connected to Docker via local defaults");
         return Ok(docker);
     }
@@ -76,8 +77,8 @@ async fn connect_to_docker_with_local_defaults() -> Result<Docker, String> {
 }
 
 #[instrument(skip_all, err)]
-pub async fn connect_to_docker_macos() -> Result<Docker, String> {
-    // First, check if DOCKER_HOST environment variable is set
+async fn connect_to_docker() -> Result<Docker, String> {
+    // First, attempt connecting via local defaults (honors DOCKER_HOST if set)
     if let Ok(docker) = connect_to_docker_with_local_defaults().await {
         return Ok(docker);
     }
@@ -133,7 +134,7 @@ pub async fn create_engine() -> Result<Engine, String> {
         });
     }
 
-    if let Ok(docker) = connect_to_docker_macos().await {
+    if let Ok(docker) = connect_to_docker().await {
         debug!("Docker command is available, creating an engine instance with running status");
         return Ok(Engine {
             engine_status: EngineStatus::Running(EngineInfo::Docker),

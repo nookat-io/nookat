@@ -168,6 +168,7 @@ export function useEngineSettingsState(): [
 
           setTimeout(() => {
             setStep('complete');
+            fetchDockerInfo().catch(() => {});
             setProgress(prev => ({
               ...prev,
               step: 'Engine Ready!',
@@ -193,7 +194,7 @@ export function useEngineSettingsState(): [
         });
       };
     }
-  }, [step, config]);
+  }, [step]);
 
   // Handlers
   const handleInstall = async () => {

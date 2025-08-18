@@ -1,4 +1,5 @@
-import { LucideIcon } from 'lucide-react';
+import { LucideIcon, AlertTriangle } from 'lucide-react';
+import { InfoBanner } from './info-banner';
 
 interface MethodCardProps {
   icon: LucideIcon;
@@ -58,14 +59,14 @@ export const MethodCard = ({
       )}
 
       {warning && (
-        <div className="mt-3 p-2 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded">
-          <div className="flex items-center gap-2 text-xs text-amber-700 dark:text-amber-300">
-            <div className="h-3 w-3 rounded-full bg-amber-500" />
-            <span className="font-medium">Not available</span>
-          </div>
-          <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
-            {warning}
-          </p>
+        <div className="mt-3">
+          <InfoBanner
+            icon={AlertTriangle}
+            title="Not available"
+            message={warning}
+            variant="warning"
+            className="text-xs"
+          />
         </div>
       )}
     </div>

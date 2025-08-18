@@ -95,8 +95,8 @@ pub struct InstallationProgress {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ColimaConfig {
     pub cpu: u8,
-    pub memory: u8,
-    pub disk: u8,
+    pub memory: u16,
+    pub disk: u16,
     pub architecture: String,
 }
 

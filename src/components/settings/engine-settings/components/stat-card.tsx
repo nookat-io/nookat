@@ -1,3 +1,5 @@
+import { cn } from '../../../../lib/utils';
+
 interface StatCardProps {
   value: string | number;
   label: string;
@@ -21,7 +23,11 @@ export const StatCard = ({
 }: StatCardProps) => {
   return (
     <div
-      className={`text-center p-4 rounded-lg ${variantStyles[variant]} ${className}`}
+      className={cn(
+        'text-center p-4 rounded-lg',
+        variantStyles[variant],
+        className
+      )}
     >
       <div className="text-2xl font-bold">{value}</div>
       <div className="text-sm text-muted-foreground">{label}</div>

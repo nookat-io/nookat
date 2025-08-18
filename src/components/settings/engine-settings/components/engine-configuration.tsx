@@ -9,9 +9,6 @@ import {
   SelectValue,
 } from '../../../ui/select';
 import {
-  Cpu,
-  MemoryStick,
-  HardDrive,
   Play,
   Settings,
   Download,
@@ -133,7 +130,8 @@ export function EngineConfiguration({
           size="lg"
           disabled={
             isInstalling ||
-            (homebrewAvailable === false && method === 'homebrew')
+            (homebrewAvailable === false && method === 'homebrew') ||
+            method === 'binary'
           }
         >
           <Download className="h-4 w-4 mr-2" />
@@ -163,8 +161,6 @@ export function EngineConfiguration({
               min={1}
               max={16}
               onChange={value => onConfigChange({ ...config, cpu: value })}
-              icon={Cpu}
-              unit="cores"
             />
 
             <ResourceInput
@@ -174,8 +170,6 @@ export function EngineConfiguration({
               min={2}
               max={32}
               onChange={value => onConfigChange({ ...config, memory: value })}
-              icon={MemoryStick}
-              unit="GB"
             />
 
             <ResourceInput
@@ -185,8 +179,6 @@ export function EngineConfiguration({
               min={20}
               max={200}
               onChange={value => onConfigChange({ ...config, disk: value })}
-              icon={HardDrive}
-              unit="GB"
             />
 
             <div className="space-y-2">

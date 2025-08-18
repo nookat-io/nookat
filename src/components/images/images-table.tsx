@@ -23,6 +23,7 @@ import { Image } from './image-types';
 import { formatBytes } from '../../utils/format';
 import { LoadingSpinner } from '../ui/loading-spinner';
 import { ErrorDisplay } from '../ui/error-display';
+import { useMemo } from 'react';
 
 interface DockerImage {
   id: string;
@@ -68,11 +69,15 @@ export function ImagesTable({
   error = null,
   onRetry,
 }: ImagesTableProps) {
-  const dockerImages = images.map(convertImageData).sort((a, b) => {
-    const dateDiff = b.created.getTime() - a.created.getTime();
-    if (dateDiff !== 0) return dateDiff;
-    return a.repository.localeCompare(b.repository);
-  });
+  const dockerImages = useMemo(
+    () =>
+      images.map(convertImageData).sort((a, b) => {
+        const dateDiff = b.created.getTime() - a.created.getTime();
+        if (dateDiff !== 0) return dateDiff;
+        return a.repository.localeCompare(b.repository);
+      }),
+    [images]
+  );
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
@@ -145,7 +150,7 @@ export function ImagesTable({
             : image.imageId.substring(0, 12)}
         </TableCell> */}
         <TableCell className="text-muted-foreground text-center">
-          {formatDistanceToNow(image.created)} ago
+          {formatDistanceToNow(image.created, { addSuffix: true })}
         </TableCell>
         <TableCell className="text-muted-foreground text-center">
           {image.size}

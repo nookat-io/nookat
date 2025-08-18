@@ -19,21 +19,21 @@ const ContainerStatistics = ({ dockerInfo }: { dockerInfo: DockerInfo }) => (
     <SectionHeader icon={Package} title="Container Statistics" />
     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
       <StatCard
-        value={dockerInfo.containers_running || 0}
+        value={dockerInfo.containers_running ?? 0}
         label="Running"
         variant="blue"
       />
       <StatCard
-        value={dockerInfo.containers_paused || 0}
+        value={dockerInfo.containers_paused ?? 0}
         label="Paused"
         variant="yellow"
       />
       <StatCard
-        value={dockerInfo.containers_stopped || 0}
+        value={dockerInfo.containers_stopped ?? 0}
         label="Stopped"
         variant="red"
       />
-      <StatCard value={dockerInfo.images || 0} label="Images" variant="green" />
+      <StatCard value={dockerInfo.images ?? 0} label="Images" variant="green" />
     </div>
   </div>
 );
@@ -58,12 +58,12 @@ const SystemCapacity = ({ dockerInfo }: { dockerInfo: DockerInfo }) => (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
       <CapacityBar
         label="CPU Cores"
-        value={dockerInfo.ncpu || 'Unknown'}
+        value={dockerInfo.ncpu ?? 'Unknown'}
         description="Total available CPU cores"
       />
       <CapacityBar
         label="Memory"
-        value={formatBytes(dockerInfo.mem_total || -1)}
+        value={formatBytes(dockerInfo.mem_total ?? -1)}
         description="Total available system memory"
       />
     </div>

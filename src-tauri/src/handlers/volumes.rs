@@ -11,7 +11,7 @@ pub async fn list_volumes(state: State<'_, SharedEngineState>) -> Result<Vec<Vol
 
     let engine = state.get_engine().await?;
     let docker = engine.docker.as_ref().ok_or("Docker not found")?;
-    let result = VolumesService::get_volumes(&docker).await;
+    let result = VolumesService::get_volumes(docker).await;
     result
 }
 
@@ -25,7 +25,7 @@ pub async fn remove_volume(
 
     let engine = state.get_engine().await?;
     let docker = engine.docker.as_ref().ok_or("Docker not found")?;
-    let result = VolumesService::remove_volume(&docker, &name).await;
+    let result = VolumesService::remove_volume(docker, &name).await;
     result
 }
 
@@ -39,7 +39,7 @@ pub async fn bulk_remove_volumes(
 
     let engine = state.get_engine().await?;
     let docker = engine.docker.as_ref().ok_or("Docker not found")?;
-    let result = VolumesService::bulk_remove_volumes(&docker, &names).await;
+    let result = VolumesService::bulk_remove_volumes(docker, &names).await;
     result
 }
 
@@ -53,7 +53,7 @@ pub async fn inspect_volume(
 
     let engine = state.get_engine().await?;
     let docker = engine.docker.as_ref().ok_or("Docker not found")?;
-    let result = VolumesService::inspect_volume(&docker, &name).await;
+    let result = VolumesService::inspect_volume(docker, &name).await;
     result
 }
 
@@ -64,6 +64,6 @@ pub async fn prune_volumes(state: State<'_, SharedEngineState>) -> Result<(), St
 
     let engine = state.get_engine().await?;
     let docker = engine.docker.as_ref().ok_or("Docker not found")?;
-    let result = VolumesService::prune_volumes(&docker).await;
+    let result = VolumesService::prune_volumes(docker).await;
     result
 }

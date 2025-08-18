@@ -13,7 +13,7 @@ pub async fn list_containers(
 
     let engine = state.get_engine().await?;
     let docker = engine.docker.as_ref().ok_or("Docker not found")?;
-    let containers = ContainersService::get_containers(&docker).await?;
+    let containers = ContainersService::get_containers(docker).await?;
 
     Ok(containers.into_iter().map(|c| c.into()).collect())
 }
@@ -28,8 +28,7 @@ pub async fn start_container(
 
     let engine = state.get_engine().await?;
     let docker = engine.docker.as_ref().ok_or("Docker not found")?;
-    let result = ContainersService::start_container(&docker, &id).await;
-    result
+    ContainersService::start_container(docker, &id).await
 }
 
 #[tauri::command]
@@ -39,8 +38,7 @@ pub async fn stop_container(state: State<'_, SharedEngineState>, id: String) -> 
 
     let engine = state.get_engine().await?;
     let docker = engine.docker.as_ref().ok_or("Docker not found")?;
-    let result = ContainersService::stop_container(&docker, &id).await;
-    result
+    ContainersService::stop_container(docker, &id).await
 }
 
 #[tauri::command]
@@ -53,8 +51,7 @@ pub async fn pause_container(
 
     let engine = state.get_engine().await?;
     let docker = engine.docker.as_ref().ok_or("Docker not found")?;
-    let result = ContainersService::pause_container(&docker, &id).await;
-    result
+    ContainersService::pause_container(docker, &id).await
 }
 
 #[tauri::command]
@@ -67,8 +64,7 @@ pub async fn unpause_container(
 
     let engine = state.get_engine().await?;
     let docker = engine.docker.as_ref().ok_or("Docker not found")?;
-    let result = ContainersService::unpause_container(&docker, &id).await;
-    result
+    ContainersService::unpause_container(docker, &id).await
 }
 
 #[tauri::command]
@@ -81,8 +77,7 @@ pub async fn restart_container(
 
     let engine = state.get_engine().await?;
     let docker = engine.docker.as_ref().ok_or("Docker not found")?;
-    let result = ContainersService::restart_container(&docker, &id).await;
-    result
+    ContainersService::restart_container(docker, &id).await
 }
 
 #[tauri::command]
@@ -96,7 +91,7 @@ pub async fn bulk_start_containers(
     let engine = state.get_engine().await?;
     let docker = engine.docker.as_ref().ok_or("Docker not found")?;
     for id in &ids {
-        if let Err(e) = ContainersService::start_container(&docker, id).await {
+        if let Err(e) = ContainersService::start_container(docker, id).await {
             return Err(format!("Failed to start container {}: {}", id, e));
         }
     }
@@ -114,7 +109,7 @@ pub async fn bulk_stop_containers(
     let engine = state.get_engine().await?;
     let docker = engine.docker.as_ref().ok_or("Docker not found")?;
     for id in &ids {
-        if let Err(e) = ContainersService::stop_container(&docker, id).await {
+        if let Err(e) = ContainersService::stop_container(docker, id).await {
             return Err(format!("Failed to stop container {}: {}", id, e));
         }
     }
@@ -132,7 +127,7 @@ pub async fn bulk_pause_containers(
     let engine = state.get_engine().await?;
     let docker = engine.docker.as_ref().ok_or("Docker not found")?;
     for id in &ids {
-        if let Err(e) = ContainersService::pause_container(&docker, id).await {
+        if let Err(e) = ContainersService::pause_container(docker, id).await {
             return Err(format!("Failed to pause container {}: {}", id, e));
         }
     }
@@ -150,7 +145,7 @@ pub async fn bulk_unpause_containers(
     let engine = state.get_engine().await?;
     let docker = engine.docker.as_ref().ok_or("Docker not found")?;
     for id in &ids {
-        if let Err(e) = ContainersService::unpause_container(&docker, id).await {
+        if let Err(e) = ContainersService::unpause_container(docker, id).await {
             return Err(format!("Failed to unpause container {}: {}", id, e));
         }
     }
@@ -168,7 +163,7 @@ pub async fn bulk_restart_containers(
     let engine = state.get_engine().await?;
     let docker = engine.docker.as_ref().ok_or("Docker not found")?;
     for id in &ids {
-        if let Err(e) = ContainersService::restart_container(&docker, id).await {
+        if let Err(e) = ContainersService::restart_container(docker, id).await {
             return Err(format!("Failed to restart container {}: {}", id, e));
         }
     }
@@ -186,7 +181,7 @@ pub async fn bulk_remove_containers(
     let engine = state.get_engine().await?;
     let docker = engine.docker.as_ref().ok_or("Docker not found")?;
     for id in &ids {
-        if let Err(e) = ContainersService::remove_container(&docker, id).await {
+        if let Err(e) = ContainersService::remove_container(docker, id).await {
             return Err(format!("Failed to remove container {}: {}", id, e));
         }
     }
@@ -204,7 +199,7 @@ pub async fn bulk_force_remove_containers(
     let engine = state.get_engine().await?;
     let docker = engine.docker.as_ref().ok_or("Docker not found")?;
     for id in &ids {
-        if let Err(e) = ContainersService::force_remove_container(&docker, id).await {
+        if let Err(e) = ContainersService::force_remove_container(docker, id).await {
             return Err(format!("Failed to force remove container {}: {}", id, e));
         }
     }
@@ -218,8 +213,7 @@ pub async fn open_terminal(state: State<'_, SharedEngineState>, id: String) -> R
 
     let engine = state.get_engine().await?;
     let docker = engine.docker.as_ref().ok_or("Docker not found")?;
-    let result = ContainersService::open_terminal(&docker, &id).await;
-    result
+    ContainersService::open_terminal(docker, &id).await
 }
 
 #[tauri::command]
@@ -232,8 +226,7 @@ pub async fn container_logs(
 
     let engine = state.get_engine().await?;
     let docker = engine.docker.as_ref().ok_or("Docker not found")?;
-    let result = ContainersService::get_container_logs(&docker, &id).await;
-    result
+    ContainersService::get_container_logs(docker, &id).await
 }
 
 #[tauri::command]
@@ -257,8 +250,7 @@ pub async fn remove_container(
 
     let engine = state.get_engine().await?;
     let docker = engine.docker.as_ref().ok_or("Docker not found")?;
-    let result = ContainersService::remove_container(&docker, &id).await;
-    result
+    ContainersService::remove_container(docker, &id).await
 }
 
 #[tauri::command]
@@ -271,8 +263,7 @@ pub async fn force_remove_container(
 
     let engine = state.get_engine().await?;
     let docker = engine.docker.as_ref().ok_or("Docker not found")?;
-    let result = ContainersService::force_remove_container(&docker, &id).await;
-    result
+    ContainersService::force_remove_container(docker, &id).await
 }
 
 #[tauri::command]
@@ -282,6 +273,5 @@ pub async fn prune_containers(state: State<'_, SharedEngineState>) -> Result<(),
 
     let engine = state.get_engine().await?;
     let docker = engine.docker.as_ref().ok_or("Docker not found")?;
-    let result = ContainersService::prune_containers(&docker).await;
-    result
+    ContainersService::prune_containers(docker).await
 }

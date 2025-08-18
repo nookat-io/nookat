@@ -13,9 +13,7 @@ export default function EngineErrorGate({ children }: Props): React.ReactNode {
   const shouldShowError = !isChecking && status === 'Unknown';
 
   if (shouldShowError) {
-    const message = isChecking
-      ? 'Checking engine status...'
-      : 'Engine status is unknown';
+    const message = 'Engine status is unknown';
 
     return (
       <div

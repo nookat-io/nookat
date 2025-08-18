@@ -18,9 +18,7 @@ export function EngineSettings() {
   const [state, actions] = useEngineSettingsState();
 
   // Computed values
-  const isEngineRunning = Boolean(
-    state.dockerInfo && state.dockerInfo.containers_running !== undefined
-  );
+  const isEngineRunning = Boolean(state.dockerInfo?.server_version);
   const isInstalling =
     state.step === 'installing' ||
     state.step === 'starting-vm' ||

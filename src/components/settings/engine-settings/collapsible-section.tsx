@@ -16,9 +16,9 @@ export const CollapsibleSection = ({
       <div className="flex items-center justify-between">
         <CardTitle className="text-lg">{title}</CardTitle>
         {isOpen ? (
-          <ChevronDown className="h-5 w-5 text-gray-500" />
+          <ChevronDown className="h-5 w-5 text-gray-500" aria-hidden="true" />
         ) : (
-          <ChevronRight className="h-5 w-5 text-gray-500" />
+          <ChevronRight className="h-5 w-5 text-gray-500" aria-hidden="true" />
         )}
       </div>
     </CardHeader>

@@ -1,4 +1,4 @@
-import { EngineSettings } from '../components/settings/engine-settings/engine-settings';
+import { EngineSettings } from '../components/settings/engine-settings';
 import { ProxySettings } from '../components/settings/proxy-settings';
 import { GeneralSettings } from '../components/settings/general-settings';
 import {
