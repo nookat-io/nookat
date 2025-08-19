@@ -3,7 +3,6 @@ use tracing::{debug, instrument, warn};
 use bollard::Docker;
 use crate::entities::{ColimaConfig, InstallationMethod};
 use tauri::AppHandle;
-use tracing::instrument;
 
 #[instrument(skip_all, err)]
 pub async fn is_homebrew_available() -> Result<bool, String> {
