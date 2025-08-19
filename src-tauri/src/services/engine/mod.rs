@@ -1,7 +1,6 @@
 use crate::entities::{Engine, EngineInfo, EngineStatus};
 
 use bollard::Docker;
-use std::env;
 use std::process::Command;
 use tracing::{debug, instrument, warn};
 
@@ -11,55 +10,17 @@ mod macos;
 #[cfg(target_os = "macos")]
 pub use macos::*;
 
-#[cfg(not(target_os = "macos"))]
-mod stub;
+#[cfg(target_os = "windows")]
+mod windows;
 
-#[cfg(not(target_os = "macos"))]
-pub use stub::*;
+#[cfg(target_os = "windows")]
+pub use windows::*;
 
-#[instrument(skip_all, err)]
-async fn connect_to_docker_using_different_contexts() -> Result<Docker, String> {
-    debug!("Trying to connect to Docker via different contexts");
+#[cfg(target_os = "linux")]
+mod linux;
 
-    let context_output = Command::new("docker")
-        .arg("context")
-        .arg("ls")
-        .arg("--format")
-        .arg("{{.DockerEndpoint}}")
-        .output();
-
-    if let Ok(output) = context_output {
-        if output.status.success() {
-            let output_str = String::from_utf8_lossy(&output.stdout).trim().to_string();
-            let socket_paths = output_str.lines();
-
-            for socket_path in socket_paths {
-                if socket_path.starts_with("unix://") {
-                    let socket_path = socket_path.trim_start_matches("unix://");
-                    debug!("Current Docker context socket: {}", socket_path);
-
-                    if let Ok(docker) = Docker::connect_with_unix(
-                        socket_path,
-                        5,
-                        bollard::API_DEFAULT_VERSION,
-                    ) {
-                        if docker.ping().await.is_ok() {
-                            debug!("Successfully connected to Docker via context socket");
-                            return Ok(docker);
-                        }
-                    }
-                } else {
-                    warn!(
-                        "Current Docker context socket is not a Unix socket: {}",
-                        socket_path
-                    );
-                }
-            }
-        }
-    }
-
-    Err("Failed to connect to Docker via context socket".to_string())
-}
+#[cfg(target_os = "linux")]
+pub use linux::*;
 
 #[instrument(skip_all, err)]
 async fn connect_to_docker_with_local_defaults() -> Result<Docker, String> {
@@ -85,7 +46,7 @@ async fn connect_to_docker() -> Result<Docker, String> {
     debug!("local defaults connection failed, trying fallback");
 
     // Try to get the current Docker context
-    if let Ok(docker) = connect_to_docker_using_different_contexts().await {
+    if let Ok(docker) = self::connect_to_docker_using_different_contexts().await {
         return Ok(docker);
     }
     debug!("context connection failed, trying fallback");
