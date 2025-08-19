@@ -28,7 +28,6 @@ pub async fn is_colima_available() -> Result<bool, String> {
     Ok(false)
 }
 
-
 #[instrument(skip_all, err)]
 pub async fn connect_to_docker_using_different_contexts() -> Result<Docker, String> {
     debug!("Trying to connect to Docker via different contexts");
