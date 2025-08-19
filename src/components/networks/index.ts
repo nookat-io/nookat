@@ -12,4 +12,4 @@ export { NetworkActions } from './network-actions';
 export { removeNetwork, bulkRemoveNetworks } from './network-actions-utils';
 
 // Types
-export { type NetworkData } from './network-types';
+export { type Network, type Ipam, type IpamConfig } from './network-types';

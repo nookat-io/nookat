@@ -34,7 +34,7 @@ export function useConfig() {
     }
 
     return unsubscribe;
-  }, [configService]);
+  }, [configService, config]);
 
   const updateTheme = useCallback(
     async (theme: Theme) => {

@@ -1,39 +1,46 @@
-use bollard::Docker;
+use crate::entities::Engine;
+use crate::services::engine;
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use tracing::instrument;
+use tracing::{debug, instrument, warn};
 
 #[derive(Default)]
-pub struct SharedDockerState {
-    docker: Arc<Mutex<Option<Docker>>>,
+pub struct SharedEngineState {
+    engine: Arc<Mutex<Option<Arc<Engine>>>>,
 }
 
-impl SharedDockerState {
+impl SharedEngineState {
     pub fn new() -> Self {
         Self {
-            docker: Arc::new(Mutex::new(None)),
+            engine: Arc::new(Mutex::new(None)),
         }
     }
 
     #[instrument(skip_all, err)]
-    pub async fn get_docker(&self) -> Result<Docker, String> {
-        let mut docker_guard = self.docker.lock().await;
+    pub async fn get_engine(&self) -> Result<Arc<Engine>, String> {
+        debug!("Getting engine");
+        let mut engine_guard = self.engine.lock().await;
 
-        if docker_guard.is_none() {
-            let docker = Docker::connect_with_local_defaults()
-                .map_err(|e| format!("Failed to connect to Docker: {}", e))?;
-            *docker_guard = Some(docker);
+        if engine_guard.is_none() {
+            warn!("Engine is not found, creating new one");
+            let engine = Arc::new(engine::create_engine().await?);
+            *engine_guard = Some(engine);
         }
 
-        match docker_guard.as_ref() {
-            Some(docker) => Ok(docker.clone()),
-            None => Err("Docker instance is not available".to_string()),
+        match engine_guard.as_ref() {
+            Some(engine) => {
+                debug!("Engine is found, checking if it is running");
+                if engine.is_running() {
+                    debug!("Engine is running, returning it");
+                    Ok(engine.clone().into())
+                } else {
+                    debug!("Engine is not running, trying to create a new one");
+                    let new_engine = Arc::new(engine::create_engine().await?);
+                    *engine_guard = Some(new_engine);
+                    Ok(engine_guard.as_ref().unwrap().clone())
+                }
+            }
+            None => Err("Engine instance is not available".to_string()),
         }
-    }
-
-    #[instrument(skip_all)]
-    pub async fn return_docker(&self, docker: Docker) {
-        let mut docker_guard = self.docker.lock().await;
-        *docker_guard = Some(docker);
     }
 }

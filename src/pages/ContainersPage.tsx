@@ -1,9 +1,8 @@
-import { ContainerData } from '../components/containers/container-types';
 import { ContainerHeader } from '../components/containers/container-header';
 import { ContainerControls } from '../components/containers/container-controls';
 import { ContainersTable } from '../components/containers/containers-table';
 import { usePageState } from '../hooks/use-page-state';
-import { useDataProvider } from '../lib/use-data-provider';
+import { useContainersProvider } from '../lib/use-data-provider';
 import { useFilter } from '../utils/use-filter';
 import { PageLayout } from '../components/layout/page-layout';
 import { usePageAnalytics } from '../hooks/use-analytics';
@@ -25,7 +24,7 @@ export default function ContainersPage() {
     isLoading,
     error,
     refresh,
-  } = useDataProvider<ContainerData>('list_containers');
+  } = useContainersProvider();
 
   const filteredContainers = useFilter(containers, filter, searchTerm, {
     searchFields: ['names', 'image'],

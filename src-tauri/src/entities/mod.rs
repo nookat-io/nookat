@@ -1,15 +1,13 @@
 mod config;
 mod containers;
-mod docker_info;
-mod engine_status;
+mod engine;
 mod images;
 mod networks;
 mod volumes;
 
 pub use self::config::*;
 pub use self::containers::Container;
-pub use self::docker_info::DockerInfo;
-pub use self::engine_status::*;
+pub use self::engine::*;
 pub use self::images::{Image, PruneResult};
 pub use self::networks::*;
 pub use self::volumes::*;

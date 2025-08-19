@@ -53,9 +53,7 @@ impl VolumesService {
             .inspect_volume(name)
             .await
             .map_err(|e| format!("Failed to inspect volume {}: {}", name, e))?;
-        let volume = Volume::from(bollard_volume);
-
-        Ok(volume)
+        Ok(Volume::from(bollard_volume))
     }
 
     #[instrument(skip_all, err)]

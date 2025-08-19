@@ -33,18 +33,13 @@ export function Sidebar() {
         collapsed ? 'w-20' : 'w-64'
       )}
     >
-      <div
-        className={cn(
-          'flex items-center justify-between px-6 py-4 border-b',
-          collapsed ? 'mt-1' : ''
-        )}
-      >
+      <div className="flex items-center justify-between px-6 py-4 border-b">
         {!collapsed && (
           <div className="flex items-center space-x-2">
             <img
               src="/logo.png"
               alt="Nookat Logo"
-              className="h-10 w-10"
+              className="h-8 w-8"
               draggable="false"
             />
             <span className="font-bold text-lg" draggable="false">

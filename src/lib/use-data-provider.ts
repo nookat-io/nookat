@@ -1,5 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
 import { invoke } from '@tauri-apps/api/core';
+import { Container } from '../components/containers/container-types';
+import { Image } from '../components/images/image-types';
+import { Network } from '../components/networks/network-types';
+import { Volume } from '../components/volumes/volume-types';
 
 export interface DataProviderState<T> {
   data: T[];
@@ -81,4 +85,29 @@ export function useDataProvider<T>(
     error,
     refresh,
   };
+}
+
+// Specialized data providers for each type - now using direct backend types
+export function useContainersProvider(
+  autoRefreshInterval = 1000
+): DataProviderState<Container> {
+  return useDataProvider<Container>('list_containers', autoRefreshInterval);
+}
+
+export function useImagesProvider(
+  autoRefreshInterval = 1000
+): DataProviderState<Image> {
+  return useDataProvider<Image>('list_images', autoRefreshInterval);
+}
+
+export function useNetworksProvider(
+  autoRefreshInterval = 1000
+): DataProviderState<Network> {
+  return useDataProvider<Network>('list_networks', autoRefreshInterval);
+}
+
+export function useVolumesProvider(
+  autoRefreshInterval = 1000
+): DataProviderState<Volume> {
+  return useDataProvider<Volume>('list_volumes', autoRefreshInterval);
 }

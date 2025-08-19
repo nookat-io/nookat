@@ -1,5 +1,3 @@
-'use client';
-
 import { invoke } from '@tauri-apps/api/core';
 import { toast } from 'sonner';
 import { Port } from './container-types';

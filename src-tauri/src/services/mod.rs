@@ -1,5 +1,6 @@
 mod config;
 mod containers;
+pub(crate) mod engine;
 mod images;
 mod networks;
 mod updater;

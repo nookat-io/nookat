@@ -1,9 +1,9 @@
-import { NetworkData } from './network-types';
+import { Network } from './network-types';
 import { NetworkActions } from './network-actions';
 
 interface NetworkHeaderProps {
   selectedNetworks: string[];
-  networks: NetworkData[];
+  networks: Network[];
   onActionComplete: () => void;
   onSelectionChange: (selected: string[]) => void;
 }
@@ -14,8 +14,7 @@ export function NetworkHeader({
   onActionComplete,
   onSelectionChange,
 }: NetworkHeaderProps) {
-  const networksArray = networks || [];
-  const totalNetworks = networksArray.length;
+  const totalNetworks = networks.length;
 
   return (
     <div className="border border-border/50 rounded-2xl p-6 dark:bg-card/50 w-full flex flex-col items-start justify-start">

@@ -1,8 +1,7 @@
-import { NetworkData } from '../components/networks/network-types';
 import { NetworkHeader } from '../components/networks/network-header';
 import { NetworkControls } from '../components/networks/network-controls';
 import { NetworksTable } from '../components/networks/networks-table';
-import { useDataProvider } from '../lib/use-data-provider';
+import { useNetworksProvider } from '../lib/use-data-provider';
 import { useFilter } from '../utils/use-filter';
 import { usePageState } from '../hooks/use-page-state';
 import { PageLayout } from '../components/layout/page-layout';
@@ -20,12 +19,7 @@ export default function NetworksPage() {
     setSearchTerm,
   } = usePageState<'all' | 'system' | 'others'>('all');
 
-  const {
-    data: networks,
-    isLoading,
-    error,
-    refresh,
-  } = useDataProvider<NetworkData>('list_networks');
+  const { data: networks, isLoading, error, refresh } = useNetworksProvider();
 
   const filteredNetworks = useFilter(networks, filter, searchTerm, {
     searchFields: ['name', 'driver'],
