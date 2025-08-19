@@ -1,4 +1,17 @@
-export interface NetworkData {
+// IPAM config interface matching backend
+export interface IpamConfig {
+  subnet?: string;
+  gateway?: string;
+}
+
+// IPAM interface matching backend
+export interface Ipam {
+  driver?: string;
+  config?: IpamConfig[];
+}
+
+// Network interface matching backend
+export interface Network {
   id: string;
   name: string;
   driver: string;
@@ -8,12 +21,6 @@ export interface NetworkData {
   gateway?: string;
   containers: number;
   internal: boolean;
-  ipam: {
-    driver?: string;
-    config?: Array<{
-      subnet?: string;
-      gateway?: string;
-    }>;
-  };
+  ipam: Ipam;
   labels?: Record<string, string>;
 }

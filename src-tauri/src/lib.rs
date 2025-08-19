@@ -4,20 +4,21 @@ pub mod sentry;
 mod services;
 mod state;
 
-use crate::services::ConfigService;
 use crate::handlers::{
     bulk_force_remove_containers, bulk_pause_containers, bulk_remove_containers,
     bulk_remove_networks, bulk_remove_volumes, bulk_restart_containers, bulk_start_containers,
-    bulk_stop_containers, bulk_unpause_containers, container_files, container_logs,
+    bulk_stop_containers, bulk_unpause_containers, check_colima_availability,
+    check_homebrew_availability, container_files, container_logs, engine_status,
     force_remove_container, get_config, get_docker_info, get_language, get_theme, inspect_volume,
-    list_containers, list_images, list_networks, list_volumes, open_terminal, open_url,
-    pause_container, prune_containers, prune_images, prune_volumes, remove_container,
-    remove_network, remove_volume, restart_container, start_container, stop_container,
-    unpause_container, update_language, update_last_update_check, update_startup_settings,
-    update_telemetry_settings, update_theme, engine_status
+    install_colima_command, list_containers, list_images, list_networks, list_volumes,
+    open_terminal, open_url, pause_container, prune_containers, prune_images, prune_volumes,
+    remove_container, remove_network, remove_volume, restart_container, start_colima_vm_command,
+    start_container, stop_container, unpause_container, update_language, update_last_update_check,
+    update_startup_settings, update_telemetry_settings, update_theme,
 };
 use crate::sentry::flush_sentry;
-use crate::state::SharedDockerState;
+use crate::services::ConfigService;
+use crate::state::SharedEngineState;
 use tauri::{
     image::Image,
     menu::{MenuBuilder, MenuItem},
@@ -90,7 +91,7 @@ pub fn run() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_autostart::Builder::new().build())
         .plugin(tauri_plugin_opener::init())
-        .manage(SharedDockerState::new())
+        .manage(SharedEngineState::new())
         .invoke_handler(tauri::generate_handler![
             // Configuration
             get_config,
@@ -138,6 +139,10 @@ pub fn run() {
             open_url,
             get_docker_info,
             engine_status,
+            check_homebrew_availability,
+            check_colima_availability,
+            install_colima_command,
+            start_colima_vm_command,
         ])
         .setup(|app| Ok(build_tray(app)?))
         .on_window_event(|window, event| match event {

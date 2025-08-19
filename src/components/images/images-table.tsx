@@ -19,10 +19,11 @@ import {
   DropdownMenuTrigger,
 } from '../ui/dropdown-menu';
 import { formatDistanceToNow } from 'date-fns';
-import { ImageData } from './image-types';
+import { Image } from './image-types';
 import { formatBytes } from '../../utils/format';
 import { LoadingSpinner } from '../ui/loading-spinner';
 import { ErrorDisplay } from '../ui/error-display';
+import { useMemo } from 'react';
 
 interface DockerImage {
   id: string;
@@ -37,15 +38,15 @@ interface DockerImage {
 interface ImagesTableProps {
   selectedImages: string[];
   onSelectionChange: (_selected: string[]) => void;
-  images: ImageData[];
+  images: Image[];
   onActionComplete?: () => void;
   isLoading?: boolean;
   error?: string | null;
   onRetry?: () => void;
 }
 
-// Convert ImageData to DockerImage format for display
-function convertImageData(imageData: ImageData): DockerImage {
+// Convert Image to DockerImage format for display
+function convertImageData(imageData: Image): DockerImage {
   const repository = imageData.repository || '<none>';
   const tag = imageData.tag || '<none>';
 
@@ -68,7 +69,15 @@ export function ImagesTable({
   error = null,
   onRetry,
 }: ImagesTableProps) {
-  const dockerImages = images.map(convertImageData);
+  const dockerImages = useMemo(
+    () =>
+      images.map(convertImageData).sort((a, b) => {
+        const dateDiff = b.created.getTime() - a.created.getTime();
+        if (dateDiff !== 0) return dateDiff;
+        return a.repository.localeCompare(b.repository);
+      }),
+    [images]
+  );
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
@@ -135,16 +144,13 @@ export function ImagesTable({
             {image.tag}
           </div>
         </TableCell>
-        <TableCell className="text-muted-foreground text-xs font-mono">
-          {image.imageId.startsWith('sha256:')
-            ? image.imageId.substring(7, 19)
-            : image.imageId.substring(0, 12)}
+        <TableCell className="text-muted-foreground text-center">
+          {formatDistanceToNow(image.created, { addSuffix: true })}
         </TableCell>
-        <TableCell className="text-muted-foreground">
-          {formatDistanceToNow(image.created)} ago
+        <TableCell className="text-muted-foreground text-center">
+          {image.size}
         </TableCell>
-        <TableCell className="text-muted-foreground">{image.size}</TableCell>
-        <TableCell>
+        <TableCell className="text-center">
           <Badge
             variant={image.inUse ? 'default' : 'secondary'}
             className={
@@ -199,13 +205,12 @@ export function ImagesTable({
                   onCheckedChange={handleSelectAll}
                 />
               </TableHead>
-              <TableHead className="w-[30%]">Name</TableHead>
+              <TableHead className="w-[35%]">Name</TableHead>
               <TableHead className="w-[15%]">Tag</TableHead>
-              <TableHead className="w-[15%]">Image ID</TableHead>
-              <TableHead className="w-[15%]">Created</TableHead>
+              <TableHead className="w-[10%]">Created</TableHead>
               <TableHead className="w-[10%]">Size</TableHead>
               <TableHead className="w-[10%]">Status</TableHead>
-              <TableHead className="w-24">Actions</TableHead>
+              <TableHead className="w-[10%]">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody className="flex-1">{renderTableBody()}</TableBody>

@@ -1,23 +1,23 @@
-import { ContainerData } from './container-types';
+import { Container } from './container-types';
 
 export interface ContainerGroup {
   projectName: string;
-  containers: ContainerData[];
+  containers: Container[];
   isExpanded: boolean;
 }
 
-export const getProjectName = (container: ContainerData): string | null => {
+export const getProjectName = (container: Container): string | null => {
   return (
     (container.labels && container.labels['com.docker.compose.project']) || null
   );
 };
 
 export const organizeContainers = (
-  containers: ContainerData[],
+  containers: Container[],
   expandedGroups: Set<string>
 ) => {
-  const individualContainers: ContainerData[] = [];
-  const groupedContainers: Record<string, ContainerData[]> = {};
+  const individualContainers: Container[] = [];
+  const groupedContainers: Record<string, Container[]> = {};
 
   containers.forEach(container => {
     const projectName = getProjectName(container);
@@ -35,8 +35,8 @@ export const organizeContainers = (
   });
 
   // Sort containers by creation time (newest first)
-  const sortByCreatedTime = (a: ContainerData, b: ContainerData) =>
-    b.created - a.created;
+  const sortByCreatedTime = (a: Container, b: Container) =>
+    (b.created ?? 0) - (a.created ?? 0);
 
   const groups: ContainerGroup[] = Object.entries(groupedContainers).map(
     ([projectName, containers]) => ({
@@ -48,8 +48,8 @@ export const organizeContainers = (
 
   // Sort groups by the creation time of their newest container
   const sortedGroups = groups.sort((a, b) => {
-    const newestA = Math.max(...a.containers.map(c => c.created));
-    const newestB = Math.max(...b.containers.map(c => c.created));
+    const newestA = Math.max(...a.containers.map(c => c.created ?? 0));
+    const newestB = Math.max(...b.containers.map(c => c.created ?? 0));
     return newestB - newestA;
   });
 
@@ -59,8 +59,8 @@ export const organizeContainers = (
   };
 };
 
-export const formatContainerName = (container: ContainerData): string => {
-  if (container.names.length > 0) {
+export const formatContainerName = (container: Container): string => {
+  if (container.names && container.names.length > 0) {
     let first_name = container.names[0];
     if (first_name.startsWith('/')) {
       first_name = first_name.slice(1);

@@ -1,9 +1,9 @@
 import { VolumeActions } from './volume-actions';
-import { VolumeData } from './volume-types';
+import { Volume } from './volume-types';
 
 interface VolumeHeaderProps {
   selectedVolumes: string[];
-  volumes: VolumeData[];
+  volumes: Volume[];
   onActionComplete: () => void;
   onSelectionChange?: (selected: string[]) => void;
 }

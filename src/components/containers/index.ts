@@ -20,7 +20,6 @@ export { ContainerStatusBadge } from './container-status-badge';
 export { ContainerLogsForm } from './container-logs-form';
 
 // Utility functions
-export { ContainerActionService } from './container-actions-service';
 export {
   organizeContainers,
   formatContainerName,
@@ -28,4 +27,4 @@ export {
 } from './container-utils';
 
 // Types
-export { type ContainerData, type Port } from './container-types';
+export { type Container, type Port } from './container-types';

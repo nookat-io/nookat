@@ -17,7 +17,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '../ui/dropdown-menu';
-import { VolumeData } from './volume-types';
+import { Volume } from './volume-types';
 import { VolumeActionService } from './volume-actions-service';
 import { useState } from 'react';
 import { LoadingSpinner } from '../ui/loading-spinner';
@@ -26,7 +26,7 @@ import { ErrorDisplay } from '../ui/error-display';
 interface VolumesTableProps {
   selectedVolumes: string[];
   onSelectionChange: (_selected: string[]) => void;
-  volumes: VolumeData[];
+  volumes: Volume[];
   onActionComplete?: () => void;
   isLoading?: boolean;
   error?: string | null;

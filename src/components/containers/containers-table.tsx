@@ -1,5 +1,3 @@
-'use client';
-
 import { useState, useEffect } from 'react';
 import {
   Table,
@@ -10,7 +8,7 @@ import {
   TableCell,
 } from '../ui/table';
 import { Checkbox } from '../ui/checkbox';
-import { ContainerData } from './container-types';
+import { Container } from './container-types';
 import { ContainerLogsForm } from './container-logs-form';
 import { ContainerRow } from './container-row';
 import { ContainerGroupRow } from './container-group-row';
@@ -21,7 +19,7 @@ import { ErrorDisplay } from '../ui/error-display';
 interface ContainersTableProps {
   selectedContainers: string[];
   onSelectionChange: (_selected: string[]) => void;
-  containers: ContainerData[];
+  containers: Container[];
   onActionComplete?: () => void;
   isLoading?: boolean;
   error?: string | null;
@@ -39,7 +37,7 @@ export function ContainersTable({
 }: ContainersTableProps) {
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   const [selectedContainerForLogs, setSelectedContainerForLogs] =
-    useState<ContainerData | null>(null);
+    useState<Container | null>(null);
   const [logsFormOpen, setLogsFormOpen] = useState(false);
 
   useEffect(() => {
@@ -92,7 +90,7 @@ export function ContainersTable({
     setExpandedGroups(newExpandedGroups);
   };
 
-  const handleOpenLogs = (container: ContainerData) => {
+  const handleOpenLogs = (container: Container) => {
     setSelectedContainerForLogs(container);
     setLogsFormOpen(true);
   };
@@ -171,8 +169,8 @@ export function ContainersTable({
               <TableHead className="w-[25%]">Image</TableHead>
               <TableHead className="w-[10%]">Status</TableHead>
               <TableHead className="w-[15%]">Created</TableHead>
-              <TableHead className="w-[15%]">Ports</TableHead>
-              <TableHead className="w-[15%]">Actions</TableHead>
+              <TableHead className="w-[10%]">Ports</TableHead>
+              <TableHead className="w-[10%]">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody className="flex-1">{renderTableBody()}</TableBody>
@@ -183,8 +181,9 @@ export function ContainersTable({
         <ContainerLogsForm
           containerId={selectedContainerForLogs.id}
           containerName={
-            selectedContainerForLogs.names[0]?.replace(/^\//, '') ||
-            selectedContainerForLogs.id
+            selectedContainerForLogs.names?.[0]?.replace(/^\//, '') ||
+            selectedContainerForLogs.id ||
+            'Unknown Container'
           }
           containerState={selectedContainerForLogs.state}
           isOpen={logsFormOpen}

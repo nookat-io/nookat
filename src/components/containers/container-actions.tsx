@@ -8,13 +8,13 @@ import {
   Play as ResumeIcon,
   Trash,
 } from 'lucide-react';
-import { ContainerData } from './container-types';
+import { Container, ContainerState } from './container-types';
 import { useState } from 'react';
 import { ContainerActionService } from './container-actions-service';
 
 interface ContainerActionsProps {
   selectedContainers: string[];
-  containers: ContainerData[];
+  containers: Container[];
   onActionComplete?: () => void;
   onSelectionChange?: (selected: string[]) => void;
 }
@@ -33,34 +33,56 @@ export function ContainerActions({
 
   const canStart =
     selectedContainerData.length > 0 &&
-    selectedContainerData.every(container =>
-      ['stopped', 'exited', 'created'].includes(container.state)
+    selectedContainerData.every(
+      container =>
+        container.state &&
+        [ContainerState.Exited, ContainerState.Created].includes(
+          container.state
+        )
     );
 
   const canStop =
     selectedContainerData.length > 0 &&
-    selectedContainerData.every(container =>
-      ['running', 'restarting'].includes(container.state)
+    selectedContainerData.every(
+      container =>
+        container.state &&
+        [ContainerState.Running, ContainerState.Restarting].includes(
+          container.state
+        )
     );
 
   const canPause =
     selectedContainerData.length > 0 &&
-    selectedContainerData.every(container => container.state === 'running');
+    selectedContainerData.every(
+      container => container.state === ContainerState.Running
+    );
 
   const canResume =
     selectedContainerData.length > 0 &&
-    selectedContainerData.every(container => container.state === 'paused');
+    selectedContainerData.every(
+      container => container.state === ContainerState.Paused
+    );
 
   const canRestart =
     selectedContainerData.length > 0 &&
-    selectedContainerData.every(container =>
-      ['running', 'restarting'].includes(container.state)
+    selectedContainerData.every(
+      container =>
+        container.state &&
+        [ContainerState.Running, ContainerState.Restarting].includes(
+          container.state
+        )
     );
 
   const canDelete =
     selectedContainerData.length > 0 &&
-    selectedContainerData.every(container =>
-      ['stopped', 'exited', 'created', 'running'].includes(container.state)
+    selectedContainerData.every(
+      container =>
+        container.state &&
+        [
+          ContainerState.Exited,
+          ContainerState.Created,
+          ContainerState.Running,
+        ].includes(container.state)
     );
 
   const handleAction = async (
@@ -126,7 +148,9 @@ export function ContainerActions({
     );
 
   const handleDelete = () => {
-    const hasRunning = selectedContainerData.some(c => c.state === 'running');
+    const hasRunning = selectedContainerData.some(
+      c => c.state === ContainerState.Running
+    );
     handleAction(
       () =>
         ContainerActionService.bulkDeleteContainers(

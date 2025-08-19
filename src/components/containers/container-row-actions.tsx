@@ -1,5 +1,3 @@
-'use client';
-
 import { useState } from 'react';
 import { Button } from '../ui/button';
 import {
@@ -18,13 +16,13 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '../ui/dropdown-menu';
-import { ContainerData } from './container-types';
+import { Container, ContainerState } from './container-types';
 import { ContainerActionService } from './container-actions-service';
 
 interface ContainerRowActionsProps {
-  container: ContainerData;
+  container: Container;
   onActionComplete?: () => void;
-  onOpenLogs: (container: ContainerData) => void;
+  onOpenLogs: (container: Container) => void;
 }
 
 export function ContainerRowActions({
@@ -59,40 +57,46 @@ export function ContainerRowActions({
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
-        {/* Start action - available for stopped, exited, created containers */}
-        {['stopped', 'exited', 'created'].includes(container.state) && (
-          <DropdownMenuItem
-            onClick={() =>
-              handleAction(() =>
-                ContainerActionService.startContainer(container.id, {
-                  onActionComplete,
-                })
-              )
-            }
-          >
-            <Play className="mr-2 h-4 w-4" />
-            Start
-          </DropdownMenuItem>
-        )}
+        {/* Start action - available for exited, created containers */}
+        {container.state &&
+          [ContainerState.Exited, ContainerState.Created].includes(
+            container.state
+          ) && (
+            <DropdownMenuItem
+              onClick={() =>
+                handleAction(() =>
+                  ContainerActionService.startContainer(container.id, {
+                    onActionComplete,
+                  })
+                )
+              }
+            >
+              <Play className="mr-2 h-4 w-4" />
+              Start
+            </DropdownMenuItem>
+          )}
 
         {/* Stop action - available for running, restarting containers */}
-        {['running', 'restarting'].includes(container.state) && (
-          <DropdownMenuItem
-            onClick={() =>
-              handleAction(() =>
-                ContainerActionService.stopContainer(container.id, {
-                  onActionComplete,
-                })
-              )
-            }
-          >
-            <Square className="mr-2 h-4 w-4" />
-            Stop
-          </DropdownMenuItem>
-        )}
+        {container.state &&
+          [ContainerState.Running, ContainerState.Restarting].includes(
+            container.state
+          ) && (
+            <DropdownMenuItem
+              onClick={() =>
+                handleAction(() =>
+                  ContainerActionService.stopContainer(container.id, {
+                    onActionComplete,
+                  })
+                )
+              }
+            >
+              <Square className="mr-2 h-4 w-4" />
+              Stop
+            </DropdownMenuItem>
+          )}
 
         {/* Pause action - available for running containers */}
-        {container.state === 'running' && (
+        {container.state && container.state === ContainerState.Running && (
           <DropdownMenuItem
             onClick={() =>
               handleAction(() =>
@@ -108,7 +112,7 @@ export function ContainerRowActions({
         )}
 
         {/* Resume action - available for paused containers */}
-        {container.state === 'paused' && (
+        {container.state && container.state === ContainerState.Paused && (
           <DropdownMenuItem
             onClick={() =>
               handleAction(() =>
@@ -124,23 +128,26 @@ export function ContainerRowActions({
         )}
 
         {/* Restart action - available for running, restarting containers */}
-        {['running', 'restarting'].includes(container.state) && (
-          <DropdownMenuItem
-            onClick={() =>
-              handleAction(() =>
-                ContainerActionService.restartContainer(container.id, {
-                  onActionComplete,
-                })
-              )
-            }
-          >
-            <RotateCcw className="mr-2 h-4 w-4" />
-            Restart
-          </DropdownMenuItem>
-        )}
+        {container.state &&
+          [ContainerState.Running, ContainerState.Restarting].includes(
+            container.state
+          ) && (
+            <DropdownMenuItem
+              onClick={() =>
+                handleAction(() =>
+                  ContainerActionService.restartContainer(container.id, {
+                    onActionComplete,
+                  })
+                )
+              }
+            >
+              <RotateCcw className="mr-2 h-4 w-4" />
+              Restart
+            </DropdownMenuItem>
+          )}
 
         {/* Terminal - available for running containers */}
-        {container.state === 'running' && (
+        {container.state && container.state === ContainerState.Running && (
           <DropdownMenuItem
             onClick={handleOpenTerminal}
             disabled={openingTerminal}
@@ -156,26 +163,31 @@ export function ContainerRowActions({
           Logs
         </DropdownMenuItem>
 
-        {/* Delete action - available for stopped, exited, created, running containers */}
-        {['stopped', 'exited', 'created', 'running'].includes(
-          container.state
-        ) && (
-          <DropdownMenuItem
-            className="text-destructive"
-            onClick={() =>
-              handleAction(() =>
-                ContainerActionService.deleteContainer(
-                  container.id,
-                  container.state === 'running',
-                  { onActionComplete }
+        {/* Delete action - available for exited, created, running containers */}
+        {container.state &&
+          [
+            ContainerState.Exited,
+            ContainerState.Created,
+            ContainerState.Running,
+          ].includes(container.state) && (
+            <DropdownMenuItem
+              className="text-destructive"
+              onClick={() =>
+                handleAction(() =>
+                  ContainerActionService.deleteContainer(
+                    container.id,
+                    container.state === ContainerState.Running,
+                    { onActionComplete }
+                  )
                 )
-              )
-            }
-          >
-            <Trash2 className="mr-2 h-4 w-4" />
-            {container.state === 'running' ? 'Force Delete' : 'Delete'}
-          </DropdownMenuItem>
-        )}
+              }
+            >
+              <Trash2 className="mr-2 h-4 w-4" />
+              {container.state === ContainerState.Running
+                ? 'Force Delete'
+                : 'Delete'}
+            </DropdownMenuItem>
+          )}
       </DropdownMenuContent>
     </DropdownMenu>
   );
