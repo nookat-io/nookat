@@ -43,7 +43,7 @@ async fn connect_to_docker_using_different_contexts() -> Result<Docker, String> 
                         5,
                         bollard::API_DEFAULT_VERSION,
                     ) {
-                        if let Ok(_) = docker.info().await {
+                        if docker.ping().await.is_ok() {
                             debug!("Successfully connected to Docker via context socket");
                             return Ok(docker);
                         }
@@ -92,7 +92,16 @@ async fn connect_to_docker() -> Result<Docker, String> {
 
     // Last resort: try the default connection method
     debug!("Trying default Docker connection method");
-    Docker::connect_with_local_defaults().map_err(|e| format!("Failed to connect to Docker: {}", e))
+    match Docker::connect_with_local_defaults() {
+        Ok(docker) => {
+            if docker.ping().await.is_ok() {
+                Ok(docker)
+            } else {
+                Err("Failed to connect to Docker: ping failed on default connection".to_string())
+            }
+        }
+        Err(e) => Err(format!("Failed to connect to Docker: {}", e)),
+    }
 }
 
 #[instrument(skip_all, err)]

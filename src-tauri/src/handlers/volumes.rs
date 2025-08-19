@@ -11,8 +11,7 @@ pub async fn list_volumes(state: State<'_, SharedEngineState>) -> Result<Vec<Vol
 
     let engine = state.get_engine().await?;
     let docker = engine.docker.as_ref().ok_or("Docker not found")?;
-    let result = VolumesService::get_volumes(docker).await;
-    result
+    VolumesService::get_volumes(docker).await
 }
 
 #[tauri::command]
@@ -21,12 +20,11 @@ pub async fn remove_volume(
     state: State<'_, SharedEngineState>,
     name: String,
 ) -> Result<(), String> {
-    debug!("Removing volume: {}", name);
+    debug!("Removing volume");
 
     let engine = state.get_engine().await?;
     let docker = engine.docker.as_ref().ok_or("Docker not found")?;
-    let result = VolumesService::remove_volume(docker, &name).await;
-    result
+    VolumesService::remove_volume(docker, &name).await
 }
 
 #[tauri::command]
@@ -35,12 +33,11 @@ pub async fn bulk_remove_volumes(
     state: State<'_, SharedEngineState>,
     names: Vec<String>,
 ) -> Result<(), String> {
-    debug!("Removing volumes: {:?}", names);
+    debug!("Removing {} volumes", names.len());
 
     let engine = state.get_engine().await?;
     let docker = engine.docker.as_ref().ok_or("Docker not found")?;
-    let result = VolumesService::bulk_remove_volumes(docker, &names).await;
-    result
+    VolumesService::bulk_remove_volumes(docker, &names).await
 }
 
 #[tauri::command]
@@ -49,12 +46,11 @@ pub async fn inspect_volume(
     state: State<'_, SharedEngineState>,
     name: String,
 ) -> Result<Volume, String> {
-    debug!("Inspecting volume: {}", name);
+    debug!("Inspecting volume");
 
     let engine = state.get_engine().await?;
     let docker = engine.docker.as_ref().ok_or("Docker not found")?;
-    let result = VolumesService::inspect_volume(docker, &name).await;
-    result
+    VolumesService::inspect_volume(docker, &name).await
 }
 
 #[tauri::command]
@@ -64,6 +60,5 @@ pub async fn prune_volumes(state: State<'_, SharedEngineState>) -> Result<(), St
 
     let engine = state.get_engine().await?;
     let docker = engine.docker.as_ref().ok_or("Docker not found")?;
-    let result = VolumesService::prune_volumes(docker).await;
-    result
+    VolumesService::prune_volumes(docker).await
 }

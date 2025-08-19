@@ -10,8 +10,7 @@ pub async fn list_images(state: State<'_, SharedEngineState>) -> Result<Vec<Imag
     debug!("Listing images");
     let engine = state.get_engine().await?;
     let docker = engine.docker.as_ref().ok_or("Docker not found")?;
-    let result = ImagesService::get_images(docker).await;
-    result
+    ImagesService::get_images(docker).await
 }
 
 #[tauri::command]
@@ -21,6 +20,5 @@ pub async fn prune_images(state: State<'_, SharedEngineState>) -> Result<PruneRe
 
     let engine = state.get_engine().await?;
     let docker = engine.docker.as_ref().ok_or("Docker not found")?;
-    let result = ImagesService::perform_prune(docker).await;
-    result
+    ImagesService::perform_prune(docker).await
 }

@@ -144,11 +144,6 @@ export function ImagesTable({
             {image.tag}
           </div>
         </TableCell>
-        {/* <TableCell className="text-muted-foreground text-xs font-mono">
-          {image.imageId.startsWith('sha256:')
-            ? image.imageId.substring(7, 19)
-            : image.imageId.substring(0, 12)}
-        </TableCell> */}
         <TableCell className="text-muted-foreground text-center">
           {formatDistanceToNow(image.created, { addSuffix: true })}
         </TableCell>
@@ -212,7 +207,6 @@ export function ImagesTable({
               </TableHead>
               <TableHead className="w-[35%]">Name</TableHead>
               <TableHead className="w-[15%]">Tag</TableHead>
-              {/* <TableHead className="w-[15%]">Image ID</TableHead> */}
               <TableHead className="w-[10%]">Created</TableHead>
               <TableHead className="w-[10%]">Size</TableHead>
               <TableHead className="w-[10%]">Status</TableHead>

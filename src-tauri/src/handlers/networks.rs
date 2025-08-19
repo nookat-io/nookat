@@ -20,7 +20,7 @@ pub async fn remove_network(
     state: State<'_, SharedEngineState>,
     name: String,
 ) -> Result<(), String> {
-    debug!("Removing network: {}", name);
+    debug!("Removing network");
 
     let engine = state.get_engine().await?;
     let docker = engine.docker.as_ref().ok_or("Docker not found")?;
@@ -33,7 +33,7 @@ pub async fn bulk_remove_networks(
     state: State<'_, SharedEngineState>,
     names: Vec<String>,
 ) -> Result<(), String> {
-    debug!("Removing networks: {:?}", names);
+    debug!("Removing {} networks", names.len());
 
     let engine = state.get_engine().await?;
     let docker = engine.docker.as_ref().ok_or("Docker not found")?;
