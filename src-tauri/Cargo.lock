@@ -2685,7 +2685,7 @@ dependencies = [
 
 [[package]]
 name = "nookat"
-version = "0.1.3"
+version = "0.1.4"
 dependencies = [
  "async-trait",
  "bollard",
