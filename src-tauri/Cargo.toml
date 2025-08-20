@@ -18,20 +18,20 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
-tokio = { version = "1.46.1", features = ["full"] }
+tokio = { version = "1.47.1", features = ["full"] }
 tokio-util = { version = "0.7", features = ["io"] }
 tauri = { version = "2", features = [ "tray-icon", "macos-private-api"] }
 tauri-plugin-opener = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-bollard = { version = "0.18", features = ["pipe"] }
+bollard = { version = "0.19", features = ["pipe"] }
 dirs = "5"
 image = "0.25"
 futures-util = "0.3"
 chrono = { version = "0.4", features = ["serde"] }
 
-sentry = { version = "0.35", features = ["panic", "tracing"] }
-sentry-tracing = "0.35"
+sentry = { version = "0.42", features = ["panic", "tracing"] }
+sentry-tracing = "0.42"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 tracing-appender = "0.2"
@@ -42,7 +42,7 @@ tauri-plugin-updater = "2"
 
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
 sha2 = "0.10"
-tempfile = "3.8"
+tempfile = "3.21"
 flate2 = "1.0"
 tar = "0.4"
 async-trait = "0.1"
