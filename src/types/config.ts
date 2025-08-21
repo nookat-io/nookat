@@ -22,21 +22,9 @@ export interface StartupSettings {
   auto_update_settings: boolean;
 }
 
-// Legacy V1 config interface (for backward compatibility)
-export interface AppConfigV1 {
+export interface AppConfig {
   theme: Theme;
   language: Language;
   telemetry: TelemetrySettings;
   startup: StartupSettings;
 }
-
-// Current V2 config interface (version is handled by enum tag)
-export interface AppConfigV2 {
-  theme: Theme;
-  language: Language;
-  telemetry: TelemetrySettings;
-  startup: StartupSettings;
-}
-
-// Current config type alias for backward compatibility
-export type AppConfig = AppConfigV2;

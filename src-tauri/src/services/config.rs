@@ -26,15 +26,19 @@ impl ConfigService {
     /// Migrate config from any version to the current version
     #[instrument(skip_all, err)]
     pub fn migrate_config(versioned_config: VersionedAppConfig) -> Result<AppConfig, String> {
-        match versioned_config {
-            VersionedAppConfig::V1(config) => {
-                info!("Migrating config from V1 to V2");
-                Ok(config.into())
-            }
-            VersionedAppConfig::V2(config) => {
-                info!("Config already at V2, no migration needed");
-                Ok(config)
-            }
+        let mut versioned_config = versioned_config;
+
+        loop {
+            versioned_config = match versioned_config {
+                VersionedAppConfig::V1(config) => {
+                    info!("Migrating config from V1 to V2");
+                    VersionedAppConfig::V2(config.into())
+                }
+                VersionedAppConfig::V2(config) => {
+                    info!("Config already at V2, no migration needed");
+                    return Ok(config);
+                }
+            };
         }
     }
 
@@ -76,7 +80,7 @@ impl ConfigService {
             }
         } else {
             // Create default config if it doesn't exist
-            warn!("Config file does not exist, creating default V2 config");
+            info!("Config file does not exist, creating default config");
             let default_config = AppConfig::default();
             ConfigService::save_config(&default_config)?;
             Ok(default_config)

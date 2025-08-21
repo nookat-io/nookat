@@ -6,23 +6,13 @@ use crate::entities::config::StartupSettings;
 use crate::entities::config::AppConfigV1;
 use crate::entities::config::VersionedAppConfig;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq)]
+#[serde(default)]
 pub struct AppConfigV2 {
     pub theme: Theme,
     pub language: Language,
     pub telemetry: TelemetrySettings,
     pub startup: StartupSettings,
-}
-
-impl Default for AppConfigV2 {
-    fn default() -> Self {
-        Self {
-            theme: Theme::default(),
-            language: Language::default(),
-            telemetry: TelemetrySettings::default(),
-            startup: StartupSettings::default(),
-        }
-    }
 }
 
 impl From<AppConfigV1> for AppConfigV2 {
