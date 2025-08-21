@@ -1,7 +1,7 @@
 use crate::entities::{AppConfig, AppConfigV1, VersionedAppConfig};
 use std::fs;
 use std::path::PathBuf;
-use tracing::{instrument, warn, info};
+use tracing::{info, instrument, warn};
 
 pub struct ConfigService;
 

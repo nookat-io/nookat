@@ -1,5 +1,5 @@
 use crate::entities::Container;
-use crate::services::ContainersService;
+use crate::services::{shell, ContainersService};
 use crate::state::SharedEngineState;
 use tauri::State;
 use tracing::{debug, instrument};
@@ -208,12 +208,24 @@ pub async fn bulk_force_remove_containers(
 
 #[tauri::command]
 #[instrument(skip_all, err)]
-pub async fn open_terminal(state: State<'_, SharedEngineState>, id: String) -> Result<(), String> {
+pub async fn open_terminal(
+    app: tauri::AppHandle,
+    state: State<'_, SharedEngineState>,
+    id: String
+) -> Result<(), String> {
     debug!("Opening terminal for container: {}", id);
 
     let engine = state.get_engine().await?;
     let docker = engine.docker.as_ref().ok_or("Docker not found")?;
-    ContainersService::open_terminal(docker, &id).await
+
+    // Check if container is running
+    let container_running = ContainersService::is_container_running(docker, &id).await?;
+
+    if !container_running {
+        return Err("Container is not running".to_string());
+    }
+
+    shell::open_container_terminal(&app, &id).await
 }
 
 #[tauri::command]

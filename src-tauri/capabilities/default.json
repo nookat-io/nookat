@@ -130,6 +130,7 @@
     "core:webview:default",
     "core:window:default",
     "updater:default",
-    "autostart:default"
+    "autostart:default",
+    "shell:default"
   ]
 }
