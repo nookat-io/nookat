@@ -1,3 +1,5 @@
+#![allow(unused)]
+
 use crate::entities::{ColimaConfig, InstallationMethod};
 use crate::services::shell::get_docker_context_endpoints;
 use bollard::Docker;

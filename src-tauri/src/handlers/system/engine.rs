@@ -33,7 +33,7 @@ pub async fn install_colima_command(
     method: InstallationMethod,
 ) -> Result<(), String> {
     info!("Installing Colima via {:?}", method);
-    install_colima(app, method).await
+    install_colima(&app, method).await
 }
 
 #[tauri::command]
@@ -43,7 +43,7 @@ pub async fn start_colima_vm_command(
     config: ColimaConfig,
 ) -> Result<(), String> {
     info!("Starting Colima VM with config: {:?}", config);
-    start_colima_vm(app, config).await
+    start_colima_vm(&app, config).await
 }
 
 #[tauri::command]

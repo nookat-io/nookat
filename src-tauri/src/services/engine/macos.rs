@@ -10,7 +10,7 @@ use tracing::{debug, instrument, warn};
 
 #[instrument(skip_all, err)]
 pub async fn install_colima(
-    app_handle: AppHandle,
+    app_handle: &AppHandle,
     method: InstallationMethod,
 ) -> Result<(), String> {
     debug!("Starting Colima installation via {:?}", method);
@@ -22,7 +22,7 @@ pub async fn install_colima(
 }
 
 #[instrument(skip_all, err)]
-async fn install_colima_via_homebrew(app_handle: AppHandle) -> Result<(), String> {
+async fn install_colima_via_homebrew(app_handle: &AppHandle) -> Result<(), String> {
     debug!("Installing Colima via Homebrew");
 
     // Create a channel for progress updates
@@ -104,7 +104,7 @@ async fn install_colima_via_homebrew(app_handle: AppHandle) -> Result<(), String
 }
 
 #[instrument(skip_all, err)]
-pub async fn start_colima_vm(app_handle: AppHandle, config: ColimaConfig) -> Result<(), String> {
+pub async fn start_colima_vm(app_handle: &AppHandle, config: ColimaConfig) -> Result<(), String> {
     debug!("Starting Colima VM with config: {:?}", config);
 
     // Create a channel for progress updates

@@ -1,30 +1,41 @@
-#![allow(unused)]
-
 use tauri::AppHandle;
 use tauri_plugin_shell::ShellExt;
 use tracing::{debug, info, warn};
+use std::env;
 
 /// Opens a terminal with docker exec command for the given container
 pub async fn open_container_terminal(app: &AppHandle, container_id: &str) -> Result<(), String> {
-    #[cfg(target_os = "macos")]
-    return open_macos_terminal(app, container_id).await;
+    let shell_commands = ["bash", "sh"];
 
-    #[cfg(target_os = "linux")]
-    return open_linux_terminal(app, container_id).await;
+    for shell in shell_commands.iter() {
+        let status = app
+            .shell()
+            .command("osascript")
+            .args([
+                "-e",
+                &format!(
+                    "tell application \"Terminal\" to do script \"docker exec -it {} {}\"",
+                    container_id, shell
+                ),
+            ])
+            .status()
+            .await;
 
-    #[cfg(target_os = "windows")]
-    return open_windows_terminal(app, container_id).await;
+        if let Ok(status) = status {
+            if status.success() {
+                return Ok(());
+            }
+        }
+    }
 
-    #[cfg(not(any(target_os = "macos", target_os = "linux", target_os = "windows")))]
-    return Err("Unsupported operating system".to_string());
+    Err("Failed to open terminal on macOS".to_string())
 }
 
-// Command availability checks
 /// Check if a command is available in PATH
-pub async fn is_command_available(app: &AppHandle, command: &str) -> Result<bool, String> {
+async fn is_command_available(app: &AppHandle, command: &str) -> Result<bool, String> {
     let output = app.shell()
-        .command("which")
-        .args([command])
+        .command("zsh")
+        .args(["-l", "-c", &format!("which {}", command)])
         .output()
         .await
         .map_err(|e| format!("Failed to check {} availability: {}", command, e))?;
@@ -33,10 +44,10 @@ pub async fn is_command_available(app: &AppHandle, command: &str) -> Result<bool
 }
 
 /// Check if a command is working by running it with --version
-pub async fn is_command_working(app: &AppHandle, command: &str) -> Result<bool, String> {
+async fn is_command_working(app: &AppHandle, command: &str) -> Result<bool, String> {
     let output = app.shell()
-        .command(command)
-        .args(["--version"])
+        .command("zsh")
+        .args(["-l", "-c", &format!("{} --version", command)])
         .output()
         .await
         .map_err(|e| format!("Failed to check {} version: {}", command, e))?;
@@ -53,8 +64,8 @@ pub async fn is_docker_command_available(app: &AppHandle) -> Result<bool, String
     }
 
     let output = app.shell()
-        .command("docker")
-        .args(["--version"])
+        .command("zsh")
+        .args(["-l", "-c", "docker --version"])
         .output()
         .await
         .map_err(|e| format!("Failed to execute docker command: {}", e))?;
@@ -99,8 +110,8 @@ pub async fn is_colima_available(app: &AppHandle) -> Result<bool, String> {
 
     // Get version for logging
     let version_output = app.shell()
-        .command("colima")
-        .args(["--version"])
+        .command("zsh")
+        .args(["-l", "-c", "colima --version"])
         .output()
         .await
         .map_err(|e| format!("Failed to check Colima version: {}", e))?;
@@ -121,8 +132,8 @@ pub async fn install_packages_via_homebrew(app: &AppHandle, packages: &[&str]) -
         debug!("Installing package: {}", package);
 
         let output = app.shell()
-            .command("brew")
-            .args(["install", package])
+            .command("zsh")
+            .args(["-l", "-c", &format!("brew install {}", package)])
             .output()
             .await
             .map_err(|e| format!("Failed to execute brew install {}: {}", package, e))?;
@@ -138,12 +149,11 @@ pub async fn install_packages_via_homebrew(app: &AppHandle, packages: &[&str]) -
     Ok(())
 }
 
-// Docker context operations
 /// Get Docker context endpoints
 pub async fn get_docker_context_endpoints(app: &AppHandle) -> Result<Vec<String>, String> {
     let context_output = app.shell()
-        .command("docker")
-        .args(["context", "ls", "--format", "{{.DockerEndpoint}}"])
+        .command("zsh")
+        .args(["-l", "-c", "docker context ls --format '{{.DockerEndpoint}}'"])
         .output()
         .await
         .map_err(|e| format!("Failed to get Docker contexts: {}", e))?;
@@ -157,12 +167,11 @@ pub async fn get_docker_context_endpoints(app: &AppHandle) -> Result<Vec<String>
     Ok(endpoints)
 }
 
-// Colima operations
 /// Check Colima VM status
 pub async fn check_colima_status(app: &AppHandle) -> Result<bool, String> {
     let output = app.shell()
-        .command("colima")
-        .args(["status"])
+        .command("zsh")
+        .args(["-l", "-c", "colima status"])
         .output()
         .await
         .map_err(|e| format!("Failed to check Colima status: {}", e))?;
@@ -200,8 +209,8 @@ pub async fn start_colima_with_config(app: &AppHandle, config: &crate::entities:
     debug!("Executing: colima {}", args.join(" "));
 
     let output = app.shell()
-        .command("colima")
-        .args(&args)
+        .command("zsh")
+        .args(["-l", "-c", &format!("colima {}", args.join(" "))])
         .output()
         .await
         .map_err(|e| format!("Failed to start Colima: {}", e))?;
@@ -221,8 +230,8 @@ pub async fn validate_colima_startup(app: &AppHandle) -> Result<(), String> {
 
     // Check if Docker is responding
     let docker_check = app.shell()
-        .command("docker")
-        .args(["version"])
+        .command("zsh")
+        .args(["-l", "-c", "docker version"])
         .output()
         .await
         .map_err(|e| format!("Docker command failed: {}", e))?;
@@ -233,8 +242,8 @@ pub async fn validate_colima_startup(app: &AppHandle) -> Result<(), String> {
 
     // Check if we can connect to Docker daemon
     let info_check = app.shell()
-        .command("docker")
-        .args(["info"])
+        .command("zsh")
+        .args(["-l", "-c", "docker info"])
         .output()
         .await
         .map_err(|e| format!("Docker info command failed: {}", e))?;
@@ -245,100 +254,4 @@ pub async fn validate_colima_startup(app: &AppHandle) -> Result<(), String> {
 
     debug!("Colima startup validation successful");
     Ok(())
-}
-
-#[cfg(target_os = "macos")]
-async fn open_macos_terminal(app: &AppHandle, container_id: &str) -> Result<(), String> {
-    let shell_commands = ["bash", "sh"];
-
-    for shell in shell_commands.iter() {
-        let status = app
-            .shell()
-            .command("osascript")
-            .args([
-                "-e",
-                &format!(
-                    "tell application \"Terminal\" to do script \"docker exec -it {} {}\"",
-                    container_id, shell
-                ),
-            ])
-            .status()
-            .await;
-
-        if let Ok(status) = status {
-            if status.success() {
-                return Ok(());
-            }
-        }
-    }
-
-    Err("Failed to open terminal on macOS".to_string())
-}
-
-#[cfg(target_os = "linux")]
-async fn open_linux_terminal(app: &AppHandle, container_id: &str) -> Result<(), String> {
-    let terminal_configs = [
-        ("gnome-terminal", &["--", "docker", "exec", "-it", container_id, "bash"]),
-        ("konsole", &["-e", "docker", "exec", "-it", container_id, "bash"]),
-        ("xterm", &["-e", "docker", "exec", "-it", container_id, "bash"]),
-        ("alacritty", &["-e", "docker", "exec", "-it", container_id, "bash"]),
-        ("kitty", &["-e", "docker", "exec", "-it", container_id, "bash"]),
-    ];
-
-    // Try with bash first
-    if try_terminal_commands(app, &terminal_configs).await {
-        return Ok(());
-    }
-
-    // Fall back to sh if bash fails
-    let terminal_configs_sh = [
-        ("gnome-terminal", &["--", "docker", "exec", "-it", container_id, "sh"]),
-        ("konsole", &["-e", "docker", "exec", "-it", container_id, "sh"]),
-        ("xterm", &["-e", "docker", "exec", "-it", container_id, "sh"]),
-        ("alacritty", &["-e", "docker", "exec", "-it", container_id, "sh"]),
-        ("kitty", &["-e", "docker", "exec", "-it", container_id, "sh"]),
-    ];
-
-    if try_terminal_commands(app, &terminal_configs_sh).await {
-        return Ok(());
-    }
-
-    Err("No suitable terminal found. Please install a terminal emulator like gnome-terminal, konsole, xterm, alacritty, or kitty".to_string())
-}
-
-#[cfg(target_os = "linux")]
-async fn try_terminal_commands(
-    app: &AppHandle,
-    terminal_configs: &[(&str, &[&str])],
-) -> bool {
-    for (terminal, args) in terminal_configs.iter() {
-        if let Ok(status) = app.shell().command(terminal).args(*args).status().await {
-            if status.success() {
-                return true;
-            }
-        }
-    }
-    false
-}
-
-#[cfg(target_os = "windows")]
-async fn open_windows_terminal(app: &AppHandle, container_id: &str) -> Result<(), String> {
-    let shell_commands = ["bash", "sh"];
-
-    for shell in shell_commands.iter() {
-        let status = app
-            .shell()
-            .command("cmd")
-            .args(["/C", "start", "docker", "exec", "-it", container_id, shell])
-            .status()
-            .await;
-
-        if let Ok(status) = status {
-            if status.success() {
-                return Ok(());
-            }
-        }
-    }
-
-    Err("Failed to open terminal on Windows".to_string())
 }

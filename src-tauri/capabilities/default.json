@@ -131,6 +131,24 @@
     "core:window:default",
     "updater:default",
     "autostart:default",
-    "shell:default"
+    "shell:default",
+    {
+      "identifier": "shell:allow-execute",
+      "all": true,
+      "allow": [
+        { "name": "docker", "cmd": "docker", "args": [{ "validator": ".*" }] },
+        { "name": "brew", "cmd": "brew", "args": [{ "validator": ".*" }] },
+        { "name": "colima", "cmd": "colima", "args": [{ "validator": ".*" }] },
+        {
+          "name": "osascript",
+          "cmd": "osascript",
+          "args": [{ "validator": ".*" }]
+        },
+        { "name": "zsh", "cmd": "zsh", "args": [{ "validator": ".*" }] },
+        { "name": "cmd", "cmd": "cmd", "args": [{ "validator": ".*" }] },
+        { "name": "bash", "cmd": "bash", "args": [{ "validator": ".*" }] },
+        { "name": "sh", "cmd": "sh", "args": [{ "validator": ".*" }] }
+      ]
+    }
   ]
 }
