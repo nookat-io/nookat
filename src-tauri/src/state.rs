@@ -1,18 +1,20 @@
 use crate::entities::Engine;
 use crate::services::engine;
 use std::sync::Arc;
+use tauri::AppHandle;
 use tokio::sync::Mutex;
 use tracing::{debug, instrument, warn};
 
-#[derive(Default)]
 pub struct SharedEngineState {
     engine: Arc<Mutex<Option<Arc<Engine>>>>,
+    app_handle: Arc<AppHandle>,
 }
 
 impl SharedEngineState {
-    pub fn new() -> Self {
+    pub fn new(app_handle: AppHandle) -> Self {
         Self {
             engine: Arc::new(Mutex::new(None)),
+            app_handle: Arc::new(app_handle),
         }
     }
 
@@ -23,7 +25,7 @@ impl SharedEngineState {
 
         if engine_guard.is_none() {
             warn!("Engine is not found, creating new one");
-            let engine = Arc::new(engine::create_engine().await?);
+            let engine = Arc::new(engine::create_engine(&self.app_handle).await?);
             *engine_guard = Some(engine);
         }
 
@@ -35,7 +37,7 @@ impl SharedEngineState {
                     Ok(engine.clone().into())
                 } else {
                     debug!("Engine is not running, trying to create a new one");
-                    let new_engine = Arc::new(engine::create_engine().await?);
+                    let new_engine = Arc::new(engine::create_engine(&self.app_handle).await?);
                     *engine_guard = Some(new_engine);
                     Ok(engine_guard.as_ref().unwrap().clone())
                 }

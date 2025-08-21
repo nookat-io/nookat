@@ -3,58 +3,20 @@ pub mod engine;
 use crate::entities::{DockerInfo, EngineInfo, EngineStatus};
 use crate::state::SharedEngineState;
 pub use engine::*;
-use std::process::Command;
 use tauri::State;
+use tauri_plugin_opener::OpenerExt;
 use tracing::instrument;
 
 #[tauri::command]
 #[instrument(skip_all, err)]
-pub async fn open_url(url: String) -> Result<(), String> {
+pub async fn open_url(app: tauri::AppHandle, url: String) -> Result<(), String> {
     if url.trim().is_empty() {
         return Err("URL cannot be empty".to_string());
     }
 
-    #[cfg(target_os = "macos")]
-    {
-        let output = Command::new("open")
-            .arg(&url)
-            .output()
-            .map_err(|e| format!("Failed to open URL: {}", e))?;
-
-        if !output.status.success() {
-            let stderr = String::from_utf8_lossy(&output.stderr);
-            return Err(format!("Failed to open URL: {}", stderr));
-        }
-    }
-
-    #[cfg(target_os = "linux")]
-    {
-        let output = Command::new("xdg-open")
-            .arg(&url)
-            .output()
-            .map_err(|e| format!("Failed to open URL: {}", e))?;
-
-        if !output.status.success() {
-            let stderr = String::from_utf8_lossy(&output.stderr);
-            return Err(format!("Failed to open URL: {}", stderr));
-        }
-    }
-
-    #[cfg(target_os = "windows")]
-    {
-        // Use cmd.exe with /c start to properly invoke the start command
-        let output = Command::new("cmd")
-            .args(["/c", "start", &url])
-            .output()
-            .map_err(|e| format!("Failed to open URL: {}", e))?;
-
-        if !output.status.success() {
-            let stderr = String::from_utf8_lossy(&output.stderr);
-            return Err(format!("Failed to open URL: {}", stderr));
-        }
-    }
-
-    Ok(())
+    app.opener()
+        .open_url(&url, None::<&str>)
+        .map_err(|e| format!("Failed to open URL: {}", e))
 }
 
 #[tauri::command]

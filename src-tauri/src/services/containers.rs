@@ -1,4 +1,4 @@
-use bollard::models::ContainerSummary;
+use bollard::models::{ContainerSummary, ContainerStateStatusEnum};
 use bollard::{
     container::{
         ListContainersOptions, LogsOptions, RemoveContainerOptions, RestartContainerOptions,
@@ -6,7 +6,6 @@ use bollard::{
     },
     Docker,
 };
-use std::process::Command;
 use tracing::instrument;
 
 #[derive(Default, Debug)]
@@ -120,137 +119,6 @@ impl ContainersService {
     }
 
     #[instrument(skip_all, err)]
-    pub async fn open_terminal(docker: &Docker, id: &str) -> Result<(), String> {
-        // Check if container exists and is running
-        let containers = docker
-            .list_containers(None::<ListContainersOptions<String>>)
-            .await
-            .map_err(|e| format!("Failed to list containers: {}", e))?;
-
-        let container_exists = containers
-            .iter()
-            .any(|c| c.id.as_ref().unwrap_or(&"".to_string()).starts_with(id));
-        if !container_exists {
-            return Err("Container not found".to_string());
-        }
-
-        let container_running = containers.iter().any(|c| {
-            c.id.as_ref().unwrap_or(&"".to_string()).starts_with(id)
-                && c.state.as_ref().unwrap_or(&"".to_string()) == "running"
-        });
-        if !container_running {
-            return Err("Container is not running".to_string());
-        }
-
-        #[cfg(target_os = "macos")]
-        {
-            // Try bash first, then fall back to sh
-            let shell_commands = ["bash", "sh"];
-            let mut success = false;
-
-            for shell in shell_commands.iter() {
-                let status = Command::new("osascript")
-                    .args([
-                        "-e",
-                        &format!(
-                            "tell application \"Terminal\" to do script \"docker exec -it {} {}\"",
-                            id, shell
-                        ),
-                    ])
-                    .status();
-
-                match status {
-                    Ok(status) if status.success() => {
-                        success = true;
-                        break;
-                    }
-                    _ => continue,
-                }
-            }
-
-            if !success {
-                return Err("Failed to open terminal".to_string());
-            }
-        }
-
-        #[cfg(target_os = "linux")]
-        {
-            // Try to detect the default terminal
-            let terminal_commands = [
-                (
-                    "gnome-terminal",
-                    &["--", "docker", "exec", "-it", id, "bash"],
-                ),
-                ("konsole", &["-e", "docker", "exec", "-it", id, "bash"]),
-                ("xterm", &["-e", "docker", "exec", "-it", id, "bash"]),
-                ("alacritty", &["-e", "docker", "exec", "-it", id, "bash"]),
-                ("kitty", &["-e", "docker", "exec", "-it", id, "bash"]),
-            ];
-
-            let mut success = false;
-            for (terminal, args) in terminal_commands.iter() {
-                if let Ok(status) = Command::new(terminal).args(*args).status() {
-                    if status.success() {
-                        success = true;
-                        break;
-                    }
-                }
-            }
-
-            // If bash failed, try with sh
-            if !success {
-                let terminal_commands_sh = [
-                    ("gnome-terminal", &["--", "docker", "exec", "-it", id, "sh"]),
-                    ("konsole", &["-e", "docker", "exec", "-it", id, "sh"]),
-                    ("xterm", &["-e", "docker", "exec", "-it", id, "sh"]),
-                    ("alacritty", &["-e", "docker", "exec", "-it", id, "sh"]),
-                    ("kitty", &["-e", "docker", "exec", "-it", id, "sh"]),
-                ];
-
-                for (terminal, args) in terminal_commands_sh.iter() {
-                    if let Ok(status) = Command::new(terminal).args(*args).status() {
-                        if status.success() {
-                            success = true;
-                            break;
-                        }
-                    }
-                }
-            }
-
-            if !success {
-                return Err("No suitable terminal found. Please install a terminal emulator like gnome-terminal, konsole, xterm, alacritty, or kitty".to_string());
-            }
-        }
-
-        #[cfg(target_os = "windows")]
-        {
-            // Try bash first, then fall back to sh
-            let shell_commands = ["bash", "sh"];
-            let mut success = false;
-
-            for shell in shell_commands.iter() {
-                let status = Command::new("cmd")
-                    .args(["/C", "start", "docker", "exec", "-it", id, shell])
-                    .status();
-
-                match status {
-                    Ok(status) if status.success() => {
-                        success = true;
-                        break;
-                    }
-                    _ => continue,
-                }
-            }
-
-            if !success {
-                return Err("Failed to open terminal".to_string());
-            }
-        }
-
-        Ok(())
-    }
-
-    #[instrument(skip_all, err)]
     pub async fn get_container_logs(docker: &Docker, id: &str) -> Result<Vec<String>, String> {
         let options = LogsOptions::<String> {
             stdout: true,
@@ -304,5 +172,20 @@ impl ContainersService {
             .map_err(|e| format!("Failed to prune containers: {}", e))?;
 
         Ok(())
+    }
+
+    #[instrument(skip_all, err)]
+    pub async fn is_container_running(docker: &Docker, id: &str) -> Result<bool, String> {
+        let container = docker
+            .inspect_container(id, None)
+            .await
+            .map_err(|e| format!("Failed to inspect container: {}", e))?;
+
+        let is_running = matches!(
+            container.state.as_ref().and_then(|s| s.status),
+            Some(ContainerStateStatusEnum::RUNNING)
+        );
+
+        Ok(is_running)
     }
 }

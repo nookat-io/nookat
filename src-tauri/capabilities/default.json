@@ -130,6 +130,42 @@
     "core:webview:default",
     "core:window:default",
     "updater:default",
-    "autostart:default"
+    "autostart:default",
+    "shell:default",
+    {
+      "identifier": "shell:allow-execute",
+      "allow": [
+        { "name": "docker", "cmd": "docker", "args": [{ "validator": ".*" }] },
+        { "name": "brew", "cmd": "brew", "args": [{ "validator": ".*" }] },
+        { "name": "colima", "cmd": "colima", "args": [{ "validator": ".*" }] },
+        {
+          "name": "osascript",
+          "cmd": "osascript",
+          "args": [{ "validator": ".*" }]
+        },
+        { "name": "zsh", "cmd": "zsh", "args": [{ "validator": ".*" }] },
+        { "name": "cmd", "cmd": "cmd", "args": [{ "validator": ".*" }] },
+        { "name": "bash", "cmd": "bash", "args": [{ "validator": ".*" }] },
+        { "name": "sh", "cmd": "sh", "args": [{ "validator": ".*" }] },
+        { "name": "which", "cmd": "which", "args": [{ "validator": ".*" }] },
+        {
+          "name": "gnome-terminal",
+          "cmd": "gnome-terminal",
+          "args": [{ "validator": ".*" }]
+        },
+        {
+          "name": "konsole",
+          "cmd": "konsole",
+          "args": [{ "validator": ".*" }]
+        },
+        { "name": "xterm", "cmd": "xterm", "args": [{ "validator": ".*" }] },
+        {
+          "name": "alacritty",
+          "cmd": "alacritty",
+          "args": [{ "validator": ".*" }]
+        },
+        { "name": "kitty", "cmd": "kitty", "args": [{ "validator": ".*" }] }
+      ]
+    }
   ]
 }

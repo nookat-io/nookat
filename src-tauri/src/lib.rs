@@ -88,10 +88,10 @@ fn build_tray(app: &mut App) -> Result<(), String> {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_autostart::Builder::new().build())
         .plugin(tauri_plugin_opener::init())
-        .manage(SharedEngineState::new())
         .invoke_handler(tauri::generate_handler![
             // Configuration
             get_config,
@@ -144,7 +144,11 @@ pub fn run() {
             install_colima_command,
             start_colima_vm_command,
         ])
-        .setup(|app| Ok(build_tray(app)?))
+        .setup(|app| {
+            let engine_state = SharedEngineState::new(app.app_handle().clone());
+            app.manage(engine_state);
+            Ok(build_tray(app)?)
+        })
         .on_window_event(|window, event| match event {
             tauri::WindowEvent::CloseRequested { api, .. } => {
                 if let Ok(config) = ConfigService::get_config() {
