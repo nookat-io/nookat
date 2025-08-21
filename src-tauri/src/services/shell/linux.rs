@@ -1,9 +1,10 @@
+#![allow(unused)]
+
 use tauri::AppHandle;
 use tauri_plugin_shell::ShellExt;
 use tracing::{debug, info, warn, instrument};
 
 /// Try to execute terminal commands and return true if any succeed
-#[instrument(skip_all, err)]
 async fn try_terminal_commands(app: &AppHandle, terminal_configs: &[(&str, &[&str])]) -> bool {
     for (terminal, args) in terminal_configs {
         debug!("Trying terminal: {} with args: {:?}", terminal, args);
@@ -115,14 +116,14 @@ pub async fn is_docker_command_available(app: &AppHandle) -> Result<bool, String
 
 /// Check if Homebrew is available and working
 #[instrument(skip_all, err)]
-pub async fn is_homebrew_available(app: &AppHandle) -> Result<bool, String> {
+pub async fn is_homebrew_available(_app: &AppHandle) -> Result<bool, String> {
     // Homebrew is not available on Linux, it's only available on macOS
     Ok(false)
 }
 
 /// Check if Colima is available and working
 #[instrument(skip_all, err)]
-pub async fn is_colima_available(app: &AppHandle) -> Result<bool, String> {
+pub async fn is_colima_available(_app: &AppHandle) -> Result<bool, String> {
     // Not implemented for Linux yet
     Ok(false)
 }
@@ -130,7 +131,7 @@ pub async fn is_colima_available(app: &AppHandle) -> Result<bool, String> {
 // Package management
 /// Install packages via Homebrew
 #[instrument(skip_all, err)]
-pub async fn install_packages_via_homebrew(app: &AppHandle, packages: &[&str]) -> Result<(), String> {
+pub async fn install_packages_via_homebrew(_app: &AppHandle, _packages: &[&str]) -> Result<(), String> {
     Err("Homebrew is not available on Linux".to_string())
 }
 
@@ -163,7 +164,10 @@ pub async fn check_colima_status(app: &AppHandle) -> Result<bool, String> {
 
 /// Start Colima VM with configuration
 #[instrument(skip_all, err)]
-pub async fn start_colima_with_config(app: &AppHandle, config: &crate::entities::ColimaConfig) -> Result<(), String> {
+pub async fn start_colima_with_config(
+    _app: &AppHandle,
+    _config: &crate::entities::ColimaConfig,
+) -> Result<(), String> {
     // Not implemented for Linux yet
     Err("Colima is not available on Linux".to_string())
 }
