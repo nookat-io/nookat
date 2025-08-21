@@ -147,7 +147,8 @@ pub async fn get_docker_context_endpoints(app: &AppHandle) -> Result<Vec<String>
         .map_err(|e| format!("Failed to get Docker contexts: {}", e))?;
 
     if !context_output.status.success() {
-        return Err("Failed to list Docker contexts".to_string());
+        let error = String::from_utf8_lossy(&context_output.stderr);
+        return Err(format!("Failed to list Docker contexts: {}", error));
     }
 
     let output_str = String::from_utf8_lossy(&context_output.stdout).trim().to_string();

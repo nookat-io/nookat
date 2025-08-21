@@ -59,7 +59,14 @@ async fn connect_to_docker(app: &AppHandle) -> Result<Docker, String> {
 pub async fn create_engine(app: &AppHandle) -> Result<Engine, String> {
     debug!("Creating an engine instance");
 
-    if !is_docker_command_available(app).await? {
+    let docker_available = match is_docker_command_available(app).await {
+        Ok(v) => v,
+        Err(e) => {
+            debug!("Docker availability check failed: {}", e);
+            false
+        }
+    };
+    if !docker_available {
         debug!("Docker command is not available, creating an engine instance with unknown status");
         return Ok(Engine {
             engine_status: EngineStatus::Unknown,

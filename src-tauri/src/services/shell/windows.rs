@@ -1,3 +1,6 @@
+#![cfg(target_os = "windows")]
+#![allow(unused)]
+
 use tauri::AppHandle;
 use tauri_plugin_shell::ShellExt;
 use tracing::{debug, instrument};
@@ -5,9 +8,11 @@ use tracing::{debug, instrument};
 /// Opens a terminal with docker exec command for the given container
 #[instrument(skip_all, err)]
 pub async fn open_container_terminal(app: &AppHandle, container_id: &str) -> Result<(), String> {
+    debug!("Opening terminal for container: {}", container_id);
     let shell_commands = ["bash", "sh"];
 
     for shell in shell_commands.iter() {
+        debug!("Trying shell: {}", shell);
         let status = app
             .shell()
             .command("cmd")
@@ -24,9 +29,17 @@ pub async fn open_container_terminal(app: &AppHandle, container_id: &str) -> Res
             .status()
             .await;
 
-        if let Ok(status) = status {
-            if status.success() {
+        match status {
+            Ok(status) if status.success() => {
+                debug!("Terminal opened successfully");
                 return Ok(());
+            }
+            Ok(status) => {
+                debug!("Terminal failed to open: {}", status);
+            }
+            Err(e) => {
+                debug!("Failed to open terminal: {}", e);
+                return Err(format!("Failed to open terminal: {}", e));
             }
         }
     }
@@ -113,7 +126,8 @@ pub async fn get_docker_context_endpoints(app: &AppHandle) -> Result<Vec<String>
         .map_err(|e| format!("Failed to get Docker contexts: {}", e))?;
 
     if !context_output.status.success() {
-        return Err("Failed to list Docker contexts".to_string());
+        let error = String::from_utf8_lossy(&context_output.stderr);
+        return Err(format!("Failed to list Docker contexts: {}", error));
     }
 
     let output_str = String::from_utf8_lossy(&context_output.stdout)
