@@ -134,7 +134,6 @@
     "shell:default",
     {
       "identifier": "shell:allow-execute",
-      "all": true,
       "allow": [
         { "name": "docker", "cmd": "docker", "args": [{ "validator": ".*" }] },
         { "name": "brew", "cmd": "brew", "args": [{ "validator": ".*" }] },

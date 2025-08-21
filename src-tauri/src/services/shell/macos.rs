@@ -1,8 +1,8 @@
 use tauri::AppHandle;
 use tauri_plugin_shell::ShellExt;
-use tracing::{debug, info, warn};
-use std::env;
+use tracing::{debug, instrument};
 
+#[instrument(skip_all, err)]
 /// Opens a terminal with docker exec command for the given container
 pub async fn open_container_terminal(app: &AppHandle, container_id: &str) -> Result<(), String> {
     let shell_commands = ["bash", "sh"];
@@ -32,6 +32,7 @@ pub async fn open_container_terminal(app: &AppHandle, container_id: &str) -> Res
 }
 
 /// Check if a command is available in PATH
+#[instrument(skip_all, err)]
 async fn is_command_available(app: &AppHandle, command: &str) -> Result<bool, String> {
     let output = app.shell()
         .command("zsh")
@@ -44,6 +45,7 @@ async fn is_command_available(app: &AppHandle, command: &str) -> Result<bool, St
 }
 
 /// Check if a command is working by running it with --version
+#[instrument(skip_all, err)]
 async fn is_command_working(app: &AppHandle, command: &str) -> Result<bool, String> {
     let output = app.shell()
         .command("zsh")
@@ -56,6 +58,7 @@ async fn is_command_working(app: &AppHandle, command: &str) -> Result<bool, Stri
 }
 
 /// Check if Docker command is available and working
+#[instrument(skip_all, err)]
 pub async fn is_docker_command_available(app: &AppHandle) -> Result<bool, String> {
     debug!("Checking if Docker command is available");
 
@@ -86,6 +89,7 @@ pub async fn is_docker_command_available(app: &AppHandle) -> Result<bool, String
 }
 
 /// Check if Homebrew is available and working
+#[instrument(skip_all, err)]
 pub async fn is_homebrew_available(app: &AppHandle) -> Result<bool, String> {
     if !is_command_available(app, "brew").await? {
         return Ok(false);
@@ -95,6 +99,7 @@ pub async fn is_homebrew_available(app: &AppHandle) -> Result<bool, String> {
 }
 
 /// Check if Colima is available and working
+#[instrument(skip_all, err)]
 pub async fn is_colima_available(app: &AppHandle) -> Result<bool, String> {
     debug!("Checking if Colima is available on the system");
 
@@ -125,6 +130,7 @@ pub async fn is_colima_available(app: &AppHandle) -> Result<bool, String> {
 
 // Package management
 /// Install packages via Homebrew
+#[instrument(skip_all, err)]
 pub async fn install_packages_via_homebrew(app: &AppHandle, packages: &[&str]) -> Result<(), String> {
     debug!("Installing packages via Homebrew: {:?}", packages);
 
@@ -150,6 +156,7 @@ pub async fn install_packages_via_homebrew(app: &AppHandle, packages: &[&str]) -
 }
 
 /// Get Docker context endpoints
+#[instrument(skip_all, err)]
 pub async fn get_docker_context_endpoints(app: &AppHandle) -> Result<Vec<String>, String> {
     let context_output = app.shell()
         .command("zsh")
@@ -163,11 +170,11 @@ pub async fn get_docker_context_endpoints(app: &AppHandle) -> Result<Vec<String>
     }
 
     let output_str = String::from_utf8_lossy(&context_output.stdout).trim().to_string();
-    let endpoints: Vec<String> = output_str.lines().map(|s| s.to_string()).collect();
-    Ok(endpoints)
+    Ok(output_str.lines().map(|s| s.to_string()).filter(|s| !s.is_empty()).collect())
 }
 
 /// Check Colima VM status
+#[instrument(skip_all, err)]
 pub async fn check_colima_status(app: &AppHandle) -> Result<bool, String> {
     let output = app.shell()
         .command("zsh")
@@ -185,6 +192,7 @@ pub async fn check_colima_status(app: &AppHandle) -> Result<bool, String> {
 }
 
 /// Start Colima VM with configuration
+#[instrument(skip_all, err)]
 pub async fn start_colima_with_config(app: &AppHandle, config: &crate::entities::ColimaConfig) -> Result<(), String> {
     debug!("Starting Colima with config: {:?}", config);
 
@@ -225,6 +233,7 @@ pub async fn start_colima_with_config(app: &AppHandle, config: &crate::entities:
 }
 
 /// Validate Colima startup by checking Docker connectivity
+#[instrument(skip_all, err)]
 pub async fn validate_colima_startup(app: &AppHandle) -> Result<(), String> {
     debug!("Validating Colima startup");
 

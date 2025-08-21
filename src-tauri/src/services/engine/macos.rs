@@ -55,7 +55,7 @@ async fn install_colima_via_homebrew(app_handle: &AppHandle) -> Result<(), Strin
             .push("[INFO] Installing Colima via Homebrew".to_string());
         let _ = tx_clone.send(progress.clone()).await;
 
-        let packages = vec!["colima", "docker", "docker-compose"];
+        let packages = vec!["colima", "docker"];
         let install_result = install_packages_via_homebrew(&app_handle_clone, &packages).await;
         if let Err(e) = &install_result {
             progress.step = "Installation failed".to_string();

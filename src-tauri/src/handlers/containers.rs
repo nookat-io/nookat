@@ -222,7 +222,7 @@ pub async fn open_terminal(
     let container_running = ContainersService::is_container_running(docker, &id).await?;
 
     if !container_running {
-        return Err("Container is not running".to_string());
+        return Err(format!("Container {} is not running", id));
     }
 
     shell::open_container_terminal(&app, &id).await

@@ -1,6 +1,3 @@
-#![allow(unused)]
-
-
 #[cfg(target_os = "macos")]
 mod macos;
 

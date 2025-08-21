@@ -52,17 +52,7 @@ async fn connect_to_docker(app: &AppHandle) -> Result<Docker, String> {
     }
     debug!("context connection failed, trying fallback");
 
-    // Last resort: try the default connection method
-    debug!("Trying default Docker connection method");
-    match Docker::connect_with_local_defaults() {
-        Ok(docker) =>
-            if docker.ping().await.is_ok() {
-                Ok(docker)
-            } else {
-                Err("Failed to connect to Docker: ping failed on default connection".to_string())
-            },
-        Err(e) => Err(format!("Failed to connect to Docker: {}", e)),
-    }
+    Err("Failed to connect to Docker after local defaults and context-based attempts".to_string())
 }
 
 #[instrument(skip_all, err)]

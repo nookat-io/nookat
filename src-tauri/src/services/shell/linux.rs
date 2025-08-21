@@ -1,9 +1,9 @@
 use tauri::AppHandle;
 use tauri_plugin_shell::ShellExt;
-use tracing::{debug, info, warn};
-use std::env;
+use tracing::{debug, info, warn, instrument};
 
 /// Try to execute terminal commands and return true if any succeed
+#[instrument(skip_all, err)]
 async fn try_terminal_commands(app: &AppHandle, terminal_configs: &[(&str, &[&str])]) -> bool {
     for (terminal, args) in terminal_configs {
         debug!("Trying terminal: {} with args: {:?}", terminal, args);
@@ -31,6 +31,7 @@ async fn try_terminal_commands(app: &AppHandle, terminal_configs: &[(&str, &[&st
     false
 }
 
+#[instrument(skip_all, err)]
 /// Opens a terminal with docker exec command for the given container
 pub async fn open_container_terminal(app: &AppHandle, container_id: &str) -> Result<(), String> {
     let terminal_configs: &[(&str, &[&str])] = &[
@@ -64,6 +65,7 @@ pub async fn open_container_terminal(app: &AppHandle, container_id: &str) -> Res
 
 // Command availability checks
 /// Check if a command is available in PATH
+#[instrument(skip_all, err)]
 pub async fn is_command_available(app: &AppHandle, command: &str) -> Result<bool, String> {
     let output = app.shell()
         .command("which")
@@ -76,6 +78,7 @@ pub async fn is_command_available(app: &AppHandle, command: &str) -> Result<bool
 }
 
 /// Check if a command is working by running it with --version
+#[instrument(skip_all, err)]
 pub async fn is_command_working(app: &AppHandle, command: &str) -> Result<bool, String> {
     let output = app.shell()
         .command(command)
@@ -88,6 +91,7 @@ pub async fn is_command_working(app: &AppHandle, command: &str) -> Result<bool, 
 }
 
 /// Check if Docker command is available and working
+#[instrument(skip_all, err)]
 pub async fn is_docker_command_available(app: &AppHandle) -> Result<bool, String> {
     debug!("Checking if Docker command is available");
 
@@ -110,12 +114,14 @@ pub async fn is_docker_command_available(app: &AppHandle) -> Result<bool, String
 }
 
 /// Check if Homebrew is available and working
+#[instrument(skip_all, err)]
 pub async fn is_homebrew_available(app: &AppHandle) -> Result<bool, String> {
     // Homebrew is not available on Linux, it's only available on macOS
     Ok(false)
 }
 
 /// Check if Colima is available and working
+#[instrument(skip_all, err)]
 pub async fn is_colima_available(app: &AppHandle) -> Result<bool, String> {
     // Not implemented for Linux yet
     Ok(false)
@@ -123,12 +129,14 @@ pub async fn is_colima_available(app: &AppHandle) -> Result<bool, String> {
 
 // Package management
 /// Install packages via Homebrew
+#[instrument(skip_all, err)]
 pub async fn install_packages_via_homebrew(app: &AppHandle, packages: &[&str]) -> Result<(), String> {
     Err("Homebrew is not available on Linux".to_string())
 }
 
 // Docker context operations
 /// Get Docker context endpoints
+#[instrument(skip_all, err)]
 pub async fn get_docker_context_endpoints(app: &AppHandle) -> Result<Vec<String>, String> {
     let context_output = app.shell()
         .command("docker")
@@ -142,24 +150,26 @@ pub async fn get_docker_context_endpoints(app: &AppHandle) -> Result<Vec<String>
     }
 
     let output_str = String::from_utf8_lossy(&context_output.stdout).trim().to_string();
-    let endpoints: Vec<String> = output_str.lines().map(|s| s.to_string()).collect();
-    Ok(endpoints)
+    Ok(output_str.lines().map(|s| s.to_string()).filter(|s| !s.is_empty()).collect())
 }
 
 // Colima operations
 /// Check Colima VM status
+#[instrument(skip_all, err)]
 pub async fn check_colima_status(app: &AppHandle) -> Result<bool, String> {
     // Not implemented for Linux yet
     Ok(false)
 }
 
 /// Start Colima VM with configuration
+#[instrument(skip_all, err)]
 pub async fn start_colima_with_config(app: &AppHandle, config: &crate::entities::ColimaConfig) -> Result<(), String> {
     // Not implemented for Linux yet
     Err("Colima is not available on Linux".to_string())
 }
 
 /// Validate Colima startup by checking Docker connectivity
+#[instrument(skip_all, err)]
 pub async fn validate_colima_startup(app: &AppHandle) -> Result<(), String> {
     // Not implemented for Linux yet
     Err("Colima is not available on Linux".to_string())

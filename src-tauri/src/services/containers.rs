@@ -1,5 +1,4 @@
-use bollard::models::ContainerSummary;
-use bollard::secret::ContainerStateStatusEnum;
+use bollard::models::{ContainerSummary, ContainerStateStatusEnum};
 use bollard::{
     container::{
         ListContainersOptions, LogsOptions, RemoveContainerOptions, RestartContainerOptions,
@@ -182,11 +181,10 @@ impl ContainersService {
             .await
             .map_err(|e| format!("Failed to inspect container: {}", e))?;
 
-        let is_running = container
-            .state
-            .as_ref()
-            .and_then(|state| state.status)
-            .unwrap_or(ContainerStateStatusEnum::EMPTY) == ContainerStateStatusEnum::RUNNING;
+        let is_running = matches!(
+            container.state.as_ref().and_then(|s| s.status),
+            Some(ContainerStateStatusEnum::RUNNING)
+        );
 
         Ok(is_running)
     }

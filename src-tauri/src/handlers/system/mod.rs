@@ -4,7 +4,7 @@ use crate::entities::{DockerInfo, EngineInfo, EngineStatus};
 use crate::state::SharedEngineState;
 pub use engine::*;
 use tauri::State;
-use tauri_plugin_shell::ShellExt;
+use tauri_plugin_opener::OpenerExt;
 use tracing::instrument;
 
 #[tauri::command]
@@ -14,53 +14,9 @@ pub async fn open_url(app: tauri::AppHandle, url: String) -> Result<(), String> 
         return Err("URL cannot be empty".to_string());
     }
 
-    #[cfg(target_os = "macos")]
-    {
-        let output = app.shell()
-            .command("open")
-            .args([&url])
-            .output()
-            .await
-            .map_err(|e| format!("Failed to open URL: {}", e))?;
-
-        if !output.status.success() {
-            let stderr = String::from_utf8_lossy(&output.stderr);
-            return Err(format!("Failed to open URL: {}", stderr));
-        }
-    }
-
-    #[cfg(target_os = "linux")]
-    {
-        let output = app.shell()
-            .command("xdg-open")
-            .args([&url])
-            .output()
-            .await
-            .map_err(|e| format!("Failed to open URL: {}", e))?;
-
-        if !output.status.success() {
-            let stderr = String::from_utf8_lossy(&output.stderr);
-            return Err(format!("Failed to open URL: {}", stderr));
-        }
-    }
-
-    #[cfg(target_os = "windows")]
-    {
-        // Use cmd.exe with /c start to properly invoke the start command
-        let output = app.shell()
-            .command("cmd")
-            .args(["/c", "start", &url])
-            .output()
-            .await
-            .map_err(|e| format!("Failed to open URL: {}", e))?;
-
-        if !output.status.success() {
-            let stderr = String::from_utf8_lossy(&output.stderr);
-            return Err(format!("Failed to open URL: {}", stderr));
-        }
-    }
-
-    Ok(())
+    app.opener()
+        .open_url(&url, None::<&str>)
+        .map_err(|e| format!("Failed to open URL: {}", e))
 }
 
 #[tauri::command]
