@@ -1,7 +1,7 @@
-use crate::entities::AppConfig;
+use crate::entities::{AppConfig, AppConfigV1, VersionedAppConfig};
 use std::fs;
 use std::path::PathBuf;
-use tracing::{instrument, warn};
+use tracing::{instrument, warn, info};
 
 pub struct ConfigService;
 
@@ -23,6 +23,22 @@ impl ConfigService {
         Ok(())
     }
 
+    /// Migrate config from any version to the current version
+    #[instrument(skip_all, err)]
+    pub fn migrate_config(versioned_config: VersionedAppConfig) -> Result<AppConfig, String> {
+        match versioned_config {
+            VersionedAppConfig::V1(config) => {
+                info!("Migrating config from V1 to V2");
+                Ok(config.into())
+            }
+            VersionedAppConfig::V2(config) => {
+                info!("Config already at V2, no migration needed");
+                Ok(config)
+            }
+        }
+    }
+
+    /// Get current configuration with automatic migration
     #[instrument(skip_all, err)]
     pub fn get_config() -> Result<AppConfig, String> {
         let config_path = ConfigService::get_config_path()?;
@@ -31,11 +47,36 @@ impl ConfigService {
             let content = fs::read_to_string(&config_path)
                 .map_err(|e| format!("Failed to read config file: {}", e))?;
 
-            serde_json::from_str(&content)
-                .map_err(|e| format!("Failed to parse config file: {}", e))
+            // First, try to parse as versioned config
+            match serde_json::from_str::<VersionedAppConfig>(&content) {
+                Ok(versioned_config) => {
+                    let migrated_config = ConfigService::migrate_config(versioned_config)?;
+                    ConfigService::save_config(&migrated_config)?;
+                    Ok(migrated_config)
+                }
+                Err(_) => {
+                    // Try to parse as legacy V1 config
+                    match serde_json::from_str::<AppConfigV1>(&content) {
+                        Ok(legacy_config) => {
+                            info!("Detected legacy V1 config, migrating to V2");
+                            let migrated_config = AppConfig::from(legacy_config);
+                            // Save the migrated config to update the file
+                            ConfigService::save_config(&migrated_config)?;
+                            Ok(migrated_config)
+                        }
+                        Err(e) => {
+                            // Config is corrupted, fall back to defaults
+                            warn!("Config file is corrupted, falling back to defaults: {}", e);
+                            let default_config = AppConfig::default();
+                            ConfigService::save_config(&default_config)?;
+                            Ok(default_config)
+                        }
+                    }
+                }
+            }
         } else {
             // Create default config if it doesn't exist
-            warn!("Config file does not exist, creating default config");
+            warn!("Config file does not exist, creating default V2 config");
             let default_config = AppConfig::default();
             ConfigService::save_config(&default_config)?;
             Ok(default_config)
@@ -48,7 +89,9 @@ impl ConfigService {
         ConfigService::ensure_config_dir()?;
 
         let config_path = ConfigService::get_config_path()?;
-        let content = serde_json::to_string_pretty(config)
+
+        let versioned_config = VersionedAppConfig::from(config.clone());
+        let content = serde_json::to_string_pretty(&versioned_config)
             .map_err(|e| format!("Failed to serialize config: {}", e))?;
 
         fs::write(&config_path, content).map_err(|e| format!("Failed to write config file: {}", e))

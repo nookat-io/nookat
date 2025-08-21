@@ -1,9 +1,10 @@
 use crate::entities::{AppConfig, Language, StartupSettings, TelemetrySettings, Theme};
 use crate::services::{ConfigService, UpdaterService};
+use tauri::command;
 use tracing::{debug, instrument};
 
-#[tauri::command]
-#[instrument(skip_all, err)]
+
+#[command]
 pub async fn get_config() -> Result<AppConfig, String> {
     ConfigService::get_config()
 }

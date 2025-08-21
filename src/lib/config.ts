@@ -57,7 +57,11 @@ export class ConfigService {
       while (this.isLoading) {
         await new Promise(resolve => setTimeout(resolve, 100));
       }
-      return this.config!;
+      if (this.config) {
+        return this.config;
+      }
+      // If still null after waiting, something went wrong
+      throw new Error('Failed to load configuration');
     }
 
     this.isLoading = true;
@@ -93,7 +97,11 @@ export class ConfigService {
       this.isLoading = false;
     }
 
-    return this.config;
+    if (this.config) {
+      return this.config;
+    } else {
+      throw new Error('Failed to load configuration');
+    }
   }
 
   getConfig(): AppConfig | null {
