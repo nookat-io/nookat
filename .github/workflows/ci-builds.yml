@@ -1,28 +1,67 @@
 name: '[CI] Platform Builds'
 
 on:
-  workflow_dispatch:
-    inputs:
-      pr_number:
-        description: 'PR number to build (optional)'
-        required: false
-        type: string
-      branch:
-        description: 'Branch to build (defaults to PR branch)'
-        required: false
-        type: string
-        default: ''
+  pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled, edited]
+    branches: [ main ]
 
 concurrency:
-  group: platform-builds-${{ github.event.inputs.pr_number || github.ref }}
+  group: platform-builds-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
 jobs:
+  # Check if PR is ready for platform builds
+  check-pr-status:
+    name: Check PR Status
+    runs-on: ubuntu-latest
+    outputs:
+      should_build: ${{ steps.check.outputs.should_build }}
+      reason: ${{ steps.check.outputs.reason }}
+    steps:
+    - name: Check PR readiness
+      id: check
+      run: |
+        # Check if PR is draft
+        if [[ "${{ github.event.pull_request.draft }}" == "true" ]]; then
+          echo "should_build=false" >> $GITHUB_OUTPUT
+          echo "reason=PR is still in draft mode" >> $GITHUB_OUTPUT
+          exit 0
+        fi
+
+        # Check if title contains WIP
+        if [[ "${{ github.event.pull_request.title }}" =~ [Ww][Ii][Pp] ]]; then
+          echo "should_build=false" >> $GITHUB_OUTPUT
+          echo "reason=PR title contains WIP" >> $GITHUB_OUTPUT
+          exit 0
+        fi
+
+        # Check if PR has ready-for-review label
+        if [[ "${{ contains(github.event.pull_request.labels.*.name, 'ready-for-review') }}" == "true" ]]; then
+          echo "should_build=true" >> $GITHUB_OUTPUT
+          echo "reason=PR has ready-for-review label" >> $GITHUB_OUTPUT
+          exit 0
+        fi
+
+        # Check if PR was just opened/edited and is not draft
+        if [[ "${{ github.event.action }}" == "opened" || "${{ github.event.action }}" == "edited" ]]; then
+          if [[ "${{ github.event.pull_request.draft }}" == "false" ]]; then
+            echo "should_build=true" >> $GITHUB_OUTPUT
+            echo "reason=PR is ready and not in draft mode" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+        fi
+
+        # Default: don't build
+        echo "should_build=false" >> $GITHUB_OUTPUT
+        echo "reason=PR not ready for platform builds" >> $GITHUB_OUTPUT
+
   platform-builds:
     name: Platform Builds
     runs-on: ${{ matrix.os }}
+    needs: [check-pr-status]
+    if: needs.check-pr-status.outputs.should_build == 'true'
     strategy:
-      fail-fast: true
+      fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
         include:
@@ -59,7 +98,7 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
       with:
-        ref: ${{ github.event.inputs.branch || github.ref }}
+        ref: ${{ github.event.pull_request.head.ref }}
 
     - name: Setup Node.js
       uses: actions/setup-node@v4
@@ -104,3 +143,4 @@ jobs:
       run: |
         echo "✅ Platform build successful for ${{ matrix.os }}"
         echo "Build completed at: $(date)"
+        echo "Trigger reason: ${{ needs.check-pr-status.outputs.reason }}"
