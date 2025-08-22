@@ -12,7 +12,6 @@ RUN apt-get update && apt-get install -y \
     libcairo2-dev \
     libpango1.0-dev \
     libatk1.0-dev \
-    libwebkit2gtk-4.0-dev \
     libwebkit2gtk-4.1-dev \
     libjavascriptcoregtk-4.1-dev \
     libappindicator3-dev \

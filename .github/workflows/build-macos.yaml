@@ -108,8 +108,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tagName: ${{ inputs.version-tag }}
-          releaseName: 'Nookat ${{ inputs.version-tag }} (macOS)'
-          releaseBody: 'macOS universal binary (aarch64 + x86_64)'
+          releaseName: 'Nookat ${{ inputs.version-tag }}'
           releaseDraft: true
           includeDebug: true
           updaterJsonKeepUniversal: true
