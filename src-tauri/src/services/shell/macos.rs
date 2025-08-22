@@ -34,7 +34,8 @@ pub async fn open_container_terminal(app: &AppHandle, container_id: &str) -> Res
 /// Check if a command is available in PATH
 #[instrument(skip_all, err)]
 async fn is_command_available(app: &AppHandle, command: &str) -> Result<bool, String> {
-    let output = app.shell()
+    let output = app
+        .shell()
         .command("zsh")
         .args(["-l", "-c", &format!("which {}", command)])
         .output()
@@ -47,7 +48,8 @@ async fn is_command_available(app: &AppHandle, command: &str) -> Result<bool, St
 /// Check if a command is working by running it with --version
 #[instrument(skip_all, err)]
 async fn is_command_working(app: &AppHandle, command: &str) -> Result<bool, String> {
-    let output = app.shell()
+    let output = app
+        .shell()
         .command("zsh")
         .args(["-l", "-c", &format!("{} --version", command)])
         .output()
@@ -66,7 +68,8 @@ pub async fn is_docker_command_available(app: &AppHandle) -> Result<bool, String
         output_str.to_lowercase().contains("version")
     }
 
-    let output = app.shell()
+    let output = app
+        .shell()
         .command("zsh")
         .args(["-l", "-c", "docker --version"])
         .output()
@@ -114,7 +117,8 @@ pub async fn is_colima_available(app: &AppHandle) -> Result<bool, String> {
     }
 
     // Get version for logging
-    let version_output = app.shell()
+    let version_output = app
+        .shell()
         .command("zsh")
         .args(["-l", "-c", "colima --version"])
         .output()
@@ -131,13 +135,17 @@ pub async fn is_colima_available(app: &AppHandle) -> Result<bool, String> {
 // Package management
 /// Install packages via Homebrew
 #[instrument(skip_all, err)]
-pub async fn install_packages_via_homebrew(app: &AppHandle, packages: &[&str]) -> Result<(), String> {
+pub async fn install_packages_via_homebrew(
+    app: &AppHandle,
+    packages: &[&str],
+) -> Result<(), String> {
     debug!("Installing packages via Homebrew: {:?}", packages);
 
     for package in packages {
         debug!("Installing package: {}", package);
 
-        let output = app.shell()
+        let output = app
+            .shell()
             .command("zsh")
             .args(["-l", "-c", &format!("brew install {}", package)])
             .output()
@@ -158,9 +166,14 @@ pub async fn install_packages_via_homebrew(app: &AppHandle, packages: &[&str]) -
 /// Get Docker context endpoints
 #[instrument(skip_all, err)]
 pub async fn get_docker_context_endpoints(app: &AppHandle) -> Result<Vec<String>, String> {
-    let context_output = app.shell()
+    let context_output = app
+        .shell()
         .command("zsh")
-        .args(["-l", "-c", "docker context ls --format '{{.DockerEndpoint}}'"])
+        .args([
+            "-l",
+            "-c",
+            "docker context ls --format '{{.DockerEndpoint}}'",
+        ])
         .output()
         .await
         .map_err(|e| format!("Failed to get Docker contexts: {}", e))?;
@@ -169,14 +182,21 @@ pub async fn get_docker_context_endpoints(app: &AppHandle) -> Result<Vec<String>
         return Err("Failed to list Docker contexts".to_string());
     }
 
-    let output_str = String::from_utf8_lossy(&context_output.stdout).trim().to_string();
-    Ok(output_str.lines().map(|s| s.to_string()).filter(|s| !s.is_empty()).collect())
+    let output_str = String::from_utf8_lossy(&context_output.stdout)
+        .trim()
+        .to_string();
+    Ok(output_str
+        .lines()
+        .map(|s| s.to_string())
+        .filter(|s| !s.is_empty())
+        .collect())
 }
 
 /// Check Colima VM status
 #[instrument(skip_all, err)]
 pub async fn check_colima_status(app: &AppHandle) -> Result<bool, String> {
-    let output = app.shell()
+    let output = app
+        .shell()
         .command("zsh")
         .args(["-l", "-c", "colima status"])
         .output()
@@ -193,7 +213,10 @@ pub async fn check_colima_status(app: &AppHandle) -> Result<bool, String> {
 
 /// Start Colima VM with configuration
 #[instrument(skip_all, err)]
-pub async fn start_colima_with_config(app: &AppHandle, config: &crate::entities::ColimaConfig) -> Result<(), String> {
+pub async fn start_colima_with_config(
+    app: &AppHandle,
+    config: &crate::entities::ColimaConfig,
+) -> Result<(), String> {
     debug!("Starting Colima with config: {:?}", config);
 
     let mut args = vec!["start"];
@@ -216,7 +239,8 @@ pub async fn start_colima_with_config(app: &AppHandle, config: &crate::entities:
 
     debug!("Executing: colima {}", args.join(" "));
 
-    let output = app.shell()
+    let output = app
+        .shell()
         .command("zsh")
         .args(["-l", "-c", &format!("colima {}", args.join(" "))])
         .output()
@@ -238,7 +262,8 @@ pub async fn validate_colima_startup(app: &AppHandle) -> Result<(), String> {
     debug!("Validating Colima startup");
 
     // Check if Docker is responding
-    let docker_check = app.shell()
+    let docker_check = app
+        .shell()
         .command("zsh")
         .args(["-l", "-c", "docker version"])
         .output()
@@ -250,7 +275,8 @@ pub async fn validate_colima_startup(app: &AppHandle) -> Result<(), String> {
     }
 
     // Check if we can connect to Docker daemon
-    let info_check = app.shell()
+    let info_check = app
+        .shell()
         .command("zsh")
         .args(["-l", "-c", "docker info"])
         .output()

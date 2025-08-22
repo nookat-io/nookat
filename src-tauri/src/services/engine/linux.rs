@@ -13,10 +13,7 @@ pub async fn is_homebrew_available(_app: &AppHandle) -> Result<bool, String> {
 }
 
 #[instrument(skip_all, err)]
-pub async fn install_colima(
-    _app: &AppHandle,
-    _method: InstallationMethod,
-) -> Result<(), String> {
+pub async fn install_colima(_app: &AppHandle, _method: InstallationMethod) -> Result<(), String> {
     // Colima is only implemented on macOS for now, other platforms are not supported yet
     todo!("Colima is only implemented on macOS for now, other platforms are not supported yet");
 }

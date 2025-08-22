@@ -1,4 +1,4 @@
-use bollard::models::{ContainerSummary, ContainerStateStatusEnum};
+use bollard::models::{ContainerStateStatusEnum, ContainerSummary};
 use bollard::{
     container::{
         ListContainersOptions, LogsOptions, RemoveContainerOptions, RestartContainerOptions,

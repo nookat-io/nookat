@@ -109,7 +109,10 @@ pub async fn is_colima_available(_app: &AppHandle) -> Result<bool, String> {
 // Package management
 /// Install packages via Homebrew
 #[instrument(skip_all, err)]
-pub async fn install_packages_via_homebrew(_app: &AppHandle, _packages: &[&str]) -> Result<(), String> {
+pub async fn install_packages_via_homebrew(
+    _app: &AppHandle,
+    _packages: &[&str],
+) -> Result<(), String> {
     Err("Homebrew is not available on Windows".to_string())
 }
 
