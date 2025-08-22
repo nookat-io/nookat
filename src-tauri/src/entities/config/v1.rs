@@ -1,8 +1,8 @@
+use crate::entities::config::Language;
+use crate::entities::config::Theme;
+use crate::entities::config::VersionedAppConfig;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use crate::entities::config::Theme;
-use crate::entities::config::Language;
-use crate::entities::config::VersionedAppConfig;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq)]
 pub struct TelemetrySettings {

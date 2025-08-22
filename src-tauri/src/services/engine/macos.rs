@@ -1,7 +1,7 @@
 use crate::entities::{ColimaConfig, InstallationMethod, InstallationProgress};
 use crate::services::shell::{
     check_colima_status, get_docker_context_endpoints, install_packages_via_homebrew,
-    start_colima_with_config, validate_colima_startup
+    start_colima_with_config, validate_colima_startup,
 };
 use bollard::Docker;
 use tauri::{AppHandle, Emitter};

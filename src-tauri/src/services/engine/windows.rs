@@ -11,10 +11,7 @@ pub async fn is_homebrew_available(_app: &AppHandle) -> Result<bool, String> {
 }
 
 #[instrument(skip_all, err)]
-pub async fn install_colima(
-    _app: &AppHandle,
-    _method: InstallationMethod,
-) -> Result<(), String> {
+pub async fn install_colima(_app: &AppHandle, _method: InstallationMethod) -> Result<(), String> {
     // Colima is only implemented on macOS for now, other platforms are not supported yet
     todo!("Colima is only implemented on macOS for now, other platforms are not supported yet");
 }
@@ -41,11 +38,9 @@ pub async fn connect_to_docker_using_different_contexts(app: &AppHandle) -> Resu
             let socket_path = socket_path.trim_start_matches("npipe://");
             debug!("Current Docker context socket: {}", socket_path);
 
-            if let Ok(docker) = Docker::connect_with_named_pipe(
-                socket_path,
-                5,
-                bollard::API_DEFAULT_VERSION,
-            ) {
+            if let Ok(docker) =
+                Docker::connect_with_named_pipe(socket_path, 5, bollard::API_DEFAULT_VERSION)
+            {
                 if docker.ping().await.is_ok() {
                     debug!("Successfully connected to Docker via context socket");
                     return Ok(docker);

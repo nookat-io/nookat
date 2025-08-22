@@ -1,0 +1,148 @@
+name: '[CI] Platform Builds'
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+    branches: [ main ]
+
+concurrency:
+  group: platform-builds-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  # Check if PR is ready for platform builds
+  check-pr-status:
+    name: Check PR Status
+    runs-on: ubuntu-latest
+    outputs:
+      should_build: ${{ steps.check.outputs.should_build }}
+      reason: ${{ steps.check.outputs.reason }}
+    steps:
+    - name: Check PR readiness
+      id: check
+      env:
+        PR_TITLE: ${{ github.event.pull_request.title }}
+        PR_DRAFT: ${{ github.event.pull_request.draft }}
+        PR_ACTION: ${{ github.event.action }}
+        PR_LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
+      run: |
+        # Check if PR is draft
+        if [[ "$PR_DRAFT" == "true" ]]; then
+          echo "should_build=false" >> $GITHUB_OUTPUT
+          echo "reason=PR is still in draft mode" >> $GITHUB_OUTPUT
+          exit 0
+        fi
+
+        # Check if title contains WIP (case-insensitive)
+        if [[ "${PR_TITLE,,}" =~ wip ]]; then
+          echo "should_build=false" >> $GITHUB_OUTPUT
+          echo "reason=PR title contains WIP" >> $GITHUB_OUTPUT
+          exit 0
+        fi
+
+        # Check if PR has ready-for-review label
+        if [[ "$PR_LABELS" =~ "ready-for-review" ]]; then
+          echo "should_build=true" >> $GITHUB_OUTPUT
+          echo "reason=PR has ready-for-review label" >> $GITHUB_OUTPUT
+          exit 0
+        fi
+
+        # Check if PR was just opened/edited and is not draft
+        if [[ "$PR_ACTION" == "opened" || "$PR_ACTION" == "edited" ]]; then
+          if [[ "$PR_DRAFT" == "false" ]]; then
+            echo "should_build=true" >> $GITHUB_OUTPUT
+            echo "reason=PR is ready and not in draft mode" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+        fi
+
+        # Default: don't build
+        echo "should_build=false" >> $GITHUB_OUTPUT
+        echo "reason=PR not ready for platform builds" >> $GITHUB_OUTPUT
+
+  platform-builds:
+    name: Platform Builds
+    runs-on: ${{ matrix.os }}
+    needs: [check-pr-status]
+    if: needs.check-pr-status.outputs.should_build == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, macos-latest, windows-latest]
+        include:
+          - os: ubuntu-22.04
+            platform: linux
+            deps: |
+              sudo apt-get update
+              sudo apt-get install -y \
+                libgirepository1.0-dev \
+                libglib2.0-dev \
+                libgtk-3-dev \
+                libgdk-pixbuf2.0-dev \
+                libcairo2-dev \
+                libpango1.0-dev \
+                libatk1.0-dev \
+                libwebkit2gtk-4.0-dev \
+                libwebkit2gtk-4.1-dev \
+                libjavascriptcoregtk-4.1-dev \
+                libappindicator3-dev \
+                librsvg2-dev \
+                patchelf \
+                pkg-config \
+                libssl-dev
+          - os: macos-latest
+            platform: macos
+            deps: |
+              brew install pkg-config openssl
+          - os: windows-latest
+            platform: windows
+            deps: |
+              echo "Windows dependencies handled by Tauri"
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        ref: ${{ github.event.pull_request.head.ref }}
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+
+    - name: Setup Rust toolchain
+      uses: dtolnay/rust-toolchain@stable
+
+    - name: Install system dependencies
+      if: matrix.platform == 'linux'
+      run: ${{ matrix.deps }}
+
+    - name: Install macOS dependencies
+      if: matrix.platform == 'macos'
+      run: ${{ matrix.deps }}
+
+    - name: Install dependencies
+      run: |
+        npm ci
+        cd src-tauri
+        cargo fetch
+
+    - name: Build frontend
+      run: npm run build
+
+    - name: Build Tauri application
+      run: |
+        cd src-tauri
+        cargo build --release
+
+    - name: Run tests
+      run: |
+        cd src-tauri
+        cargo test --release
+
+    - name: Build status
+      run: |
+        echo "✅ Platform build successful for ${{ matrix.os }}"
+        echo "Build completed at: $(date)"
+        echo "Trigger reason: ${{ needs.check-pr-status.outputs.reason }}"

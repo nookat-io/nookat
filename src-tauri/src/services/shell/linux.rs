@@ -2,7 +2,7 @@
 
 use tauri::AppHandle;
 use tauri_plugin_shell::ShellExt;
-use tracing::{debug, info, warn, instrument};
+use tracing::{debug, info, instrument, warn};
 
 /// Try to execute terminal commands and return true if any succeed
 async fn try_terminal_commands(app: &AppHandle, terminal_configs: &[(&str, &[&str])]) -> bool {
@@ -36,11 +36,26 @@ async fn try_terminal_commands(app: &AppHandle, terminal_configs: &[(&str, &[&st
 /// Opens a terminal with docker exec command for the given container
 pub async fn open_container_terminal(app: &AppHandle, container_id: &str) -> Result<(), String> {
     let terminal_configs: &[(&str, &[&str])] = &[
-        ("gnome-terminal", &["--", "docker", "exec", "-it", container_id, "bash"]),
-        ("konsole", &["-e", "docker", "exec", "-it", container_id, "bash"]),
-        ("xterm", &["-e", "docker", "exec", "-it", container_id, "bash"]),
-        ("alacritty", &["-e", "docker", "exec", "-it", container_id, "bash"]),
-        ("kitty", &["-e", "docker", "exec", "-it", container_id, "bash"]),
+        (
+            "gnome-terminal",
+            &["--", "docker", "exec", "-it", container_id, "bash"],
+        ),
+        (
+            "konsole",
+            &["-e", "docker", "exec", "-it", container_id, "bash"],
+        ),
+        (
+            "xterm",
+            &["-e", "docker", "exec", "-it", container_id, "bash"],
+        ),
+        (
+            "alacritty",
+            &["-e", "docker", "exec", "-it", container_id, "bash"],
+        ),
+        (
+            "kitty",
+            &["-e", "docker", "exec", "-it", container_id, "bash"],
+        ),
     ];
 
     // Try with bash first
@@ -50,11 +65,26 @@ pub async fn open_container_terminal(app: &AppHandle, container_id: &str) -> Res
 
     // Fall back to sh if bash fails
     let terminal_configs_sh: &[(&str, &[&str])] = &[
-        ("gnome-terminal", &["--", "docker", "exec", "-it", container_id, "sh"]),
-        ("konsole", &["-e", "docker", "exec", "-it", container_id, "sh"]),
-        ("xterm", &["-e", "docker", "exec", "-it", container_id, "sh"]),
-        ("alacritty", &["-e", "docker", "exec", "-it", container_id, "sh"]),
-        ("kitty", &["-e", "docker", "exec", "-it", container_id, "sh"]),
+        (
+            "gnome-terminal",
+            &["--", "docker", "exec", "-it", container_id, "sh"],
+        ),
+        (
+            "konsole",
+            &["-e", "docker", "exec", "-it", container_id, "sh"],
+        ),
+        (
+            "xterm",
+            &["-e", "docker", "exec", "-it", container_id, "sh"],
+        ),
+        (
+            "alacritty",
+            &["-e", "docker", "exec", "-it", container_id, "sh"],
+        ),
+        (
+            "kitty",
+            &["-e", "docker", "exec", "-it", container_id, "sh"],
+        ),
     ];
 
     if try_terminal_commands(app, terminal_configs_sh).await {
@@ -68,7 +98,8 @@ pub async fn open_container_terminal(app: &AppHandle, container_id: &str) -> Res
 /// Check if a command is available in PATH
 #[instrument(skip_all, err)]
 pub async fn is_command_available(app: &AppHandle, command: &str) -> Result<bool, String> {
-    let output = app.shell()
+    let output = app
+        .shell()
         .command("which")
         .args([command])
         .output()
@@ -81,7 +112,8 @@ pub async fn is_command_available(app: &AppHandle, command: &str) -> Result<bool
 /// Check if a command is working by running it with --version
 #[instrument(skip_all, err)]
 pub async fn is_command_working(app: &AppHandle, command: &str) -> Result<bool, String> {
-    let output = app.shell()
+    let output = app
+        .shell()
         .command(command)
         .args(["--version"])
         .output()
@@ -100,7 +132,8 @@ pub async fn is_docker_command_available(app: &AppHandle) -> Result<bool, String
         output_str.to_lowercase().contains("version")
     }
 
-    let output = app.shell()
+    let output = app
+        .shell()
         .command("docker")
         .args(["--version"])
         .output()
@@ -131,7 +164,10 @@ pub async fn is_colima_available(_app: &AppHandle) -> Result<bool, String> {
 // Package management
 /// Install packages via Homebrew
 #[instrument(skip_all, err)]
-pub async fn install_packages_via_homebrew(_app: &AppHandle, _packages: &[&str]) -> Result<(), String> {
+pub async fn install_packages_via_homebrew(
+    _app: &AppHandle,
+    _packages: &[&str],
+) -> Result<(), String> {
     Err("Homebrew is not available on Linux".to_string())
 }
 
@@ -139,7 +175,8 @@ pub async fn install_packages_via_homebrew(_app: &AppHandle, _packages: &[&str])
 /// Get Docker context endpoints
 #[instrument(skip_all, err)]
 pub async fn get_docker_context_endpoints(app: &AppHandle) -> Result<Vec<String>, String> {
-    let context_output = app.shell()
+    let context_output = app
+        .shell()
         .command("docker")
         .args(["context", "ls", "--format", "{{.DockerEndpoint}}"])
         .output()
@@ -151,8 +188,14 @@ pub async fn get_docker_context_endpoints(app: &AppHandle) -> Result<Vec<String>
         return Err(format!("Failed to list Docker contexts: {}", error));
     }
 
-    let output_str = String::from_utf8_lossy(&context_output.stdout).trim().to_string();
-    Ok(output_str.lines().map(|s| s.to_string()).filter(|s| !s.is_empty()).collect())
+    let output_str = String::from_utf8_lossy(&context_output.stdout)
+        .trim()
+        .to_string();
+    Ok(output_str
+        .lines()
+        .map(|s| s.to_string())
+        .filter(|s| !s.is_empty())
+        .collect())
 }
 
 // Colima operations

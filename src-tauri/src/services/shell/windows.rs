@@ -35,7 +35,7 @@ pub async fn open_container_terminal(app: &AppHandle, container_id: &str) -> Res
                 return Ok(());
             }
             Ok(status) => {
-                debug!("Terminal failed to open: {}", status);
+                debug!("Terminal failed to open: {:?}", status);
             }
             Err(e) => {
                 debug!("Failed to open terminal: {}", e);
@@ -109,7 +109,10 @@ pub async fn is_colima_available(_app: &AppHandle) -> Result<bool, String> {
 // Package management
 /// Install packages via Homebrew
 #[instrument(skip_all, err)]
-pub async fn install_packages_via_homebrew(_app: &AppHandle, _packages: &[&str]) -> Result<(), String> {
+pub async fn install_packages_via_homebrew(
+    _app: &AppHandle,
+    _packages: &[&str],
+) -> Result<(), String> {
     Err("Homebrew is not available on Windows".to_string())
 }
 

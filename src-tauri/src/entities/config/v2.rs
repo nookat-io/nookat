@@ -1,10 +1,10 @@
-use serde::{Deserialize, Serialize};
-use crate::entities::config::Theme;
-use crate::entities::config::Language;
-use crate::entities::config::TelemetrySettings;
-use crate::entities::config::StartupSettings;
 use crate::entities::config::AppConfigV1;
+use crate::entities::config::Language;
+use crate::entities::config::StartupSettings;
+use crate::entities::config::TelemetrySettings;
+use crate::entities::config::Theme;
 use crate::entities::config::VersionedAppConfig;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq)]
 #[serde(default)]
@@ -32,12 +32,11 @@ impl From<AppConfigV2> for VersionedAppConfig {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use serde_json;
     use crate::entities::config::VersionedAppConfig;
+    use serde_json;
 
     #[test]
     fn test_v1_to_v2_migration() {

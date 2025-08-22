@@ -211,7 +211,7 @@ pub async fn bulk_force_remove_containers(
 pub async fn open_terminal(
     app: tauri::AppHandle,
     state: State<'_, SharedEngineState>,
-    id: String
+    id: String,
 ) -> Result<(), String> {
     debug!("Opening terminal for container: {}", id);
 
