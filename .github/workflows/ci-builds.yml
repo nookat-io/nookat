@@ -2,7 +2,7 @@ name: '[CI] Platform Builds'
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened, labeled, unlabeled, edited]
+    types: [opened, synchronize, reopened, labeled, unlabeled]
     branches: [ main ]
 
 concurrency:
