@@ -47,15 +47,6 @@ jobs:
           exit 0
         fi
 
-        # Check if PR was just opened/edited and is not draft
-        if [[ "$PR_ACTION" == "opened" || "$PR_ACTION" == "edited" ]]; then
-          if [[ "$PR_DRAFT" == "false" ]]; then
-            echo "should_build=true" >> $GITHUB_OUTPUT
-            echo "reason=PR is ready and not in draft mode" >> $GITHUB_OUTPUT
-            exit 0
-          fi
-        fi
-
         # Default: don't build
         echo "should_build=false" >> $GITHUB_OUTPUT
         echo "reason=PR not ready for platform builds" >> $GITHUB_OUTPUT
