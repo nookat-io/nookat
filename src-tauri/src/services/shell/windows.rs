@@ -35,7 +35,7 @@ pub async fn open_container_terminal(app: &AppHandle, container_id: &str) -> Res
                 return Ok(());
             }
             Ok(status) => {
-                debug!("Terminal failed to open: {}", status);
+                debug!("Terminal failed to open: {:?}", status);
             }
             Err(e) => {
                 debug!("Failed to open terminal: {}", e);
