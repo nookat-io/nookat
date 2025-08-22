@@ -27,17 +27,13 @@ jobs:
           cache: 'npm'
 
       - name: Setup Rust toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          override: true
+        uses: dtolnay/rust-toolchain@stable
 
       - name: Install frontend dependencies
         run: npm ci
 
-      - name: Install dependencies
+      - name: Install rust dependencies
         run: |
-          npm ci
           cd src-tauri
           cargo fetch
 
@@ -74,10 +70,7 @@ jobs:
         cache: 'npm'
 
     - name: Setup Rust toolchain
-      uses: actions-rs/toolchain@v1
-      with:
-        toolchain: stable
-        override: true
+      uses: dtolnay/rust-toolchain@stable
 
     - name: Install pre-commit
       run: |
