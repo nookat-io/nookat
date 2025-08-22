@@ -79,8 +79,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tagName: ${{ inputs.version-tag }}
-          releaseName: 'Nookat ${{ inputs.version-tag }} (Windows)'
-          releaseBody: 'Windows executable (.exe)'
+          releaseName: 'Nookat ${{ inputs.version-tag }}'
           releaseDraft: true
           includeDebug: true
           updaterJsonPreferNsis: true
