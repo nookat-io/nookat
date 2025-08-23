@@ -227,7 +227,9 @@ export function NetworksTable({
                           n.name !== 'none'
                       ).length
                   }
-                  onCheckedChange={handleSelectAll}
+                  onCheckedChange={checked =>
+                    handleSelectAll(checked as boolean)
+                  }
                 />
               </TableHead>
               <SortableTableHeader sortKey="name" onSort={handleSort}>

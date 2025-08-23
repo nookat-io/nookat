@@ -23,6 +23,7 @@ export function useTableSort<T>(
       const aValue = getNestedValue(a, sortConfig.key!);
       const bValue = getNestedValue(b, sortConfig.key!);
 
+      if (aValue === null && bValue === null) return 0;
       if (aValue === null || aValue === undefined) return 1;
       if (bValue === null || bValue === undefined) return -1;
 
@@ -30,6 +31,8 @@ export function useTableSort<T>(
 
       if (typeof aValue === 'string' && typeof bValue === 'string') {
         comparison = aValue.localeCompare(bValue);
+      } else if (typeof aValue === 'boolean' && typeof bValue === 'boolean') {
+        comparison = Number(aValue) - Number(bValue);
       } else if (typeof aValue === 'number' && typeof bValue === 'number') {
         comparison = aValue - bValue;
       } else if (aValue instanceof Date && bValue instanceof Date) {

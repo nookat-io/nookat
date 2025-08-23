@@ -23,19 +23,8 @@ import { Image } from './image-types';
 import { formatBytes } from '../../utils/format';
 import { LoadingSpinner } from '../ui/loading-spinner';
 import { ErrorDisplay } from '../ui/error-display';
-import { useMemo } from 'react';
 import { SortableTableHeader } from '../ui/sortable-table-header';
 import { useTableSort } from '../../hooks/use-table-sort';
-
-interface DockerImage {
-  id: string;
-  repository: string;
-  tag: string;
-  imageId: string;
-  created: Date;
-  size: string;
-  inUse: boolean;
-}
 
 interface ImagesTableProps {
   selectedImages: string[];
@@ -47,22 +36,6 @@ interface ImagesTableProps {
   onRetry?: () => void;
 }
 
-// Convert Image to DockerImage format for display
-function convertImageData(imageData: Image): DockerImage {
-  const repository = imageData.repository || '<none>';
-  const tag = imageData.tag || '<none>';
-
-  return {
-    id: imageData.id,
-    repository,
-    tag,
-    imageId: imageData.image_id,
-    created: new Date(imageData.created * 1000), // Convert Unix timestamp to Date
-    size: formatBytes(imageData.size),
-    inUse: imageData.in_use,
-  };
-}
-
 export function ImagesTable({
   selectedImages,
   onSelectionChange,
@@ -71,20 +44,15 @@ export function ImagesTable({
   error = null,
   onRetry,
 }: ImagesTableProps) {
-  const dockerImages = useMemo(() => images.map(convertImageData), [images]);
-
-  const { sortedData: sortedDockerImages, handleSort } = useTableSort(
-    dockerImages.map(image => ({
-      ...image,
-      sizeBytes: parseFloat(image.size.replace(/[^\d.]/g, '')) || 0,
-    })),
+  const { sortedData: sortedImages, handleSort } = useTableSort(
+    images,
     'created',
     'desc'
   );
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
-      onSelectionChange(sortedDockerImages.map(img => img.id));
+      onSelectionChange(sortedImages.map(img => img.id));
     } else {
       onSelectionChange([]);
     }
@@ -123,11 +91,11 @@ export function ImagesTable({
       );
     }
 
-    if (sortedDockerImages.length === 0) {
+    if (sortedImages.length === 0) {
       return <></>;
     }
 
-    return sortedDockerImages.map(image => (
+    return sortedImages.map(image => (
       <TableRow key={image.id}>
         <TableCell>
           <Checkbox
@@ -138,31 +106,33 @@ export function ImagesTable({
           />
         </TableCell>
         <TableCell className="font-medium max-w-[200px]">
-          <div className="truncate max-w-full" title={image.repository}>
+          <div className="truncate max-w-full" title={image.repository || ''}>
             {image.repository}
           </div>
         </TableCell>
         <TableCell className="text-muted-foreground max-w-[150px]">
-          <div className="truncate max-w-full" title={image.tag}>
+          <div className="truncate max-w-full" title={image.tag || ''}>
             {image.tag}
           </div>
         </TableCell>
         <TableCell className="text-muted-foreground text-center">
-          {formatDistanceToNow(image.created, { addSuffix: true })}
+          {formatDistanceToNow(new Date(image.created * 1000), {
+            addSuffix: true,
+          })}
         </TableCell>
         <TableCell className="text-muted-foreground text-center">
-          {image.size}
+          {formatBytes(image.size)}
         </TableCell>
         <TableCell className="text-center">
           <Badge
-            variant={image.inUse ? 'default' : 'secondary'}
+            variant={image.in_use ? 'default' : 'secondary'}
             className={
-              image.inUse
+              image.in_use
                 ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300'
                 : ''
             }
           >
-            {image.inUse ? 'In Use' : 'Unused'}
+            {image.in_use ? 'In Use' : 'Unused'}
           </Badge>
         </TableCell>
         <TableCell>
@@ -202,10 +172,12 @@ export function ImagesTable({
               <TableHead className="w-12">
                 <Checkbox
                   checked={
-                    selectedImages.length === sortedDockerImages.length &&
-                    sortedDockerImages.length > 0
+                    selectedImages.length === sortedImages.length &&
+                    sortedImages.length > 0
                   }
-                  onCheckedChange={handleSelectAll}
+                  onCheckedChange={checked =>
+                    handleSelectAll(checked as boolean)
+                  }
                 />
               </TableHead>
               <SortableTableHeader
@@ -230,7 +202,7 @@ export function ImagesTable({
                 Created
               </SortableTableHeader>
               <SortableTableHeader
-                sortKey="sizeBytes"
+                sortKey="size"
                 onSort={handleSort}
                 className="w-[10%]"
               >
