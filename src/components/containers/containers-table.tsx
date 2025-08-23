@@ -171,9 +171,7 @@ export function ContainersTable({
                     selectedContainers.length === allContainers.length &&
                     allContainers.length > 0
                   }
-                  onCheckedChange={checked =>
-                    handleSelectAll(checked as boolean)
-                  }
+                  onCheckedChange={value => handleSelectAll(value === true)}
                 />
               </TableHead>
               <SortableTableHeader

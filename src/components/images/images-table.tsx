@@ -175,9 +175,7 @@ export function ImagesTable({
                     selectedImages.length === sortedImages.length &&
                     sortedImages.length > 0
                   }
-                  onCheckedChange={checked =>
-                    handleSelectAll(checked as boolean)
-                  }
+                  onCheckedChange={value => handleSelectAll(value === true)}
                 />
               </TableHead>
               <SortableTableHeader
@@ -209,7 +207,7 @@ export function ImagesTable({
                 Size
               </SortableTableHeader>
               <SortableTableHeader
-                sortKey="inUse"
+                sortKey="in_use"
                 onSort={handleSort}
                 className="w-[10%]"
               >

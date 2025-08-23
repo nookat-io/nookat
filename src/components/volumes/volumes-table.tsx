@@ -122,8 +122,8 @@ export function VolumesTable({
         <TableCell>
           <Checkbox
             checked={selectedVolumes.includes(volume.name)}
-            onCheckedChange={checked =>
-              handleSelectVolume(volume.name, checked as boolean)
+            onCheckedChange={value =>
+              handleSelectVolume(volume.name, value === true)
             }
           />
         </TableCell>
