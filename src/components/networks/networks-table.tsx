@@ -25,6 +25,8 @@ import { toast } from 'sonner';
 import { useState } from 'react';
 import { LoadingSpinner } from '../ui/loading-spinner';
 import { ErrorDisplay } from '../ui/error-display';
+import { SortableTableHeader } from '../ui/sortable-table-header';
+import { useTableSort } from '../../hooks/use-table-sort';
 
 interface NetworksTableProps {
   selectedNetworks: string[];
@@ -50,8 +52,20 @@ export function NetworksTable({
     new Set()
   );
 
+  const { sortedData: sortedNetworks, handleSort } = useTableSort(
+    networksArray.map(network => ({
+      ...network,
+      isSystem:
+        network.name === 'bridge' ||
+        network.name === 'host' ||
+        network.name === 'none',
+    })),
+    'name',
+    'asc'
+  );
+
   const handleSelectAll = (checked: boolean) => {
-    const selectableNetworks = networksArray.filter(
+    const selectableNetworks = sortedNetworks.filter(
       n => n.name !== 'bridge' && n.name !== 'host' && n.name !== 'none'
     );
     if (checked) {
@@ -88,26 +102,6 @@ export function NetworksTable({
       });
     }
   };
-
-  // Sort networks: System networks first, then by driver, then by name
-  const sortedNetworks = [...networksArray].sort((a, b) => {
-    const aIsSystem =
-      a.name === 'bridge' || a.name === 'host' || a.name === 'none';
-    const bIsSystem =
-      b.name === 'bridge' || b.name === 'host' || b.name === 'none';
-
-    // First sort by type (System before Custom)
-    if (aIsSystem && !bIsSystem) return -1;
-    if (!aIsSystem && bIsSystem) return 1;
-
-    // Then sort by driver
-    if (a.driver !== b.driver) {
-      return a.driver.localeCompare(b.driver);
-    }
-
-    // Finally sort by name
-    return a.name.localeCompare(b.name);
-  });
 
   const renderTableBody = () => {
     if (isLoading) {
@@ -226,7 +220,7 @@ export function NetworksTable({
                   checked={
                     selectedNetworks.length > 0 &&
                     selectedNetworks.length ===
-                      networksArray.filter(
+                      sortedNetworks.filter(
                         n =>
                           n.name !== 'bridge' &&
                           n.name !== 'host' &&
@@ -236,12 +230,24 @@ export function NetworksTable({
                   onCheckedChange={handleSelectAll}
                 />
               </TableHead>
-              <TableHead>Name</TableHead>
-              <TableHead>Driver</TableHead>
-              <TableHead>Created</TableHead>
-              <TableHead>Subnet</TableHead>
-              <TableHead>Gateway</TableHead>
-              <TableHead>Type</TableHead>
+              <SortableTableHeader sortKey="name" onSort={handleSort}>
+                Name
+              </SortableTableHeader>
+              <SortableTableHeader sortKey="driver" onSort={handleSort}>
+                Driver
+              </SortableTableHeader>
+              <SortableTableHeader sortKey="created" onSort={handleSort}>
+                Created
+              </SortableTableHeader>
+              <SortableTableHeader sortKey="subnet" onSort={handleSort}>
+                Subnet
+              </SortableTableHeader>
+              <SortableTableHeader sortKey="gateway" onSort={handleSort}>
+                Gateway
+              </SortableTableHeader>
+              <SortableTableHeader sortKey="isSystem" onSort={handleSort}>
+                Type
+              </SortableTableHeader>
               <TableHead className="w-24">Actions</TableHead>
             </TableRow>
           </TableHeader>

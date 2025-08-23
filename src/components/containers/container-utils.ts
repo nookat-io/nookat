@@ -14,7 +14,8 @@ export const getProjectName = (container: Container): string | null => {
 
 export const organizeContainers = (
   containers: Container[],
-  expandedGroups: Set<string>
+  expandedGroups: Set<string>,
+  preserveOrder: boolean = false
 ) => {
   const individualContainers: Container[] = [];
   const groupedContainers: Record<string, Container[]> = {};
@@ -34,29 +35,56 @@ export const organizeContainers = (
     }
   });
 
-  // Sort containers by creation time (newest first)
-  const sortByCreatedTime = (a: Container, b: Container) =>
-    (b.created ?? 0) - (a.created ?? 0);
+  if (preserveOrder) {
+    // Preserve the order of containers as they were passed in
+    const groups: ContainerGroup[] = Object.entries(groupedContainers).map(
+      ([projectName, containers]) => ({
+        projectName,
+        containers: containers, // Keep original order
+        isExpanded: expandedGroups.has(projectName),
+      })
+    );
 
-  const groups: ContainerGroup[] = Object.entries(groupedContainers).map(
-    ([projectName, containers]) => ({
-      projectName,
-      containers: containers.sort(sortByCreatedTime),
-      isExpanded: expandedGroups.has(projectName),
-    })
-  );
+    // Sort groups by the position of their first container in the original array
+    const sortedGroups = groups.sort((a, b) => {
+      const firstIndexA = containers.findIndex(
+        c => c.id === a.containers[0]?.id
+      );
+      const firstIndexB = containers.findIndex(
+        c => c.id === b.containers[0]?.id
+      );
+      return firstIndexA - firstIndexB;
+    });
 
-  // Sort groups by the creation time of their newest container
-  const sortedGroups = groups.sort((a, b) => {
-    const newestA = Math.max(...a.containers.map(c => c.created ?? 0));
-    const newestB = Math.max(...b.containers.map(c => c.created ?? 0));
-    return newestB - newestA;
-  });
+    return {
+      individualContainers, // Keep original order
+      groupedContainers: sortedGroups,
+    };
+  } else {
+    // Sort containers by creation time (newest first) - original behavior
+    const sortByCreatedTime = (a: Container, b: Container) =>
+      (b.created ?? 0) - (a.created ?? 0);
 
-  return {
-    individualContainers: individualContainers.sort(sortByCreatedTime),
-    groupedContainers: sortedGroups,
-  };
+    const groups: ContainerGroup[] = Object.entries(groupedContainers).map(
+      ([projectName, containers]) => ({
+        projectName,
+        containers: containers.sort(sortByCreatedTime),
+        isExpanded: expandedGroups.has(projectName),
+      })
+    );
+
+    // Sort groups by the creation time of their newest container
+    const sortedGroups = groups.sort((a, b) => {
+      const newestA = Math.max(...a.containers.map(c => c.created ?? 0));
+      const newestB = Math.max(...b.containers.map(c => c.created ?? 0));
+      return newestB - newestA;
+    });
+
+    return {
+      individualContainers: individualContainers.sort(sortByCreatedTime),
+      groupedContainers: sortedGroups,
+    };
+  }
 };
 
 export const formatContainerName = (container: Container): string => {

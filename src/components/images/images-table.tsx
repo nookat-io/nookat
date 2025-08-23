@@ -24,6 +24,8 @@ import { formatBytes } from '../../utils/format';
 import { LoadingSpinner } from '../ui/loading-spinner';
 import { ErrorDisplay } from '../ui/error-display';
 import { useMemo } from 'react';
+import { SortableTableHeader } from '../ui/sortable-table-header';
+import { useTableSort } from '../../hooks/use-table-sort';
 
 interface DockerImage {
   id: string;
@@ -69,19 +71,20 @@ export function ImagesTable({
   error = null,
   onRetry,
 }: ImagesTableProps) {
-  const dockerImages = useMemo(
-    () =>
-      images.map(convertImageData).sort((a, b) => {
-        const dateDiff = b.created.getTime() - a.created.getTime();
-        if (dateDiff !== 0) return dateDiff;
-        return a.repository.localeCompare(b.repository);
-      }),
-    [images]
+  const dockerImages = useMemo(() => images.map(convertImageData), [images]);
+
+  const { sortedData: sortedDockerImages, handleSort } = useTableSort(
+    dockerImages.map(image => ({
+      ...image,
+      sizeBytes: parseFloat(image.size.replace(/[^\d.]/g, '')) || 0,
+    })),
+    'created',
+    'desc'
   );
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
-      onSelectionChange(dockerImages.map(img => img.id));
+      onSelectionChange(sortedDockerImages.map(img => img.id));
     } else {
       onSelectionChange([]);
     }
@@ -120,11 +123,11 @@ export function ImagesTable({
       );
     }
 
-    if (dockerImages.length === 0) {
+    if (sortedDockerImages.length === 0) {
       return <></>;
     }
 
-    return dockerImages.map(image => (
+    return sortedDockerImages.map(image => (
       <TableRow key={image.id}>
         <TableCell>
           <Checkbox
@@ -199,17 +202,47 @@ export function ImagesTable({
               <TableHead className="w-12">
                 <Checkbox
                   checked={
-                    selectedImages.length === dockerImages.length &&
-                    dockerImages.length > 0
+                    selectedImages.length === sortedDockerImages.length &&
+                    sortedDockerImages.length > 0
                   }
                   onCheckedChange={handleSelectAll}
                 />
               </TableHead>
-              <TableHead className="w-[35%]">Name</TableHead>
-              <TableHead className="w-[15%]">Tag</TableHead>
-              <TableHead className="w-[10%]">Created</TableHead>
-              <TableHead className="w-[10%]">Size</TableHead>
-              <TableHead className="w-[10%]">Status</TableHead>
+              <SortableTableHeader
+                sortKey="repository"
+                onSort={handleSort}
+                className="w-[35%]"
+              >
+                Name
+              </SortableTableHeader>
+              <SortableTableHeader
+                sortKey="tag"
+                onSort={handleSort}
+                className="w-[15%]"
+              >
+                Tag
+              </SortableTableHeader>
+              <SortableTableHeader
+                sortKey="created"
+                onSort={handleSort}
+                className="w-[10%]"
+              >
+                Created
+              </SortableTableHeader>
+              <SortableTableHeader
+                sortKey="sizeBytes"
+                onSort={handleSort}
+                className="w-[10%]"
+              >
+                Size
+              </SortableTableHeader>
+              <SortableTableHeader
+                sortKey="inUse"
+                onSort={handleSort}
+                className="w-[10%]"
+              >
+                Status
+              </SortableTableHeader>
               <TableHead className="w-[10%]">Actions</TableHead>
             </TableRow>
           </TableHeader>
