@@ -22,6 +22,8 @@ import { VolumeActionService } from './volume-actions-service';
 import { useState } from 'react';
 import { LoadingSpinner } from '../ui/loading-spinner';
 import { ErrorDisplay } from '../ui/error-display';
+import { SortableTableHeader } from '../ui/sortable-table-header';
+import { useTableSort } from '../../hooks/use-table-sort';
 
 interface VolumesTableProps {
   selectedVolumes: string[];
@@ -44,9 +46,10 @@ export function VolumesTable({
 }: VolumesTableProps) {
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
 
-  // Sort volumes by name for consistent rendering
-  const sortedVolumes = [...volumes].sort((a, b) =>
-    a.name.localeCompare(b.name)
+  const { sortedData: sortedVolumes, handleSort } = useTableSort(
+    volumes,
+    'name',
+    'asc'
   );
 
   const handleSelectAll = (checked: boolean) => {
@@ -119,8 +122,8 @@ export function VolumesTable({
         <TableCell>
           <Checkbox
             checked={selectedVolumes.includes(volume.name)}
-            onCheckedChange={checked =>
-              handleSelectVolume(volume.name, checked as boolean)
+            onCheckedChange={value =>
+              handleSelectVolume(volume.name, value === true)
             }
           />
         </TableCell>
@@ -177,10 +180,34 @@ export function VolumesTable({
                   onCheckedChange={handleSelectAll}
                 />
               </TableHead>
-              <TableHead className="w-[40%]">Name</TableHead>
-              <TableHead className="w-[10%]">Driver</TableHead>
-              <TableHead className="w-[10%]">Scope</TableHead>
-              <TableHead className="w-[30%]">Mount Point</TableHead>
+              <SortableTableHeader
+                sortKey="name"
+                onSort={handleSort}
+                className="w-[40%]"
+              >
+                Name
+              </SortableTableHeader>
+              <SortableTableHeader
+                sortKey="driver"
+                onSort={handleSort}
+                className="w-[10%]"
+              >
+                Driver
+              </SortableTableHeader>
+              <SortableTableHeader
+                sortKey="scope"
+                onSort={handleSort}
+                className="w-[10%]"
+              >
+                Scope
+              </SortableTableHeader>
+              <SortableTableHeader
+                sortKey="mountpoint"
+                onSort={handleSort}
+                className="w-[30%]"
+              >
+                Mount Point
+              </SortableTableHeader>
               <TableHead className="w-[10%] text-left">Actions</TableHead>
             </TableRow>
           </TableHeader>

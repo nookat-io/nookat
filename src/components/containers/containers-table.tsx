@@ -15,6 +15,8 @@ import { ContainerGroupRow } from './container-group-row';
 import { organizeContainers } from './container-utils';
 import { LoadingSpinner } from '../ui/loading-spinner';
 import { ErrorDisplay } from '../ui/error-display';
+import { SortableTableHeader } from '../ui/sortable-table-header';
+import { useTableSort } from '../../hooks/use-table-sort';
 
 interface ContainersTableProps {
   selectedContainers: string[];
@@ -40,6 +42,12 @@ export function ContainersTable({
     useState<Container | null>(null);
   const [logsFormOpen, setLogsFormOpen] = useState(false);
 
+  const { sortedData: sortedContainers, handleSort } = useTableSort(
+    containers,
+    'names',
+    'asc'
+  );
+
   useEffect(() => {
     const existingContainerIds = new Set(containers.map(c => c.id));
     const staleSelections = selectedContainers.filter(
@@ -55,8 +63,9 @@ export function ContainersTable({
   }, [containers, selectedContainers, onSelectionChange]);
 
   const { individualContainers, groupedContainers } = organizeContainers(
-    containers,
-    expandedGroups
+    sortedContainers,
+    expandedGroups,
+    true
   );
 
   const allContainers = [
@@ -162,14 +171,44 @@ export function ContainersTable({
                     selectedContainers.length === allContainers.length &&
                     allContainers.length > 0
                   }
-                  onCheckedChange={handleSelectAll}
+                  onCheckedChange={value => handleSelectAll(value === true)}
                 />
               </TableHead>
-              <TableHead className="w-[25%]">Name</TableHead>
-              <TableHead className="w-[25%]">Image</TableHead>
-              <TableHead className="w-[10%]">Status</TableHead>
-              <TableHead className="w-[15%]">Created</TableHead>
-              <TableHead className="w-[10%]">Ports</TableHead>
+              <SortableTableHeader
+                sortKey="names"
+                onSort={handleSort}
+                className="w-[25%]"
+              >
+                Name
+              </SortableTableHeader>
+              <SortableTableHeader
+                sortKey="image"
+                onSort={handleSort}
+                className="w-[25%]"
+              >
+                Image
+              </SortableTableHeader>
+              <SortableTableHeader
+                sortKey="state"
+                onSort={handleSort}
+                className="w-[10%]"
+              >
+                Status
+              </SortableTableHeader>
+              <SortableTableHeader
+                sortKey="created"
+                onSort={handleSort}
+                className="w-[15%]"
+              >
+                Created
+              </SortableTableHeader>
+              <SortableTableHeader
+                sortKey="ports"
+                onSort={handleSort}
+                className="w-[10%]"
+              >
+                Ports
+              </SortableTableHeader>
               <TableHead className="w-[10%]">Actions</TableHead>
             </TableRow>
           </TableHeader>

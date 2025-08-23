@@ -4,7 +4,7 @@
 use nookat_lib::sentry::init_sentry;
 use tracing_appender::rolling::{RollingFileAppender, Rotation};
 use tracing_subscriber::EnvFilter;
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
+use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, Layer};
 
 fn setup_file_logging() -> Result<RollingFileAppender, Box<dyn std::error::Error>> {
     let home_dir = dirs::home_dir().ok_or("Could not determine home directory")?;
@@ -26,18 +26,28 @@ fn initialize_tracing(
     if let Some(file_appender) = file_appender {
         // Create subscriber with file output using registry approach
         tracing_subscriber::registry()
-            .with(EnvFilter::try_from_default_env().unwrap_or_else(|_| "debug".into()))
+            .with(
+                EnvFilter::try_from_default_env()
+                    .unwrap_or_else(|_| "nookat_lib=debug,bollard=warn,info".into()),
+            )
             .with(
                 tracing_subscriber::fmt::layer()
                     .with_writer(file_appender)
-                    .with_ansi(false),
+                    .with_ansi(false)
+                    .with_filter(tracing_subscriber::filter::LevelFilter::DEBUG),
+            )
+            .with(
+                tracing_subscriber::fmt::layer()
+                    .with_filter(tracing_subscriber::filter::LevelFilter::INFO),
             )
             .with(sentry_tracing::layer())
-            .with(tracing_subscriber::fmt::layer())
             .init();
     } else {
         tracing_subscriber::registry()
-            .with(EnvFilter::try_from_default_env().unwrap_or_else(|_| "info".into()))
+            .with(
+                EnvFilter::try_from_default_env()
+                    .unwrap_or_else(|_| "nookat_lib=info,bollard=warn,info".into()),
+            )
             .with(tracing_subscriber::fmt::layer())
             .with(sentry_tracing::layer())
             .init();
