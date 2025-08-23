@@ -47,6 +47,16 @@ repos:
         files: \.(ts|tsx)$
         pass_filenames: false
 
+  # Cargo fmt for Rust
+  - repo: local
+    hooks:
+      - id: cargo-fmt
+        name: Cargo Fmt
+        entry: bash -c 'cd src-tauri && cargo fmt --check'
+        language: system
+        files: \.(rs|toml)$
+        pass_filenames: false
+
   # Cargo check for Rust
   - repo: local
     hooks:
