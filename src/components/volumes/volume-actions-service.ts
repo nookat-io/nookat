@@ -7,6 +7,25 @@ export interface VolumeActionOptions {
 }
 
 export class VolumeActionService {
+  private static getActionDisplayName(action: string): string {
+    const actionMap: Record<string, string> = {
+      remove_volume: 'Deleted',
+      bulk_remove_volumes: 'Deleted',
+      inspect_volume: 'Inspected',
+      prune_volumes: 'Pruned',
+    };
+
+    return actionMap[action] || 'processed';
+  }
+
+  private static getVolumeText(count: number): string {
+    return count === 1 ? 'volume' : 'volumes';
+  }
+
+  private static getCountText(count: number): string {
+    return count === 1 ? '' : `${count} `;
+  }
+
   private static async executeAction(
     action: string,
     params: { name?: string; names?: string[] },
@@ -15,19 +34,13 @@ export class VolumeActionService {
     try {
       await invoke(action, params);
 
-      const actionName = action.replace('_volume', '').replace('bulk_', '');
-      const volumeText = Array.isArray(params.names)
-        ? params.names.length === 1
-          ? 'volume'
-          : 'volumes'
-        : 'volume';
-
       const count = Array.isArray(params.names) ? params.names.length : 1;
-      const countText = count === 1 ? '' : `${count} `;
+      const actionDisplayName = this.getActionDisplayName(action);
+      const countText = this.getCountText(count);
+      const volumeText = this.getVolumeText(count);
 
-      toast.success(
-        `${actionName.charAt(0).toUpperCase() + actionName.slice(1)}ed ${countText}${volumeText}`
-      );
+      const successMessage = `${actionDisplayName} ${countText}${volumeText}`;
+      toast.success(successMessage);
 
       // Clear selections for destructive actions
       if (action.includes('remove') || action.includes('delete')) {
@@ -39,20 +52,17 @@ export class VolumeActionService {
         options.onActionComplete?.();
       }, 500);
     } catch (error) {
-      console.error(`Error ${action}ing volume:`, error);
-      const actionName = action.replace('_volume', '').replace('bulk_', '');
+      console.error(`Error executing ${action}:`, error);
+
       const count = Array.isArray(params.names) ? params.names.length : 1;
-      const countText = count === 1 ? '' : `${count} `;
-      const volumeText = Array.isArray(params.names)
-        ? params.names.length === 1
-          ? 'volume'
-          : 'volumes'
-        : 'volume';
+      const actionDisplayName = this.getActionDisplayName(action);
+      const countText = this.getCountText(count);
+      const volumeText = this.getVolumeText(count);
+
       const errorMessage =
         error instanceof Error ? error.message : String(error);
-      toast.error(
-        `Failed to ${actionName} ${countText}${volumeText}: ${errorMessage}`
-      );
+      const failureMessage = `Failed to ${actionDisplayName} ${countText}${volumeText}: ${errorMessage}`;
+      toast.error(failureMessage);
 
       // Refresh even on error to ensure UI is in sync
       setTimeout(() => {
@@ -95,8 +105,8 @@ export class VolumeActionService {
 
   static async pruneVolumes(options: VolumeActionOptions = {}) {
     try {
-      await invoke('prune_volumes');
-      toast.success('Pruned unused volumes');
+      const result = await invoke<string>('prune_volumes');
+      toast.success(result);
 
       setTimeout(() => {
         options.onActionComplete?.();
