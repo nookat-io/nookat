@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import {
   Container,
@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { Button } from '../ui/button';
+import { useConfig } from '../../hooks/use-config';
 
 const navigation = [
   { name: 'Containers', href: '/', icon: Container },
@@ -23,8 +24,38 @@ const navigation = [
 ];
 
 export function Sidebar() {
+  const { config, updateSidebarCollapsed } = useConfig();
   const [collapsed, setCollapsed] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const location = useLocation();
+
+  // Initialize from config whenever config changes
+  useEffect(() => {
+    if (config) {
+      setCollapsed(config.sidebar_collapsed);
+    }
+  }, [config]);
+
+  const handleToggleCollapsed = async () => {
+    // Prevent rapid clicks while saving is in progress
+    if (isSaving) {
+      return;
+    }
+
+    setIsSaving(true);
+
+    try {
+      // Use functional update to get the latest state value
+      await updateSidebarCollapsed(!collapsed);
+      // Update local state only after save succeeds
+      setCollapsed(prevCollapsed => !prevCollapsed);
+    } catch (error) {
+      console.error('Failed to persist sidebar state:', error);
+      // Keep current state on error - don't update local state
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   return (
     <div
@@ -50,7 +81,12 @@ export function Sidebar() {
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => setCollapsed(!collapsed)}
+          onClick={handleToggleCollapsed}
+          disabled={isSaving}
+          aria-busy={isSaving}
+          aria-pressed={!collapsed}
+          aria-expanded={!collapsed}
+          aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           draggable="false"
         >
           {collapsed ? (

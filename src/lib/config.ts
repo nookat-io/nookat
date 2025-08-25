@@ -91,6 +91,7 @@ export class ConfigService {
           check_for_updates: true,
           auto_update_settings: false,
         },
+        sidebar_collapsed: false,
       };
       this.notifySubscribers();
     } finally {
@@ -162,6 +163,23 @@ export class ConfigService {
       await this.refreshConfig();
     } catch (error) {
       console.error('Failed to update startup settings:', error);
+      throw error;
+    }
+  }
+
+  async updateSidebarCollapsed(sidebar_collapsed: boolean): Promise<void> {
+    try {
+      await invoke('update_sidebar_collapsed', {
+        sidebarCollapsed: sidebar_collapsed,
+      });
+
+      // Update local config immediately to avoid unnecessary refresh
+      if (this.config) {
+        this.config.sidebar_collapsed = sidebar_collapsed;
+        this.notifySubscribers();
+      }
+    } catch (error) {
+      console.error('Failed to update sidebar collapsed state:', error);
       throw error;
     }
   }

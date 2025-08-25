@@ -13,6 +13,7 @@ pub struct AppConfigV2 {
     pub language: Language,
     pub telemetry: TelemetrySettings,
     pub startup: StartupSettings,
+    pub sidebar_collapsed: bool,
 }
 
 impl From<AppConfigV1> for AppConfigV2 {
@@ -22,6 +23,7 @@ impl From<AppConfigV1> for AppConfigV2 {
             language: v1.language,
             telemetry: v1.telemetry,
             startup: v1.startup,
+            sidebar_collapsed: false,
         }
     }
 }
@@ -77,6 +79,7 @@ mod tests {
             language: Language::English,
             telemetry: TelemetrySettings::default(),
             startup: StartupSettings::default(),
+            sidebar_collapsed: false,
         };
 
         // Serialize to JSON
@@ -94,6 +97,7 @@ mod tests {
             language: Language::English,
             telemetry: TelemetrySettings::default(),
             startup: StartupSettings::default(),
+            sidebar_collapsed: false,
         };
 
         let versioned_config = VersionedAppConfig::V2(v2_config);

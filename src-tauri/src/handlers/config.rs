@@ -82,3 +82,15 @@ pub async fn update_last_update_check() -> Result<(), String> {
     UpdaterService::update_last_update_check()
         .map_err(|e| format!("Failed to update last update check: {}", e))
 }
+
+/// Update sidebar collapsed state
+#[tauri::command]
+#[instrument(skip_all, err)]
+pub async fn update_sidebar_collapsed(sidebar_collapsed: bool) -> Result<(), String> {
+    debug!("Updating sidebar collapsed state to: {}", sidebar_collapsed);
+
+    let mut config = get_config().await?;
+    config.sidebar_collapsed = sidebar_collapsed;
+
+    ConfigService::save_config(&config)
+}

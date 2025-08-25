@@ -95,6 +95,7 @@ impl ConfigService {
         let config_path = ConfigService::get_config_path()?;
 
         let versioned_config = VersionedAppConfig::from(config.clone());
+
         let content = serde_json::to_string_pretty(&versioned_config)
             .map_err(|e| format!("Failed to serialize config: {}", e))?;
 
