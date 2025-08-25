@@ -3,7 +3,7 @@ use bollard::container::ListContainersOptions;
 use bollard::image::ListImagesOptions;
 use bollard::models::ImageSummary;
 use bollard::Docker;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use tracing::{debug, instrument};
 
 #[derive(Default, Debug)]
@@ -100,9 +100,13 @@ impl ImagesService {
 
     #[instrument(skip_all, err)]
     pub async fn perform_prune(docker: &Docker) -> Result<PruneResult, String> {
-        let options = bollard::image::PruneImagesOptions::<String> {
-            ..Default::default()
-        };
+        // By default Docker only prunes dangling (untagged) images.
+        // We want to prune ALL unused images (equivalent to `docker image prune -a`).
+        // Docker API achieves this by setting filter dangling=false.
+        let mut filters: HashMap<String, Vec<String>> = HashMap::new();
+        filters.insert("dangling".to_string(), vec!["false".to_string()]);
+
+        let options = bollard::image::PruneImagesOptions::<String> { filters };
 
         let result = docker
             .prune_images(Some(options))
