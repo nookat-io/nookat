@@ -5,10 +5,7 @@ use tracing::{debug, instrument};
 #[tauri::command]
 #[instrument(skip_all, err)]
 pub async fn get_config() -> Result<AppConfig, String> {
-    debug!("get_config called");
-    let config = ConfigService::get_config()?;
-    debug!("get_config returning: {:?}", config);
-    Ok(config)
+    ConfigService::get_config()
 }
 
 /// Update the theme

@@ -34,7 +34,7 @@ export function useConfig() {
     }
 
     return unsubscribe;
-  }, [configService]); // Remove config from dependency array to prevent infinite loops
+  }, [configService, config]);
 
   const updateTheme = useCallback(
     async (theme: Theme) => {
