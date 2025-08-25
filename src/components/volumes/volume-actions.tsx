@@ -54,6 +54,8 @@ export function VolumeActions({
   };
 
   const handlePrune = () => {
+    if (isLoading === 'prune') return; // Prevent multiple simultaneous operations
+
     setConfirmDialogOpen(false);
     handleAction(
       () => VolumeActionService.pruneVolumes({ onActionComplete }),
@@ -78,12 +80,16 @@ export function VolumeActions({
         <DialogHeader>
           <DialogTitle>Confirm Prune Operation</DialogTitle>
           <DialogDescription>
-            This will remove all unused volumes from your system. This action
-            cannot be undone. Are you sure you want to continue?
+            This will remove all unused volumes from your system. <br />
+            This action cannot be undone. Are you sure you want to continue?
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>
-          <Button variant="outline" onClick={() => setConfirmDialogOpen(false)}>
+          <Button
+            variant="outline"
+            onClick={() => setConfirmDialogOpen(false)}
+            disabled={isLoading === 'prune'}
+          >
             Cancel
           </Button>
           <Button

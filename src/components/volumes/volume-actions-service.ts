@@ -105,8 +105,8 @@ export class VolumeActionService {
 
   static async pruneVolumes(options: VolumeActionOptions = {}) {
     try {
-      await invoke('prune_volumes');
-      toast.success('Pruned unused volumes');
+      const result = await invoke<string>('prune_volumes');
+      toast.success(result);
 
       setTimeout(() => {
         options.onActionComplete?.();
