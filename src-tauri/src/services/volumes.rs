@@ -41,48 +41,16 @@ impl VolumesService {
             // Check both running and stopped containers
             let ref_count = containers
                 .iter()
-                .filter_map(|container| container.mounts.as_ref())
-                .flat_map(|mounts| mounts.iter())
-                .filter(|mount| {
-                    // For volumes, the 'name' field contains the volume name
-                    // The 'source' field contains the storage path, not the volume name
-                    if let Some(mount_name) = &mount.name {
-                        mount_name == &volume.name
-                    } else {
-                        false
-                    }
-                })
-                .count() as i64;
-
-            // Also check if the volume name appears in any container's image or other references
-            // This catches cases where volumes might be referenced in container configs
-            let additional_refs = containers
-                .iter()
                 .filter(|container| {
-                    // Check if volume name appears in container labels, env vars, or other metadata
-                    let empty_string = String::new();
-                    let container_name = container
-                        .names
-                        .as_ref()
-                        .and_then(|names| names.first())
-                        .unwrap_or(&empty_string);
-
-                    // Check if volume name is part of container name (common pattern)
-                    container_name.contains(&volume.name) ||
-                    // Check if volume name appears in any labels
-                    container.labels.as_ref()
-                        .map(|labels| labels.values().any(|v| v.contains(&volume.name)))
-                        .unwrap_or(false)
+                    container.mounts.as_ref().map_or(false, |mounts| {
+                        mounts
+                            .iter()
+                            .any(|m| m.name.as_deref() == Some(&volume.name))
+                    })
                 })
                 .count() as i64;
 
-            let total_ref_count = ref_count + additional_refs;
-
-            // Create usage data
-            volume.usage_data = Some(crate::entities::UsageData {
-                size: 0, // Docker doesn't provide volume size through this API
-                ref_count: total_ref_count,
-            });
+            volume.usage_data = Some(crate::entities::UsageData { size: 0, ref_count });
 
             volumes.push(volume);
         }

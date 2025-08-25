@@ -52,7 +52,7 @@ repos:
     hooks:
       - id: cargo-fmt
         name: Cargo Fmt
-        entry: bash -c 'cd src-tauri && cargo fmt --check'
+        entry: bash -c 'cd src-tauri && cargo fmt'
         language: system
         files: \.(rs|toml)$
         pass_filenames: false

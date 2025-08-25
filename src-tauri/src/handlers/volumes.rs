@@ -72,7 +72,7 @@ pub async fn prune_volumes(state: State<'_, SharedEngineState>) -> Result<String
     let final_volumes = VolumesService::get_volumes(docker).await?;
     let final_count = final_volumes.len();
 
-    let pruned_count = initial_count - final_count;
+    let pruned_count = initial_count.saturating_sub(final_count);
 
     Ok(format!("Pruned {} unused volumes", pruned_count))
 }
