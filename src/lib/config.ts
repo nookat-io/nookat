@@ -66,9 +66,7 @@ export class ConfigService {
 
     this.isLoading = true;
     try {
-      console.log('ConfigService: Loading config from backend...');
       this.config = await invoke<AppConfig>('get_config');
-      console.log('ConfigService: Config loaded from backend:', this.config);
       this.notifySubscribers();
 
       // Sync autostart status after loading config
@@ -95,7 +93,6 @@ export class ConfigService {
         },
         sidebar_collapsed: false,
       };
-      console.log('ConfigService: Using fallback config:', this.config);
       this.notifySubscribers();
     } finally {
       this.isLoading = false;
@@ -172,42 +169,15 @@ export class ConfigService {
 
   async updateSidebarCollapsed(sidebar_collapsed: boolean): Promise<void> {
     try {
-      console.log(
-        'ConfigService: updateSidebarCollapsed called with:',
-        sidebar_collapsed
-      );
-      console.log(
-        'ConfigService: Current local config before update:',
-        this.config
-      );
-
-      console.log(
-        'ConfigService: Calling backend update_sidebar_collapsed with:',
-        sidebar_collapsed
-      );
-      const result = await invoke('update_sidebar_collapsed', {
-        sidebar_collapsed,
+      await invoke('update_sidebar_collapsed', {
+        sidebarCollapsed: sidebar_collapsed,
       });
-      console.log('ConfigService: Backend call result:', result);
-
-      console.log(
-        'ConfigService: Backend call successful, updating local config'
-      );
 
       // Update local config immediately to avoid unnecessary refresh
       if (this.config) {
         this.config.sidebar_collapsed = sidebar_collapsed;
-        console.log('ConfigService: Updated local config:', this.config);
         this.notifySubscribers();
       }
-
-      // Refresh config from backend to ensure file is updated
-      console.log('ConfigService: About to refresh config from backend');
-      const refreshedConfig = await this.refreshConfig();
-      console.log(
-        'ConfigService: Refreshed config from backend:',
-        refreshedConfig
-      );
     } catch (error) {
       console.error('Failed to update sidebar collapsed state:', error);
       throw error;

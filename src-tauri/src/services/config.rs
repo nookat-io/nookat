@@ -1,7 +1,7 @@
 use crate::entities::{AppConfig, AppConfigV1, VersionedAppConfig};
 use std::fs;
 use std::path::PathBuf;
-use tracing::{info, instrument, warn};
+use tracing::{debug, info, instrument, warn};
 
 pub struct ConfigService;
 
@@ -90,24 +90,22 @@ impl ConfigService {
     /// Save configuration to file
     #[instrument(skip_all, err)]
     pub fn save_config(config: &AppConfig) -> Result<(), String> {
-        info!("save_config called with config: {:?}", config);
+        debug!("save_config called with config: {:?}", config);
 
         ConfigService::ensure_config_dir()?;
 
         let config_path = ConfigService::get_config_path()?;
-        info!("Saving config to path: {:?}", config_path);
+        debug!("Saving config to path: {:?}", config_path);
 
         let versioned_config = VersionedAppConfig::from(config.clone());
-        info!("Created versioned config: {:?}", versioned_config);
+        debug!("Created versioned config: {:?}", versioned_config);
 
         let content = serde_json::to_string_pretty(&versioned_config)
             .map_err(|e| format!("Failed to serialize config: {}", e))?;
 
-        info!("Serialized config content length: {}", content.len());
-
         let result = fs::write(&config_path, content)
             .map_err(|e| format!("Failed to write config file: {}", e));
-        info!("File write result: {:?}", result);
+        debug!("File write result: {:?}", result);
 
         result
     }

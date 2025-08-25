@@ -31,34 +31,19 @@ export function Sidebar() {
   // Initialize from config whenever config changes
   useEffect(() => {
     if (config) {
-      console.log(
-        'Sidebar: Config loaded, sidebar_collapsed:',
-        config.sidebar_collapsed
-      );
       setCollapsed(config.sidebar_collapsed);
     }
   }, [config]);
 
   const handleToggleCollapsed = async () => {
-    console.log('Sidebar: handleToggleCollapsed called');
-    console.log('Sidebar: Current collapsed state:', collapsed);
-
     const newCollapsed = !collapsed;
 
-    console.log('Sidebar: Toggling collapsed state to:', newCollapsed);
-
-    // Update local state immediately
-    setCollapsed(newCollapsed);
-    console.log('Sidebar: Local state updated to:', newCollapsed);
-
-    // Persist to config in background
     try {
-      console.log('Sidebar: About to call updateSidebarCollapsed');
       await updateSidebarCollapsed(newCollapsed);
-      console.log('Sidebar: Successfully persisted collapsed state to config');
+      setCollapsed(newCollapsed);
     } catch (error) {
       console.error('Failed to persist sidebar state:', error);
-      // Don't revert on error - keep user's choice
+      // Keep current state on error
     }
   };
 
