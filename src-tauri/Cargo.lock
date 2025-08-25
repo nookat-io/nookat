@@ -551,9 +551,9 @@ dependencies = [
 
 [[package]]
 name = "bollard"
-version = "0.18.1"
+version = "0.19.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "97ccca1260af6a459d75994ad5acc1651bcabcbdbc41467cc9786519ab854c30"
+checksum = "8796b390a5b4c86f9f2e8173a68c2791f4fa6b038b84e96dbc01c016d1e6722c"
 dependencies = [
  "base64 0.22.1",
  "bollard-stubs",
@@ -584,11 +584,12 @@ dependencies = [
 
 [[package]]
 name = "bollard-stubs"
-version = "1.47.1-rc.27.3.1"
+version = "1.49.0-rc.28.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3f179cfbddb6e77a5472703d4b30436bff32929c0aa8a9008ecf23d1d3cdd0da"
+checksum = "2e7814991259013d5a5bee4ae28657dae0747d843cf06c40f7fc0c2894d6fa38"
 dependencies = [
  "serde",
+ "serde_json",
  "serde_repr",
  "serde_with",
 ]
@@ -5131,9 +5132,9 @@ checksum = "61c41af27dd6d1e27b1b16b489db798443478cef1f06a660c96db617ba5de3b1"
 
 [[package]]
 name = "tauri"
-version = "2.8.2"
+version = "2.8.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a54629607ea3084a8b455c1ebe888cbdfc4de02fa5edb2e40db0dc97091007e3"
+checksum = "dcead52ec80df0e9e4be671c0f2596a1f3bd7b6b2c9418c1eb7dd737499ff4bd"
 dependencies = [
  "anyhow",
  "bytes",
