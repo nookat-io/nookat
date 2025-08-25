@@ -18,7 +18,7 @@ permissions:
 jobs:
   # Orchestrator job that coordinates the release process
   release-coordinator:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     outputs:
       version: ${{ steps.get-version.outputs.version }}
       version-tag: ${{ steps.get-version.outputs.version-tag }}
@@ -96,7 +96,7 @@ jobs:
   # Final release coordination
   release-completion:
     needs: [release-coordinator, build-macos, build-windows, build-linux]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     if: always()
     steps:
       - uses: actions/checkout@v4
