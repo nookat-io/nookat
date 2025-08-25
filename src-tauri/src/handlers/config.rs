@@ -1,11 +1,14 @@
 use crate::entities::{AppConfig, Language, StartupSettings, TelemetrySettings, Theme};
 use crate::services::{ConfigService, UpdaterService};
-use tracing::{debug, instrument};
+use tracing::{debug, info, instrument};
 
 #[tauri::command]
 #[instrument(skip_all, err)]
 pub async fn get_config() -> Result<AppConfig, String> {
-    ConfigService::get_config()
+    debug!("get_config called");
+    let config = ConfigService::get_config()?;
+    debug!("get_config returning: {:?}", config);
+    Ok(config)
 }
 
 /// Update the theme
@@ -81,4 +84,26 @@ pub async fn update_last_update_check() -> Result<(), String> {
     debug!("Updating last update check timestamp");
     UpdaterService::update_last_update_check()
         .map_err(|e| format!("Failed to update last update check: {}", e))
+}
+
+/// Update sidebar collapsed state
+#[tauri::command]
+#[instrument(skip_all, err)]
+pub async fn update_sidebar_collapsed(sidebar_collapsed: bool) -> Result<(), String> {
+    info!(
+        "update_sidebar_collapsed called with value: {}",
+        sidebar_collapsed
+    );
+
+    let mut config = get_config().await?;
+    info!("Current config before update: {:?}", config);
+
+    config.sidebar_collapsed = sidebar_collapsed;
+    info!("Config after update: {:?}", config);
+
+    info!("About to call ConfigService::save_config");
+    let result = ConfigService::save_config(&config);
+    info!("Save config result: {:?}", result);
+
+    result
 }

@@ -14,7 +14,7 @@ use crate::handlers::{
     open_terminal, open_url, pause_container, prune_containers, prune_images, prune_volumes,
     remove_container, remove_network, remove_volume, restart_container, start_colima_vm_command,
     start_container, stop_container, unpause_container, update_language, update_last_update_check,
-    update_startup_settings, update_telemetry_settings, update_theme,
+    update_sidebar_collapsed, update_startup_settings, update_telemetry_settings, update_theme,
 };
 use crate::sentry::flush_sentry;
 use crate::services::ConfigService;
@@ -101,6 +101,7 @@ pub fn run() {
             update_language,
             update_telemetry_settings,
             update_startup_settings,
+            update_sidebar_collapsed,
             update_last_update_check,
             // Containers
             list_containers,

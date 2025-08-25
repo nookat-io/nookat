@@ -27,4 +27,5 @@ export interface AppConfig {
   language: Language;
   telemetry: TelemetrySettings;
   startup: StartupSettings;
+  sidebar_collapsed: boolean;
 }

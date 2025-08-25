@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import {
   Container,
@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { Button } from '../ui/button';
+import { useConfig } from '../../hooks/use-config';
 
 const navigation = [
   { name: 'Containers', href: '/', icon: Container },
@@ -23,8 +24,43 @@ const navigation = [
 ];
 
 export function Sidebar() {
+  const { config, updateSidebarCollapsed } = useConfig();
   const [collapsed, setCollapsed] = useState(false);
   const location = useLocation();
+
+  // Initialize from config whenever config changes
+  useEffect(() => {
+    if (config) {
+      console.log(
+        'Sidebar: Config loaded, sidebar_collapsed:',
+        config.sidebar_collapsed
+      );
+      setCollapsed(config.sidebar_collapsed);
+    }
+  }, [config]);
+
+  const handleToggleCollapsed = async () => {
+    console.log('Sidebar: handleToggleCollapsed called');
+    console.log('Sidebar: Current collapsed state:', collapsed);
+
+    const newCollapsed = !collapsed;
+
+    console.log('Sidebar: Toggling collapsed state to:', newCollapsed);
+
+    // Update local state immediately
+    setCollapsed(newCollapsed);
+    console.log('Sidebar: Local state updated to:', newCollapsed);
+
+    // Persist to config in background
+    try {
+      console.log('Sidebar: About to call updateSidebarCollapsed');
+      await updateSidebarCollapsed(newCollapsed);
+      console.log('Sidebar: Successfully persisted collapsed state to config');
+    } catch (error) {
+      console.error('Failed to persist sidebar state:', error);
+      // Don't revert on error - keep user's choice
+    }
+  };
 
   return (
     <div
@@ -50,7 +86,7 @@ export function Sidebar() {
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => setCollapsed(!collapsed)}
+          onClick={handleToggleCollapsed}
           draggable="false"
         >
           {collapsed ? (

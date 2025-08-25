@@ -13,6 +13,12 @@ pub struct AppConfigV2 {
     pub language: Language,
     pub telemetry: TelemetrySettings,
     pub startup: StartupSettings,
+    #[serde(default = "default_sidebar_collapsed")]
+    pub sidebar_collapsed: bool,
+}
+
+fn default_sidebar_collapsed() -> bool {
+    false
 }
 
 impl From<AppConfigV1> for AppConfigV2 {
@@ -22,6 +28,7 @@ impl From<AppConfigV1> for AppConfigV2 {
             language: v1.language,
             telemetry: v1.telemetry,
             startup: v1.startup,
+            sidebar_collapsed: false, // Default to expanded sidebar
         }
     }
 }
@@ -77,6 +84,7 @@ mod tests {
             language: Language::English,
             telemetry: TelemetrySettings::default(),
             startup: StartupSettings::default(),
+            sidebar_collapsed: false,
         };
 
         // Serialize to JSON
@@ -94,6 +102,7 @@ mod tests {
             language: Language::English,
             telemetry: TelemetrySettings::default(),
             startup: StartupSettings::default(),
+            sidebar_collapsed: false,
         };
 
         let versioned_config = VersionedAppConfig::V2(v2_config);
@@ -109,5 +118,33 @@ mod tests {
             }
             _ => panic!("Expected V2 config"),
         }
+    }
+
+    #[test]
+    fn test_ui_settings_default() {
+        let ui_settings = AppConfigV2 {
+            theme: Theme::Dark,
+            language: Language::Russian,
+            telemetry: TelemetrySettings::default(),
+            startup: StartupSettings::default(),
+            sidebar_collapsed: false,
+        };
+        assert_eq!(ui_settings.sidebar_collapsed, false);
+    }
+
+    #[test]
+    fn test_ui_settings_serialization() {
+        let ui_settings = AppConfigV2 {
+            theme: Theme::Light,
+            language: Language::English,
+            telemetry: TelemetrySettings::default(),
+            startup: StartupSettings::default(),
+            sidebar_collapsed: true,
+        };
+
+        let json = serde_json::to_string(&ui_settings).unwrap();
+        let deserialized: AppConfigV2 = serde_json::from_str(&json).unwrap();
+
+        assert_eq!(deserialized.sidebar_collapsed, true);
     }
 }

@@ -36,6 +36,7 @@ export function GeneralSettings() {
     updateStartupSettings,
     updateLanguage,
     updateLastUpdateCheck,
+    updateSidebarCollapsed,
   } = useConfig();
   const {
     isChecking,
@@ -152,6 +153,33 @@ export function GeneralSettings() {
     }
   };
 
+  const handleUISettingsChange = async (key: string, value: boolean) => {
+    if (!config) return;
+
+    setSaving(true);
+    try {
+      if (key === 'sidebar_collapsed') {
+        await updateSidebarCollapsed(value);
+      }
+
+      // Show success toast
+      const settingNames: Record<string, string> = {
+        sidebar_collapsed: 'Sidebar collapsed state',
+      };
+
+      const settingName = settingNames[key] || key;
+      const action = value ? 'enabled' : 'disabled';
+      toast.success(`${settingName} ${action}`);
+    } catch (error) {
+      console.error('Failed to update UI settings:', error);
+      const errorMessage =
+        error instanceof Error ? error.message : 'Failed to update UI settings';
+      toast.error(errorMessage);
+    } finally {
+      setSaving(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="space-y-6">
@@ -194,6 +222,34 @@ export function GeneralSettings() {
 
   return (
     <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle>UI Settings</CardTitle>
+          <CardDescription>
+            Configure interface preferences and layout options
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5">
+              <Label htmlFor="sidebar-collapsed">Remember sidebar state</Label>
+              <div className="text-sm text-muted-foreground">
+                Automatically restore the sidebar's collapsed/expanded state
+                when the app starts
+              </div>
+            </div>
+            <Switch
+              id="sidebar-collapsed"
+              checked={config.sidebar_collapsed}
+              onCheckedChange={checked =>
+                handleUISettingsChange('sidebar_collapsed', checked)
+              }
+              disabled={saving}
+            />
+          </div>
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader>
           <CardTitle>Language</CardTitle>

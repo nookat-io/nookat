@@ -34,7 +34,7 @@ export function useConfig() {
     }
 
     return unsubscribe;
-  }, [configService, config]);
+  }, [configService]); // Remove config from dependency array to prevent infinite loops
 
   const updateTheme = useCallback(
     async (theme: Theme) => {
@@ -98,6 +98,23 @@ export function useConfig() {
     [configService]
   );
 
+  const updateSidebarCollapsed = useCallback(
+    async (sidebar_collapsed: boolean) => {
+      try {
+        setError(null);
+        await configService.updateSidebarCollapsed(sidebar_collapsed);
+      } catch (err) {
+        setError(
+          err instanceof Error
+            ? err.message
+            : 'Failed to update sidebar collapsed state'
+        );
+        throw err;
+      }
+    },
+    [configService]
+  );
+
   const updateLastUpdateCheck = useCallback(async () => {
     try {
       setError(null);
@@ -134,6 +151,7 @@ export function useConfig() {
     updateLanguage,
     updateTelemetrySettings,
     updateStartupSettings,
+    updateSidebarCollapsed,
     updateLastUpdateCheck,
     reload,
   };
