@@ -26,6 +26,7 @@ const navigation = [
 export function Sidebar() {
   const { config, updateSidebarCollapsed } = useConfig();
   const [collapsed, setCollapsed] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const location = useLocation();
 
   // Initialize from config whenever config changes
@@ -36,14 +37,23 @@ export function Sidebar() {
   }, [config]);
 
   const handleToggleCollapsed = async () => {
-    const newCollapsed = !collapsed;
+    // Prevent rapid clicks while saving is in progress
+    if (isSaving) {
+      return;
+    }
+
+    setIsSaving(true);
 
     try {
-      await updateSidebarCollapsed(newCollapsed);
-      setCollapsed(newCollapsed);
+      // Use functional update to get the latest state value
+      await updateSidebarCollapsed(!collapsed);
+      // Update local state only after save succeeds
+      setCollapsed(prevCollapsed => !prevCollapsed);
     } catch (error) {
       console.error('Failed to persist sidebar state:', error);
-      // Keep current state on error
+      // Keep current state on error - don't update local state
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -72,6 +82,11 @@ export function Sidebar() {
           variant="ghost"
           size="sm"
           onClick={handleToggleCollapsed}
+          disabled={isSaving}
+          aria-busy={isSaving}
+          aria-pressed={!collapsed}
+          aria-expanded={!collapsed}
+          aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           draggable="false"
         >
           {collapsed ? (
