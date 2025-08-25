@@ -59,7 +59,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-22.04, macos-latest, windows-latest]
+        os: [ubuntu-22.04, macos-14, windows-2022]
         include:
           - os: ubuntu-22.04
             platform: linux
@@ -70,11 +70,11 @@ jobs:
                 libappindicator3-dev \
                 librsvg2-dev \
                 patchelf
-          - os: macos-latest
+          - os: macos-14
             platform: macos
             deps: |
               brew install pkg-config openssl
-          - os: windows-latest
+          - os: windows-2022
             platform: windows
             deps: |
               echo "Windows dependencies handled by Tauri"
