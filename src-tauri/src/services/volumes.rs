@@ -1,11 +1,11 @@
+use crate::entities::Volume;
+use bollard::container::ListContainersOptions;
+use bollard::volume::{ListVolumesOptions, PruneVolumesOptions, RemoveVolumeOptions};
+use bollard::Docker;
 use tracing::instrument;
 
 #[derive(Default, Debug)]
 pub struct VolumesService {}
-
-use crate::entities::Volume;
-use bollard::volume::{ListVolumesOptions, PruneVolumesOptions, RemoveVolumeOptions};
-use bollard::Docker;
 
 impl VolumesService {
     #[instrument(skip_all, err)]
@@ -19,8 +19,48 @@ impl VolumesService {
             .volumes
             .unwrap_or_default();
 
-        // Convert Bollard volumes to our custom Volume type
-        Ok(bollard_volumes.into_iter().map(Volume::from).collect())
+        // Get all containers to check volume usage
+        let containers_options = ListContainersOptions::<String> {
+            all: true,
+            ..Default::default()
+        };
+
+        let containers = docker
+            .list_containers(Some(containers_options))
+            .await
+            .map_err(|e| format!("Failed to list containers: {}", e))?;
+
+        // Convert Bollard volumes to our custom Volume type and determine usage
+        let mut volumes = Vec::new();
+        for bollard_volume in bollard_volumes {
+            let mut volume = Volume::from(bollard_volume);
+
+            // Determine if volume is in use by checking container mounts
+            let ref_count = containers
+                .iter()
+                .filter_map(|container| container.mounts.as_ref())
+                .flat_map(|mounts| mounts.iter())
+                .filter(|mount| {
+                    // For volumes, the 'name' field contains the volume name
+                    // The 'source' field contains the storage path, not the volume name
+                    if let Some(mount_name) = &mount.name {
+                        mount_name == &volume.name
+                    } else {
+                        false
+                    }
+                })
+                .count() as i64;
+
+            // Create usage data
+            volume.usage_data = Some(crate::entities::UsageData {
+                size: 0, // Docker doesn't provide volume size through this API
+                ref_count,
+            });
+
+            volumes.push(volume);
+        }
+
+        Ok(volumes)
     }
 
     #[instrument(skip_all, err)]
