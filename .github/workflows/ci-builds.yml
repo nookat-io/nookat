@@ -13,7 +13,7 @@ jobs:
   # Check if PR is ready for platform builds
   check-pr-status:
     name: Check PR Status
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     outputs:
       should_build: ${{ steps.check.outputs.should_build }}
       reason: ${{ steps.check.outputs.reason }}

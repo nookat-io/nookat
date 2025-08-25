@@ -37,7 +37,7 @@ on:
 
 jobs:
   build-macos:
-    runs-on: macos-latest
+    runs-on: macos-14
     permissions:
       contents: write
       packages: write
