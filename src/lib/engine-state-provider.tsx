@@ -6,12 +6,12 @@ import {
   ReactNode,
 } from 'react';
 import { invoke } from '@tauri-apps/api/core';
+import { listen } from '@tauri-apps/api/event';
 import { EngineState } from '../types/engine-state';
 import { Container } from '../components/containers/container-types';
 import { Image } from '../components/images/image-types';
 import { Volume } from '../components/volumes/volume-types';
 import { Network } from '../components/networks/network-types';
-import { useWebSocket } from '../hooks/use-websocket';
 
 interface EngineStateContext {
   engineState: EngineState | null;
@@ -43,56 +43,57 @@ export function EngineStateProvider({ children }: EngineStateProviderProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchEngineState = useCallback(async () => {
-    try {
-      setIsLoading(true);
-      setError(null);
-      const result = await invoke<EngineState>('get_engine_state');
-      setEngineState(result);
-    } catch (err) {
-      console.error('Error fetching engine state:', err);
-      setError(
-        err instanceof Error ? err.message : 'Failed to fetch engine state'
-      );
-    } finally {
-      setIsLoading(false);
-    }
+  // Start engine state monitoring when component mounts
+  useEffect(() => {
+    const startMonitoring = async () => {
+      try {
+        // Start the WebSocket server and engine state monitoring
+        await invoke('start_websocket_timestamp_service', { port: 8080 });
+        await invoke('start_engine_state_monitoring');
+        console.log('Engine state monitoring started');
+      } catch (err) {
+        console.error('Failed to start engine state monitoring:', err);
+        setError('Failed to start engine state monitoring');
+        setIsLoading(false);
+      }
+    };
+
+    startMonitoring();
   }, []);
 
-  // WebSocket connection for real-time updates
-  const { connection } = useWebSocket({
-    url: 'ws://localhost:8080',
-    autoConnect: true,
-    onMessage: message => {
-      if (message.message_type === 'engine_state_update') {
-        try {
-          const engineStateData = message.payload as unknown as EngineState;
-          setEngineState(engineStateData);
-          setError(null);
-        } catch (err) {
-          console.error('Error parsing engine state update:', err);
-        }
+  // Listen for engine state updates via Tauri events
+  useEffect(() => {
+    const unlisten = listen('engine_state_update', event => {
+      try {
+        const engineStateData = event.payload as EngineState;
+        setEngineState(engineStateData);
+        setError(null);
+        setIsLoading(false);
+      } catch (err) {
+        console.error('Error parsing engine state update:', err);
+        setError('Failed to parse engine state update');
       }
-    },
-    onError: error => {
-      console.error('WebSocket error:', error);
-      setError('WebSocket connection error');
-    },
-  });
+    });
 
-  // Start engine state monitoring when WebSocket connects
-  useEffect(() => {
-    if (connection.status === 'connected') {
-      invoke('start_engine_state_monitoring').catch(err => {
-        console.error('Failed to start engine state monitoring:', err);
-      });
-    }
-  }, [connection.status]);
+    return () => {
+      unlisten.then(f => f());
+    };
+  }, []);
 
-  // Initial fetch on mount
+  // Set loading to false after a timeout if no updates received
   useEffect(() => {
-    fetchEngineState();
-  }, [fetchEngineState]);
+    const timeout = setTimeout(() => {
+      if (isLoading && !engineState) {
+        setIsLoading(false);
+        setError('No engine state received from monitoring service');
+      }
+    }, 15000); // 15 second timeout
+
+    return () => clearTimeout(timeout);
+  }, [isLoading, engineState]);
+
+  // Remove the manual fetch - we now rely entirely on Tauri events
+  // The initial state will be received via events when the monitoring starts
 
   const updateContainer = useCallback((id: string, container: Container) => {
     setEngineState(prev => {

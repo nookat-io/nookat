@@ -126,11 +126,12 @@ pub async fn start_engine_state_monitoring(
 
     if monitor_guard.is_none() {
         // Create a new SharedEngineState instance
-        let shared_state = SharedEngineState::new(app);
+        let shared_state = SharedEngineState::new(app.clone());
 
         let monitor = Arc::new(EngineStateMonitor::new(
             WEBSOCKET_MANAGER.clone(),
             Arc::new(shared_state),
+            app,
         ));
 
         monitor

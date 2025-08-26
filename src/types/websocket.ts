@@ -4,12 +4,15 @@ export interface WebSocketMessage {
   timestamp: number;
 }
 
-// New engine state update message type
+// Engine state update message type - matches backend structure
 export interface EngineStateUpdateMessage {
-  type: 'engine_state_update';
-  data: Record<string, unknown>; // EngineState type - using Record for flexibility
-  timestamp: string;
+  message_type: string;
+  payload: Record<string, unknown>; // EngineState type - using Record for flexibility
+  timestamp: number;
 }
+
+// Union type for all possible WebSocket messages
+export type WebSocketMessageUnion = WebSocketMessage | EngineStateUpdateMessage;
 
 export interface WebSocketConnection {
   id: string;

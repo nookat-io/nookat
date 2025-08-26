@@ -43,7 +43,7 @@ impl WebSocketServer {
         }
     }
 
-    pub async fn start(&self) -> Result<(), Box<dyn std::error::Error>> {
+    pub async fn start(&self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         // Check if server is already running
         {
             let mut running = self.is_running.write().await;
@@ -78,7 +78,7 @@ impl WebSocketServer {
         *self.is_running.read().await
     }
 
-    pub async fn stop_server(&self) -> Result<(), Box<dyn std::error::Error>> {
+    pub async fn stop_server(&self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         let mut running = self.is_running.write().await;
         *running = false;
 
@@ -178,7 +178,10 @@ impl WebSocketServer {
     }
 
     // New method to broadcast messages to all connected clients
-    pub async fn broadcast_message(&self, message: &str) -> Result<(), Box<dyn std::error::Error>> {
+    pub async fn broadcast_message(
+        &self,
+        message: &str,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         let message_clone = message.to_string();
         let connections = self.connections.clone();
 
@@ -214,7 +217,7 @@ impl WebSocketServer {
         &self,
         connection_id: &str,
         message: WebSocketMessage,
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         let mut connections = self.connections.write().await;
         if let Some(ws_stream) = connections.get_mut(connection_id) {
             let message_json = serde_json::to_string(&message)?;
@@ -223,7 +226,9 @@ impl WebSocketServer {
         Ok(())
     }
 
-    pub async fn start_timestamp_service(&self) -> Result<(), Box<dyn std::error::Error>> {
+    pub async fn start_timestamp_service(
+        &self,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         let connections = self.connections.clone();
 
         tokio::spawn(async move {
@@ -280,7 +285,7 @@ impl WebSocketManager {
     pub async fn broadcast_engine_state_update(
         &self,
         engine_state: serde_json::Value,
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         let server_guard = self.server.read().await;
 
         if let Some(server) = server_guard.as_ref() {
@@ -301,7 +306,10 @@ impl WebSocketManager {
         Ok(())
     }
 
-    pub async fn start_server(&self, port: u16) -> Result<(), Box<dyn std::error::Error>> {
+    pub async fn start_server(
+        &self,
+        port: u16,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         let mut server_guard = self.server.write().await;
 
         // Check if server already exists and is running
@@ -332,7 +340,7 @@ impl WebSocketManager {
         Ok(())
     }
 
-    pub async fn stop_server(&self) -> Result<(), Box<dyn std::error::Error>> {
+    pub async fn stop_server(&self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         let mut server_guard = self.server.write().await;
 
         if let Some(server) = server_guard.as_ref() {

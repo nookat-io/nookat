@@ -34,7 +34,7 @@ pub enum HomebrewStatus {
     Installed(HomebrewVersion),
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct ColimaEngineInfo {
     pub colima_version: String,
     pub colima_checksum: Option<String>,
@@ -52,13 +52,13 @@ pub struct ContextInfo {
     pub available_contexts: Vec<String>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub enum EngineInfo {
     Colima(ColimaEngineInfo),
     Docker,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub enum EngineStatus {
     Unknown,
     Installed(EngineInfo),
