@@ -63,8 +63,9 @@ pub enum EngineInfo {
     Docker,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
 pub enum EngineStatus {
+    #[default]
     Unknown,
     Installed(EngineInfo),
     Running(EngineInfo),

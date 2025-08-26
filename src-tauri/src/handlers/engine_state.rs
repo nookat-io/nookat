@@ -62,7 +62,6 @@ pub async fn get_engine_state(state: State<'_, SharedEngineState>) -> Result<Eng
         networks,
         engine_status: engine.engine_status.clone(),
         docker_info: None, // TODO: Implement Docker info fetching in follow-up
-        last_prune_results: HashMap::new(), // TODO: Implement prune results tracking in follow-up
         version: 1,        // TODO: Implement versioning in follow-up
         last_updated: Utc::now(),
     };
