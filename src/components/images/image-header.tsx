@@ -4,7 +4,7 @@ import { Image } from './image-types';
 interface ImageHeaderProps {
   selectedImages: string[];
   images: Image[];
-  onActionComplete: () => void;
+  onActionComplete: (deletedImageId?: string) => void;
   onSelectionClear?: () => void;
 }
 

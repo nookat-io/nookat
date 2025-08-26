@@ -18,7 +18,7 @@ import { PruneResult } from './image-types';
 
 interface ImageActionsProps {
   selectedImages: string[];
-  onRefresh?: () => void;
+  onRefresh?: (deletedImageId?: string) => void;
   onSelectionClear?: () => void;
 }
 
@@ -70,7 +70,10 @@ export function ImageActions({
 
       // Refresh the image list after deletion
       if (onRefresh) {
-        onRefresh();
+        // Notify about each deleted image
+        for (const imageId of selectedImages) {
+          onRefresh(imageId);
+        }
       }
     } catch (error) {
       console.error('Error deleting images:', error);

@@ -7,7 +7,7 @@ import { useFilter } from '../utils/use-filter';
 import { PageLayout } from '../components/layout/page-layout';
 import { usePageAnalytics } from '../hooks/use-analytics';
 import { Image } from '../components/images/image-types';
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useCallback } from 'react';
 
 export default function ImagesPage() {
   usePageAnalytics('images');
@@ -21,7 +21,7 @@ export default function ImagesPage() {
     setSearchTerm,
   } = usePageState<'all' | 'used' | 'dangling'>('all');
 
-  const { engineState, isLoading, error } = useEngineState();
+  const { engineState, isLoading, error, removeImage } = useEngineState();
 
   // Convert images from Record to array for compatibility
   const images = useMemo(
@@ -49,13 +49,23 @@ export default function ImagesPage() {
     filterField: 'in_use',
   });
 
+  const handleActionComplete = useCallback(
+    (deletedImageId?: string) => {
+      // If a specific image was deleted, remove it from local state
+      if (deletedImageId && removeImage) {
+        removeImage(deletedImageId);
+      }
+    },
+    [removeImage]
+  );
+
   return (
     <PageLayout
       header={
         <ImageHeader
           selectedImages={selected}
           images={images}
-          onActionComplete={() => {}} // No longer needed with WebSocket updates
+          onActionComplete={handleActionComplete}
           onSelectionClear={() => setSelected([])}
         />
       }
@@ -72,7 +82,7 @@ export default function ImagesPage() {
           selectedImages={selected}
           onSelectionChange={setSelected}
           images={filteredImages}
-          onActionComplete={() => {}} // No longer needed with WebSocket updates
+          onActionComplete={handleActionComplete}
           isLoading={isLoading}
           error={error}
           onRetry={() => window.location.reload()}
