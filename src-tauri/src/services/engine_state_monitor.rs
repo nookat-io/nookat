@@ -9,7 +9,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use tauri::Emitter;
 use tokio::sync::Mutex;
-use tracing::{debug, error, info, warn};
+use tracing::{debug, error, warn};
 
 pub struct EngineStateMonitor {
     websocket_manager: Arc<WebSocketManager>,
@@ -115,7 +115,7 @@ impl EngineStateMonitor {
 
             // Try to get the engine and check for state changes
             match state.get_engine().await {
-                Ok(engine) =>
+                Ok(engine) => {
                     if let Some(docker) = &engine.docker {
                         if let Err(e) = Self::check_and_broadcast_state_changes(
                             docker,
@@ -128,7 +128,8 @@ impl EngineStateMonitor {
                         {
                             warn!("State change check error: {}", e);
                         }
-                    },
+                    }
+                }
                 Err(e) => {
                     debug!("Engine not available for monitoring: {}", e);
                 }

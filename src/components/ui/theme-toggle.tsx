@@ -1,7 +1,7 @@
 'use client';
 
 import { Moon, Sun, Monitor } from 'lucide-react';
-import { useThemeContext } from '../../lib/theme-provider';
+import { useThemeContext } from '../../hooks/use-theme-context';
 import { Theme } from '../../types/config';
 
 import { Button } from './button';

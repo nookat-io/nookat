@@ -7,7 +7,7 @@ import { useFilter } from '../utils/use-filter';
 import { PageLayout } from '../components/layout/page-layout';
 import { usePageAnalytics } from '../hooks/use-analytics';
 import { Image } from '../components/images/image-types';
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 
 export default function ImagesPage() {
   usePageAnalytics('images');
@@ -24,7 +24,10 @@ export default function ImagesPage() {
   const { engineState, isLoading, error } = useEngineState();
 
   // Convert images from Record to array for compatibility
-  const images = engineState ? Object.values(engineState.images) : [];
+  const images = useMemo(
+    () => (engineState ? Object.values(engineState.images) : []),
+    [engineState]
+  );
 
   // Filter out deleted images from selection
   useEffect(() => {

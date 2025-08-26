@@ -160,8 +160,8 @@ pub fn run() {
             app.manage(engine_state);
             Ok(build_tray(app)?)
         })
-        .on_window_event(|window, event| match event {
-            tauri::WindowEvent::CloseRequested { api, .. } => {
+        .on_window_event(|window, event| {
+            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
                 if let Ok(config) = ConfigService::get_config() {
                     if config.startup.minimize_to_tray {
                         if let Err(e) = window.hide() {
@@ -177,7 +177,6 @@ pub fn run() {
                 }
             }
             // There is no Minimized event in Tauri v2, so we can't handle minimize directly.
-            _ => {}
         })
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

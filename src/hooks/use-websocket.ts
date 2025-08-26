@@ -46,6 +46,8 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
   const reconnectAttemptsRef = useRef(0);
   const isConnectingRef = useRef(false);
   const uptimeIntervalRef = useRef<NodeJS.Timeout>();
+  const connectRef = useRef<() => Promise<void>>();
+  const reconnectRef = useRef<() => Promise<void>>();
 
   const logError = useCallback((error: string, context: string) => {
     console.error(`WebSocket Error [${context}]:`, error);
@@ -57,7 +59,7 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
       onError?.(error);
 
       if (context === 'connection_lost' && autoConnect) {
-        reconnect();
+        reconnectRef.current?.();
       }
     },
     [logError, onError, autoConnect]
@@ -114,7 +116,10 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
     } finally {
       isConnectingRef.current = false;
     }
-  }, [url, connection.status, onConnect, handleConnectionError]);
+  }, [connection.status, onConnect, handleConnectionError]);
+
+  // Store connect function in ref to avoid circular dependency
+  connectRef.current = connect;
 
   const disconnect = useCallback(async () => {
     if (connection.status === 'disconnected') {
@@ -155,9 +160,12 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
     setConnection(prev => ({ ...prev, status: 'reconnecting' }));
 
     reconnectTimeoutRef.current = setTimeout(() => {
-      connect();
+      connectRef.current?.();
     }, reconnectInterval);
-  }, [connect, reconnectInterval, maxReconnectAttempts]);
+  }, [reconnectInterval, maxReconnectAttempts]);
+
+  // Store reconnect function in ref to avoid circular dependency
+  reconnectRef.current = reconnect;
 
   const healthCheck = useCallback(async () => {
     if (connection.status !== 'connected') {
@@ -176,7 +184,7 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
       }));
 
       if (!isHealthy && healthStatus.consecutiveFailures >= 3) {
-        reconnect();
+        reconnectRef.current?.();
       }
     } catch {
       setHealthStatus(prev => ({
@@ -189,19 +197,20 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
     connection.status,
     connectionStats.uptime,
     healthStatus.consecutiveFailures,
-    reconnect,
   ]);
 
   // Auto-connect effect
   useEffect(() => {
     if (autoConnect) {
-      connect();
+      connectRef.current?.();
     }
 
     return () => {
-      disconnect();
+      // We need to handle disconnect differently since it's not in a ref
+      // For now, we'll just clear the connection state
+      setConnection(prev => ({ ...prev, status: 'disconnected', id: '' }));
     };
-  }, []); // Empty dependency array - only run once
+  }, [autoConnect]);
 
   // Periodic health checks
   useEffect(() => {

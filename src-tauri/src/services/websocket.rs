@@ -22,12 +22,6 @@ pub struct EngineStateUpdateMessage {
     pub timestamp: u64,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AuthMessage {
-    pub token: String,
-    pub timestamp: u64,
-}
-
 pub struct WebSocketServer {
     pub connections: Arc<RwLock<HashMap<String, WebSocketStream<TcpStream>>>>,
     port: u16,

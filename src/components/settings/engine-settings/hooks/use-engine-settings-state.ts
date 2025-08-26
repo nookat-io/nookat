@@ -125,16 +125,16 @@ export function useEngineSettingsState(): [
         const unlistenComplete = listen('installation-complete', async () => {
           setStep('complete');
           setColimaAvailable(true);
-          setProgress({
+          setProgress(prev => ({
             step: 'Installation Complete!',
             message:
               'Colima has been successfully installed. You can now start the engine.',
             percentage: 100,
             logs: [
-              ...progress.logs,
+              ...prev.logs,
               '[INFO] Colima installation completed successfully',
             ],
-          });
+          }));
         });
         unlistenPromises.push(unlistenComplete);
 

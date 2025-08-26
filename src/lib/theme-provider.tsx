@@ -1,15 +1,7 @@
-import React, { createContext, useContext, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { useConfig } from '../hooks/use-config';
 import { Theme } from '../types/config';
-
-type ThemeContextType = {
-  theme: string;
-  loading: boolean;
-  error: string | null;
-  updateTheme: (theme: Theme) => Promise<void>;
-};
-
-const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
+import { ThemeContext } from '../contexts/theme-context';
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const { config, loading, error, updateTheme } = useConfig();
@@ -61,12 +53,4 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       {children}
     </ThemeContext.Provider>
   );
-}
-
-export function useThemeContext() {
-  const context = useContext(ThemeContext);
-  if (context === undefined) {
-    throw new Error('useThemeContext must be used within a ThemeProvider');
-  }
-  return context;
 }

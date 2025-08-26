@@ -6,6 +6,7 @@ pub use self::docker_info::*;
 use serde::{Deserialize, Serialize};
 
 /// The state of the container engine
+#[allow(dead_code)]
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum EngineState {
     /// The container engine is not installed
@@ -18,6 +19,7 @@ pub enum EngineState {
     Malfunctioning,
 }
 
+#[allow(dead_code)]
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum ColimaStatus {
     Unknown,
@@ -26,8 +28,10 @@ pub enum ColimaStatus {
     NotInstalled,
 }
 
+#[allow(dead_code)]
 type HomebrewVersion = String;
 
+#[allow(dead_code)]
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum HomebrewStatus {
     Unknown,
@@ -45,6 +49,7 @@ pub struct ColimaEngineInfo {
     pub lima_download_url: Option<String>,
 }
 
+#[allow(dead_code)]
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ContextInfo {
     pub current_context: String,

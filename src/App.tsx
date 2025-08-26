@@ -1,7 +1,8 @@
 import { Routes, Route } from 'react-router-dom';
 import { Sidebar, Header } from './components/layout';
 import { Toaster } from './components/ui/sonner';
-import { ThemeProvider, useThemeContext } from './lib/theme-provider';
+import { ThemeProvider } from './lib/theme-provider';
+import { useThemeContext } from './hooks/use-theme-context';
 import { EngineStateProvider } from './lib/engine-state-provider';
 import { EngineStatusProvider } from './lib/engine-status-provider';
 import { SentryProvider } from './lib/sentry-provider';
