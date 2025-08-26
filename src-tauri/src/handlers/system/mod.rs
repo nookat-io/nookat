@@ -34,7 +34,7 @@ pub async fn open_url(app: tauri::AppHandle, url: String) -> Result<(), String> 
 pub async fn get_docker_info(state: State<'_, SharedEngineState>) -> Result<DockerInfo, String> {
     let engine = state.get_engine().await?;
 
-    let result = match engine.engine_status {
+    match engine.engine_status {
         EngineStatus::Running(EngineInfo::Docker) => {
             let docker = engine.docker.as_ref().ok_or("Docker not found")?;
             let info = docker
@@ -50,8 +50,7 @@ pub async fn get_docker_info(state: State<'_, SharedEngineState>) -> Result<Dock
         _ => {
             return Err("DockerInfo is not available".to_string());
         }
-    };
-    result
+    }
 }
 
 #[tauri::command]

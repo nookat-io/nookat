@@ -34,7 +34,7 @@ impl SharedEngineState {
                 debug!("Engine is found, checking if it is running");
                 if engine.is_running() {
                     debug!("Engine is running, returning it");
-                    Ok(engine.clone().into())
+                    Ok(engine.clone())
                 } else {
                     debug!("Engine is not running, trying to create a new one");
                     let new_engine = Arc::new(engine::create_engine(&self.app_handle).await?);

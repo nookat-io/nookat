@@ -5,7 +5,7 @@ use std::sync::Arc;
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::RwLock;
 use tokio_tungstenite::{accept_async, tungstenite::Message, WebSocketStream};
-use tracing::{error, info};
+use tracing::{debug, error, info};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WebSocketMessage {
@@ -48,7 +48,7 @@ impl WebSocketServer {
         {
             let mut running = self.is_running.write().await;
             if *running {
-                info!("WebSocket server already running on port {}", self.port);
+                debug!("WebSocket server already running on port {}", self.port);
                 return Ok(());
             }
             *running = true;
@@ -56,7 +56,7 @@ impl WebSocketServer {
 
         let addr = format!("127.0.0.1:{}", self.port);
         let listener = TcpListener::bind(&addr).await?;
-        info!("WebSocket server listening on {}", addr);
+        debug!("WebSocket server listening on {}", addr);
 
         while let Ok((stream, _)) = listener.accept().await {
             let connections = self.connections.clone();
@@ -78,18 +78,6 @@ impl WebSocketServer {
         *self.is_running.read().await
     }
 
-    pub async fn stop_server(&self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-        let mut running = self.is_running.write().await;
-        *running = false;
-
-        // Clear all connections
-        let mut connections = self.connections.write().await;
-        connections.clear();
-
-        info!("WebSocket server stopped on port {}", self.port);
-        Ok(())
-    }
-
     async fn handle_connection(
         stream: TcpStream,
         connections: Arc<RwLock<HashMap<String, WebSocketStream<TcpStream>>>>,
@@ -103,7 +91,7 @@ impl WebSocketServer {
         };
 
         let connection_id = uuid::Uuid::new_v4().to_string();
-        info!("New WebSocket connection: {}", connection_id);
+        debug!("New WebSocket connection: {}", connection_id);
 
         // Store connection
         {
@@ -113,22 +101,6 @@ impl WebSocketServer {
 
         // Handle messages
         Self::handle_messages(connection_id, connections).await;
-    }
-
-    async fn authenticate_connection(
-        _message: &WebSocketMessage,
-    ) -> Result<bool, Box<dyn std::error::Error>> {
-        // Implement authentication logic
-        // Verify token, check timestamp, etc.
-        // For now, return true as placeholder
-        Ok(true)
-    }
-
-    async fn validate_message(&self, _message: &WebSocketMessage) -> bool {
-        // Message validation logic
-        // Check message size, rate limiting, etc.
-        // For now, return true as placeholder
-        true
     }
 
     async fn handle_messages(
@@ -174,7 +146,7 @@ impl WebSocketServer {
         // Remove the connection when the loop ends
         let mut conns = connections.write().await;
         conns.remove(&connection_id);
-        info!("WebSocket connection {} removed", connection_id);
+        debug!("WebSocket connection {} removed", connection_id);
     }
 
     // New method to broadcast messages to all connected clients
@@ -210,19 +182,6 @@ impl WebSocketServer {
             });
         }
 
-        Ok(())
-    }
-
-    pub async fn send_to_connection(
-        &self,
-        connection_id: &str,
-        message: WebSocketMessage,
-    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-        let mut connections = self.connections.write().await;
-        if let Some(ws_stream) = connections.get_mut(connection_id) {
-            let message_json = serde_json::to_string(&message)?;
-            ws_stream.send(Message::Text(message_json)).await?;
-        }
         Ok(())
     }
 
@@ -315,7 +274,7 @@ impl WebSocketManager {
         // Check if server already exists and is running
         if let Some(server) = server_guard.as_ref() {
             if server.is_server_running().await {
-                info!("WebSocket server already running on port {}", port);
+                debug!("WebSocket server already running on port {}", port);
                 return Ok(());
             }
         }
@@ -337,17 +296,6 @@ impl WebSocketManager {
         *server_guard = Some(server);
         info!("WebSocket server started on port {}", port);
 
-        Ok(())
-    }
-
-    pub async fn stop_server(&self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-        let mut server_guard = self.server.write().await;
-
-        if let Some(server) = server_guard.as_ref() {
-            server.stop_server().await?;
-        }
-
-        *server_guard = None;
         Ok(())
     }
 

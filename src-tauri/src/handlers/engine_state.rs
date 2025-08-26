@@ -27,7 +27,7 @@ pub async fn get_engine_state(state: State<'_, SharedEngineState>) -> Result<Eng
     // Convert collections to HashMaps with appropriate keys
     let containers: HashMap<String, _> = containers_result
         .into_iter()
-        .filter_map(|c| {
+        .map(|c| {
             // Use container ID if available, otherwise use first name, or generate a key
             let key =
                 c.id.clone()
@@ -35,7 +35,7 @@ pub async fn get_engine_state(state: State<'_, SharedEngineState>) -> Result<Eng
                     .unwrap_or_else(|| {
                         format!("container_{}", c.image_id.as_deref().unwrap_or("unknown"))
                     });
-            Some((key, c))
+            (key, c)
         })
         .collect();
 

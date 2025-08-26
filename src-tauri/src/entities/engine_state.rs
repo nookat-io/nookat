@@ -1,6 +1,4 @@
-use crate::entities::{
-    Container, DockerInfo, EngineInfo, EngineStatus, Image, Network, PruneResult, Volume,
-};
+use crate::entities::{Container, DockerInfo, EngineStatus, Image, Network, PruneResult, Volume};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -38,21 +36,6 @@ impl Default for EngineState {
             last_prune_results: HashMap::new(),
             version: 0,
             last_updated: Utc::now(),
-        }
-    }
-}
-
-impl EngineState {
-    /// Create a new, empty engine state with unknown engine status.
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    /// Create a new engine state with a provided engine info, marking it as Installed.
-    pub fn with_engine_info(engine_info: EngineInfo) -> Self {
-        Self {
-            engine_status: EngineStatus::Installed(engine_info),
-            ..Self::default()
         }
     }
 }

@@ -7,7 +7,7 @@ use futures_util::StreamExt;
 use serde_json;
 use std::sync::Arc;
 use std::time::Duration;
-use tauri::{AppHandle, Emitter};
+use tauri::Emitter;
 use tokio::sync::Mutex;
 use tracing::{debug, error, info, warn};
 
@@ -39,7 +39,7 @@ impl EngineStateMonitor {
         let mut is_monitoring = self.is_monitoring.lock().await;
 
         if *is_monitoring {
-            info!("Engine state monitoring already running");
+            debug!("Engine state monitoring already running");
             return Ok(());
         }
 
@@ -66,15 +66,7 @@ impl EngineStateMonitor {
             }
         });
 
-        info!("Engine state monitoring started");
-        Ok(())
-    }
-
-    /// Stop monitoring Docker events
-    pub async fn stop_monitoring(&self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-        let mut is_monitoring = self.is_monitoring.lock().await;
-        *is_monitoring = false;
-        info!("Engine state monitoring stopped");
+        debug!("Engine state monitoring started");
         Ok(())
     }
 
@@ -274,7 +266,7 @@ impl EngineStateMonitor {
                 .broadcast_engine_state_update(engine_state_json)
                 .await?;
 
-            info!("Engine state updated and broadcasted via Tauri event and WebSocket");
+            debug!("Engine state updated and broadcasted via Tauri event and WebSocket");
         }
 
         Ok(())
@@ -361,31 +353,6 @@ impl EngineStateMonitor {
         };
 
         Ok(engine_state)
-    }
-
-    /// Broadcast the current engine state to all WebSocket clients
-    async fn broadcast_updated_state(
-        websocket_manager: &Arc<WebSocketManager>,
-        state: &Arc<SharedEngineState>,
-    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-        // Get the current engine state
-        let engine_state = match state.get_engine().await {
-            Ok(engine) =>
-                if let Some(docker) = &engine.docker {
-                    Self::fetch_current_engine_state(docker, state).await?
-                } else {
-                    return Ok(());
-                },
-            Err(_) => return Ok(()),
-        };
-
-        // Convert to JSON and broadcast
-        let engine_state_json = serde_json::to_value(engine_state)?;
-        websocket_manager
-            .broadcast_engine_state_update(engine_state_json)
-            .await?;
-
-        Ok(())
     }
 
     /// Helper function to fetch containers
