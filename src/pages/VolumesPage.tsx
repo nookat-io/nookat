@@ -36,7 +36,7 @@ export default function VolumesPage() {
         <VolumeHeader
           selectedVolumes={selected}
           volumes={volumes}
-          onActionComplete={() => {}} // No longer needed with WebSocket updates
+          onActionComplete={() => {}}
           onSelectionChange={setSelected}
         />
       }
@@ -53,7 +53,7 @@ export default function VolumesPage() {
           selectedVolumes={selected}
           onSelectionChange={setSelected}
           volumes={filteredVolumes}
-          onActionComplete={() => {}} // No longer needed with WebSocket updates
+          onActionComplete={() => {}}
           isLoading={isLoading}
           error={error}
           onRetry={() => window.location.reload()}

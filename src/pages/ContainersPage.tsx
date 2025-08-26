@@ -41,7 +41,7 @@ export default function ContainersPage() {
         <ContainerHeader
           selectedContainers={selected}
           containers={containers}
-          onActionComplete={() => {}} // No longer needed with WebSocket updates
+          onActionComplete={() => {}}
           onSelectionChange={setSelected}
         />
       }
@@ -58,7 +58,7 @@ export default function ContainersPage() {
           selectedContainers={selected}
           onSelectionChange={setSelected}
           containers={filteredContainers}
-          onActionComplete={() => {}} // No longer needed with WebSocket updates
+          onActionComplete={() => {}}
           isLoading={isLoading}
           error={error}
           onRetry={() => window.location.reload()}

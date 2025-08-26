@@ -47,8 +47,7 @@ export function EngineStateProvider({ children }: EngineStateProviderProps) {
   useEffect(() => {
     const startMonitoring = async () => {
       try {
-        // Start the WebSocket server and engine state monitoring
-        await invoke('start_websocket_timestamp_service', { port: 8080 });
+        // Start the engine state monitoring
         await invoke('start_engine_state_monitoring');
         console.log('Engine state monitoring started');
       } catch (err) {

@@ -178,48 +178,6 @@ impl WebSocketServer {
 
         Ok(())
     }
-
-    pub async fn start_timestamp_service(
-        &self,
-    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-        let connections = self.connections.clone();
-
-        tokio::spawn(async move {
-            let mut interval = tokio::time::interval(std::time::Duration::from_secs(1));
-
-            loop {
-                interval.tick().await;
-
-                let timestamp = chrono::Utc::now().timestamp();
-                let message = WebSocketMessage {
-                    message_type: "timestamp".to_string(),
-                    payload: serde_json::json!({
-                        "timestamp": timestamp,
-                        "formatted": chrono::Utc::now().to_rfc3339()
-                    }),
-                    timestamp: timestamp as u64,
-                };
-
-                let mut conns = connections.write().await;
-                let message_json = match serde_json::to_string(&message) {
-                    Ok(json) => json,
-                    Err(e) => {
-                        error!("Failed to serialize timestamp message: {}", e);
-                        continue;
-                    }
-                };
-
-                // Send to all connected clients
-                for (connection_id, ws_stream) in conns.iter_mut() {
-                    if let Err(e) = ws_stream.send(Message::Text(message_json.clone())).await {
-                        error!("Failed to send timestamp to {}: {}", connection_id, e);
-                    }
-                }
-            }
-        });
-
-        Ok(())
-    }
 }
 
 // Global WebSocket server manager
@@ -275,9 +233,6 @@ impl WebSocketManager {
 
         // Create new server instance
         let server = WebSocketServer::new(port);
-
-        // Start the timestamp service
-        server.start_timestamp_service().await?;
 
         // Start the server in a separate task
         let server_clone = server.clone();

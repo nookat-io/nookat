@@ -37,7 +37,7 @@ export default function NetworksPage() {
         <NetworkHeader
           selectedNetworks={selected}
           networks={networks}
-          onActionComplete={() => {}} // No longer needed with WebSocket updates
+          onActionComplete={() => {}}
           onSelectionChange={setSelected}
         />
       }
@@ -54,7 +54,7 @@ export default function NetworksPage() {
           selectedNetworks={selected}
           onSelectionChange={setSelected}
           networks={filteredNetworks}
-          onActionComplete={() => {}} // No longer needed with WebSocket updates
+          onActionComplete={() => {}}
           isLoading={isLoading}
           error={error}
           onRetry={() => window.location.reload()}

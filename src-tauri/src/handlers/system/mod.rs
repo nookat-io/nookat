@@ -87,15 +87,6 @@ pub async fn broadcast_websocket_message(
 
 #[tauri::command]
 #[instrument(skip_all, err)]
-pub async fn start_websocket_timestamp_service(port: u16) -> Result<(), String> {
-    WEBSOCKET_MANAGER
-        .start_server(port)
-        .await
-        .map_err(|e| e.to_string())
-}
-
-#[tauri::command]
-#[instrument(skip_all, err)]
 pub async fn get_websocket_status() -> Result<serde_json::Value, String> {
     let is_running = WEBSOCKET_MANAGER.is_server_running().await;
 
