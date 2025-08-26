@@ -4,6 +4,13 @@ export interface WebSocketMessage {
   timestamp: number;
 }
 
+// New engine state update message type
+export interface EngineStateUpdateMessage {
+  type: 'engine_state_update';
+  data: Record<string, unknown>; // EngineState type - using Record for flexibility
+  timestamp: string;
+}
+
 export interface WebSocketConnection {
   id: string;
   status: 'connected' | 'disconnected' | 'connecting' | 'reconnecting';

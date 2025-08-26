@@ -14,6 +14,14 @@ pub struct WebSocketMessage {
     pub timestamp: u64,
 }
 
+// New engine state update message type
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EngineStateUpdateMessage {
+    pub message_type: String,
+    pub payload: serde_json::Value,
+    pub timestamp: u64,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AuthMessage {
     pub token: String,
@@ -169,17 +177,34 @@ impl WebSocketServer {
         info!("WebSocket connection {} removed", connection_id);
     }
 
-    pub async fn broadcast_message(
-        &self,
-        message: WebSocketMessage,
-    ) -> Result<(), Box<dyn std::error::Error>> {
-        let mut connections = self.connections.write().await;
-        let message_json = serde_json::to_string(&message)?;
+    // New method to broadcast messages to all connected clients
+    pub async fn broadcast_message(&self, message: &str) -> Result<(), Box<dyn std::error::Error>> {
+        let message_clone = message.to_string();
+        let connections = self.connections.clone();
 
-        for (connection_id, ws_stream) in connections.iter_mut() {
-            if let Err(e) = ws_stream.send(Message::Text(message_json.clone())).await {
-                error!("Failed to send message to {}: {}", connection_id, e);
-            }
+        // Get a snapshot of connection IDs to avoid holding the lock during iteration
+        let connection_ids: Vec<String> = {
+            let conns = connections.read().await;
+            conns.keys().cloned().collect()
+        };
+
+        // Send message to each connection
+        for connection_id in connection_ids {
+            let message_clone = message_clone.clone();
+            let connections = connections.clone();
+
+            tokio::spawn(async move {
+                // Get a write lock for this specific connection
+                let mut conns = connections.write().await;
+                if let Some(stream) = conns.get_mut(&connection_id) {
+                    if let Err(e) = stream.send(Message::Text(message_clone)).await {
+                        error!(
+                            "Failed to send message to connection {}: {}",
+                            connection_id, e
+                        );
+                    }
+                }
+            });
         }
 
         Ok(())
@@ -249,6 +274,31 @@ impl WebSocketManager {
         Self {
             server: Arc::new(RwLock::new(None)),
         }
+    }
+
+    // New method to broadcast engine state updates
+    pub async fn broadcast_engine_state_update(
+        &self,
+        engine_state: serde_json::Value,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let server_guard = self.server.read().await;
+
+        if let Some(server) = server_guard.as_ref() {
+            let message = EngineStateUpdateMessage {
+                message_type: "engine_state_update".to_string(),
+                payload: engine_state,
+                timestamp: std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap_or_default()
+                    .as_millis() as u64,
+            };
+
+            // Convert to JSON and broadcast
+            let json_message = serde_json::to_string(&message)?;
+            server.broadcast_message(&json_message).await?;
+        }
+
+        Ok(())
     }
 
     pub async fn start_server(&self, port: u16) -> Result<(), Box<dyn std::error::Error>> {

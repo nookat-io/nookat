@@ -2,6 +2,8 @@ import { Routes, Route } from 'react-router-dom';
 import { Sidebar, Header } from './components/layout';
 import { Toaster } from './components/ui/sonner';
 import { ThemeProvider, useThemeContext } from './lib/theme-provider';
+import { EngineStateProvider } from './lib/engine-state-provider';
+import { EngineStatusProvider } from './lib/engine-status-provider';
 import { SentryProvider } from './lib/sentry-provider';
 import { LoadingScreen } from './components/ui/loading-spinner';
 import {
@@ -17,8 +19,7 @@ import NetworksPage from './pages/NetworksPage';
 import VolumesPage from './pages/VolumesPage';
 import SettingsPage from './pages/SettingsPage';
 import { usePageAnalytics } from './hooks/use-analytics';
-import { EngineStatusProvider } from './lib/engine-status-provider';
-import EngineErrorBoundary from './components/ui/engine-error';
+import EngineErrorGate from './components/ui/engine-error';
 function AppContent() {
   const { loading } = useThemeContext();
 
@@ -33,44 +34,46 @@ function AppContent() {
       <Sidebar />
       <div className="flex-1 flex flex-col min-w-0">
         <EngineStatusProvider>
-          <Header />
-          <main className="flex-1 overflow-auto">
-            <Routes>
-              <Route
-                path="/"
-                element={
-                  <EngineErrorBoundary>
-                    <ContainersPage />
-                  </EngineErrorBoundary>
-                }
-              />
-              <Route
-                path="/images"
-                element={
-                  <EngineErrorBoundary>
-                    <ImagesPage />
-                  </EngineErrorBoundary>
-                }
-              />
-              <Route
-                path="/networks"
-                element={
-                  <EngineErrorBoundary>
-                    <NetworksPage />
-                  </EngineErrorBoundary>
-                }
-              />
-              <Route
-                path="/volumes"
-                element={
-                  <EngineErrorBoundary>
-                    <VolumesPage />
-                  </EngineErrorBoundary>
-                }
-              />
-              <Route path="/settings" element={<SettingsPage />} />
-            </Routes>
-          </main>
+          <EngineStateProvider>
+            <Header />
+            <main className="flex-1 overflow-auto">
+              <Routes>
+                <Route
+                  path="/"
+                  element={
+                    <EngineErrorGate>
+                      <ContainersPage />
+                    </EngineErrorGate>
+                  }
+                />
+                <Route
+                  path="/images"
+                  element={
+                    <EngineErrorGate>
+                      <ImagesPage />
+                    </EngineErrorGate>
+                  }
+                />
+                <Route
+                  path="/networks"
+                  element={
+                    <EngineErrorGate>
+                      <NetworksPage />
+                    </EngineErrorGate>
+                  }
+                />
+                <Route
+                  path="/volumes"
+                  element={
+                    <EngineErrorGate>
+                      <VolumesPage />
+                    </EngineErrorGate>
+                  }
+                />
+                <Route path="/settings" element={<SettingsPage />} />
+              </Routes>
+            </main>
+          </EngineStateProvider>
         </EngineStatusProvider>
       </div>
       <Toaster />

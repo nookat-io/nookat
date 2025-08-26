@@ -1,17 +1,20 @@
 pub mod engine;
 
 use crate::entities::{DockerInfo, EngineInfo, EngineStatus};
+use crate::services::engine_state_monitor::EngineStateMonitor;
 use crate::services::websocket::WebSocketManager;
 use crate::state::SharedEngineState;
 pub use engine::*;
 use std::sync::Arc;
 use tauri::State;
 use tauri_plugin_opener::OpenerExt;
+use tokio::sync::Mutex;
 use tracing::instrument;
 
 // Global WebSocket manager instance
 lazy_static::lazy_static! {
     static ref WEBSOCKET_MANAGER: Arc<WebSocketManager> = Arc::new(WebSocketManager::new());
+    static ref ENGINE_STATE_MONITOR: Arc<Mutex<Option<Arc<EngineStateMonitor>>>> = Arc::new(Mutex::new(None));
 }
 
 #[tauri::command]
@@ -72,8 +75,10 @@ pub async fn broadcast_websocket_message(
             payload,
             timestamp: chrono::Utc::now().timestamp() as u64,
         };
+        let message_json = serde_json::to_string(&message)
+            .map_err(|e| format!("Failed to serialize message: {}", e))?;
         server
-            .broadcast_message(message)
+            .broadcast_message(&message_json)
             .await
             .map_err(|e| e.to_string())
     } else {
@@ -109,4 +114,32 @@ pub async fn get_websocket_status() -> Result<serde_json::Value, String> {
             "uptime": 0
         }))
     }
+}
+
+#[tauri::command]
+#[instrument(skip_all, err)]
+pub async fn start_engine_state_monitoring(
+    app: tauri::AppHandle,
+    _state: State<'_, SharedEngineState>,
+) -> Result<(), String> {
+    let mut monitor_guard = ENGINE_STATE_MONITOR.lock().await;
+
+    if monitor_guard.is_none() {
+        // Create a new SharedEngineState instance
+        let shared_state = SharedEngineState::new(app);
+
+        let monitor = Arc::new(EngineStateMonitor::new(
+            WEBSOCKET_MANAGER.clone(),
+            Arc::new(shared_state),
+        ));
+
+        monitor
+            .start_monitoring()
+            .await
+            .map_err(|e| format!("Failed to start engine state monitoring: {}", e))?;
+
+        *monitor_guard = Some(monitor);
+    }
+
+    Ok(())
 }

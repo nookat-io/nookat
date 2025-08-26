@@ -9,14 +9,14 @@ use crate::handlers::{
     bulk_remove_containers, bulk_remove_networks, bulk_remove_volumes, bulk_restart_containers,
     bulk_start_containers, bulk_stop_containers, bulk_unpause_containers,
     check_colima_availability, check_homebrew_availability, container_files, container_logs,
-    engine_status, force_remove_container, get_config, get_docker_info, get_language, get_theme,
-    get_websocket_status, inspect_volume, install_colima_command, list_containers, list_images,
-    list_networks, list_volumes, open_terminal, open_url, pause_container, prune_containers,
-    prune_images, prune_volumes, remove_container, remove_network, remove_volume,
-    restart_container, start_colima_vm_command, start_container, start_websocket_server,
-    start_websocket_timestamp_service, stop_container, unpause_container, update_language,
-    update_last_update_check, update_sidebar_collapsed, update_startup_settings,
-    update_telemetry_settings, update_theme,
+    engine_status, force_remove_container, get_config, get_docker_info, get_engine_state,
+    get_language, get_theme, get_websocket_status, inspect_volume, install_colima_command,
+    list_containers, list_images, list_networks, list_volumes, open_terminal, open_url,
+    pause_container, prune_containers, prune_images, prune_volumes, remove_container,
+    remove_network, remove_volume, restart_container, start_colima_vm_command, start_container,
+    start_engine_state_monitoring, start_websocket_server, start_websocket_timestamp_service,
+    stop_container, unpause_container, update_language, update_last_update_check,
+    update_sidebar_collapsed, update_startup_settings, update_telemetry_settings, update_theme,
 };
 use crate::sentry::flush_sentry;
 use crate::services::ConfigService;
@@ -142,6 +142,7 @@ pub fn run() {
             open_url,
             get_docker_info,
             engine_status,
+            get_engine_state,
             check_homebrew_availability,
             check_colima_availability,
             install_colima_command,
@@ -150,6 +151,7 @@ pub fn run() {
             broadcast_websocket_message,
             start_websocket_timestamp_service,
             get_websocket_status,
+            start_engine_state_monitoring,
         ])
         .setup(|app| {
             let engine_state = SharedEngineState::new(app.app_handle().clone());
