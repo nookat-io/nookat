@@ -19,7 +19,6 @@ import SettingsPage from './pages/SettingsPage';
 import { usePageAnalytics } from './hooks/use-analytics';
 import { EngineStatusProvider } from './lib/engine-status-provider';
 import EngineErrorBoundary from './components/ui/engine-error';
-
 function AppContent() {
   const { loading } = useThemeContext();
 
