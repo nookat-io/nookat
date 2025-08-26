@@ -22,3 +22,16 @@ pub async fn prune_images(state: State<'_, SharedEngineState>) -> Result<PruneRe
     let docker = engine.docker.as_ref().ok_or("Docker not found")?;
     ImagesService::perform_prune(docker).await
 }
+
+#[tauri::command]
+#[instrument(skip_all, err)]
+pub async fn delete_image(
+    state: State<'_, SharedEngineState>,
+    image_id: String,
+) -> Result<(), String> {
+    debug!("Deleting image: {}", image_id);
+
+    let engine = state.get_engine().await?;
+    let docker = engine.docker.as_ref().ok_or("Docker not found")?;
+    ImagesService::delete_image(docker, &image_id).await
+}

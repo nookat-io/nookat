@@ -19,17 +19,24 @@ import { PruneResult } from './image-types';
 interface ImageActionsProps {
   selectedImages: string[];
   onRefresh?: () => void;
+  onSelectionClear?: () => void;
 }
 
-export function ImageActions({ selectedImages, onRefresh }: ImageActionsProps) {
+export function ImageActions({
+  selectedImages,
+  onRefresh,
+  onSelectionClear,
+}: ImageActionsProps) {
   const [isPruning, setIsPruning] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [pruneDialogOpen, setPruneDialogOpen] = useState(false);
-  const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
+  const [confirmPruneDialogOpen, setConfirmPruneDialogOpen] = useState(false);
+  const [confirmDeleteDialogOpen, setConfirmDeleteDialogOpen] = useState(false);
   const [pruneResult, setPruneResult] = useState<PruneResult | null>(null);
 
   const handlePrune = async () => {
     setIsPruning(true);
-    setConfirmDialogOpen(false);
+    setConfirmPruneDialogOpen(false);
     try {
       const result = await invoke<PruneResult>('prune_images');
       setPruneResult(result);
@@ -46,15 +53,45 @@ export function ImageActions({ selectedImages, onRefresh }: ImageActionsProps) {
     }
   };
 
+  const handleDeleteSelected = async () => {
+    setIsDeleting(true);
+    setConfirmDeleteDialogOpen(false);
+
+    try {
+      // Delete each selected image
+      for (const imageId of selectedImages) {
+        await invoke('delete_image', { imageId });
+      }
+
+      // Clear the selection after successful deletion
+      if (onSelectionClear) {
+        onSelectionClear();
+      }
+
+      // Refresh the image list after deletion
+      if (onRefresh) {
+        onRefresh();
+      }
+    } catch (error) {
+      console.error('Error deleting images:', error);
+      alert('Failed to delete images: ' + error);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   return (
     <div className="flex items-center gap-2">
-      {/* Confirmation Dialog */}
-      <Dialog open={confirmDialogOpen} onOpenChange={setConfirmDialogOpen}>
+      {/* Prune Confirmation Dialog */}
+      <Dialog
+        open={confirmPruneDialogOpen}
+        onOpenChange={setConfirmPruneDialogOpen}
+      >
         <DialogTrigger asChild>
           <Button
             variant="outline"
             size="sm"
-            onClick={() => setConfirmDialogOpen(true)}
+            onClick={() => setConfirmPruneDialogOpen(true)}
             disabled={isPruning}
           >
             <Trash className="mr-2 h-4 w-4" />
@@ -72,7 +109,7 @@ export function ImageActions({ selectedImages, onRefresh }: ImageActionsProps) {
           <DialogFooter>
             <Button
               variant="outline"
-              onClick={() => setConfirmDialogOpen(false)}
+              onClick={() => setConfirmPruneDialogOpen(false)}
             >
               Cancel
             </Button>
@@ -87,7 +124,54 @@ export function ImageActions({ selectedImages, onRefresh }: ImageActionsProps) {
         </DialogContent>
       </Dialog>
 
-      {/* Results Dialog */}
+      {/* Delete Selected Confirmation Dialog */}
+      {selectedImages.length > 0 && (
+        <Dialog
+          open={confirmDeleteDialogOpen}
+          onOpenChange={setConfirmDeleteDialogOpen}
+        >
+          <DialogTrigger asChild>
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => setConfirmDeleteDialogOpen(true)}
+              disabled={isDeleting}
+            >
+              <Trash2 className="mr-2 h-4 w-4" />
+              {isDeleting
+                ? 'Deleting...'
+                : `Delete Selected (${selectedImages.length})`}
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Confirm Delete Operation</DialogTitle>
+              <DialogDescription>
+                This will permanently delete {selectedImages.length} selected
+                image{selectedImages.length > 1 ? 's' : ''}. This action cannot
+                be undone. Are you sure you want to continue?
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => setConfirmDeleteDialogOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={handleDeleteSelected}
+                disabled={isDeleting}
+              >
+                {isDeleting ? 'Deleting...' : 'Delete Images'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Prune Results Dialog */}
       <Dialog open={pruneDialogOpen} onOpenChange={setPruneDialogOpen}>
         <DialogContent>
           <DialogHeader>
@@ -125,13 +209,6 @@ export function ImageActions({ selectedImages, onRefresh }: ImageActionsProps) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      {selectedImages.length > 0 && (
-        <Button variant="destructive" size="sm">
-          <Trash2 className="mr-2 h-4 w-4" />
-          Delete Selected ({selectedImages.length})
-        </Button>
-      )}
     </div>
   );
 }

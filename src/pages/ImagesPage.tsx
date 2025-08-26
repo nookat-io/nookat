@@ -7,6 +7,7 @@ import { useFilter } from '../utils/use-filter';
 import { PageLayout } from '../components/layout/page-layout';
 import { usePageAnalytics } from '../hooks/use-analytics';
 import { Image } from '../components/images/image-types';
+import { useEffect } from 'react';
 
 export default function ImagesPage() {
   usePageAnalytics('images');
@@ -25,6 +26,21 @@ export default function ImagesPage() {
   // Convert images from Record to array for compatibility
   const images = engineState ? Object.values(engineState.images) : [];
 
+  // Filter out deleted images from selection
+  useEffect(() => {
+    if (images.length > 0 && selected.length > 0) {
+      const existingImageIds = new Set(images.map(img => img.id));
+      const validSelectedIds = selected.filter(id => existingImageIds.has(id));
+
+      if (validSelectedIds.length !== selected.length) {
+        setSelected(validSelectedIds);
+      }
+    } else if (images.length === 0 && selected.length > 0) {
+      // If no images exist, clear the selection
+      setSelected([]);
+    }
+  }, [images, selected, setSelected]);
+
   const filteredImages = useFilter<Image>(images, filter, searchTerm, {
     searchFields: ['repository', 'tag'],
     filterField: 'in_use',
@@ -37,6 +53,7 @@ export default function ImagesPage() {
           selectedImages={selected}
           images={images}
           onActionComplete={() => {}} // No longer needed with WebSocket updates
+          onSelectionClear={() => setSelected([])}
         />
       }
       controls={
