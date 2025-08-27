@@ -63,9 +63,6 @@
       ],
       "dialog": true,
       "pubkey": "YOUR_PUBLIC_KEY_HERE"
-    },
-    "websocket": {
-      "enabled": true
     }
   }
 }

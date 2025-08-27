@@ -5,6 +5,7 @@ use tauri::AppHandle;
 use tokio::sync::Mutex;
 use tracing::{debug, instrument};
 
+#[derive(Clone)]
 pub struct SharedEngineState {
     engine: Arc<Mutex<Option<Arc<Engine>>>>,
     app_handle: Arc<AppHandle>,

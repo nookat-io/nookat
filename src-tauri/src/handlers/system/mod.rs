@@ -54,22 +54,32 @@ pub async fn get_docker_info(state: State<'_, SharedEngineState>) -> Result<Dock
 #[instrument(skip_all, err)]
 pub async fn start_engine_state_monitoring(
     app: tauri::AppHandle,
-    _state: State<'_, SharedEngineState>,
+    state: State<'_, SharedEngineState>,
 ) -> Result<(), String> {
-    let mut monitor_guard = ENGINE_STATE_MONITOR.lock().await;
-
-    if monitor_guard.is_none() {
-        // Create a new SharedEngineState instance
-        let shared_state = SharedEngineState::new(app.clone());
-
-        let monitor = Arc::new(EngineStateMonitor::new(Arc::new(shared_state), app));
-
+    let monitor = {
+        let mut guard = ENGINE_STATE_MONITOR.lock().await;
+        if guard.as_ref().is_some() {
+            return Ok(());
+        }
+        let monitor = Arc::new(EngineStateMonitor::new(
+            Arc::new(state.inner().clone()),
+            app.clone(),
+        ));
+        *guard = Some(monitor.clone());
         monitor
-            .start_monitoring()
-            .await
-            .map_err(|e| format!("Failed to start engine state monitoring: {}", e))?;
+    };
 
-        *monitor_guard = Some(monitor);
+    if let Err(e) = monitor.start_monitoring().await {
+        // rollback if startup failed
+        let mut guard = ENGINE_STATE_MONITOR.lock().await;
+        if guard
+            .as_ref()
+            .map(|m| Arc::ptr_eq(m, &monitor))
+            .unwrap_or(false)
+        {
+            *guard = None;
+        }
+        return Err(format!("Failed to start engine state monitoring: {}", e));
     }
 
     Ok(())

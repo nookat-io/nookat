@@ -23,9 +23,6 @@ export interface EngineState {
   engine_status: EngineStatus;
   docker_info: DockerInfo | null;
 
-  // Prune operations tracking
-  last_prune_results: Record<string, PruneResult>;
-
   // Metadata
   version: number;
   last_updated: string; // ISO string from DateTime<Utc>

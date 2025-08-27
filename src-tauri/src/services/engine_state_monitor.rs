@@ -1,8 +1,12 @@
+use crate::entities::Engine;
 use crate::entities::EngineState;
 use crate::state::SharedEngineState;
 use bollard::system::EventsOptions;
 use bollard::Docker;
+use chrono::Utc;
 use futures_util::StreamExt;
+use serde_json;
+use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 use tauri::Emitter;
@@ -121,6 +125,11 @@ impl EngineStateMonitor {
                     {
                         warn!("State change check error: {}", e);
                     }
+                } else {
+                    // Docker is unavailable; emit status-only update so UI can reflect Unknown/NotRunning
+                    if let Err(e) = Self::emit_status_only(engine, &last_state, &app_handle).await {
+                        warn!("Status-only emit error: {}", e);
+                    }
                 }
             }
         }
@@ -221,12 +230,11 @@ impl EngineStateMonitor {
 
         match first_event_timeout {
             Ok(Some(event_result)) => {
-                // First event received, continue monitoring normally
+                // First event received, process it then continue monitoring normally
                 match event_result {
                     Ok(_event) => {
                         debug!("Docker event received, broadcasting state update");
 
-                        // Broadcast updated engine state immediately on Docker events
                         if let Err(e) = Self::check_and_broadcast_state_changes(
                             docker, state, last_state, app_handle,
                         )
@@ -236,40 +244,40 @@ impl EngineStateMonitor {
                         }
                     }
                     Err(e) => {
+                        // Log but do not return; proceed into main loop
                         warn!("Error reading first Docker event: {}", e);
-                        return Err(Box::new(e));
-                    }
-                }
-
-                // Continue monitoring remaining events
-                while let Some(event_result) = events.next().await {
-                    match event_result {
-                        Ok(_event) => {
-                            debug!("Docker event received, broadcasting state update");
-
-                            // Broadcast updated engine state immediately on Docker events
-                            if let Err(e) = Self::check_and_broadcast_state_changes(
-                                docker, state, last_state, app_handle,
-                            )
-                            .await
-                            {
-                                error!("Failed to broadcast updated state: {}", e);
-                            }
-                        }
-                        Err(e) => {
-                            warn!("Error reading Docker event: {}", e);
-                            return Err(Box::new(e));
-                        }
                     }
                 }
             }
             Ok(None) => {
-                // No events available, which is normal
+                // No events available yet; proceed to the main loop
                 debug!("No Docker events available");
             }
             Err(_) => {
-                // Timeout occurred. This can simply mean there were no events in the window.
+                // Timeout occurred; proceed to the main loop
                 debug!("No Docker events received within timeout window; continuing to monitor");
+            }
+        }
+
+        // Shared main loop for subsequent events
+        while let Some(event_result) = events.next().await {
+            match event_result {
+                Ok(_event) => {
+                    debug!("Docker event received, broadcasting state update");
+
+                    if let Err(e) = Self::check_and_broadcast_state_changes(
+                        docker, state, last_state, app_handle,
+                    )
+                    .await
+                    {
+                        error!("Failed to broadcast updated state: {}", e);
+                    }
+                }
+                Err(e) => {
+                    // Non-fatal read error; log and continue
+                    warn!("Error reading Docker event: {}", e);
+                    continue;
+                }
             }
         }
 
@@ -310,6 +318,50 @@ impl EngineStateMonitor {
 
             debug!("Engine state updated and broadcasted via Tauri event");
         }
+
+        Ok(())
+    }
+
+    /// Emit a status-only EngineState when Docker is unavailable
+    async fn emit_status_only(
+        engine: Arc<Engine>,
+        last_state: &Arc<Mutex<Option<EngineState>>>,
+        app_handle: &tauri::AppHandle,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        // Check previous status to avoid redundant emits
+        let should_emit = {
+            let last_state_guard = last_state.lock().await;
+            if let Some(ref previous) = *last_state_guard {
+                previous.engine_status != engine.engine_status
+            } else {
+                true
+            }
+        };
+
+        if !should_emit {
+            return Ok(());
+        }
+
+        // Construct a minimal EngineState with only status updated
+        let current = EngineState {
+            containers: HashMap::new(),
+            images: HashMap::new(),
+            volumes: HashMap::new(),
+            networks: HashMap::new(),
+            engine_status: engine.engine_status.clone(),
+            docker_info: None,
+            version: 1,
+            last_updated: Utc::now(),
+        };
+
+        // Update last_state
+        {
+            let mut last_state_guard = last_state.lock().await;
+            *last_state_guard = Some(current.clone());
+        }
+
+        // Emit event
+        app_handle.emit("engine_state_update", &serde_json::to_value(&current)?)?;
 
         Ok(())
     }

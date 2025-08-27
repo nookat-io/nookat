@@ -38,7 +38,6 @@ impl From<AppConfigV2> for VersionedAppConfig {
 mod tests {
     use super::*;
     use crate::entities::config::VersionedAppConfig;
-    use serde_json;
 
     #[test]
     fn test_v1_to_v2_migration() {
@@ -64,12 +63,12 @@ mod tests {
         // Verify migration
         assert_eq!(v2_config.theme, Theme::Dark);
         assert_eq!(v2_config.language, Language::Russian);
-        assert_eq!(v2_config.telemetry.send_anonymous_usage_data, true);
-        assert_eq!(v2_config.telemetry.error_reporting, false);
-        assert_eq!(v2_config.startup.start_on_system_startup, true);
-        assert_eq!(v2_config.startup.minimize_to_tray, false);
-        assert_eq!(v2_config.startup.check_for_updates, true);
-        assert_eq!(v2_config.startup.auto_update_settings, true);
+        assert!(v2_config.telemetry.send_anonymous_usage_data);
+        assert!(!v2_config.telemetry.error_reporting);
+        assert!(v2_config.startup.start_on_system_startup);
+        assert!(!v2_config.startup.minimize_to_tray);
+        assert!(v2_config.startup.check_for_updates);
+        assert!(v2_config.startup.auto_update_settings);
     }
 
     #[test]
