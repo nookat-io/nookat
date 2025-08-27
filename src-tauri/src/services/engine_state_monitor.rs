@@ -1,10 +1,8 @@
 use crate::entities::EngineState;
-use crate::services::websocket::WebSocketManager;
 use crate::state::SharedEngineState;
 use bollard::system::EventsOptions;
 use bollard::Docker;
 use futures_util::StreamExt;
-use serde_json;
 use std::sync::Arc;
 use std::time::Duration;
 use tauri::Emitter;
@@ -12,7 +10,6 @@ use tokio::sync::Mutex;
 use tracing::{debug, error, info, warn};
 
 pub struct EngineStateMonitor {
-    websocket_manager: Arc<WebSocketManager>,
     state: Arc<SharedEngineState>,
     is_monitoring: Arc<Mutex<bool>>,
     last_state: Arc<Mutex<Option<EngineState>>>,
@@ -20,13 +17,8 @@ pub struct EngineStateMonitor {
 }
 
 impl EngineStateMonitor {
-    pub fn new(
-        websocket_manager: Arc<WebSocketManager>,
-        state: Arc<SharedEngineState>,
-        app_handle: tauri::AppHandle,
-    ) -> Self {
+    pub fn new(state: Arc<SharedEngineState>, app_handle: tauri::AppHandle) -> Self {
         Self {
-            websocket_manager,
             state,
             is_monitoring: Arc::new(Mutex::new(false)),
             last_state: Arc::new(Mutex::new(None)),
@@ -46,22 +38,13 @@ impl EngineStateMonitor {
         *is_monitoring = true;
         drop(is_monitoring);
 
-        let websocket_manager = self.websocket_manager.clone();
         let state = self.state.clone();
         let is_monitoring = self.is_monitoring.clone();
         let last_state = self.last_state.clone();
         let app_handle = self.app_handle.clone();
 
         tokio::spawn(async move {
-            if let Err(e) = Self::monitor_loop(
-                websocket_manager,
-                state,
-                is_monitoring,
-                last_state,
-                app_handle,
-            )
-            .await
-            {
+            if let Err(e) = Self::monitor_loop(state, is_monitoring, last_state, app_handle).await {
                 error!("Engine state monitoring error: {}", e);
             }
         });
@@ -71,46 +54,30 @@ impl EngineStateMonitor {
     }
 
     /// Main monitoring loop that watches Docker events and polls state periodically
-    ///
-    /// This function manages both Docker events monitoring and periodic state checks:
-    /// - Automatically restarts Docker events monitoring on failures
-    /// - Limits restart attempts to prevent infinite loops
-    /// - Continues with periodic polling even when events monitoring fails
     async fn monitor_loop(
-        websocket_manager: Arc<WebSocketManager>,
         state: Arc<SharedEngineState>,
         is_monitoring: Arc<Mutex<bool>>,
         last_state: Arc<Mutex<Option<EngineState>>>,
         app_handle: tauri::AppHandle,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         // Start Docker events monitoring in a separate task
-        let websocket_manager_events = websocket_manager.clone();
         let state_events = state.clone();
         let last_state_events = last_state.clone();
         let is_monitoring_events = is_monitoring.clone();
         let app_handle_events = app_handle.clone();
 
-        let mut docker_events_task = tokio::spawn(async move {
-            if let Err(e) = Self::monitor_docker_events_continuously(
-                websocket_manager_events,
+        let docker_events_task = tokio::spawn(async move {
+            Self::monitor_docker_events_continuously(
                 state_events,
                 last_state_events,
                 is_monitoring_events,
                 app_handle_events,
             )
             .await
-            {
-                error!("Docker events monitoring failed: {}", e);
-                Err(e)
-            } else {
-                Ok(())
-            }
         });
 
         // Main polling loop for periodic state checks
         let mut interval = tokio::time::interval(Duration::from_secs(5));
-        let mut restart_attempts = 0;
-        const MAX_RESTART_ATTEMPTS: u32 = 3;
 
         loop {
             interval.tick().await;
@@ -123,7 +90,7 @@ impl EngineStateMonitor {
                 }
             }
 
-            // Check if Docker events monitoring task has failed and restart if needed
+            // Check if Docker events monitoring task has failed
             if docker_events_task.is_finished() {
                 match docker_events_task.await {
                     Ok(Ok(())) => {
@@ -132,70 +99,28 @@ impl EngineStateMonitor {
                     }
                     Ok(Err(e)) => {
                         warn!("Docker events monitoring failed: {}", e);
+                        break;
                     }
                     Err(e) => {
                         error!("Docker events monitoring task panicked: {}", e);
+                        break;
                     }
                 };
-
-                if restart_attempts < MAX_RESTART_ATTEMPTS {
-                    restart_attempts += 1;
-                    let delay = Duration::from_secs(5 * restart_attempts as u64);
-                    warn!(
-                        "Restarting Docker events monitoring in {:?} (attempt {}/{})",
-                        delay, restart_attempts, MAX_RESTART_ATTEMPTS
-                    );
-
-                    tokio::time::sleep(delay).await;
-
-                    // Restart the Docker events monitoring task
-                    let websocket_manager_events = websocket_manager.clone();
-                    let state_events = state.clone();
-                    let last_state_events = last_state.clone();
-                    let is_monitoring_events = is_monitoring.clone();
-                    let app_handle_events = app_handle.clone();
-
-                    docker_events_task = tokio::spawn(async move {
-                        if let Err(e) = Self::monitor_docker_events_continuously(
-                            websocket_manager_events,
-                            state_events,
-                            last_state_events,
-                            is_monitoring_events,
-                            app_handle_events,
-                        )
-                        .await
-                        {
-                            error!("Docker events monitoring failed on restart: {}", e);
-                            Err(e)
-                        } else {
-                            Ok(())
-                        }
-                    });
-                } else {
-                    error!("Max restart attempts ({}) reached for Docker events monitoring, continuing with periodic polling only", MAX_RESTART_ATTEMPTS);
-                    break;
-                }
             }
 
             // Try to get the engine and check for state changes
-            match state.get_engine().await {
-                Ok(engine) => {
-                    if let Some(docker) = &engine.docker {
-                        if let Err(e) = Self::check_and_broadcast_state_changes(
-                            docker,
-                            &websocket_manager,
-                            &state,
-                            &last_state,
-                            &app_handle,
-                        )
-                        .await
-                        {
-                            warn!("State change check error: {}", e);
-                        }
+            if let Ok(engine) = state.get_engine().await {
+                if let Some(docker) = &engine.docker {
+                    if let Err(e) = Self::check_and_broadcast_state_changes(
+                        docker,
+                        &state,
+                        &last_state,
+                        &app_handle,
+                    )
+                    .await
+                    {
+                        warn!("State change check error: {}", e);
                     }
-                }
-                Err(e) => {
-                    debug!("Engine not available for monitoring: {}", e);
                 }
             }
         }
@@ -203,24 +128,15 @@ impl EngineStateMonitor {
         Ok(())
     }
 
-    /// Continuously monitor Docker events without exiting
-    ///
-    /// This function implements intelligent error handling with:
-    /// - Exponential backoff for retries
-    /// - Maximum consecutive failure limits
-    /// - Graceful exit when Docker daemon is unavailable
-    /// - Reduced logging noise during connection issues
+    /// Continuously monitor Docker events
     async fn monitor_docker_events_continuously(
-        websocket_manager: Arc<WebSocketManager>,
         state: Arc<SharedEngineState>,
         last_state: Arc<Mutex<Option<EngineState>>>,
         is_monitoring: Arc<Mutex<bool>>,
         app_handle: tauri::AppHandle,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         let mut consecutive_failures = 0;
-        let max_consecutive_failures = 5;
-        let mut base_delay = Duration::from_secs(1);
-        const MAX_DELAY: Duration = Duration::from_secs(60); // Cap at 1 minute
+        const MAX_CONSECUTIVE_FAILURES: u32 = 5;
 
         loop {
             // Check if we should stop monitoring
@@ -235,57 +151,38 @@ impl EngineStateMonitor {
             match state.get_engine().await {
                 Ok(engine) => {
                     if let Some(docker) = &engine.docker {
-                        // Reset failure counter on success
                         consecutive_failures = 0;
-                        base_delay = Duration::from_secs(1);
 
-                        if let Err(e) = Self::monitor_docker_events(
-                            docker,
-                            &websocket_manager,
-                            &state,
-                            &last_state,
-                            &app_handle,
-                        )
-                        .await
+                        if let Err(e) =
+                            Self::monitor_docker_events(docker, &state, &last_state, &app_handle)
+                                .await
                         {
                             warn!("Docker events monitoring error: {}", e);
                             consecutive_failures += 1;
 
-                            if consecutive_failures >= max_consecutive_failures {
+                            if consecutive_failures >= MAX_CONSECUTIVE_FAILURES {
                                 error!("Too many consecutive Docker monitoring failures ({}), stopping monitoring", consecutive_failures);
                                 break;
                             }
 
-                            // Exponential backoff with jitter
-                            let delay = std::cmp::min(
-                                base_delay * 2_u32.pow(consecutive_failures as u32),
-                                MAX_DELAY,
-                            );
+                            let delay = Duration::from_secs(2_u64.pow(consecutive_failures));
                             tokio::time::sleep(delay).await;
                         }
                     } else {
-                        // No Docker instance available
                         consecutive_failures += 1;
-                        if consecutive_failures >= max_consecutive_failures {
+                        if consecutive_failures >= MAX_CONSECUTIVE_FAILURES {
                             error!("No Docker instance available after {} attempts, stopping monitoring", consecutive_failures);
                             break;
                         }
 
-                        let delay = std::cmp::min(
-                            base_delay * 2_u32.pow(consecutive_failures as u32),
-                            MAX_DELAY,
-                        );
-                        debug!(
-                            "No Docker instance available, retrying in {:?} (attempt {}/{})",
-                            delay, consecutive_failures, max_consecutive_failures
-                        );
+                        let delay = Duration::from_secs(2_u64.pow(consecutive_failures));
                         tokio::time::sleep(delay).await;
                     }
                 }
                 Err(e) => {
                     consecutive_failures += 1;
 
-                    if consecutive_failures >= max_consecutive_failures {
+                    if consecutive_failures >= MAX_CONSECUTIVE_FAILURES {
                         error!(
                             "Engine not available after {} attempts: {}. Stopping monitoring.",
                             consecutive_failures, e
@@ -293,20 +190,7 @@ impl EngineStateMonitor {
                         break;
                     }
 
-                    let delay = std::cmp::min(
-                        base_delay * 2_u32.pow(consecutive_failures as u32),
-                        MAX_DELAY,
-                    );
-
-                    if consecutive_failures == 1 {
-                        warn!("Engine not available for monitoring: {}. Will retry with exponential backoff.", e);
-                    } else {
-                        debug!(
-                            "Engine still not available (attempt {}/{}), retrying in {:?}",
-                            consecutive_failures, max_consecutive_failures, delay
-                        );
-                    }
-
+                    let delay = Duration::from_secs(2_u64.pow(consecutive_failures));
                     tokio::time::sleep(delay).await;
                 }
             }
@@ -319,7 +203,6 @@ impl EngineStateMonitor {
     /// Monitor Docker events and broadcast state changes
     async fn monitor_docker_events(
         docker: &Docker,
-        websocket_manager: &Arc<WebSocketManager>,
         state: &Arc<SharedEngineState>,
         last_state: &Arc<Mutex<Option<EngineState>>>,
         app_handle: &tauri::AppHandle,
@@ -340,16 +223,12 @@ impl EngineStateMonitor {
             Ok(Some(event_result)) => {
                 // First event received, continue monitoring normally
                 match event_result {
-                    Ok(event) => {
-                        debug!("Docker event received: {:?}", event);
+                    Ok(_event) => {
+                        debug!("Docker event received, broadcasting state update");
 
                         // Broadcast updated engine state immediately on Docker events
                         if let Err(e) = Self::check_and_broadcast_state_changes(
-                            docker,
-                            websocket_manager,
-                            state,
-                            last_state,
-                            app_handle,
+                            docker, state, last_state, app_handle,
                         )
                         .await
                         {
@@ -365,16 +244,12 @@ impl EngineStateMonitor {
                 // Continue monitoring remaining events
                 while let Some(event_result) = events.next().await {
                     match event_result {
-                        Ok(event) => {
-                            debug!("Docker event received: {:?}", event);
+                        Ok(_event) => {
+                            debug!("Docker event received, broadcasting state update");
 
                             // Broadcast updated engine state immediately on Docker events
                             if let Err(e) = Self::check_and_broadcast_state_changes(
-                                docker,
-                                websocket_manager,
-                                state,
-                                last_state,
-                                app_handle,
+                                docker, state, last_state, app_handle,
                             )
                             .await
                             {
@@ -393,9 +268,8 @@ impl EngineStateMonitor {
                 debug!("No Docker events available");
             }
             Err(_) => {
-                // Timeout occurred - likely no Docker daemon running
-                warn!("Timeout waiting for Docker events - daemon may not be running");
-                return Err("Docker daemon not responding".into());
+                // Timeout occurred. This can simply mean there were no events in the window.
+                debug!("No Docker events received within timeout window; continuing to monitor");
             }
         }
 
@@ -405,7 +279,6 @@ impl EngineStateMonitor {
     /// Check for state changes and broadcast if changes are detected
     async fn check_and_broadcast_state_changes(
         docker: &Docker,
-        websocket_manager: &Arc<WebSocketManager>,
         state: &Arc<SharedEngineState>,
         last_state: &Arc<Mutex<Option<EngineState>>>,
         app_handle: &tauri::AppHandle,
@@ -435,12 +308,7 @@ impl EngineStateMonitor {
             let engine_state_json = serde_json::to_value(&current_state)?;
             app_handle.emit("engine_state_update", &engine_state_json)?;
 
-            // Also broadcast via WebSocket for any external clients
-            websocket_manager
-                .broadcast_engine_state_update(engine_state_json)
-                .await?;
-
-            debug!("Engine state updated and broadcasted via Tauri event and WebSocket");
+            debug!("Engine state updated and broadcasted via Tauri event");
         }
 
         Ok(())
@@ -463,27 +331,11 @@ impl EngineStateMonitor {
             }
         }
 
-        // Check images
-        if old_state.images.len() != new_state.images.len() {
-            return true;
-        }
-
-        // Check volumes
-        if old_state.volumes.len() != new_state.volumes.len() {
-            return true;
-        }
-
-        // Check networks
-        if old_state.networks.len() != new_state.networks.len() {
-            return true;
-        }
-
-        // Check engine status
-        if old_state.engine_status != new_state.engine_status {
-            return true;
-        }
-
-        false
+        // Check other entities for changes
+        old_state.images.len() != new_state.images.len()
+            || old_state.volumes.len() != new_state.volumes.len()
+            || old_state.networks.len() != new_state.networks.len()
+            || old_state.engine_status != new_state.engine_status
     }
 
     /// Fetch the current engine state from Docker

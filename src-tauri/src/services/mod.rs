@@ -7,7 +7,6 @@ mod networks;
 pub(crate) mod shell;
 mod updater;
 mod volumes;
-pub mod websocket;
 
 pub use config::*;
 pub use containers::*;
