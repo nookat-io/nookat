@@ -1,14 +1,15 @@
-import { createContext, useContext } from 'react';
+import { useContext } from 'react';
+import { EngineContext } from '../lib/engine-provider';
 import type { EngineContextValue } from '../types/engine-status';
 
-export const EngineStatusContext = createContext<
-  EngineContextValue | undefined
->(undefined);
-
-export function useEngineStatus() {
-  const ctx = useContext(EngineStatusContext);
+export function useEngineStatus(): EngineContextValue {
+  const ctx = useContext(EngineContext);
   if (!ctx) {
-    throw new Error('useEngineStatus must be inside EngineStatusProvider');
+    throw new Error('useEngineStatus must be inside EngineProvider');
   }
-  return ctx;
+  return {
+    status: ctx.status,
+    refetch: ctx.refetch,
+    isChecking: ctx.isChecking,
+  };
 }

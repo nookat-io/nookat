@@ -1,12 +1,22 @@
 import { useContext } from 'react';
-import { EngineStateContext } from '../lib/engine-state-provider';
+import { EngineContext } from '../lib/engine-provider';
 
 export function useEngineState() {
-  const context = useContext(EngineStateContext);
+  const context = useContext(EngineContext);
   if (context === undefined) {
-    throw new Error(
-      'useEngineState must be used within an EngineStateProvider'
-    );
+    throw new Error('useEngineState must be used within an EngineProvider');
   }
-  return context;
+  return {
+    engineState: context.engineState,
+    isLoading: context.isLoading,
+    error: context.error,
+    updateContainer: context.updateContainer,
+    updateImage: context.updateImage,
+    updateVolume: context.updateVolume,
+    updateNetwork: context.updateNetwork,
+    removeContainer: context.removeContainer,
+    removeImage: context.removeImage,
+    removeVolume: context.removeVolume,
+    removeNetwork: context.removeNetwork,
+  };
 }

@@ -3,8 +3,7 @@ import { Sidebar, Header } from './components/layout';
 import { Toaster } from './components/ui/sonner';
 import { ThemeProvider } from './lib/theme-provider';
 import { useThemeContext } from './hooks/use-theme-context';
-import { EngineStateProvider } from './lib/engine-state-provider';
-import { EngineStatusProvider } from './lib/engine-status-provider';
+import { EngineProvider } from './lib/engine-provider';
 import { SentryProvider } from './lib/sentry-provider';
 import { LoadingScreen } from './components/ui/loading-spinner';
 import {
@@ -34,48 +33,46 @@ function AppContent() {
     <div className="h-screen flex pt-6" data-tauri-drag-region>
       <Sidebar />
       <div className="flex-1 flex flex-col min-w-0">
-        <EngineStatusProvider>
-          <EngineStateProvider>
-            <Header />
-            <main className="flex-1 overflow-auto">
-              <Routes>
-                <Route
-                  path="/"
-                  element={
-                    <EngineErrorGate>
-                      <ContainersPage />
-                    </EngineErrorGate>
-                  }
-                />
-                <Route
-                  path="/images"
-                  element={
-                    <EngineErrorGate>
-                      <ImagesPage />
-                    </EngineErrorGate>
-                  }
-                />
-                <Route
-                  path="/networks"
-                  element={
-                    <EngineErrorGate>
-                      <NetworksPage />
-                    </EngineErrorGate>
-                  }
-                />
-                <Route
-                  path="/volumes"
-                  element={
-                    <EngineErrorGate>
-                      <VolumesPage />
-                    </EngineErrorGate>
-                  }
-                />
-                <Route path="/settings" element={<SettingsPage />} />
-              </Routes>
-            </main>
-          </EngineStateProvider>
-        </EngineStatusProvider>
+        <EngineProvider>
+          <Header />
+          <main className="flex-1 overflow-auto">
+            <Routes>
+              <Route
+                path="/"
+                element={
+                  <EngineErrorGate>
+                    <ContainersPage />
+                  </EngineErrorGate>
+                }
+              />
+              <Route
+                path="/images"
+                element={
+                  <EngineErrorGate>
+                    <ImagesPage />
+                  </EngineErrorGate>
+                }
+              />
+              <Route
+                path="/networks"
+                element={
+                  <EngineErrorGate>
+                    <NetworksPage />
+                  </EngineErrorGate>
+                }
+              />
+              <Route
+                path="/volumes"
+                element={
+                  <EngineErrorGate>
+                    <VolumesPage />
+                  </EngineErrorGate>
+                }
+              />
+              <Route path="/settings" element={<SettingsPage />} />
+            </Routes>
+          </main>
+        </EngineProvider>
       </div>
       <Toaster />
     </div>

@@ -3,20 +3,30 @@ import {
   useState,
   useEffect,
   useCallback,
+  useRef,
   ReactNode,
 } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { EngineState } from '../types/engine-state';
+import { EngineStatus } from '../types/engine-status';
 import { Container } from '../components/containers/container-types';
 import { Image } from '../components/images/image-types';
 import { Volume } from '../components/volumes/volume-types';
 import { Network } from '../components/networks/network-types';
 
-interface EngineStateContext {
+interface EngineContext {
+  // Engine status related
+  status: EngineStatus;
+  refetch: () => Promise<void>;
+  isChecking: boolean;
+
+  // Engine state related
   engineState: EngineState | null;
   isLoading: boolean;
   error: string | null;
+
+  // CRUD operations
   updateContainer: (id: string, container: Container) => void;
   updateImage: (id: string, image: Image) => void;
   updateVolume: (name: string, volume: Volume) => void;
@@ -27,21 +37,93 @@ interface EngineStateContext {
   removeNetwork: (name: string) => void;
 }
 
-const EngineStateContext = createContext<EngineStateContext | undefined>(
-  undefined
-);
+const EngineContext = createContext<EngineContext | undefined>(undefined);
 
 // Export the context for use in the hook
-export { EngineStateContext };
+export { EngineContext };
 
-interface EngineStateProviderProps {
+interface EngineProviderProps {
   children: ReactNode;
 }
 
-export function EngineStateProvider({ children }: EngineStateProviderProps) {
+export function EngineProvider({ children }: EngineProviderProps) {
+  // Engine status state
+  const [engineStatus, setEngineStatus] = useState<EngineStatus>('Unknown');
+  const [isChecking, setIsChecking] = useState(false);
+
+  // Engine state
   const [engineState, setEngineState] = useState<EngineState | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // ref to track mounted state so async fetch can avoid updating after unmount
+  const mountedRef = useRef(true);
+  // ref to track the interval ID for cleanup
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const fetchEngineInfo = useCallback(async (showLoading = false) => {
+    if (!mountedRef.current) return;
+
+    if (showLoading) {
+      setIsChecking(true);
+    }
+
+    try {
+      const backendStatus = await invoke<EngineStatus>('engine_status');
+      if (!mountedRef.current) return;
+
+      // Validate that we received a valid status
+      if (!backendStatus) {
+        setEngineStatus('Unknown');
+        return;
+      }
+
+      // Check if it's a string (Unknown) or an object (Installed/Running)
+      if (typeof backendStatus === 'string') {
+        if (backendStatus !== 'Unknown') {
+          setEngineStatus('Unknown');
+          return;
+        }
+      } else if (typeof backendStatus === 'object') {
+        // Should have either Installed or Running key
+        if (!('Installed' in backendStatus) && !('Running' in backendStatus)) {
+          setEngineStatus('Unknown');
+          return;
+        }
+      } else {
+        setEngineStatus('Unknown');
+        return;
+      }
+
+      // If the status is "Running", actively test the connection to ensure it's still reachable
+      if (typeof backendStatus === 'object' && 'Running' in backendStatus) {
+        try {
+          // Test the actual connection by calling get_docker_info
+          // This will fail if the Docker daemon becomes unavailable
+          await invoke('get_docker_info');
+        } catch {
+          // If the connection test fails, the engine is no longer reachable
+          setEngineStatus('Unknown');
+          return;
+        }
+      }
+
+      setEngineStatus(backendStatus);
+    } catch {
+      if (!mountedRef.current) return;
+      // When there's an error, set status to Unknown
+      setEngineStatus('Unknown');
+    } finally {
+      if (mountedRef.current) {
+        setIsChecking(false);
+      }
+    }
+  }, []);
+
+  // Manual refresh function for user-initiated status checks
+  const manualRefresh = useCallback(async () => {
+    await fetchEngineInfo(true); // Show loading state for manual refresh
+  }, [fetchEngineInfo]);
 
   // Start engine state monitoring when component mounts
   useEffect(() => {
@@ -68,6 +150,11 @@ export function EngineStateProvider({ children }: EngineStateProviderProps) {
         setEngineState(engineStateData);
         setError(null);
         setIsLoading(false);
+
+        // Update engine status from the state update if available
+        if (engineStateData.engine_status) {
+          setEngineStatus(engineStateData.engine_status);
+        }
       } catch (err) {
         console.error('Error parsing engine state update:', err);
         setError('Failed to parse engine state update');
@@ -91,9 +178,27 @@ export function EngineStateProvider({ children }: EngineStateProviderProps) {
     return () => clearTimeout(timeout);
   }, [isLoading, engineState]);
 
-  // Remove the manual fetch - we now rely entirely on Tauri events
-  // The initial state will be received via events when the monitoring starts
+  // Engine status polling effect
+  useEffect(() => {
+    mountedRef.current = true;
 
+    // Initial fetch
+    fetchEngineInfo(true);
+
+    // Check status every second
+    intervalRef.current = setInterval(() => {
+      fetchEngineInfo(false);
+    }, 1000);
+
+    return () => {
+      mountedRef.current = false;
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
+    };
+  }, [fetchEngineInfo]);
+
+  // CRUD operations
   const updateContainer = useCallback((id: string, container: Container) => {
     setEngineState(prev => {
       if (!prev) return prev;
@@ -194,10 +299,18 @@ export function EngineStateProvider({ children }: EngineStateProviderProps) {
     });
   }, []);
 
-  const contextValue: EngineStateContext = {
+  const contextValue: EngineContext = {
+    // Engine status
+    status: engineStatus,
+    refetch: manualRefresh,
+    isChecking,
+
+    // Engine state
     engineState,
     isLoading,
     error,
+
+    // CRUD operations
     updateContainer,
     updateImage,
     updateVolume,
@@ -209,8 +322,8 @@ export function EngineStateProvider({ children }: EngineStateProviderProps) {
   };
 
   return (
-    <EngineStateContext.Provider value={contextValue}>
+    <EngineContext.Provider value={contextValue}>
       {children}
-    </EngineStateContext.Provider>
+    </EngineContext.Provider>
   );
 }
