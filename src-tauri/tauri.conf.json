@@ -5,13 +5,14 @@
   "identifier": "io.nookat",
   "build": {
     "beforeDevCommand": "npm run dev",
-    "devUrl": "http://localhost:1420",
     "beforeBuildCommand": "npm run build",
+    "devUrl": "http://localhost:1420",
     "frontendDist": "../dist"
   },
   "app": {
     "windows": [
       {
+        "label": "main",
         "title": "Nookat",
         "width": 1280,
         "height": 800,
@@ -22,7 +23,23 @@
         "titleBarStyle": "Overlay",
         "resizable": true,
         "center": true,
-        "maximizable": true
+        "maximizable": true,
+        "visible": false,
+        "url": "/"
+      },
+      {
+        "label": "splashscreen",
+        "title": "Nookat - Starting...",
+        "width": 400,
+        "height": 300,
+        "decorations": false,
+        "transparent": true,
+        "center": true,
+        "visible": true,
+        "resizable": false,
+        "maximizable": false,
+        "minimizable": false,
+        "url": "/#/splashscreen"
       }
     ],
     "security": {
@@ -33,36 +50,12 @@
   "bundle": {
     "active": true,
     "targets": "all",
-    "createUpdaterArtifacts": true,
     "icon": [
       "icons/32x32.png",
-      "icons/64x64.png",
       "icons/128x128.png",
       "icons/128x128@2x.png",
       "icons/icon.icns",
-      "icons/icon.ico",
-      "icons/icon.png",
-      "icons/icon_512x512.png",
-      "icons/Square30x30Logo.png",
-      "icons/Square44x44Logo.png",
-      "icons/Square71x71Logo.png",
-      "icons/Square89x89Logo.png",
-      "icons/Square107x107Logo.png",
-      "icons/Square142x142Logo.png",
-      "icons/Square150x150Logo.png",
-      "icons/Square284x284Logo.png",
-      "icons/Square310x310Logo.png",
-      "icons/StoreLogo.png"
+      "icons/icon.ico"
     ]
-  },
-  "plugins": {
-    "updater": {
-      "active": true,
-      "endpoints": [
-        "https://github.com/nookat-io/nookat/releases/latest/download/latest.json"
-      ],
-      "dialog": true,
-      "pubkey": "YOUR_PUBLIC_KEY_HERE"
-    }
   }
 }

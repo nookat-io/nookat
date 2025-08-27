@@ -1,14 +1,15 @@
-use crate::entities::Engine;
-use crate::services::engine;
 use std::sync::Arc;
 use tauri::AppHandle;
 use tokio::sync::Mutex;
 use tracing::{debug, instrument};
 
+use crate::entities::Engine;
+use crate::services::engine;
+
 #[derive(Clone)]
 pub struct SharedEngineState {
     engine: Arc<Mutex<Option<Arc<Engine>>>>,
-    app_handle: Arc<AppHandle>,
+    pub app_handle: Arc<AppHandle>,
 }
 
 impl SharedEngineState {
