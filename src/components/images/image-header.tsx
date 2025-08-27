@@ -4,13 +4,15 @@ import { Image } from './image-types';
 interface ImageHeaderProps {
   selectedImages: string[];
   images: Image[];
-  onActionComplete: () => void;
+  onActionComplete: (deletedImageId?: string) => void;
+  onSelectionClear?: () => void;
 }
 
 export function ImageHeader({
   selectedImages,
   images,
   onActionComplete,
+  onSelectionClear,
 }: ImageHeaderProps) {
   return (
     <div className="border border-border/50 rounded-2xl p-6 dark:bg-card/50 w-full flex flex-col items-start justify-start">
@@ -27,6 +29,7 @@ export function ImageHeader({
           <ImageActions
             selectedImages={selectedImages}
             onRefresh={onActionComplete}
+            onSelectionClear={onSelectionClear}
           />
         </div>
       </div>

@@ -86,8 +86,7 @@ async fn install_colima_via_homebrew(app_handle: &AppHandle) -> Result<(), Strin
     // Wait for installation to complete
     let result = installation_handle
         .await
-        .map_err(|e| format!("Installation task failed: {}", e))?
-        .and_then(|r| Ok(r));
+        .map_err(|e| format!("Installation task failed: {}", e))?;
 
     // Send completion event
     let app_handle_for_events = app_handle.clone();
@@ -211,8 +210,7 @@ pub async fn start_colima_vm(app_handle: &AppHandle, config: ColimaConfig) -> Re
     // Wait for VM startup to complete
     let result = vm_handle
         .await
-        .map_err(|e| format!("VM startup task failed: {}", e))?
-        .and_then(|r| Ok(r));
+        .map_err(|e| format!("VM startup task failed: {}", e))?;
 
     // Send completion event
     match &result {

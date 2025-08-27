@@ -11,7 +11,7 @@ import {
 import { Checkbox } from '../ui/checkbox';
 import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
-import { Play, Trash2, Tag, MoreHorizontal } from 'lucide-react';
+import { Trash2, MoreHorizontal } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -25,12 +25,22 @@ import { LoadingSpinner } from '../ui/loading-spinner';
 import { ErrorDisplay } from '../ui/error-display';
 import { SortableTableHeader } from '../ui/sortable-table-header';
 import { useTableSort } from '../../hooks/use-table-sort';
+import { useState } from 'react';
+import { invoke } from '@tauri-apps/api/core';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '../ui/dialog';
 
 interface ImagesTableProps {
   selectedImages: string[];
   onSelectionChange: (_selected: string[]) => void;
   images: Image[];
-  onActionComplete?: () => void;
+  onActionComplete?: (deletedImageId?: string) => void;
   isLoading?: boolean;
   error?: string | null;
   onRetry?: () => void;
@@ -40,6 +50,7 @@ export function ImagesTable({
   selectedImages,
   onSelectionChange,
   images,
+  onActionComplete,
   isLoading = false,
   error = null,
   onRetry,
@@ -49,6 +60,10 @@ export function ImagesTable({
     'created',
     'desc'
   );
+
+  const [deletingImageId, setDeletingImageId] = useState<string | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [imageToDelete, setImageToDelete] = useState<Image | null>(null);
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
@@ -63,6 +78,38 @@ export function ImagesTable({
       onSelectionChange([...selectedImages, imageId]);
     } else {
       onSelectionChange(selectedImages.filter(id => id !== imageId));
+    }
+  };
+
+  const handleDeleteImage = (image: Image) => {
+    setImageToDelete(image);
+    setDeleteDialogOpen(true);
+  };
+
+  const confirmDeleteImage = async () => {
+    if (!imageToDelete) return;
+
+    setDeletingImageId(imageToDelete.id);
+    setDeleteDialogOpen(false);
+
+    try {
+      await invoke('delete_image', { imageId: imageToDelete.id });
+
+      // Remove the deleted image from selection if it was selected
+      if (selectedImages.includes(imageToDelete.id)) {
+        onSelectionChange(selectedImages.filter(id => id !== imageToDelete.id));
+      }
+
+      // Notify parent component that action is complete
+      if (onActionComplete) {
+        onActionComplete(imageToDelete.id);
+      }
+    } catch (error) {
+      console.error('Error deleting image:', error);
+      alert(`Failed to delete image: ${error}`);
+    } finally {
+      setDeletingImageId(null);
+      setImageToDelete(null);
     }
   };
 
@@ -143,18 +190,22 @@ export function ImagesTable({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem>
+              {/* TODO: TEMPORARILY COMMENTED OUT AS WE DONT HAVE THE LOGIC FOR THEM YET */}
+              {/* <DropdownMenuItem>
                 <Play className="mr-2 h-4 w-4" />
                 Run Container
               </DropdownMenuItem>
               <DropdownMenuItem>
                 <Tag className="mr-2 h-4 w-4" />
                 Add Tag
-              </DropdownMenuItem>
-
-              <DropdownMenuItem className="text-destructive">
+              </DropdownMenuItem> */}
+              <DropdownMenuItem
+                className="text-destructive"
+                onClick={() => handleDeleteImage(image)}
+                disabled={deletingImageId === image.id}
+              >
                 <Trash2 className="mr-2 h-4 w-4" />
-                Delete
+                {deletingImageId === image.id ? 'Deleting...' : 'Delete'}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -164,61 +215,101 @@ export function ImagesTable({
   };
 
   return (
-    <div className="border rounded-lg overflow-hidden h-full flex flex-col">
-      <div className="overflow-x-auto flex-1">
-        <Table className="table-fixed h-full">
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-12">
-                <Checkbox
-                  checked={
-                    selectedImages.length === sortedImages.length &&
-                    sortedImages.length > 0
-                  }
-                  onCheckedChange={value => handleSelectAll(value === true)}
-                />
-              </TableHead>
-              <SortableTableHeader
-                sortKey="repository"
-                onSort={handleSort}
-                className="w-[35%]"
-              >
-                Name
-              </SortableTableHeader>
-              <SortableTableHeader
-                sortKey="tag"
-                onSort={handleSort}
-                className="w-[15%]"
-              >
-                Tag
-              </SortableTableHeader>
-              <SortableTableHeader
-                sortKey="created"
-                onSort={handleSort}
-                className="w-[10%]"
-              >
-                Created
-              </SortableTableHeader>
-              <SortableTableHeader
-                sortKey="size"
-                onSort={handleSort}
-                className="w-[10%]"
-              >
-                Size
-              </SortableTableHeader>
-              <SortableTableHeader
-                sortKey="in_use"
-                onSort={handleSort}
-                className="w-[10%]"
-              >
-                Status
-              </SortableTableHeader>
-              <TableHead className="w-[10%]">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody className="flex-1">{renderTableBody()}</TableBody>
-        </Table>
+    <>
+      <div className="border rounded-lg overflow-hidden h-full flex flex-col">
+        <div className="overflow-x-auto flex-1">
+          <Table className="table-fixed h-full">
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-12">
+                  <Checkbox
+                    checked={
+                      selectedImages.length === sortedImages.length &&
+                      sortedImages.length > 0
+                    }
+                    onCheckedChange={value => handleSelectAll(value === true)}
+                  />
+                </TableHead>
+                <SortableTableHeader
+                  sortKey="repository"
+                  onSort={handleSort}
+                  className="w-[35%]"
+                >
+                  Name
+                </SortableTableHeader>
+                <SortableTableHeader
+                  sortKey="tag"
+                  onSort={handleSort}
+                  className="w-[15%]"
+                >
+                  Tag
+                </SortableTableHeader>
+                <SortableTableHeader
+                  sortKey="created"
+                  onSort={handleSort}
+                  className="w-[10%]"
+                >
+                  Created
+                </SortableTableHeader>
+                <SortableTableHeader
+                  sortKey="size"
+                  onSort={handleSort}
+                  className="w-[10%]"
+                >
+                  Size
+                </SortableTableHeader>
+                <SortableTableHeader
+                  sortKey="in_use"
+                  onSort={handleSort}
+                  className="w-[10%]"
+                >
+                  Status
+                </SortableTableHeader>
+                <TableHead className="w-[10%]">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody className="flex-1">{renderTableBody()}</TableBody>
+          </Table>
+        </div>
       </div>
-    </div>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirm Delete Image</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete the image{' '}
+              <span className="font-mono font-medium">
+                {imageToDelete?.repository}:{imageToDelete?.tag}
+              </span>
+              ? This action cannot be undone.
+              {imageToDelete?.in_use && (
+                <div className="mt-2 p-2 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded text-yellow-800 dark:text-yellow-200">
+                  ⚠️ Warning: This image is currently in use by containers.
+                </div>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setDeleteDialogOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={confirmDeleteImage}
+              disabled={deletingImageId === imageToDelete?.id}
+            >
+              {deletingImageId === imageToDelete?.id
+                ? 'Deleting...'
+                : 'Delete Image'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

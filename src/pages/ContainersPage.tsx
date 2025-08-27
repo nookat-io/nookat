@@ -2,10 +2,11 @@ import { ContainerHeader } from '../components/containers/container-header';
 import { ContainerControls } from '../components/containers/container-controls';
 import { ContainersTable } from '../components/containers/containers-table';
 import { usePageState } from '../hooks/use-page-state';
-import { useContainersProvider } from '../lib/use-data-provider';
+import { useEngineState } from '../hooks/use-engine-state';
 import { useFilter } from '../utils/use-filter';
 import { PageLayout } from '../components/layout/page-layout';
 import { usePageAnalytics } from '../hooks/use-analytics';
+import { Container } from '../components/containers/container-types';
 
 export default function ContainersPage() {
   usePageAnalytics('containers');
@@ -19,17 +20,20 @@ export default function ContainersPage() {
     setSearchTerm,
   } = usePageState<'all' | 'running' | 'stopped'>('all');
 
-  const {
-    data: containers,
-    isLoading,
-    error,
-    refresh,
-  } = useContainersProvider();
+  const { engineState, isLoading, error } = useEngineState();
 
-  const filteredContainers = useFilter(containers, filter, searchTerm, {
-    searchFields: ['names', 'image'],
-    filterField: 'state',
-  });
+  // Convert containers from Record to array for compatibility
+  const containers = engineState ? Object.values(engineState.containers) : [];
+
+  const filteredContainers = useFilter<Container>(
+    containers,
+    filter,
+    searchTerm,
+    {
+      searchFields: ['names', 'image'],
+      filterField: 'state',
+    }
+  );
 
   return (
     <PageLayout
@@ -37,29 +41,27 @@ export default function ContainersPage() {
         <ContainerHeader
           selectedContainers={selected}
           containers={containers}
-          onActionComplete={refresh}
+          onActionComplete={() => {}}
           onSelectionChange={setSelected}
         />
       }
       controls={
-        <div className="space-y-4">
-          <ContainerControls
-            filter={filter}
-            onFilterChange={setFilter}
-            searchTerm={searchTerm}
-            onSearchChange={setSearchTerm}
-          />
-        </div>
+        <ContainerControls
+          filter={filter}
+          onFilterChange={setFilter}
+          searchTerm={searchTerm}
+          onSearchChange={setSearchTerm}
+        />
       }
       table={
         <ContainersTable
           selectedContainers={selected}
           onSelectionChange={setSelected}
           containers={filteredContainers}
-          onActionComplete={refresh}
+          onActionComplete={() => {}}
           isLoading={isLoading}
           error={error}
-          onRetry={refresh}
+          onRetry={() => window.location.reload()}
         />
       }
     />

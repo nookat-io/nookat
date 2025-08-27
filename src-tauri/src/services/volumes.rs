@@ -42,7 +42,7 @@ impl VolumesService {
             let ref_count = containers
                 .iter()
                 .filter(|container| {
-                    container.mounts.as_ref().map_or(false, |mounts| {
+                    container.mounts.as_ref().is_some_and(|mounts| {
                         mounts
                             .iter()
                             .any(|m| m.name.as_deref() == Some(&volume.name))

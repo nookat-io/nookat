@@ -2918,7 +2918,7 @@ dependencies = [
 
 [[package]]
 name = "nookat"
-version = "0.1.5"
+version = "0.1.6"
 dependencies = [
  "async-trait",
  "bollard",
@@ -2927,6 +2927,7 @@ dependencies = [
  "flate2",
  "futures-util",
  "image",
+ "lazy_static",
  "reqwest",
  "sentry",
  "sentry-tracing",
@@ -2946,6 +2947,7 @@ dependencies = [
  "tracing",
  "tracing-appender",
  "tracing-subscriber",
+ "uuid",
 ]
 
 [[package]]

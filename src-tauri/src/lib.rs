@@ -5,16 +5,60 @@ mod services;
 mod state;
 
 use crate::handlers::{
-    bulk_force_remove_containers, bulk_pause_containers, bulk_remove_containers,
-    bulk_remove_networks, bulk_remove_volumes, bulk_restart_containers, bulk_start_containers,
-    bulk_stop_containers, bulk_unpause_containers, check_colima_availability,
-    check_homebrew_availability, container_files, container_logs, engine_status,
-    force_remove_container, get_config, get_docker_info, get_language, get_theme, inspect_volume,
-    install_colima_command, list_containers, list_images, list_networks, list_volumes,
-    open_terminal, open_url, pause_container, prune_containers, prune_images, prune_volumes,
-    remove_container, remove_network, remove_volume, restart_container, start_colima_vm_command,
-    start_container, stop_container, unpause_container, update_language, update_last_update_check,
-    update_sidebar_collapsed, update_startup_settings, update_telemetry_settings, update_theme,
+    bulk_force_remove_containers,
+    bulk_pause_containers,
+    bulk_remove_containers,
+    bulk_remove_networks,
+    bulk_remove_volumes,
+    bulk_restart_containers,
+    bulk_start_containers,
+    bulk_stop_containers,
+    bulk_unpause_containers,
+    check_colima_availability,
+    check_homebrew_availability,
+    container_files,
+    container_logs,
+    delete_image,
+    engine_status,
+    force_remove_container,
+    // Configuration
+    get_config,
+    get_docker_info,
+    get_engine_state,
+    get_language,
+    get_theme,
+    inspect_volume,
+    install_colima_command,
+    // Containers
+    list_containers,
+    // Images
+    list_images,
+    // Networks
+    list_networks,
+    // Volumes
+    list_volumes,
+    open_terminal,
+    // System
+    open_url,
+    pause_container,
+    prune_containers,
+    prune_images,
+    prune_volumes,
+    remove_container,
+    remove_network,
+    remove_volume,
+    restart_container,
+    start_colima_vm_command,
+    start_container,
+    start_engine_state_monitoring,
+    stop_container,
+    unpause_container,
+    update_language,
+    update_last_update_check,
+    update_sidebar_collapsed,
+    update_startup_settings,
+    update_telemetry_settings,
+    update_theme,
 };
 use crate::sentry::flush_sentry;
 use crate::services::ConfigService;
@@ -126,6 +170,7 @@ pub fn run() {
             // Images
             list_images,
             prune_images,
+            delete_image,
             // Networks
             list_networks,
             remove_network,
@@ -140,6 +185,8 @@ pub fn run() {
             open_url,
             get_docker_info,
             engine_status,
+            get_engine_state,
+            start_engine_state_monitoring,
             check_homebrew_availability,
             check_colima_availability,
             install_colima_command,
@@ -150,8 +197,8 @@ pub fn run() {
             app.manage(engine_state);
             Ok(build_tray(app)?)
         })
-        .on_window_event(|window, event| match event {
-            tauri::WindowEvent::CloseRequested { api, .. } => {
+        .on_window_event(|window, event| {
+            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
                 if let Ok(config) = ConfigService::get_config() {
                     if config.startup.minimize_to_tray {
                         if let Err(e) = window.hide() {
@@ -167,7 +214,6 @@ pub fn run() {
                 }
             }
             // There is no Minimized event in Tauri v2, so we can't handle minimize directly.
-            _ => {}
         })
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

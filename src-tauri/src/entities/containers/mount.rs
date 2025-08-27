@@ -79,6 +79,7 @@ impl From<bollard::models::MountPointTypeEnum> for MountPointType {
 }
 
 /// Optional configuration for the `tmpfs` type.
+#[allow(dead_code)]
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct MountTmpfsOptions {
     /// The size for the tmpfs mount in bytes.
@@ -95,6 +96,7 @@ pub struct MountTmpfsOptions {
 }
 
 /// Optional configuration for the `volume` type.
+#[allow(dead_code)]
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct MountVolumeOptions {
     /// Populate volume with data from the target.
@@ -114,6 +116,7 @@ pub struct MountVolumeOptions {
 }
 
 /// Map of driver specific options
+#[allow(dead_code)]
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct MountVolumeOptionsDriverConfig {
     /// Name of the driver to use to create the volume.

@@ -24,7 +24,7 @@ pub struct DockerInfoPlugins {
     pub log: Option<Vec<String>>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct DockerInfo {
     pub id: Option<String>,
     pub containers: Option<i64>,
@@ -175,73 +175,6 @@ impl From<(SystemInfo, Version)> for DockerInfo {
             version_kernel_version: version.kernel_version,
             version_experimental: version.experimental,
             build_time: version.build_time,
-        }
-    }
-}
-
-impl Default for DockerInfo {
-    fn default() -> Self {
-        DockerInfo {
-            id: None,
-            containers: None,
-            containers_running: None,
-            containers_paused: None,
-            containers_stopped: None,
-            images: None,
-            driver: None,
-            docker_root_dir: None,
-            plugins: None,
-            memory_limit: None,
-            swap_limit: None,
-            kernel_memory_tcp: None,
-            cpu_cfs_period: None,
-            cpu_cfs_quota: None,
-            cpu_shares: None,
-            cpu_set: None,
-            pids_limit: None,
-            oom_kill_disable: None,
-            ipv4_forwarding: None,
-            bridge_nf_iptables: None,
-            bridge_nf_ip6tables: None,
-            debug: None,
-            nfd: None,
-            n_goroutines: None,
-            system_time: None,
-            logging_driver: None,
-            cgroup_driver: None,
-            cgroup_version: None,
-            kernel_version: None,
-            operating_system: None,
-            os_type: None,
-            architecture: None,
-            ncpu: None,
-            mem_total: None,
-            index_server_address: None,
-            n_events_listener: None,
-            http_proxy: None,
-            https_proxy: None,
-            no_proxy: None,
-            name: None,
-            labels: None,
-            server_version: None,
-            live_restore_enabled: None,
-            init_binary: None,
-            security_options: None,
-            product_license: None,
-            warnings: None,
-
-            platform: None,
-            components: None,
-            version: None,
-            api_version: None,
-            min_api_version: None,
-            git_commit: None,
-            go_version: None,
-            version_os: None,
-            version_arch: None,
-            version_kernel_version: None,
-            version_experimental: None,
-            build_time: None,
         }
     }
 }

@@ -2,10 +2,12 @@ import { ImageHeader } from '../components/images/image-header';
 import { ImageControls } from '../components/images/image-controls';
 import { ImagesTable } from '../components/images/images-table';
 import { usePageState } from '../hooks/use-page-state';
-import { useImagesProvider } from '../lib/use-data-provider';
+import { useEngineState } from '../hooks/use-engine-state';
 import { useFilter } from '../utils/use-filter';
 import { PageLayout } from '../components/layout/page-layout';
 import { usePageAnalytics } from '../hooks/use-analytics';
+import { Image } from '../components/images/image-types';
+import { useEffect, useMemo, useCallback } from 'react';
 
 export default function ImagesPage() {
   usePageAnalytics('images');
@@ -19,12 +21,43 @@ export default function ImagesPage() {
     setSearchTerm,
   } = usePageState<'all' | 'used' | 'dangling'>('all');
 
-  const { data: images, isLoading, error, refresh } = useImagesProvider();
+  const { engineState, isLoading, error, removeImage } = useEngineState();
 
-  const filteredImages = useFilter(images, filter, searchTerm, {
+  // Convert images from Record to array for compatibility
+  const images = useMemo(
+    () => (engineState ? Object.values(engineState.images) : []),
+    [engineState]
+  );
+
+  // Filter out deleted images from selection
+  useEffect(() => {
+    if (images.length > 0 && selected.length > 0) {
+      const existingImageIds = new Set(images.map(img => img.id));
+      const validSelectedIds = selected.filter(id => existingImageIds.has(id));
+
+      if (validSelectedIds.length !== selected.length) {
+        setSelected(validSelectedIds);
+      }
+    } else if (images.length === 0 && selected.length > 0) {
+      // If no images exist, clear the selection
+      setSelected([]);
+    }
+  }, [images, selected, setSelected]);
+
+  const filteredImages = useFilter<Image>(images, filter, searchTerm, {
     searchFields: ['repository', 'tag'],
     filterField: 'in_use',
   });
+
+  const handleActionComplete = useCallback(
+    (deletedImageId?: string) => {
+      // If a specific image was deleted, remove it from local state
+      if (deletedImageId && removeImage) {
+        removeImage(deletedImageId);
+      }
+    },
+    [removeImage]
+  );
 
   return (
     <PageLayout
@@ -32,7 +65,8 @@ export default function ImagesPage() {
         <ImageHeader
           selectedImages={selected}
           images={images}
-          onActionComplete={refresh}
+          onActionComplete={handleActionComplete}
+          onSelectionClear={() => setSelected([])}
         />
       }
       controls={
@@ -48,10 +82,10 @@ export default function ImagesPage() {
           selectedImages={selected}
           onSelectionChange={setSelected}
           images={filteredImages}
-          onActionComplete={refresh}
+          onActionComplete={handleActionComplete}
           isLoading={isLoading}
           error={error}
-          onRetry={refresh}
+          onRetry={() => window.location.reload()}
         />
       }
     />

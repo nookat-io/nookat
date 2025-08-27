@@ -2,10 +2,11 @@ import { VolumeHeader } from '../components/volumes/volume-header';
 import { VolumeControls } from '../components/volumes/volume-controls';
 import { VolumesTable } from '../components/volumes/volumes-table';
 import { usePageState } from '../hooks/use-page-state';
-import { useVolumesProvider } from '../lib/use-data-provider';
+import { useEngineState } from '../hooks/use-engine-state';
 import { useFilter } from '../utils/use-filter';
 import { PageLayout } from '../components/layout/page-layout';
 import { usePageAnalytics } from '../hooks/use-analytics';
+import { Volume } from '../components/volumes/volume-types';
 
 export default function VolumesPage() {
   usePageAnalytics('volumes');
@@ -19,9 +20,12 @@ export default function VolumesPage() {
     setSearchTerm,
   } = usePageState<'all' | 'used' | 'unused'>('all');
 
-  const { data: volumes, isLoading, error, refresh } = useVolumesProvider();
+  const { engineState, isLoading, error } = useEngineState();
 
-  const filteredVolumes = useFilter(volumes, filter, searchTerm, {
+  // Convert volumes from Record to array for compatibility
+  const volumes = engineState ? Object.values(engineState.volumes) : [];
+
+  const filteredVolumes = useFilter<Volume>(volumes, filter, searchTerm, {
     searchFields: ['name', 'driver'],
     filterField: 'usage_data',
   });
@@ -32,7 +36,7 @@ export default function VolumesPage() {
         <VolumeHeader
           selectedVolumes={selected}
           volumes={volumes}
-          onActionComplete={refresh}
+          onActionComplete={() => {}}
           onSelectionChange={setSelected}
         />
       }
@@ -49,10 +53,10 @@ export default function VolumesPage() {
           selectedVolumes={selected}
           onSelectionChange={setSelected}
           volumes={filteredVolumes}
-          onActionComplete={refresh}
+          onActionComplete={() => {}}
           isLoading={isLoading}
           error={error}
-          onRetry={refresh}
+          onRetry={() => window.location.reload()}
         />
       }
     />

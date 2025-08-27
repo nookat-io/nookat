@@ -1,15 +1,9 @@
 import * as Sentry from '@sentry/react';
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useConfig } from '../hooks/use-config';
+import { SentryContext } from '../contexts/sentry-context';
 
 const SENTRY_DSN = import.meta.env.VITE_SENTRY_DSN || '';
-
-type SentryContextType = {
-  isInitialized: boolean;
-  error: string | null;
-};
-
-const SentryContext = createContext<SentryContextType | undefined>(undefined);
 
 export function SentryProvider({ children }: { children: React.ReactNode }) {
   const { config, loading } = useConfig();
@@ -60,13 +54,3 @@ export function SentryProvider({ children }: { children: React.ReactNode }) {
     </SentryContext.Provider>
   );
 }
-
-export function useSentryContext() {
-  const context = useContext(SentryContext);
-  if (context === undefined) {
-    throw new Error('useSentryContext must be used within a SentryProvider');
-  }
-  return context;
-}
-
-export { Sentry };

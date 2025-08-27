@@ -1,7 +1,7 @@
 use crate::entities::{AppConfig, AppConfigV1, VersionedAppConfig};
 use std::fs;
 use std::path::PathBuf;
-use tracing::{info, instrument, warn};
+use tracing::{debug, info, instrument, warn};
 
 pub struct ConfigService;
 
@@ -35,7 +35,7 @@ impl ConfigService {
                     VersionedAppConfig::V2(config.into())
                 }
                 VersionedAppConfig::V2(config) => {
-                    info!("Config already at V2, no migration needed");
+                    debug!("Config already at V2, no migration needed");
                     return Ok(config);
                 }
             };
@@ -62,7 +62,7 @@ impl ConfigService {
                     // Try to parse as legacy V1 config
                     match serde_json::from_str::<AppConfigV1>(&content) {
                         Ok(legacy_config) => {
-                            info!("Detected legacy V1 config, migrating to V2");
+                            warn!("Detected legacy V1 config, migrating to V2");
                             let migrated_config = AppConfig::from(legacy_config);
                             // Save the migrated config to update the file
                             ConfigService::save_config(&migrated_config)?;

@@ -1,11 +1,12 @@
 import { NetworkHeader } from '../components/networks/network-header';
 import { NetworkControls } from '../components/networks/network-controls';
 import { NetworksTable } from '../components/networks/networks-table';
-import { useNetworksProvider } from '../lib/use-data-provider';
-import { useFilter } from '../utils/use-filter';
 import { usePageState } from '../hooks/use-page-state';
+import { useEngineState } from '../hooks/use-engine-state';
+import { useFilter } from '../utils/use-filter';
 import { PageLayout } from '../components/layout/page-layout';
 import { usePageAnalytics } from '../hooks/use-analytics';
+import { Network } from '../components/networks/network-types';
 
 export default function NetworksPage() {
   usePageAnalytics('networks');
@@ -19,9 +20,12 @@ export default function NetworksPage() {
     setSearchTerm,
   } = usePageState<'all' | 'system' | 'others'>('all');
 
-  const { data: networks, isLoading, error, refresh } = useNetworksProvider();
+  const { engineState, isLoading, error } = useEngineState();
 
-  const filteredNetworks = useFilter(networks, filter, searchTerm, {
+  // Convert networks from Record to array for compatibility
+  const networks = engineState ? Object.values(engineState.networks) : [];
+
+  const filteredNetworks = useFilter<Network>(networks, filter, searchTerm, {
     searchFields: ['name', 'driver'],
     filterField: 'name',
     filterValue: filter === 'system' ? ['bridge', 'host', 'none'] : undefined,
@@ -33,7 +37,7 @@ export default function NetworksPage() {
         <NetworkHeader
           selectedNetworks={selected}
           networks={networks}
-          onActionComplete={refresh}
+          onActionComplete={() => {}}
           onSelectionChange={setSelected}
         />
       }
@@ -50,10 +54,10 @@ export default function NetworksPage() {
           selectedNetworks={selected}
           onSelectionChange={setSelected}
           networks={filteredNetworks}
-          onActionComplete={refresh}
+          onActionComplete={() => {}}
           isLoading={isLoading}
           error={error}
-          onRetry={refresh}
+          onRetry={() => window.location.reload()}
         />
       }
     />

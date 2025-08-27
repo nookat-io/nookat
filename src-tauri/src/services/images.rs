@@ -1,6 +1,6 @@
 use crate::entities::{Image, PruneResult};
 use bollard::container::ListContainersOptions;
-use bollard::image::ListImagesOptions;
+use bollard::image::{ListImagesOptions, RemoveImageOptions};
 use bollard::models::ImageSummary;
 use bollard::Docker;
 use std::collections::{HashMap, HashSet};
@@ -125,5 +125,23 @@ impl ImagesService {
             images_deleted,
             space_reclaimed: result.space_reclaimed.unwrap_or_default(),
         })
+    }
+
+    #[instrument(skip_all, err)]
+    pub async fn delete_image(docker: &Docker, image_id: &str) -> Result<(), String> {
+        debug!("Deleting image: {}", image_id);
+
+        let options = RemoveImageOptions {
+            force: false,
+            noprune: false,
+        };
+
+        docker
+            .remove_image(image_id, Some(options), None)
+            .await
+            .map_err(|e| format!("Failed to delete image {}: {}", image_id, e))?;
+
+        debug!("Successfully deleted image: {}", image_id);
+        Ok(())
     }
 }

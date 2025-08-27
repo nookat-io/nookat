@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Image {
     pub id: String,
     pub repository: Option<String>,
@@ -11,7 +11,7 @@ pub struct Image {
     pub in_use: bool,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct PruneResult {
     pub images_deleted: Vec<String>,
     pub space_reclaimed: i64,
