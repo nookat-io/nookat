@@ -147,6 +147,7 @@ export function EngineProvider({ children }: EngineProviderProps) {
     const unlisten = listen('engine_state_update', event => {
       try {
         const engineStateData = event.payload as EngineState;
+        if (!mountedRef.current) return;
         setEngineState(engineStateData);
         setError(null);
         setIsLoading(false);
@@ -154,6 +155,12 @@ export function EngineProvider({ children }: EngineProviderProps) {
         // Update engine status from the state update if available
         if (engineStateData.engine_status) {
           setEngineStatus(engineStateData.engine_status);
+        }
+
+        // Stop status polling once we have live updates
+        if (intervalRef.current) {
+          clearInterval(intervalRef.current);
+          intervalRef.current = null;
         }
       } catch (err) {
         console.error('Error parsing engine state update:', err);

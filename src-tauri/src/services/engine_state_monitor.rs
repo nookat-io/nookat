@@ -1,5 +1,4 @@
-use crate::entities::Engine;
-use crate::entities::EngineState;
+use crate::entities::{Container, Engine, EngineState, Image, Network, Volume};
 use crate::state::SharedEngineState;
 use bollard::system::EventsOptions;
 use bollard::Docker;
@@ -70,7 +69,7 @@ impl EngineStateMonitor {
         let is_monitoring_events = is_monitoring.clone();
         let app_handle_events = app_handle.clone();
 
-        let docker_events_task = tokio::spawn(async move {
+        let mut docker_events_task = tokio::spawn(async move {
             Self::monitor_docker_events_continuously(
                 state_events,
                 last_state_events,
@@ -80,8 +79,31 @@ impl EngineStateMonitor {
             .await
         });
 
+        // Emit initial baseline snapshot immediately for <50ms TTFU
+        if let Ok(engine) = state.get_engine().await {
+            if let Some(docker) = &engine.docker {
+                if let Err(e) = Self::check_and_broadcast_state_changes(
+                    docker,
+                    &state,
+                    &last_state,
+                    &app_handle,
+                )
+                .await
+                {
+                    warn!("Initial baseline snapshot error: {}", e);
+                }
+            } else {
+                // Docker is unavailable; emit initial status-only update
+                if let Err(e) = Self::emit_status_only(engine, &last_state, &app_handle).await {
+                    warn!("Initial status-only emit error: {}", e);
+                }
+            }
+        }
+
         // Main polling loop for periodic state checks
         let mut interval = tokio::time::interval(Duration::from_secs(5));
+        let mut retry_count = 0u32;
+        const BASE_BACKOFF_MS: u64 = 100;
 
         loop {
             interval.tick().await;
@@ -94,22 +116,62 @@ impl EngineStateMonitor {
                 }
             }
 
-            // Check if Docker events monitoring task has failed
+            // Check if Docker events monitoring task has failed and respawn it
             if docker_events_task.is_finished() {
+                // Log the outcome and handle the old task
                 match docker_events_task.await {
                     Ok(Ok(())) => {
-                        debug!("Docker events monitoring completed successfully");
-                        break;
+                        debug!("Docker events monitoring completed successfully, respawning...");
                     }
                     Ok(Err(e)) => {
-                        warn!("Docker events monitoring failed: {}", e);
-                        break;
+                        warn!("Docker events monitoring failed: {}, respawning...", e);
+                        retry_count = retry_count.saturating_add(1);
                     }
                     Err(e) => {
-                        error!("Docker events monitoring task panicked: {}", e);
-                        break;
+                        error!(
+                            "Docker events monitoring task panicked: {}, respawning...",
+                            e
+                        );
+                        retry_count = retry_count.saturating_add(1);
                     }
                 };
+
+                // Apply exponential backoff to avoid tight restart loops
+                if retry_count > 0 {
+                    let backoff_duration =
+                        Duration::from_millis(BASE_BACKOFF_MS * 2_u64.pow(retry_count.min(5)));
+                    debug!(
+                        "Waiting {}ms before respawning Docker events monitoring",
+                        backoff_duration.as_millis()
+                    );
+                    tokio::time::sleep(backoff_duration).await;
+                }
+
+                // Spawn a new Docker events monitoring task
+                let state_events = state.clone();
+                let last_state_events = last_state.clone();
+                let is_monitoring_events = is_monitoring.clone();
+                let app_handle_events = app_handle.clone();
+
+                docker_events_task = tokio::spawn(async move {
+                    Self::monitor_docker_events_continuously(
+                        state_events,
+                        last_state_events,
+                        is_monitoring_events,
+                        app_handle_events,
+                    )
+                    .await
+                });
+
+                debug!(
+                    "Docker events monitoring task respawned (attempt {})",
+                    retry_count + 1
+                );
+
+                // Reset retry count on successful respawn if we've had some failures
+                if retry_count > 0 {
+                    retry_count = 0;
+                }
             }
 
             // Try to get the engine and check for state changes
@@ -407,22 +469,51 @@ impl EngineStateMonitor {
 
         // Convert to EngineState format
         let engine_state = EngineState {
-            containers: containers_result
-                .into_iter()
-                .map(|c| (c.id.clone().unwrap_or_default(), c.into()))
-                .collect(),
-            images: images_result
-                .into_iter()
-                .map(|i| (i.id.clone(), i))
-                .collect(),
-            volumes: volumes_result
-                .into_iter()
-                .map(|v| (v.name.clone(), v))
-                .collect(),
-            networks: networks_result
-                .into_iter()
-                .map(|n| (n.name.clone(), n))
-                .collect(),
+            containers: {
+                let mut map: HashMap<String, Container> = HashMap::new();
+                for (index, c) in containers_result.into_iter().enumerate() {
+                    let container: Container = c.into();
+                    if let Some(id) = &container.id {
+                        if !id.is_empty() {
+                            map.insert(id.clone(), container);
+                        } else {
+                            // Generate fallback key for containers with empty ID
+                            map.insert(format!("container_{}", index), container);
+                        }
+                    } else {
+                        // Generate fallback key for containers without ID
+                        map.insert(format!("container_{}", index), container);
+                    }
+                }
+                map
+            },
+            images: {
+                let mut map: HashMap<String, Image> = HashMap::new();
+                for i in images_result {
+                    if !i.id.is_empty() {
+                        map.insert(i.id.clone(), i);
+                    }
+                }
+                map
+            },
+            volumes: {
+                let mut map: HashMap<String, Volume> = HashMap::new();
+                for v in volumes_result {
+                    if !v.name.is_empty() {
+                        map.insert(v.name.clone(), v);
+                    }
+                }
+                map
+            },
+            networks: {
+                let mut map: HashMap<String, Network> = HashMap::new();
+                for n in networks_result {
+                    if !n.name.is_empty() {
+                        map.insert(n.name.clone(), n);
+                    }
+                }
+                map
+            },
             engine_status: engine.engine_status.clone(),
             docker_info: None, // TODO: Implement in follow-up
             version: 1,        // TODO: Implement versioning in follow-up

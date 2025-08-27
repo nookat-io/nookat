@@ -20,12 +20,14 @@ interface ImageActionsProps {
   selectedImages: string[];
   onRefresh?: (deletedImageId?: string) => void;
   onSelectionClear?: () => void;
+  onSelectionChange?: (selected: string[]) => void;
 }
 
 export function ImageActions({
   selectedImages,
   onRefresh,
   onSelectionClear,
+  onSelectionChange,
 }: ImageActionsProps) {
   const [isPruning, setIsPruning] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -58,26 +60,73 @@ export function ImageActions({
     setConfirmDeleteDialogOpen(false);
 
     try {
-      // Delete each selected image
-      for (const imageId of selectedImages) {
-        await invoke('delete_image', { imageId });
+      // Delete all selected images in parallel using Promise.allSettled
+      const deletePromises = selectedImages.map(async imageId => {
+        try {
+          await invoke('delete_image', { imageId });
+          return { success: true, imageId, error: null };
+        } catch (error) {
+          console.error(`Error deleting image ${imageId}:`, error);
+          return { success: false, imageId, error };
+        }
+      });
+
+      const results = await Promise.allSettled(deletePromises);
+
+      // Collect succeeded and failed IDs
+      const succeededIds: string[] = [];
+      const failedResults: Array<{ imageId: string; error: unknown }> = [];
+
+      results.forEach(result => {
+        if (result.status === 'fulfilled') {
+          const { success, imageId, error } = result.value;
+          if (success) {
+            succeededIds.push(imageId);
+          } else {
+            failedResults.push({ imageId, error });
+          }
+        } else {
+          // Promise was rejected (shouldn't happen with allSettled, but handle it)
+          console.error('Unexpected promise rejection:', result.reason);
+        }
+      });
+
+      // Handle selection state based on results
+      if (failedResults.length > 0) {
+        // Some deletions failed - reselect only the failed ones
+        if (onSelectionChange) {
+          const failedIds = failedResults.map(r => r.imageId);
+          onSelectionChange(failedIds);
+        }
+
+        // Log errors for failed deletions
+        console.error('Failed to delete some images:', failedResults);
+
+        // Show user-friendly error message
+        const errorMessage = `Failed to delete ${failedResults.length} of ${selectedImages.length} images. Check console for details.`;
+        alert(errorMessage);
+      } else {
+        // All deletions succeeded - clear selection
+        if (onSelectionChange) {
+          onSelectionChange([]);
+        } else if (onSelectionClear) {
+          onSelectionClear();
+        }
       }
 
-      // Clear the selection after successful deletion
-      if (onSelectionClear) {
-        onSelectionClear();
-      }
-
-      // Refresh the image list after deletion
+      // Handle refresh calls efficiently
       if (onRefresh) {
-        // Notify about each deleted image
-        for (const imageId of selectedImages) {
-          onRefresh(imageId);
+        if (succeededIds.length > 0) {
+          // If engine-events are enabled, we could do a single consolidated refresh
+          // For now, refresh for each succeeded deletion
+          succeededIds.forEach(imageId => {
+            onRefresh(imageId);
+          });
         }
       }
     } catch (error) {
-      console.error('Error deleting images:', error);
-      alert('Failed to delete images: ' + error);
+      console.error('Error in bulk delete operation:', error);
+      alert('Failed to process bulk delete operation: ' + error);
     } finally {
       setIsDeleting(false);
     }
