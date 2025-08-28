@@ -30,7 +30,30 @@ export function useTableSort<T>(
       let comparison = 0;
 
       if (typeof aValue === 'string' && typeof bValue === 'string') {
-        comparison = aValue.localeCompare(bValue);
+        // Case-aware string comparison:
+        // 1) Compare case-insensitively to group same words
+        // 2) If equal ignoring case, place uppercase before lowercase
+        const aLower = aValue.toLowerCase();
+        const bLower = bValue.toLowerCase();
+        if (aLower < bLower) {
+          comparison = -1;
+        } else if (aLower > bLower) {
+          comparison = 1;
+        } else {
+          const aFirst = String(aValue).charAt(0);
+          const bFirst = String(bValue).charAt(0);
+          const aIsUpper =
+            aFirst !== aFirst.toLowerCase() && aFirst === aFirst.toUpperCase();
+          const bIsUpper =
+            bFirst !== bFirst.toLowerCase() && bFirst === bFirst.toUpperCase();
+          if (aIsUpper && !bIsUpper) {
+            comparison = -1;
+          } else if (!aIsUpper && bIsUpper) {
+            comparison = 1;
+          } else {
+            comparison = aValue.localeCompare(bValue);
+          }
+        }
       } else if (typeof aValue === 'boolean' && typeof bValue === 'boolean') {
         comparison = Number(aValue) - Number(bValue);
       } else if (typeof aValue === 'number' && typeof bValue === 'number') {

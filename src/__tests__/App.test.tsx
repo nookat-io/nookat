@@ -1,4 +1,5 @@
 import { render, screen, waitFor } from '../test/test-utils';
+import { BrowserRouter } from 'react-router-dom';
 import App from '../App';
 
 // Mock the analytics hook to avoid side effects
@@ -112,7 +113,11 @@ jest.mock('../pages/SettingsPage', () => ({
 
 describe('App Component', () => {
   it('renders without crashing', async () => {
-    render(<App />);
+    render(
+      <BrowserRouter>
+        <App />
+      </BrowserRouter>
+    );
 
     // Wait for the app to load
     await waitFor(() => {
@@ -121,7 +126,11 @@ describe('App Component', () => {
   });
 
   it('renders main navigation elements', async () => {
-    render(<App />);
+    render(
+      <BrowserRouter>
+        <App />
+      </BrowserRouter>
+    );
 
     await waitFor(() => {
       expect(screen.getByTestId('sidebar')).toBeInTheDocument();
@@ -130,7 +139,11 @@ describe('App Component', () => {
   });
 
   it('renders containers page by default', async () => {
-    render(<App />);
+    render(
+      <BrowserRouter>
+        <App />
+      </BrowserRouter>
+    );
 
     await waitFor(() => {
       expect(screen.getByTestId('containers-page')).toBeInTheDocument();
@@ -148,13 +161,21 @@ describe('App Component', () => {
       setTheme: jest.fn(),
     });
 
-    render(<App />);
+    render(
+      <BrowserRouter>
+        <App />
+      </BrowserRouter>
+    );
 
     expect(screen.getByTestId('loading-screen')).toBeInTheDocument();
   });
 
   it('renders toaster component', async () => {
-    render(<App />);
+    render(
+      <BrowserRouter>
+        <App />
+      </BrowserRouter>
+    );
 
     await waitFor(() => {
       expect(screen.getByTestId('toaster')).toBeInTheDocument();
@@ -162,7 +183,11 @@ describe('App Component', () => {
   });
 
   it('has proper accessibility attributes', async () => {
-    render(<App />);
+    render(
+      <BrowserRouter>
+        <App />
+      </BrowserRouter>
+    );
 
     await waitFor(() => {
       const mainElement = screen.getByRole('main');
@@ -171,7 +196,11 @@ describe('App Component', () => {
   });
 
   it('renders with proper layout structure', async () => {
-    render(<App />);
+    render(
+      <BrowserRouter>
+        <App />
+      </BrowserRouter>
+    );
 
     await waitFor(() => {
       expect(screen.getByTestId('sidebar')).toBeInTheDocument();
