@@ -1,11 +1,13 @@
 import { render, screen, fireEvent } from '../../../test/test-utils';
 import EngineErrorGate from '../engine-error';
+import { useEngineStatus } from '../../../hooks/use-engine-status';
 
 // Mock the useEngineStatus hook
-const mockUseEngineStatus = jest.fn();
 jest.mock('../../../hooks/use-engine-status', () => ({
-  useEngineStatus: mockUseEngineStatus,
+  useEngineStatus: jest.fn(),
 }));
+
+const mockUseEngineStatus = useEngineStatus as unknown as jest.Mock;
 
 describe('EngineErrorGate Component', () => {
   const defaultProps = {
