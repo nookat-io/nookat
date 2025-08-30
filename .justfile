@@ -9,6 +9,8 @@ alias c := clean
 alias v := upgrade_version
 alias rc := remove_colima
 
+alias t := test
+
 kill_tauri_runs:
     echo "Killing tauri runs"
     ps aux | grep "npm run tauri" | grep -v grep | awk '{print $2}' | xargs -r kill -9
@@ -32,6 +34,9 @@ clean:
     echo "Cleaning up..."
     rm -rf dist
     rm -rf node_modules
+    rm -rf coverage
+    rm -rf test-results
+    rm -rf playwright-report
     cd src-tauri && cargo clean && cd ..
 
 tauri_dev:
@@ -39,6 +44,12 @@ tauri_dev:
 
 tauri_build:
     SENTRY_DSN="$SENTRY_DSN" npm run tauri build
+
+test:
+    #!/usr/bin/env bash
+    echo "🚀 Running all tests (unit + E2E)..."
+    npm run test
+
 
 install:
     #!/usr/bin/env bash
@@ -58,6 +69,10 @@ install:
     rustup component add rustfmt
     rustup component add clippy
 
+    # Install Playwright browsers for E2E testing
+    echo "🌐 Installing Playwright browsers..."
+    npm run test:e2e:install
+
     # Setup environment variables for Nookat
     echo "Setting up environment variables for Nookat..."
 
@@ -74,6 +89,8 @@ install:
     echo "📝 Please edit .env file and add your Aptabase app key:"
     echo "✅ Development environment setup complete!"
     echo "💡 Run 'just p' to run pre-commit checks"
+    echo "🧪 Run 'just t' to run unit tests"
+    echo "🌐 Run 'just te' to run E2E tests"
 
 pre_commit:
     #!/usr/bin/env bash

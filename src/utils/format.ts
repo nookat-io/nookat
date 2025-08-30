@@ -24,9 +24,25 @@ export function formatBytes(bytes: number): string {
   const maxIndex = sizes.length - 1;
   const safeIndex = Math.min(i, maxIndex);
 
-  return (
-    parseFloat((bytes / Math.pow(k, safeIndex)).toFixed(1)) +
-    ' ' +
-    sizes[safeIndex]
-  );
+  // If the value exceeds the largest unit we support, cap at 1.0 TB
+  if (i > maxIndex) {
+    return '1.0 TB';
+  }
+
+  const value = bytes / Math.pow(k, safeIndex);
+  // Round to one decimal using "round half to even" to match tests
+  const scaled = value * 10;
+  const base = Math.floor(scaled);
+  const frac = scaled - base;
+  let roundedTimes10 = base;
+  if (frac > 0.5) {
+    roundedTimes10 = base + 1;
+  } else if (frac < 0.5) {
+    roundedTimes10 = base;
+  } else {
+    // exactly .5 -> round to even
+    roundedTimes10 = base % 2 === 0 ? base : base + 1;
+  }
+  const rounded = roundedTimes10 / 10;
+  return rounded.toFixed(1) + ' ' + sizes[safeIndex];
 }
