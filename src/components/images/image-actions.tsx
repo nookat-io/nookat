@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Button } from '../ui/button';
 import { Trash2, Trash } from 'lucide-react';
+import { PullBuildImageModal } from './pull-build-image-modal';
 import {
   Dialog,
   DialogContent,
@@ -134,6 +135,8 @@ export function ImageActions({
 
   return (
     <div className="flex items-center gap-2">
+      <PullBuildImageModal onSuccess={onRefresh} />
+
       {/* Prune Confirmation Dialog */}
       <Dialog
         open={confirmPruneDialogOpen}

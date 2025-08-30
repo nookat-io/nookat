@@ -5,6 +5,7 @@ mod services;
 mod state;
 
 use crate::handlers::{
+    build_image,
     bulk_force_remove_containers,
     bulk_pause_containers,
     bulk_remove_containers,
@@ -44,6 +45,7 @@ use crate::handlers::{
     prune_containers,
     prune_images,
     prune_volumes,
+    pull_image,
     remove_container,
     remove_network,
     remove_volume,
@@ -171,6 +173,8 @@ pub fn run() {
             list_images,
             prune_images,
             delete_image,
+            pull_image,
+            build_image,
             // Networks
             list_networks,
             remove_network,
