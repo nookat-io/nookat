@@ -1,15 +1,7 @@
-// Main image components
-export { ImageHeader } from './image-header';
-export { ImageControls } from './image-controls';
-
-// Table components
-export { ImagesTable } from './images-table';
-
-// Action components
 export { ImageActions } from './image-actions';
-
-// Filter components
+export { ImageHeader } from './image-header';
+export { ImagesTable } from './images-table';
+export { ImageControls } from './image-controls';
 export { ImageFilters } from './image-filters';
-
-// Types
-export { type Image } from './image-types';
+export { PullImageModal } from './pull';
+export { BuildImageModal } from './build';
