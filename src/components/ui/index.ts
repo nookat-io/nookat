@@ -17,3 +17,5 @@ export {
   SelectScrollUpButton,
   SelectScrollDownButton,
 } from './select';
+export { DockerImageAutocomplete } from './DockerImageAutocomplete';
+export { DockerImageSelector } from './DockerImageSelector';
