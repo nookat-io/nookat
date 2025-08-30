@@ -18,6 +18,7 @@ repos:
     rev: v9.9.1
     hooks:
       - id: eslint
+        name: check for eslint errors
         files: \.(js|ts|tsx)$
         types: [file]
         additional_dependencies:
@@ -34,6 +35,7 @@ repos:
     rev: v4.0.0-alpha.8
     hooks:
       - id: prettier
+        name: check for prettier errors
         files: \.(js|ts|tsx|json|css|md)$
         types: [file]
 
@@ -41,7 +43,7 @@ repos:
   - repo: local
     hooks:
       - id: typescript-check
-        name: TypeScript Check
+        name: check for typescript errors
         entry: npx tsc --noEmit
         language: system
         files: \.(ts|tsx)$
@@ -51,17 +53,27 @@ repos:
   - repo: local
     hooks:
       - id: npm-run-lint
-        name: Npm Run Lint
+        name: check for eslint errors
         entry: npm run lint -- --max-warnings=0
         language: system
         files: \.(ts|tsx)$
         pass_filenames: false
 
+  # Frontend unit tests (Jest) - run only tests related to changed files
+  - repo: local
+    hooks:
+      - id: jest-unit-related
+        name: check for jest errors
+        entry: bash -c 'npm run test'
+        language: system
+        files: \.(ts|tsx)$
+        pass_filenames: true
+
   # Cargo fmt for Rust
   - repo: local
     hooks:
       - id: cargo-fmt
-        name: Cargo Fmt
+        name: check for cargo fmt errors
         entry: bash -c 'cd src-tauri && cargo fmt -- --quiet'
         language: system
         files: \.(rs|toml)$
@@ -71,7 +83,7 @@ repos:
   - repo: local
     hooks:
       - id: cargo-check
-        name: Cargo Check
+        name: check for cargo check errors
         entry: bash -c 'cd src-tauri && cargo check'
         language: system
         files: \.(rs|toml)$
@@ -81,7 +93,7 @@ repos:
   - repo: local
     hooks:
       - id: cargo-test
-        name: Cargo Test
+        name: check for cargo test errors
         entry: bash -c 'cd src-tauri && cargo test'
         language: system
         files: \.(rs|toml)$

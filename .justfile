@@ -9,7 +9,7 @@ alias c := clean
 alias v := upgrade_version
 alias rc := remove_colima
 
-alias t := test_all
+alias t := test
 
 kill_tauri_runs:
     echo "Killing tauri runs"
@@ -45,10 +45,10 @@ tauri_dev:
 tauri_build:
     SENTRY_DSN="$SENTRY_DSN" npm run tauri build
 
-test_all:
+test:
     #!/usr/bin/env bash
     echo "🚀 Running all tests (unit + E2E)..."
-    npm run test:all
+    npm run test
 
 
 install:
