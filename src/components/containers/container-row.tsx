@@ -36,10 +36,14 @@ export function ContainerRow({
         />
       </TableCell>
       <TableCell className={`font-medium ${isNested ? 'pl-8' : ''}`}>
-        {formatContainerName(container)}
+        <div className="truncate max-w-full">
+          {formatContainerName(container)}
+        </div>
       </TableCell>
       <TableCell className="text-muted-foreground">
-        {container.image && formatContainerImage(container.image)}
+        <div className="truncate max-w-full">
+          {container.image && formatContainerImage(container.image)}
+        </div>
       </TableCell>
       <TableCell>
         {container.state && <ContainerStatusBadge state={container.state} />}

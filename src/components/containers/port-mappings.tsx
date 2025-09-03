@@ -9,7 +9,7 @@ interface PortMappingsProps {
 
 export function PortMappings({ ports, maxVisible = 3 }: PortMappingsProps) {
   if (!ports || ports.length === 0) {
-    return <span className="text-muted-foreground">No port mapping</span>;
+    return <></>;
   }
 
   // Create unique port mappings by converting to string format and using Set
