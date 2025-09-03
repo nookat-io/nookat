@@ -36,12 +36,18 @@ export function ContainerRow({
         />
       </TableCell>
       <TableCell className={`font-medium ${isNested ? 'pl-8' : ''}`}>
-        <div className="truncate max-w-full">
+        <div
+          className="truncate max-w-full"
+          title={formatContainerName(container)}
+        >
           {formatContainerName(container)}
         </div>
       </TableCell>
       <TableCell className="text-muted-foreground">
-        <div className="truncate max-w-full">
+        <div
+          className="truncate max-w-full"
+          title={container.image && formatContainerImage(container.image)}
+        >
           {container.image && formatContainerImage(container.image)}
         </div>
       </TableCell>
