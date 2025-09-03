@@ -17,12 +17,14 @@ interface PullImageTabProps {
     focusedSearchIndex: number;
     selectedImageDetails: DockerHubImage | null;
   };
+  isLoadingTags: boolean;
+  tagError: string | null;
+  tagSuggestions: string[];
   onRegistryChange: (value: string) => void;
   onCustomRegistryChange: (value: string) => void;
   onSearchChange: (query: string) => void;
   onImageSelect: (image: DockerHubImage) => void;
   onSearchKeyDown: (e: React.KeyboardEvent) => void;
-  onSearchFocus: () => void;
   onTagChange: (tag: string) => void;
   onClearSelection: () => void;
   disabled?: boolean;
@@ -34,12 +36,14 @@ export function PullImageTab({
   pullData,
   registryState,
   searchState,
+  isLoadingTags,
+  tagError,
+  tagSuggestions,
   onRegistryChange,
   onCustomRegistryChange,
   onSearchChange,
   onImageSelect,
   onSearchKeyDown,
-  onSearchFocus,
   onTagChange,
   onClearSelection,
   disabled = false,
@@ -48,7 +52,6 @@ export function PullImageTab({
 }: PullImageTabProps) {
   return (
     <div className="space-y-4">
-      {/* Registry field moved to top */}
       <RegistrySelector
         registryState={registryState}
         onRegistryChange={onRegistryChange}
@@ -68,7 +71,6 @@ export function PullImageTab({
             onSearchChange={onSearchChange}
             onImageSelect={onImageSelect}
             onSearchKeyDown={onSearchKeyDown}
-            onFocus={onSearchFocus}
             disabled={disabled}
             containerRef={searchContainerRef}
             inputRef={searchInputRef}
@@ -79,8 +81,10 @@ export function PullImageTab({
         <TagSelector
           tag={pullData.tag}
           onTagChange={onTagChange}
-          showSuggestions={!!searchState.selectedImageDetails}
-          disabled={disabled}
+          disabled={disabled || !searchState.selectedImageDetails}
+          isLoadingTags={isLoadingTags}
+          tagError={tagError}
+          tagSuggestions={tagSuggestions}
         />
       </div>
 

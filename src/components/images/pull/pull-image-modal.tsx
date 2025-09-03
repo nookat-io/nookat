@@ -21,6 +21,7 @@ import {
   useRegistryState,
   useDockerHubSearch,
   useSelectionFeedback,
+  useTagSuggestions,
 } from '../common/hooks';
 import { extractErrorMessage } from '../common/utils';
 
@@ -46,13 +47,8 @@ export function PullImage({ onSuccess }: PullImageProps) {
     resetSearch,
   } = useDockerHubSearch();
   const { showFeedback, resetFeedback } = useSelectionFeedback();
-
-  // Sync search query with form data when form data is updated programmatically
-  useEffect(() => {
-    if (pullData.imageName && !searchState.searchQuery) {
-      // This will be handled by the search hook
-    }
-  }, [pullData.imageName, searchState.searchQuery]);
+  const { tagSuggestions, isLoadingTags, tagError, fetchTags, clearTags } =
+    useTagSuggestions();
 
   // Sync form data when selected image details change
   useEffect(() => {
@@ -70,12 +66,20 @@ export function PullImage({ onSuccess }: PullImageProps) {
       });
 
       showFeedback(`Selected: ${imageName}`);
+
+      // Fetch available tags for the selected image
+      fetchTags(imageName);
+    } else {
+      // Clear tags when no image is selected
+      clearTags();
     }
   }, [
     searchState.selectedImageDetails,
     updatePullData,
     registryState,
     showFeedback,
+    fetchTags,
+    clearTags,
   ]);
 
   // Focus search input when modal opens
@@ -106,7 +110,7 @@ export function PullImage({ onSuccess }: PullImageProps) {
 
     updatePullData({
       imageName,
-      tag: 'latest',
+      tag: '',
       registry: registryState.showCustomRegistry
         ? registryState.customRegistry
         : registryState.selectedRegistry,
@@ -136,13 +140,9 @@ export function PullImage({ onSuccess }: PullImageProps) {
     setRunning('Pulling image...');
 
     try {
-      const fullImageName =
-        pullData.tag === 'latest'
-          ? pullData.imageName
-          : `${pullData.imageName}:${pullData.tag}`;
-
       await invoke('pull_image', {
-        imageName: fullImageName,
+        imageName: pullData.imageName,
+        tag: pullData.tag,
         registry: pullData.registry,
       });
 
@@ -182,12 +182,6 @@ export function PullImage({ onSuccess }: PullImageProps) {
     }
   };
 
-  const handleSearchFocus = () => {
-    if (searchState.searchResults.length > 0) {
-      // This will be handled by the search hook
-    }
-  };
-
   return (
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
@@ -206,12 +200,14 @@ export function PullImage({ onSuccess }: PullImageProps) {
           pullData={pullData}
           registryState={registryState}
           searchState={searchState}
+          isLoadingTags={isLoadingTags}
+          tagError={tagError}
+          tagSuggestions={tagSuggestions}
           onRegistryChange={handleRegistryChange}
           onCustomRegistryChange={handleCustomRegistryChange}
           onSearchChange={handleSearchChange}
           onImageSelect={handleImageSelect}
           onSearchKeyDown={handleSearchKeyDown}
-          onSearchFocus={handleSearchFocus}
           onTagChange={tag => updatePullData({ tag })}
           onClearSelection={clearSelection}
           disabled={progress.isRunning}
@@ -232,7 +228,9 @@ export function PullImage({ onSuccess }: PullImageProps) {
           </Button>
           <Button
             onClick={handlePull}
-            disabled={progress.isRunning || !pullData.imageName}
+            disabled={
+              progress.isRunning || !pullData.imageName || !pullData.tag
+            }
             className="min-w-[100px]"
           >
             {progress.isRunning ? (
@@ -243,7 +241,7 @@ export function PullImage({ onSuccess }: PullImageProps) {
             ) : (
               <>
                 <Download className="mr-2 h-4 w-4" />
-                Pull {pullData.imageName || 'Image'}
+                Pull
               </>
             )}
           </Button>

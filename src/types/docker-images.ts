@@ -20,16 +20,3 @@ export interface LocalDockerImage {
 export interface DockerImageSearchResult {
   results: DockerHubImage[];
 }
-
-export interface DockerImageAutocompleteProps {
-  value: string;
-  onChange: (value: string) => void;
-  placeholder?: string;
-  className?: string;
-}
-
-export interface DockerImageSelectorProps {
-  onImageSelect: (image: LocalDockerImage | null) => void;
-  disabled?: boolean;
-  className?: string;
-}

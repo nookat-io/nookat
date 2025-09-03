@@ -38,37 +38,11 @@ export function extractErrorMessage(error: unknown): string {
   return 'An unknown error occurred';
 }
 
-// Parse build args from string to key-value pairs
-export function parseBuildArgs(
-  buildArgsString: string
-): Record<string, string> {
-  const buildArgs: Record<string, string> = {};
-  if (buildArgsString.trim()) {
-    buildArgsString.split('\n').forEach(line => {
-      const [key, value] = line.split('=');
-      if (key && value) {
-        buildArgs[key.trim()] = value.trim();
-      }
-    });
-  }
-  return buildArgs;
-}
-
 // Default form values
 export const DEFAULT_PULL_DATA = {
   imageName: '',
   tag: 'latest',
   registry: 'docker.io',
-};
-
-export const DEFAULT_BUILD_DATA = {
-  dockerfilePath: '',
-  buildContext: '',
-  imageName: '',
-  tag: 'latest',
-  buildArgs: '',
-  noCache: false,
-  pull: false,
 };
 
 export const DEFAULT_PROGRESS_STATE = {

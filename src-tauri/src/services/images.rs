@@ -149,19 +149,19 @@ impl ImagesService {
     pub async fn pull_image(
         docker: &Docker,
         image_name: &str,
+        tag: &str,
         registry: &str,
     ) -> Result<(), String> {
-        debug!("Pulling image: {} from registry: {}", image_name, registry);
+        debug!(
+            "Pulling image: {}:{} from registry: {}",
+            image_name, tag, registry
+        );
 
-        // Construct the full image name
+        // Construct the full image name with tag
         let full_image_name = if registry != "docker.io" {
-            if image_name.contains('/') {
-                format!("{}/{}", registry, image_name)
-            } else {
-                format!("{}/{}", registry, image_name)
-            }
+            format!("{}/{}:{}", registry, image_name, tag)
         } else {
-            image_name.to_string()
+            format!("{}:{}", image_name, tag)
         };
 
         debug!("Full image name for pull: {}", full_image_name);
@@ -169,11 +169,6 @@ impl ImagesService {
         // Create options for pulling the image
         let mut options = CreateImageOptions::default();
         options.from_image = full_image_name.clone();
-
-        // For Docker Hub images, we might need to specify the tag
-        if !full_image_name.contains(':') {
-            options.tag = "latest".to_string();
-        }
 
         debug!("Pull options: {:?}", options);
 
@@ -252,128 +247,80 @@ impl ImagesService {
     }
 
     #[instrument(skip_all, err)]
-    pub async fn build_image(
-        docker: &Docker,
-        dockerfile_path: &str,
-        build_context: &str,
-        image_name: &str,
-        build_args: HashMap<String, String>,
-        options: BuildOptions,
-    ) -> Result<(), String> {
-        debug!(
-            "Building image: {} from Dockerfile: {}",
-            image_name, dockerfile_path
+    pub async fn search_docker_hub(query: &str) -> Result<serde_json::Value, String> {
+        debug!("Searching Docker Hub for: {}", query);
+
+        // Use reqwest to search Docker Hub API
+        let client = reqwest::Client::new();
+        let url = format!("https://index.docker.io/v1/search?q={}", query);
+
+        let response = client
+            .get(&url)
+            .header("User-Agent", "Nookat/1.0")
+            .send()
+            .await
+            .map_err(|e| format!("Failed to search Docker Hub: {}", e))?;
+
+        if !response.status().is_success() {
+            return Err(format!(
+                "Docker Hub API returned status: {}",
+                response.status()
+            ));
+        }
+
+        let result = response
+            .json::<serde_json::Value>()
+            .await
+            .map_err(|e| format!("Failed to parse Docker Hub response: {}", e))?;
+
+        Ok(result)
+    }
+
+    #[instrument(skip_all, err)]
+    pub async fn fetch_image_tags(image_name: &str) -> Result<Vec<String>, String> {
+        debug!("Fetching tags for image: {}", image_name);
+
+        // Use reqwest to fetch tags from Docker Hub API
+        let client = reqwest::Client::new();
+        let url = format!(
+            "https://registry.hub.docker.com/v2/repositories/{}/tags",
+            image_name
         );
 
-        // Create a tar archive of the build context
-        let mut tar_builder = tar::Builder::new(Vec::new());
+        let response = client
+            .get(&url)
+            .header("User-Agent", "Nookat/1.0")
+            .send()
+            .await
+            .map_err(|e| format!("Failed to fetch tags for {}: {}", image_name, e))?;
 
-        // Add the Dockerfile to the tar
-        let dockerfile_content = std::fs::read_to_string(dockerfile_path)
-            .map_err(|e| format!("Failed to read Dockerfile: {}", e))?;
-
-        let mut header = tar::Header::new_gnu();
-        header
-            .set_path("Dockerfile")
-            .map_err(|e| format!("Failed to set Dockerfile path in tar: {}", e))?;
-        header.set_size(dockerfile_content.len() as u64);
-        header.set_mode(0o644);
-
-        tar_builder
-            .append(&header, dockerfile_content.as_bytes())
-            .map_err(|e| format!("Failed to add Dockerfile to tar: {}", e))?;
-
-        // Add build context files (simplified - in production you'd want to add the entire directory)
-        let build_context_path = std::path::Path::new(build_context);
-        if build_context_path.exists() && build_context_path.is_dir() {
-            Self::add_directory_to_tar(&mut tar_builder, build_context_path, "")
-                .map_err(|e| format!("Failed to add build context to tar: {}", e))?;
+        if !response.status().is_success() {
+            return Err(format!(
+                "Docker Hub API returned status: {} for image: {}",
+                response.status(),
+                image_name
+            ));
         }
 
-        let _tar_data = tar_builder
-            .into_inner()
-            .map_err(|e| format!("Failed to finalize tar: {}", e))?;
+        let result = response
+            .json::<serde_json::Value>()
+            .await
+            .map_err(|e| format!("Failed to parse Docker Hub tags response: {}", e))?;
 
-        // Build the image
-        let build_options = bollard::image::BuildImageOptions::<String> {
-            dockerfile: "Dockerfile".to_string(),
-            t: image_name.to_string(),
-            buildargs: build_args,
-            nocache: options.no_cache,
-            pull: options.pull,
-            ..Default::default()
-        };
+        // Extract tag names from the response
+        let tags = result
+            .get("results")
+            .and_then(|results| results.as_array())
+            .map(|results| {
+                results
+                    .iter()
+                    .filter_map(|tag| tag.get("name").and_then(|name| name.as_str()))
+                    .map(|name| name.to_string())
+                    .collect::<Vec<String>>()
+            })
+            .unwrap_or_default();
 
-        let mut stream = docker.build_image(build_options, None, None);
-
-        use futures_util::StreamExt;
-
-        while let Some(build_result) = stream.next().await {
-            match build_result {
-                Ok(build_info) => {
-                    if let Some(error) = build_info.error {
-                        return Err(format!("Build error: {}", error));
-                    }
-                    if let Some(stream) = build_info.stream {
-                        debug!("Build stream: {}", stream);
-                    }
-                }
-                Err(e) => {
-                    return Err(format!("Failed to build image: {}", e));
-                }
-            }
-        }
-
-        debug!("Successfully built image: {}", image_name);
-        Ok(())
+        debug!("Found {} tags for image: {}", tags.len(), image_name);
+        Ok(tags)
     }
-
-    fn add_directory_to_tar(
-        tar_builder: &mut tar::Builder<Vec<u8>>,
-        dir_path: &std::path::Path,
-        prefix: &str,
-    ) -> Result<(), String> {
-        for entry in
-            std::fs::read_dir(dir_path).map_err(|e| format!("Failed to read directory: {}", e))?
-        {
-            let entry = entry.map_err(|e| format!("Failed to read directory entry: {}", e))?;
-            let path = entry.path();
-            let name = path
-                .file_name()
-                .ok_or("Invalid file name")?
-                .to_str()
-                .ok_or("Invalid file name encoding")?;
-
-            let tar_name = if prefix.is_empty() {
-                name.to_string()
-            } else {
-                format!("{}/{}", prefix, name)
-            };
-
-            if path.is_file() {
-                let content =
-                    std::fs::read(&path).map_err(|e| format!("Failed to read file: {}", e))?;
-
-                let mut header = tar::Header::new_gnu();
-                header
-                    .set_path(&tar_name)
-                    .map_err(|e| format!("Failed to set file path in tar: {}", e))?;
-                header.set_size(content.len() as u64);
-                header.set_mode(0o644);
-
-                tar_builder
-                    .append(&header, content.as_slice())
-                    .map_err(|e| format!("Failed to add file to tar: {}", e))?;
-            } else if path.is_dir() {
-                Self::add_directory_to_tar(tar_builder, &path, &tar_name)?;
-            }
-        }
-        Ok(())
-    }
-}
-
-#[derive(Debug, serde::Deserialize)]
-pub struct BuildOptions {
-    pub no_cache: bool,
-    pub pull: bool,
 }

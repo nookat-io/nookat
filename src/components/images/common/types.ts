@@ -1,21 +1,9 @@
 import { DockerHubImage } from '../../../types/docker-images';
 
-export type ActionType = 'pull' | 'build';
-
 export interface PullFormData {
   imageName: string;
   tag: string;
   registry: string;
-}
-
-export interface BuildFormData {
-  dockerfilePath: string;
-  buildContext: string;
-  imageName: string;
-  tag: string;
-  buildArgs: string;
-  noCache: boolean;
-  pull: boolean;
 }
 
 export interface ProgressState {

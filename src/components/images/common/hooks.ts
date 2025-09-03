@@ -1,23 +1,17 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { invoke } from '@tauri-apps/api/core';
 import { DockerHubImage } from '../../../types/docker-images';
+import { searchDockerHub, fetchImageTags } from '../../../lib/docker';
 import {
   PullFormData,
-  BuildFormData,
   ProgressState,
   DockerHubSearchState,
   RegistryState,
   SelectionFeedbackState,
 } from './types';
-import {
-  DEFAULT_PULL_DATA,
-  DEFAULT_BUILD_DATA,
-  DEFAULT_PROGRESS_STATE,
-} from './utils';
+import { DEFAULT_PULL_DATA, DEFAULT_PROGRESS_STATE } from './utils';
 
 export function useModalState() {
   const [isOpen, setIsOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<'pull' | 'build'>('pull');
 
   const openModal = useCallback(() => {
     setIsOpen(true);
@@ -27,42 +21,28 @@ export function useModalState() {
     setIsOpen(false);
   }, []);
 
-  const changeTab = useCallback((tab: 'pull' | 'build') => {
-    setActiveTab(tab);
-  }, []);
-
   return {
     isOpen,
-    activeTab,
     openModal,
     closeModal,
-    changeTab,
   };
 }
 
 export function useFormData() {
   const [pullData, setPullData] = useState<PullFormData>(DEFAULT_PULL_DATA);
-  const [buildData, setBuildData] = useState<BuildFormData>(DEFAULT_BUILD_DATA);
 
   const resetForms = useCallback(() => {
     setPullData(DEFAULT_PULL_DATA);
-    setBuildData(DEFAULT_BUILD_DATA);
   }, []);
 
   const updatePullData = useCallback((updates: Partial<PullFormData>) => {
     setPullData(prev => ({ ...prev, ...updates }));
   }, []);
 
-  const updateBuildData = useCallback((updates: Partial<BuildFormData>) => {
-    setBuildData(prev => ({ ...prev, ...updates }));
-  }, []);
-
   return {
     pullData,
-    buildData,
     resetForms,
     updatePullData,
-    updateBuildData,
   };
 }
 
@@ -168,71 +148,55 @@ export function useDockerHubSearch() {
     selectedImageDetails: null,
   });
 
-  const searchTimeoutRef = useRef<NodeJS.Timeout>();
+  const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const searchContainerRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
-  const searchDockerHub = useCallback(async (query: string) => {
-    try {
-      const result = await invoke('search_docker_hub', { query });
-      return result;
-    } catch (error) {
-      console.error('Failed to search Docker Hub:', error);
-      throw error;
+  const performSearch = useCallback(async (query: string) => {
+    if (!query.trim()) {
+      setSearchState(prev => ({
+        ...prev,
+        searchResults: [],
+        isSearchDropdownOpen: false,
+      }));
+      return;
     }
-  }, []);
 
-  const performSearch = useCallback(
-    async (query: string) => {
-      if (!query.trim()) {
-        setSearchState(prev => ({
-          ...prev,
-          searchResults: [],
-          isSearchDropdownOpen: false,
-        }));
-        return;
-      }
+    setSearchState(prev => ({
+      ...prev,
+      isSearching: true,
+      searchError: null,
+    }));
+
+    try {
+      const result = await searchDockerHub(query);
+      const images = result.results || [];
+
+      // Sort: Official images first, then by star count (descending)
+      const sortedImages = images
+        .sort((a: DockerHubImage, b: DockerHubImage) => {
+          if (a.is_official && !b.is_official) return -1;
+          if (!a.is_official && b.is_official) return 1;
+          return b.star_count - a.star_count;
+        })
+        .slice(0, 10); // Limit to 10 results
 
       setSearchState(prev => ({
         ...prev,
-        isSearching: true,
-        searchError: null,
+        searchResults: sortedImages,
+        isSearchDropdownOpen: true,
+        isSearching: false,
       }));
-
-      try {
-        const result = (await searchDockerHub(query)) as {
-          results: DockerHubImage[];
-        };
-
-        const images = result.results || [];
-
-        // Sort: Official images first, then by star count (descending)
-        const sortedImages = images
-          .sort((a: DockerHubImage, b: DockerHubImage) => {
-            if (a.is_official && !b.is_official) return -1;
-            if (!a.is_official && b.is_official) return 1;
-            return b.star_count - a.star_count;
-          })
-          .slice(0, 10); // Limit to 10 results
-
-        setSearchState(prev => ({
-          ...prev,
-          searchResults: sortedImages,
-          isSearchDropdownOpen: true,
-          isSearching: false,
-        }));
-      } catch (error) {
-        console.error('Search error:', error);
-        setSearchState(prev => ({
-          ...prev,
-          searchError: 'Failed to search Docker Hub. Please try again.',
-          searchResults: [],
-          isSearching: false,
-        }));
-      }
-    },
-    [searchDockerHub]
-  );
+    } catch (error) {
+      console.error('Search error:', error);
+      setSearchState(prev => ({
+        ...prev,
+        searchError: 'Failed to search Docker Hub. Please try again.',
+        searchResults: [],
+        isSearching: false,
+      }));
+    }
+  }, []);
 
   const handleSearchChange = useCallback(
     (query: string) => {
@@ -255,6 +219,7 @@ export function useDockerHubSearch() {
     setSearchState(prev => ({
       ...prev,
       selectedImageDetails: image,
+      searchQuery: image.name, // Update the search query to show the selected image name
       searchResults: [],
       isSearchDropdownOpen: false,
       focusedSearchIndex: -1,
@@ -390,20 +355,77 @@ export function useSelectionFeedback() {
     isVisible: false,
   });
 
+  const feedbackTimeoutRef = useRef<ReturnType<typeof setTimeout>>();
+
   const showFeedback = useCallback((message: string) => {
     setFeedback({ message, isVisible: true });
-    setTimeout(() => {
+    if (feedbackTimeoutRef.current) {
+      clearTimeout(feedbackTimeoutRef.current);
+    }
+    feedbackTimeoutRef.current = setTimeout(() => {
       setFeedback(prev => ({ ...prev, isVisible: false }));
-    }, 3000);
+    }, 1000);
   }, []);
 
   const resetFeedback = useCallback(() => {
     setFeedback({ message: '', isVisible: false });
+
+    if (feedbackTimeoutRef.current) {
+      clearTimeout(feedbackTimeoutRef.current);
+    }
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (feedbackTimeoutRef.current) {
+        clearTimeout(feedbackTimeoutRef.current);
+      }
+    };
   }, []);
 
   return {
     feedback,
     showFeedback,
     resetFeedback,
+  };
+}
+
+export function useTagSuggestions() {
+  const [tagSuggestions, setTagSuggestions] = useState<string[]>([]);
+  const [isLoadingTags, setIsLoadingTags] = useState(false);
+  const [tagError, setTagError] = useState<string | null>(null);
+
+  const fetchTags = useCallback(async (imageName: string) => {
+    if (!imageName.trim()) {
+      setTagSuggestions([]);
+      return;
+    }
+
+    setIsLoadingTags(true);
+    setTagError(null);
+
+    try {
+      const tags = await fetchImageTags(imageName);
+      setTagSuggestions(tags);
+    } catch (error) {
+      console.error('Failed to fetch tags:', error);
+      setTagError('Failed to fetch available tags');
+      setTagSuggestions([]);
+    } finally {
+      setIsLoadingTags(false);
+    }
+  }, []);
+
+  const clearTags = useCallback(() => {
+    setTagSuggestions([]);
+    setTagError(null);
+  }, []);
+
+  return {
+    tagSuggestions,
+    isLoadingTags,
+    tagError,
+    fetchTags,
+    clearTags,
   };
 }

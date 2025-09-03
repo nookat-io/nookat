@@ -30,7 +30,7 @@ export function RegistrySelector({
         onValueChange={onRegistryChange}
         disabled={disabled}
       >
-        <SelectTrigger>
+        <SelectTrigger id="pull-registry">
           <SelectValue placeholder="Select registry" />
         </SelectTrigger>
         <SelectContent>
@@ -42,6 +42,7 @@ export function RegistrySelector({
       {/* Custom registry input */}
       {registryState.showCustomRegistry && (
         <Input
+          id="pull-custom-registry"
           placeholder="Enter custom registry (e.g., gcr.io, ecr.aws.com)"
           value={registryState.customRegistry}
           onChange={e => onCustomRegistryChange(e.target.value)}

@@ -6,8 +6,27 @@ interface ProgressDisplayProps {
 }
 
 export function ProgressDisplay({ progress }: ProgressDisplayProps) {
-  if (!progress.progress && !progress.error && !progress.success) {
+  if (
+    !progress.isRunning &&
+    !progress.progress &&
+    !progress.error &&
+    !progress.success
+  ) {
     return null;
+  }
+
+  if (progress.error) {
+    return (
+      <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-md">
+        <div className="flex items-start space-x-2">
+          <AlertCircle className="h-4 w-4 text-red-500 mt-0.5 flex-shrink-0" />
+          <div className="flex-1">
+            <p className="text-sm font-medium text-red-800">Error</p>
+            <p className="text-sm text-red-700 mt-1">{progress.error}</p>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -17,31 +36,8 @@ export function ProgressDisplay({ progress }: ProgressDisplayProps) {
           <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
         )}
         {progress.success && <CheckCircle className="h-4 w-4 text-green-500" />}
-        {progress.error && <AlertCircle className="h-4 w-4 text-red-500" />}
-        <span
-          className={
-            progress.error
-              ? 'text-red-600'
-              : progress.success
-                ? 'text-green-600'
-                : ''
-          }
-        >
-          {progress.progress || (progress.error ? 'Error occurred' : '')}
-        </span>
+        <span>{progress.progress}</span>
       </div>
-
-      {progress.error && (
-        <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-md">
-          <div className="flex items-start space-x-2">
-            <AlertCircle className="h-4 w-4 text-red-500 mt-0.5 flex-shrink-0" />
-            <div className="flex-1">
-              <p className="text-sm font-medium text-red-800">Error</p>
-              <p className="text-sm text-red-700 mt-1">{progress.error}</p>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

@@ -5,7 +5,6 @@ mod services;
 mod state;
 
 use crate::handlers::{
-    build_image,
     bulk_force_remove_containers,
     bulk_pause_containers,
     bulk_remove_containers,
@@ -16,22 +15,19 @@ use crate::handlers::{
     bulk_stop_containers,
     bulk_unpause_containers,
     check_colima_availability,
-    check_docker_access,
     check_homebrew_availability,
     container_files,
     container_logs,
     delete_image,
     engine_status,
-    export_docker_image,
+    fetch_image_tags,
     force_remove_container,
     // Configuration
     get_config,
-    get_docker_images_cli,
     get_docker_info,
     get_engine_state,
     get_language,
     get_theme,
-    inspect_docker_image,
     inspect_volume,
     install_colima_command,
     // Containers
@@ -179,12 +175,8 @@ pub fn run() {
             prune_images,
             delete_image,
             pull_image,
-            build_image,
             search_docker_hub,
-            check_docker_access,
-            get_docker_images_cli,
-            export_docker_image,
-            inspect_docker_image,
+            fetch_image_tags,
             // Networks
             list_networks,
             remove_network,
