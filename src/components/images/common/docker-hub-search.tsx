@@ -52,6 +52,8 @@ export function DockerHubSearch({
           onKeyDown={onSearchKeyDown}
           onFocus={onFocus}
           disabled={disabled}
+          spellCheck={false}
+          autoComplete="off"
           className={`pl-10 ${hasSelectedImage ? 'border-green-500 bg-green-50' : ''}`}
         />
         {isSearching && (

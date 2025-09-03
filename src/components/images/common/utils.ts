@@ -54,9 +54,6 @@ export function parseBuildArgs(
   return buildArgs;
 }
 
-// Common tag suggestions
-export const COMMON_TAGS = ['latest', 'stable', 'alpine', 'slim'];
-
 // Default form values
 export const DEFAULT_PULL_DATA = {
   imageName: '',

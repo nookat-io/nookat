@@ -74,14 +74,6 @@ export function PullImageTab({
             inputRef={searchInputRef}
             hasSelectedImage={!!searchState.selectedImageDetails}
           />
-
-          {/* Validation Status */}
-          {pullData.imageName && (
-            <div className="mt-2 p-2 bg-blue-100 border border-blue-300 rounded text-xs text-blue-800">
-              ✓ Ready to pull: {pullData.registry}/{pullData.imageName}:
-              {pullData.tag}
-            </div>
-          )}
         </div>
 
         <TagSelector
