@@ -34,7 +34,6 @@ export function DockerHubSearch({
   disabled = false,
   containerRef,
   inputRef,
-  hasSelectedImage = false,
 }: DockerHubSearchProps) {
   return (
     <div className="space-y-2">
@@ -53,7 +52,7 @@ export function DockerHubSearch({
           disabled={disabled}
           spellCheck={false}
           autoComplete="off"
-          className={`pl-10 ${hasSelectedImage ? 'border-green-500 bg-green-50' : ''}`}
+          className="pl-10"
         />
         {isSearching && (
           <Loader2 className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />

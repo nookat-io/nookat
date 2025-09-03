@@ -37,3 +37,10 @@ export interface SelectionFeedbackState {
   message: string;
   isVisible: boolean;
 }
+
+export interface PullData {
+  isRunning: boolean;
+  progress: string;
+  error: string | null;
+  success: boolean;
+}

@@ -1,4 +1,5 @@
 import { ErrorWithMessage } from './types';
+import { ProgressState } from './types';
 
 // Type guard to check if an object has a message property
 export function isErrorWithMessage(error: unknown): error is ErrorWithMessage {
@@ -45,7 +46,7 @@ export const DEFAULT_PULL_DATA = {
   registry: 'docker.io',
 };
 
-export const DEFAULT_PROGRESS_STATE = {
+export const DEFAULT_PROGRESS_STATE: ProgressState = {
   isRunning: false,
   progress: '',
   error: null,

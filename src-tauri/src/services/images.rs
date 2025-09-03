@@ -250,41 +250,19 @@ impl ImagesService {
     pub async fn search_docker_hub(query: &str) -> Result<serde_json::Value, String> {
         debug!("Searching Docker Hub for: {}", query);
 
-        // Use reqwest to search Docker Hub API
-        let client = reqwest::Client::new();
-        let url = format!("https://index.docker.io/v1/search?q={}", query);
+        // Create reqwest client with timeout to avoid hanging
+        let client = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(15))
+            .build()
+            .map_err(|e| format!("Failed to create HTTP client: {}", e))?;
 
-        let response = client
-            .get(&url)
-            .header("User-Agent", "Nookat/1.0")
-            .send()
-            .await
-            .map_err(|e| format!("Failed to search Docker Hub: {}", e))?;
-
-        if !response.status().is_success() {
-            return Err(format!(
-                "Docker Hub API returned status: {}",
-                response.status()
-            ));
-        }
-
-        let result = response
-            .json::<serde_json::Value>()
-            .await
-            .map_err(|e| format!("Failed to parse Docker Hub response: {}", e))?;
-
-        Ok(result)
-    }
-
-    #[instrument(skip_all, err)]
-    pub async fn fetch_image_tags(image_name: &str) -> Result<Vec<String>, String> {
-        debug!("Fetching tags for image: {}", image_name);
-
-        // Use reqwest to fetch tags from Docker Hub API
-        let client = reqwest::Client::new();
+        // Use Docker Hub v2 search endpoint with page_size and proper URL encoding
         let url = format!(
-            "https://registry.hub.docker.com/v2/repositories/{}/tags",
-            image_name
+            "https://hub.docker.com/v2/search/repositories/?query={}&page_size=25",
+            query
+                .replace(' ', "%20")
+                .replace('&', "%26")
+                .replace('?', "%3F")
         );
 
         let response = client
@@ -292,35 +270,139 @@ impl ImagesService {
             .header("User-Agent", "Nookat/1.0")
             .send()
             .await
-            .map_err(|e| format!("Failed to fetch tags for {}: {}", image_name, e))?;
+            .map_err(|e| format!("Failed to search Docker Hub v2 API: {}", e))?;
 
         if !response.status().is_success() {
             return Err(format!(
-                "Docker Hub API returned status: {} for image: {}",
-                response.status(),
-                image_name
+                "Docker Hub v2 API returned status: {}",
+                response.status()
             ));
         }
 
-        let result = response
+        let raw = response
             .json::<serde_json::Value>()
             .await
-            .map_err(|e| format!("Failed to parse Docker Hub tags response: {}", e))?;
+            .map_err(|e| format!("Failed to parse Docker Hub v2 response: {}", e))?;
 
-        // Extract tag names from the response
-        let tags = result
-            .get("results")
-            .and_then(|results| results.as_array())
-            .map(|results| {
-                results
+        // Normalize Docker Hub v2 search response to { results: DockerHubImage[] }
+        // Expected fields in frontend: name, description, star_count, pull_count, is_official, is_automated
+        let mut normalized_results: Vec<serde_json::Value> = Vec::new();
+        if let Some(items) = raw.get("results").and_then(|v| v.as_array()) {
+            for item in items {
+                let name = item
+                    .get("repo_name")
+                    .and_then(|v| v.as_str())
+                    .or_else(|| item.get("name").and_then(|v| v.as_str()))
+                    .or_else(|| item.get("slug").and_then(|v| v.as_str()))
+                    .unwrap_or("")
+                    .to_string();
+
+                let description = item
+                    .get("short_description")
+                    .and_then(|v| v.as_str())
+                    .or_else(|| item.get("description").and_then(|v| v.as_str()))
+                    .unwrap_or("")
+                    .to_string();
+
+                let star_count =
+                    item.get("star_count").and_then(|v| v.as_u64()).unwrap_or(0) as i64;
+
+                let pull_count =
+                    item.get("pull_count").and_then(|v| v.as_u64()).unwrap_or(0) as i64;
+
+                let is_official = item
+                    .get("is_official")
+                    .and_then(|v| v.as_bool())
+                    .unwrap_or(false);
+
+                let is_automated = item
+                    .get("is_automated")
+                    .and_then(|v| v.as_bool())
+                    .unwrap_or(false);
+
+                // Only include entries that have a non-empty name
+                if !name.is_empty() {
+                    normalized_results.push(serde_json::json!({
+                        "name": name,
+                        "description": description,
+                        "star_count": star_count,
+                        "pull_count": pull_count,
+                        "is_official": is_official,
+                        "is_automated": is_automated,
+                    }));
+                }
+            }
+        }
+
+        Ok(serde_json::json!({ "results": normalized_results }))
+    }
+
+    #[instrument(skip_all, err)]
+    pub async fn fetch_image_tags(image_name: &str) -> Result<Vec<String>, String> {
+        debug!("Fetching tags for image: {}", image_name);
+
+        // Ensure image_name uses the namespace form by prefixing "library/" when there is no namespace
+        let namespace_image = if image_name.contains('/') {
+            image_name.to_string()
+        } else {
+            format!("library/{}", image_name)
+        };
+
+        // Create reqwest client with timeout to avoid hanging
+        let client = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(15))
+            .build()
+            .map_err(|e| format!("Failed to create HTTP client: {}", e))?;
+
+        let mut all_tags = Vec::new();
+        let mut next_url = Some(format!(
+            "https://registry.hub.docker.com/v2/repositories/{}/tags?page_size=100",
+            namespace_image
+        ));
+
+        // Handle pagination by looping through all pages
+        while let Some(url) = next_url {
+            debug!("Fetching tags from: {}", url);
+
+            let response = client
+                .get(&url)
+                .header("User-Agent", "Nookat/1.0")
+                .send()
+                .await
+                .map_err(|e| format!("Failed to fetch tags for {}: {}", image_name, e))?;
+
+            if !response.status().is_success() {
+                return Err(format!(
+                    "Docker Hub API returned status: {} for image: {}",
+                    response.status(),
+                    image_name
+                ));
+            }
+
+            let result = response
+                .json::<serde_json::Value>()
+                .await
+                .map_err(|e| format!("Failed to parse Docker Hub tags response: {}", e))?;
+
+            // Extract tag names from the current page
+            if let Some(results) = result.get("results").and_then(|r| r.as_array()) {
+                let page_tags: Vec<String> = results
                     .iter()
                     .filter_map(|tag| tag.get("name").and_then(|name| name.as_str()))
                     .map(|name| name.to_string())
-                    .collect::<Vec<String>>()
-            })
-            .unwrap_or_default();
+                    .collect();
 
-        debug!("Found {} tags for image: {}", tags.len(), image_name);
-        Ok(tags)
+                all_tags.extend(page_tags);
+            }
+
+            // Check for next page URL
+            next_url = result
+                .get("next")
+                .and_then(|next| next.as_str())
+                .map(|s| s.to_string());
+        }
+
+        debug!("Found {} tags for image: {}", all_tags.len(), image_name);
+        Ok(all_tags)
     }
 }
