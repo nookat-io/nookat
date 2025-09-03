@@ -1,21 +1,12 @@
 'use client';
 
 import { useState } from 'react';
-import { Button } from '../ui/button';
-import { Trash2, Trash } from 'lucide-react';
-import { PullImageModal } from './pull';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '../ui/dialog';
+import { PullImage } from './pull/pull-image-modal';
 import { invoke } from '@tauri-apps/api/core';
-import { formatBytes } from '../../utils/format';
 import { PruneResult } from './image-types';
+import { PruneConfirmDialog } from './dialogs/PruneConfirmDialog';
+import { DeleteConfirmDialog } from './dialogs/DeleteConfirmDialog';
+import { PruneResultsDialog } from './dialogs/PruneResultsDialog';
 
 interface ImageActionsProps {
   selectedImages: string[];
@@ -39,10 +30,11 @@ export function ImageActions({
 
   const handlePrune = async () => {
     setIsPruning(true);
-    setConfirmPruneDialogOpen(false);
     try {
       const result = await invoke<PruneResult>('prune_images');
       setPruneResult(result);
+      // Close confirm dialog only after operation completes
+      setConfirmPruneDialogOpen(false);
       setPruneDialogOpen(true);
       // Refresh the image list after pruning
       if (onRefresh) {
@@ -135,135 +127,30 @@ export function ImageActions({
 
   return (
     <div className="flex items-center gap-2">
-      <PullImageModal onSuccess={onRefresh} />
+      <PullImage onSuccess={onRefresh} />
 
-      {/* Prune Confirmation Dialog */}
-      <Dialog
+      <PruneConfirmDialog
         open={confirmPruneDialogOpen}
+        isPruning={isPruning}
         onOpenChange={setConfirmPruneDialogOpen}
-      >
-        <DialogTrigger asChild>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setConfirmPruneDialogOpen(true)}
-            disabled={isPruning}
-          >
-            <Trash className="mr-2 h-4 w-4" />
-            {isPruning ? 'Pruning...' : 'Prune Unused'}
-          </Button>
-        </DialogTrigger>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Confirm Prune Operation</DialogTitle>
-            <DialogDescription>
-              This will remove all unused images from your system. This action
-              cannot be undone. Are you sure you want to continue?
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setConfirmPruneDialogOpen(false)}
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={handlePrune}
-              disabled={isPruning}
-            >
-              {isPruning ? 'Pruning...' : 'Prune Images'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        onConfirm={handlePrune}
+      />
 
-      {/* Delete Selected Confirmation Dialog */}
       {selectedImages.length > 0 && (
-        <Dialog
+        <DeleteConfirmDialog
           open={confirmDeleteDialogOpen}
+          isDeleting={isDeleting}
+          selectedCount={selectedImages.length}
           onOpenChange={setConfirmDeleteDialogOpen}
-        >
-          <DialogTrigger asChild>
-            <Button
-              variant="destructive"
-              size="sm"
-              onClick={() => setConfirmDeleteDialogOpen(true)}
-              disabled={isDeleting}
-            >
-              <Trash2 className="mr-2 h-4 w-4" />
-              {isDeleting
-                ? 'Deleting...'
-                : `Delete Selected (${selectedImages.length})`}
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Confirm Delete Operation</DialogTitle>
-              <DialogDescription>
-                This will permanently delete {selectedImages.length} selected
-                image{selectedImages.length > 1 ? 's' : ''}. This action cannot
-                be undone. Are you sure you want to continue?
-              </DialogDescription>
-            </DialogHeader>
-            <DialogFooter>
-              <Button
-                variant="outline"
-                onClick={() => setConfirmDeleteDialogOpen(false)}
-              >
-                Cancel
-              </Button>
-              <Button
-                variant="destructive"
-                onClick={handleDeleteSelected}
-                disabled={isDeleting}
-              >
-                {isDeleting ? 'Deleting...' : 'Delete Images'}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+          onConfirm={handleDeleteSelected}
+        />
       )}
 
-      {/* Prune Results Dialog */}
-      <Dialog open={pruneDialogOpen} onOpenChange={setPruneDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Prune Results</DialogTitle>
-            <DialogDescription>
-              {pruneResult ? (
-                <div className="space-y-2">
-                  <p>
-                    Successfully removed {pruneResult.images_deleted.length}{' '}
-                    unused images.
-                  </p>
-                  <p>
-                    Space reclaimed: {formatBytes(pruneResult.space_reclaimed)}
-                  </p>
-                  {pruneResult.images_deleted.length > 0 && (
-                    <div>
-                      <p className="font-medium">Deleted images:</p>
-                      <div className="max-h-32 overflow-y-auto text-sm text-muted-foreground">
-                        {pruneResult.images_deleted.map((imageId, index) => (
-                          <div key={index} className="font-mono">
-                            {imageId.substring(0, 12)}...
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              ) : (
-                'No unused images found to remove.'
-              )}
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button onClick={() => setPruneDialogOpen(false)}>Close</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <PruneResultsDialog
+        open={pruneDialogOpen}
+        result={pruneResult}
+        onOpenChange={setPruneDialogOpen}
+      />
     </div>
   );
 }

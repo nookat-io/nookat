@@ -24,11 +24,11 @@ import {
 } from '../common/hooks';
 import { extractErrorMessage } from '../common/utils';
 
-interface PullImageModalProps {
+interface PullImageProps {
   onSuccess?: () => void;
 }
 
-export function PullImageModal({ onSuccess }: PullImageModalProps) {
+export function PullImage({ onSuccess }: PullImageProps) {
   const { isOpen, openModal, closeModal } = useModalState();
   const { pullData, resetForms, updatePullData } = useFormData();
   const { progress, resetProgress, setRunning, setSuccess, setError } =
