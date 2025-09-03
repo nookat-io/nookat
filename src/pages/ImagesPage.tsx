@@ -60,34 +60,38 @@ export default function ImagesPage() {
   );
 
   return (
-    <PageLayout
-      header={
-        <ImageHeader
-          selectedImages={selected}
-          images={images}
-          onActionComplete={handleActionComplete}
-          onSelectionClear={() => setSelected([])}
-        />
-      }
-      controls={
-        <ImageControls
-          filter={filter}
-          onFilterChange={setFilter}
-          searchTerm={searchTerm}
-          onSearchChange={setSearchTerm}
-        />
-      }
-      table={
-        <ImagesTable
-          selectedImages={selected}
-          onSelectionChange={setSelected}
-          images={filteredImages}
-          onActionComplete={handleActionComplete}
-          isLoading={isLoading}
-          error={error}
-          onRetry={() => window.location.reload()}
-        />
-      }
-    />
+    <>
+      <PageLayout
+        header={
+          <ImageHeader
+            selectedImages={selected}
+            images={images}
+            onActionComplete={handleActionComplete}
+            onSelectionClear={() => setSelected([])}
+          />
+        }
+        controls={
+          <ImageControls
+            filter={filter}
+            onFilterChange={setFilter}
+            searchTerm={searchTerm}
+            onSearchChange={setSearchTerm}
+          />
+        }
+        table={
+          <div className="space-y-6">
+            <ImagesTable
+              selectedImages={selected}
+              onSelectionChange={setSelected}
+              images={filteredImages}
+              onActionComplete={handleActionComplete}
+              isLoading={isLoading}
+              error={error}
+              onRetry={() => window.location.reload()}
+            />
+          </div>
+        }
+      />
+    </>
   );
 }
