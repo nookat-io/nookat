@@ -69,12 +69,12 @@ export function ContainerGroupRow({
                 variant="default"
                 className="text-xs bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300"
               >
-                Running
+                running
               </Badge>
             )}
             {containers.every(c => c.state !== 'running') && (
               <Badge variant="secondary" className="text-xs">
-                Stopped
+                exited
               </Badge>
             )}
           </div>
