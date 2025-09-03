@@ -65,7 +65,12 @@ export function Header() {
           title={`${engineName} status: ${statusLabel}`}
           aria-hidden="true"
         />
-        <p className="text-xs text-muted-foreground">{statusLabel}</p>
+        <p
+          className="text-xs text-muted-foreground"
+          title={`${engineName} status: ${statusLabel}`}
+        >
+          {statusLabel}
+        </p>
       </div>
       <ThemeToggle />
     </header>
