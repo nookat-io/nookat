@@ -6,11 +6,11 @@ import {
   Trash2,
   Pause,
   Play as ResumeIcon,
-  Trash,
 } from 'lucide-react';
 import { Container, ContainerState } from './container-types';
 import { useState } from 'react';
 import { ContainerActionService } from './container-actions-service';
+import { ContainerPruneConfirmDialog } from './dialogs/ContainerPruneConfirmDialog';
 
 interface ContainerActionsProps {
   selectedContainers: string[];
@@ -26,6 +26,7 @@ export function ContainerActions({
   onSelectionChange,
 }: ContainerActionsProps) {
   const [isLoading, setIsLoading] = useState<string | null>(null);
+  const [pruneDialogOpen, setPruneDialogOpen] = useState(false);
 
   const selectedContainerData = containers.filter(container =>
     selectedContainers.includes(container.id)
@@ -162,24 +163,28 @@ export function ContainerActions({
     );
   };
 
-  const handlePrune = () =>
+  const handlePrune = () => {
     handleAction(
-      () => ContainerActionService.pruneContainers({ onActionComplete }),
+      () =>
+        ContainerActionService.pruneContainers({
+          onActionComplete: () => {
+            setPruneDialogOpen(false);
+            onActionComplete?.();
+          },
+        }),
       'prune'
     );
+  };
 
   if (selectedContainers.length === 0) {
     return (
       <div className="flex items-center gap-2">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handlePrune}
-          disabled={isLoading === 'prune'}
-        >
-          <Trash className="mr-2 h-4 w-4" />
-          {isLoading === 'prune' ? 'Pruning...' : 'Prune Stopped'}
-        </Button>
+        <ContainerPruneConfirmDialog
+          open={pruneDialogOpen}
+          isPruning={isLoading === 'prune'}
+          onOpenChange={setPruneDialogOpen}
+          onConfirm={handlePrune}
+        />
       </div>
     );
   }
