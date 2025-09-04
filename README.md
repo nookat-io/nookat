@@ -51,7 +51,7 @@ Built with <strong>Tauri</strong>, <strong>React</strong>, and <strong>TypeScrip
 
 <div align="center">
 
-![Containers Page](screenshots/dark/containers.png)
+![Containers Page](screenshots/light/containers.png)
 _Container management interface_
 
 </div>
