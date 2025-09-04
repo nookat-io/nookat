@@ -1,6 +1,6 @@
 [package]
 name = "nookat"
-version = "0.1.6"
+version = "0.1.7"
 description = "Nookat is a tool for managing Docker containers"
 authors = ["Nookat.io Developers"]
 edition = "2021"
