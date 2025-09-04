@@ -13,6 +13,13 @@ Users need a simple, trusted way to install and update Nookat on macOS (and opti
 Create and maintain a Homebrew Cask that enables `brew install --cask nookat` with:
 
 - **Cask definition**: A `nookat.rb` cask with app name, version, sha256, URL, `zap` stanzas, and caveats if needed
+  - Ensure tokenization: cask token `nookat` (lowercase, hyphen/space rules per docs)
+  - Include `desc` and `homepage`
+  - Use per-arch checksums via `on_arm` / `on_intel` (or `arch` blocks) if artifacts differ
+  - Add `auto_updates true` if the app self-updates; otherwise omit
+  - Prefer `livecheck` over deprecated mechanisms for updates
+  - After notarization, staple the ticketed build: `xcrun stapler staple "Nookat.app"`
+  - Add `depends_on macos: ">= :big_sur"` (adjust as needed)
 - **Hosting**: Decide whether to submit to `homebrew-cask` or host in a custom tap (e.g., `nookat-dev/homebrew-tap`)
 - **CI automation**: Pipeline that builds artifacts, computes checksums, updates the cask, and opens PRs automatically
 - **Updates**: Support for app auto-updates or `brew upgrade --cask nookat`; consider `livecheck` for version discovery

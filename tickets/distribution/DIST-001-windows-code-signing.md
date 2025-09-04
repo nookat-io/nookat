@@ -1,7 +1,7 @@
 ---
 name: Feature request
 about: Implement Windows code signing for application security and trust
-title: '[DIST-011] Implement Windows code signing'
+title: '[DIST-001] Implement Windows code signing'
 labels: 'distribution, security, windows'
 assignees: ''
 ---
