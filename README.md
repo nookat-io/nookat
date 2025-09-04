@@ -43,7 +43,7 @@ Built with <strong>Tauri</strong>, <strong>React</strong>, and <strong>TypeScrip
 - **🌐 Network Management**: Configure and monitor Docker networks
 - **💾 Volume Management**: Handle Docker volumes and data persistence
 - **⚙️ Settings & Configuration**: Customize your Docker experience
-- **🔧 Auto Container Engine Setup**: Downloads and Installs container engines if needed, with Colima as the default
+- **🔧 Auto Container Engine Setup**: Downloads and Installs container engines if needed, with [Colima](https://github.com/abiosoft/colima) as the default
 - **🎨 Modern UI**: Clean, intuitive interface built with React and Tailwind CSS
 - **🆓 Completely Free**: No premium features, no subscriptions
 
@@ -67,7 +67,7 @@ _Container management interface_
 - **macOS**: macOS 10.15 or later
 - **Linux**: Most modern distributions
 - **Windows**: Windows 10 or later
-- **Any Docker-compatible container runtime**, or install Colima in Nookat app settings
+- **Any [OCI](https://opencontainers.org/)-compatible container runtime**, or install [Colima](https://github.com/abiosoft/colima) in Nookat app settings
 - [Tauri](https://tauri.app/start/prerequisites/) (for development)
 
 ### Download Nookat
