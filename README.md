@@ -29,7 +29,7 @@ Built with <strong>Tauri</strong>, <strong>React</strong>, and <strong>TypeScrip
 
 <div align="center">
 
-**Get started for free.** [Download](https://github.com/nookat-io/nookat/releases) | [Website](https://nookat-io.github.io)
+**Get started** [Download](https://github.com/nookat-io/nookat/releases) | [Website](https://nookat-io.github.io)
 
 </div>
 
@@ -72,7 +72,7 @@ _Container management interface_
 
 ### Download Nookat
 
-You can download the latest release from [GitHub Releases](https://github.com/nookat-io/nookat/releases):
+You can download the latest release from [GitHub Releases](https://github.com/nookat-io/nookat/releases)
 
 ## Development Setup
 
