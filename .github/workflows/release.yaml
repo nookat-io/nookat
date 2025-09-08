@@ -43,40 +43,40 @@ jobs:
           echo "Release coordination started at $(date)"
 
   # macOS build job
-  build-macos:
-    needs: release-coordinator
-    uses: ./.github/workflows/build-macos.yaml
-    with:
-      version: ${{ needs.release-coordinator.outputs.version }}
-      version-tag: ${{ needs.release-coordinator.outputs.version-tag }}
-    secrets:
-      APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
-      APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-      KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
-      APPLE_ID: ${{ secrets.APPLE_ID }}
-      APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
-      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-      TAURI_SIGNING_PUBLIC_KEY: ${{ secrets.TAURI_SIGNING_PUBLIC_KEY }}
-      TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-      TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-      VITE_APTABASE_APP_KEY: ${{ secrets.VITE_APTABASE_APP_KEY }}
-      VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
-      SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+  # build-macos:
+  #   needs: release-coordinator
+  #   uses: ./.github/workflows/build-macos.yaml
+  #   with:
+  #     version: ${{ needs.release-coordinator.outputs.version }}
+  #     version-tag: ${{ needs.release-coordinator.outputs.version-tag }}
+  #   secrets:
+  #     APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+  #     APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+  #     KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+  #     APPLE_ID: ${{ secrets.APPLE_ID }}
+  #     APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
+  #     APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+  #     TAURI_SIGNING_PUBLIC_KEY: ${{ secrets.TAURI_SIGNING_PUBLIC_KEY }}
+  #     TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+  #     TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+  #     VITE_APTABASE_APP_KEY: ${{ secrets.VITE_APTABASE_APP_KEY }}
+  #     VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
+  #     SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
 
-  # Windows build job
-  build-windows:
-    needs: release-coordinator
-    uses: ./.github/workflows/build-windows.yaml
-    with:
-      version: ${{ needs.release-coordinator.outputs.version }}
-      version-tag: ${{ needs.release-coordinator.outputs.version-tag }}
-    secrets:
-      TAURI_SIGNING_PUBLIC_KEY: ${{ secrets.TAURI_SIGNING_PUBLIC_KEY }}
-      TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-      TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-      VITE_APTABASE_APP_KEY: ${{ secrets.VITE_APTABASE_APP_KEY }}
-      VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
-      SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+  # # Windows build job
+  # build-windows:
+  #   needs: release-coordinator
+  #   uses: ./.github/workflows/build-windows.yaml
+  #   with:
+  #     version: ${{ needs.release-coordinator.outputs.version }}
+  #     version-tag: ${{ needs.release-coordinator.outputs.version-tag }}
+  #   secrets:
+  #     TAURI_SIGNING_PUBLIC_KEY: ${{ secrets.TAURI_SIGNING_PUBLIC_KEY }}
+  #     TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+  #     TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+  #     VITE_APTABASE_APP_KEY: ${{ secrets.VITE_APTABASE_APP_KEY }}
+  #     VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
+  #     SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
 
   # Linux build job
   build-linux:
