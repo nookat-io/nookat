@@ -43,40 +43,40 @@ jobs:
           echo "Release coordination started at $(date)"
 
   # macOS build job
-  # build-macos:
-  #   needs: release-coordinator
-  #   uses: ./.github/workflows/build-macos.yaml
-  #   with:
-  #     version: ${{ needs.release-coordinator.outputs.version }}
-  #     version-tag: ${{ needs.release-coordinator.outputs.version-tag }}
-  #   secrets:
-  #     APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
-  #     APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-  #     KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
-  #     APPLE_ID: ${{ secrets.APPLE_ID }}
-  #     APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
-  #     APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-  #     TAURI_SIGNING_PUBLIC_KEY: ${{ secrets.TAURI_SIGNING_PUBLIC_KEY }}
-  #     TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-  #     TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-  #     VITE_APTABASE_APP_KEY: ${{ secrets.VITE_APTABASE_APP_KEY }}
-  #     VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
-  #     SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+  build-macos:
+    needs: release-coordinator
+    uses: ./.github/workflows/build-macos.yaml
+    with:
+      version: ${{ needs.release-coordinator.outputs.version }}
+      version-tag: ${{ needs.release-coordinator.outputs.version-tag }}
+    secrets:
+      APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+      APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+      KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+      APPLE_ID: ${{ secrets.APPLE_ID }}
+      APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      TAURI_SIGNING_PUBLIC_KEY: ${{ secrets.TAURI_SIGNING_PUBLIC_KEY }}
+      TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+      TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+      VITE_APTABASE_APP_KEY: ${{ secrets.VITE_APTABASE_APP_KEY }}
+      VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
+      SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
 
-  # # Windows build job
-  # build-windows:
-  #   needs: release-coordinator
-  #   uses: ./.github/workflows/build-windows.yaml
-  #   with:
-  #     version: ${{ needs.release-coordinator.outputs.version }}
-  #     version-tag: ${{ needs.release-coordinator.outputs.version-tag }}
-  #   secrets:
-  #     TAURI_SIGNING_PUBLIC_KEY: ${{ secrets.TAURI_SIGNING_PUBLIC_KEY }}
-  #     TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-  #     TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-  #     VITE_APTABASE_APP_KEY: ${{ secrets.VITE_APTABASE_APP_KEY }}
-  #     VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
-  #     SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+  # Windows build job
+  build-windows:
+    needs: release-coordinator
+    uses: ./.github/workflows/build-windows.yaml
+    with:
+      version: ${{ needs.release-coordinator.outputs.version }}
+      version-tag: ${{ needs.release-coordinator.outputs.version-tag }}
+    secrets:
+      TAURI_SIGNING_PUBLIC_KEY: ${{ secrets.TAURI_SIGNING_PUBLIC_KEY }}
+      TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+      TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+      VITE_APTABASE_APP_KEY: ${{ secrets.VITE_APTABASE_APP_KEY }}
+      VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
+      SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
 
   # Linux build job
   build-linux:
@@ -94,29 +94,29 @@ jobs:
       SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
 
   # Final release coordination
-  # release-completion:
-  #   # needs: [release-coordinator, build-macos, build-windows, build-linux]
-  #   runs-on: ubuntu-22.04
-  #   if: always()
-  #   steps:
-  #     - uses: actions/checkout@v4
+  release-completion:
+    needs: [release-coordinator, build-macos, build-windows, build-linux]
+    runs-on: ubuntu-22.04
+    if: always()
+    steps:
+      - uses: actions/checkout@v4
 
-  #     - name: Check build status
-  #       run: |
-  #         echo "Build Status Summary:"
-  #         echo "macOS: ${{ needs.build-macos.result }}"
-  #         echo "Windows: ${{ needs.build-windows.result }}"
-  #         echo "Linux: ${{ needs.build-linux.result }}"
+      - name: Check build status
+        run: |
+          echo "Build Status Summary:"
+          echo "macOS: ${{ needs.build-macos.result }}"
+          echo "Windows: ${{ needs.build-windows.result }}"
+          echo "Linux: ${{ needs.build-linux.result }}"
 
-  #         if [[ "${{ needs.build-macos.result }}" == "success" && "${{ needs.build-windows.result }}" == "success" && "${{ needs.build-linux.result }}" == "success" ]]; then
-  #           echo "✅ All platform builds completed successfully!"
-  #         else
-  #           echo "❌ Some platform builds failed. Check individual workflow runs for details."
-  #           exit 1
-  #         fi
+          if [[ "${{ needs.build-macos.result }}" == "success" && "${{ needs.build-windows.result }}" == "success" && "${{ needs.build-linux.result }}" == "success" ]]; then
+            echo "✅ All platform builds completed successfully!"
+          else
+            echo "❌ Some platform builds failed. Check individual workflow runs for details."
+            exit 1
+          fi
 
-  #     - name: Release Summary
-  #       run: |
-  #         echo "🎉 Release ${{ needs.release-coordinator.outputs.version-tag }} completed!"
-  #         echo "All platform builds have been published to GitHub releases."
-  #         echo "Release is available as a draft and can be published manually."
+      - name: Release Summary
+        run: |
+          echo "🎉 Release ${{ needs.release-coordinator.outputs.version-tag }} completed!"
+          echo "All platform builds have been published to GitHub releases."
+          echo "Release is available as a draft and can be published manually."
