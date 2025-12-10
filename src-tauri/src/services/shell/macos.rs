@@ -211,6 +211,28 @@ pub async fn check_colima_status(app: &AppHandle) -> Result<bool, String> {
     Ok(status_text.contains("Running"))
 }
 
+#[instrument(skip_all, err)]
+pub async fn stop_colima(app: &AppHandle) -> Result<(), String> {
+    debug!("Stopping Colima");
+    debug!("Executing: colima stop");
+
+    let output = app
+        .shell()
+        .command("zsh")
+        .args(["-l", "-c", "colima stop"])
+        .output()
+        .await
+        .map_err(|e| format!("Failed to stop Colima: {}", e))?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(format!("Failed to stop Colima: {}", stderr));
+    }
+
+    debug!("Colima stopped successfully");
+    Ok(())
+}
+
 /// Start Colima VM with configuration
 #[instrument(skip_all, err)]
 pub async fn start_colima_with_config(

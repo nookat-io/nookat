@@ -9,6 +9,7 @@ interface ResourceInputProps {
   max: number;
   onChange: (value: number) => void;
   className?: string;
+  disabled?: boolean;
 }
 
 export const ResourceInput = ({
@@ -19,6 +20,7 @@ export const ResourceInput = ({
   max,
   onChange,
   className = '',
+  disabled = false,
 }: ResourceInputProps) => {
   return (
     <div className={`space-y-2 ${className}`}>
@@ -30,6 +32,7 @@ export const ResourceInput = ({
         max={max}
         value={value}
         onChange={e => onChange(parseInt(e.target.value) || min)}
+        disabled={disabled}
       />
     </div>
   );

@@ -6,17 +6,21 @@ import {
   InstallationMethod,
   InstallationStep,
   InstallationProgress,
+  ColimaEngineStopProgressType,
   ColimaConfig,
+  StopStep,
 } from '../types';
 
 export interface EngineSettingsState {
   // Installation state
   method: InstallationMethod;
-  step: InstallationStep;
+  installationStep: InstallationStep;
+  stopStep: StopStep;
   homebrewAvailable: boolean | null;
   colimaAvailable: boolean | null;
   config: ColimaConfig;
-  progress: InstallationProgress;
+  installationProgress: InstallationProgress;
+  stopProgress: ColimaEngineStopProgressType;
   error: string | null;
   dockerInfo: DockerInfo | null;
 
@@ -26,7 +30,8 @@ export interface EngineSettingsState {
 
 export interface EngineSettingsActions {
   setMethod: (method: InstallationMethod) => void;
-  setStep: (step: InstallationStep) => void;
+  setInstallationStep: (step: InstallationStep) => void;
+  setStopStep: (step: StopStep) => void;
   setConfig: (config: ColimaConfig) => void;
   setError: (error: string | null) => void;
   setShowEngineConfig: (show: boolean) => void;
@@ -34,6 +39,7 @@ export interface EngineSettingsActions {
   handleStartEngine: () => Promise<void>;
   handleRetry: () => void;
   fetchDockerInfo: () => Promise<void>;
+  handleStopEngine: () => Promise<void>;
 }
 
 export function useEngineSettingsState(): [
@@ -42,7 +48,9 @@ export function useEngineSettingsState(): [
 ] {
   // Installation state
   const [method, setMethod] = useState<InstallationMethod>('homebrew');
-  const [step, setStep] = useState<InstallationStep>('idle');
+  const [installationStep, setInstallationStep] =
+    useState<InstallationStep>('idle');
+  const [stopStep, setStopStep] = useState<StopStep>('idle');
   const [homebrewAvailable, setHomebrewAvailable] = useState<boolean | null>(
     null
   );
@@ -53,12 +61,20 @@ export function useEngineSettingsState(): [
     disk: 100,
     architecture: 'host',
   });
-  const [progress, setProgress] = useState<InstallationProgress>({
-    step: '',
-    message: '',
-    percentage: 0,
-    logs: [],
-  });
+  const [installationProgress, setInstallationProgress] =
+    useState<InstallationProgress>({
+      step: '',
+      message: '',
+      percentage: 0,
+      logs: [],
+    });
+  const [stopProgress, setStopProgress] =
+    useState<ColimaEngineStopProgressType>({
+      step: '',
+      message: '',
+      percentage: 0,
+      logs: [],
+    });
   const [error, setError] = useState<string | null>(null);
   const [dockerInfo, setDockerInfo] = useState<DockerInfo | null>(null);
 
@@ -112,20 +128,23 @@ export function useEngineSettingsState(): [
 
   // Event listeners for installation progress
   useEffect(() => {
-    if (step === 'installing' || step === 'starting-vm') {
+    if (
+      installationStep === 'installing' ||
+      installationStep === 'starting-vm'
+    ) {
       const unlistenPromises: Promise<() => void>[] = [];
 
-      if (step === 'installing') {
+      if (installationStep === 'installing') {
         const unlistenInstall = listen('installation-progress', event => {
           const progressData = event.payload as InstallationProgress;
-          setProgress(progressData);
+          setInstallationProgress(progressData);
         });
         unlistenPromises.push(unlistenInstall);
 
         const unlistenComplete = listen('installation-complete', async () => {
-          setStep('complete');
+          setInstallationStep('complete');
           setColimaAvailable(true);
-          setProgress(prev => ({
+          setInstallationProgress(prev => ({
             step: 'Installation Complete!',
             message:
               'Colima has been successfully installed. You can now start the engine.',
@@ -141,21 +160,21 @@ export function useEngineSettingsState(): [
         const unlistenError = listen('installation-error', event => {
           const errorMsg = event.payload as string;
           setError(errorMsg);
-          setStep('error');
+          setInstallationStep('error');
         });
         unlistenPromises.push(unlistenError);
       }
 
-      if (step === 'starting-vm') {
+      if (installationStep === 'starting-vm') {
         const unlistenVMProgress = listen('vm-startup-progress', event => {
           const progressData = event.payload as InstallationProgress;
-          setProgress(progressData);
+          setInstallationProgress(progressData);
         });
         unlistenPromises.push(unlistenVMProgress);
 
         const unlistenVMComplete = listen('vm-startup-complete', () => {
-          setStep('validating');
-          setProgress(prev => ({
+          setInstallationStep('validating');
+          setInstallationProgress(prev => ({
             ...prev,
             step: 'Validating engine...',
             message: 'Testing Docker connectivity and engine status',
@@ -167,9 +186,9 @@ export function useEngineSettingsState(): [
           }));
 
           setTimeout(() => {
-            setStep('complete');
+            setInstallationStep('complete');
             fetchDockerInfo().catch(() => {});
-            setProgress(prev => ({
+            setInstallationProgress(prev => ({
               ...prev,
               step: 'Engine Ready!',
               message: 'Colima engine is ready to use',
@@ -183,7 +202,7 @@ export function useEngineSettingsState(): [
         const unlistenVMError = listen('vm-startup-error', event => {
           const errorMsg = event.payload as string;
           setError(errorMsg);
-          setStep('error');
+          setInstallationStep('error');
         });
         unlistenPromises.push(unlistenVMError);
       }
@@ -194,13 +213,65 @@ export function useEngineSettingsState(): [
         });
       };
     }
-  }, [step]);
+  }, [installationStep]);
+
+  // Event listeners for stop progress
+  useEffect(() => {
+    if (stopStep === 'stopping-vm' || stopStep === 'stopping') {
+      const unlistenPromises: Promise<() => void>[] = [];
+
+      if (stopStep === 'stopping-vm') {
+        const unlistenStopProgress = listen('vm-stop-progress', event => {
+          const progressData = event.payload as ColimaEngineStopProgressType;
+          setStopProgress(progressData);
+        });
+        unlistenPromises.push(unlistenStopProgress);
+
+        const unlistenStopComplete = listen('vm-stop-complete', async () => {
+          setStopStep('complete');
+          setStopProgress(prev => ({
+            step: 'Engine Stopped',
+            message: 'Colima engine has been stopped successfully',
+            percentage: 100,
+            logs: [...prev.logs, '[INFO] Engine stopped successfully'],
+          }));
+          // Refresh Docker info after stopping
+          setTimeout(() => {
+            fetchDockerInfo().catch(() => {});
+            setStopStep('idle');
+          }, 2000);
+        });
+        unlistenPromises.push(unlistenStopComplete);
+
+        const unlistenStopError = listen('vm-stop-error', event => {
+          const errorMsg = event.payload as string;
+          setError(errorMsg);
+          setStopStep('error');
+        });
+        unlistenPromises.push(unlistenStopError);
+      }
+
+      if (stopStep === 'stopping') {
+        const unlistenStopProgress = listen('engine-stop-progress', event => {
+          const progressData = event.payload as ColimaEngineStopProgressType;
+          setStopProgress(progressData);
+        });
+        unlistenPromises.push(unlistenStopProgress);
+      }
+
+      return () => {
+        unlistenPromises.forEach(unlisten => {
+          unlisten.then(cleanup => cleanup());
+        });
+      };
+    }
+  }, [stopStep]);
 
   // Handlers
   const handleInstall = async () => {
-    setStep('installing');
+    setInstallationStep('installing');
     setError(null);
-    setProgress({
+    setInstallationProgress({
       step: 'Starting installation...',
       message: 'Preparing to install Colima',
       percentage: 0,
@@ -213,14 +284,14 @@ export function useEngineSettingsState(): [
     } catch (error) {
       console.error('Installation failed:', error);
       setError(error instanceof Error ? error.message : String(error));
-      setStep('error');
+      setInstallationStep('error');
     }
   };
 
   const handleStartEngine = async () => {
-    setStep('starting-vm');
+    setInstallationStep('starting-vm');
     setError(null);
-    setProgress({
+    setInstallationProgress({
       step: 'Starting Engine...',
       message: 'Initializing Colima virtual machine',
       percentage: 0,
@@ -232,14 +303,40 @@ export function useEngineSettingsState(): [
     } catch (error) {
       console.error('Engine startup failed:', error);
       setError(error instanceof Error ? error.message : String(error));
-      setStep('error');
+      setInstallationStep('error');
+    }
+  };
+
+  const handleStopEngine = async () => {
+    setStopStep('stopping-vm');
+    setError(null);
+    setStopProgress({
+      step: 'Stopping Engine...',
+      message: 'Stopping Colima virtual machine',
+      percentage: 0,
+      logs: ['[INFO] Stopping Colima engine...'],
+    });
+
+    try {
+      await invoke('stop_colima_vm_command');
+    } catch (error) {
+      console.error('Engine stop failed:', error);
+      setError(error instanceof Error ? error.message : String(error));
+      setStopStep('error');
     }
   };
 
   const handleRetry = () => {
-    setStep('idle');
+    setInstallationStep('idle');
+    setStopStep('idle');
     setError(null);
-    setProgress({
+    setInstallationProgress({
+      step: '',
+      message: '',
+      percentage: 0,
+      logs: [],
+    });
+    setStopProgress({
       step: '',
       message: '',
       percentage: 0,
@@ -249,11 +346,13 @@ export function useEngineSettingsState(): [
 
   const state: EngineSettingsState = {
     method,
-    step,
+    installationStep,
+    stopStep,
     homebrewAvailable,
     colimaAvailable,
     config,
-    progress,
+    installationProgress,
+    stopProgress,
     error,
     dockerInfo,
     showEngineConfig,
@@ -261,7 +360,8 @@ export function useEngineSettingsState(): [
 
   const actions: EngineSettingsActions = {
     setMethod,
-    setStep,
+    setInstallationStep,
+    setStopStep,
     setConfig,
     setError,
     setShowEngineConfig,
@@ -269,6 +369,7 @@ export function useEngineSettingsState(): [
     handleStartEngine,
     handleRetry,
     fetchDockerInfo,
+    handleStopEngine,
   };
 
   return [state, actions];
