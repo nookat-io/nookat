@@ -94,5 +94,10 @@ jobs:
         rustup component add rustfmt
         rustup component add clippy
 
+    - name: Install Rust dependencies
+      run: |
+        cd src-tauri
+        cargo fetch
+
     - name: Run pre-commit on all files
       run: pre-commit run --all-files
