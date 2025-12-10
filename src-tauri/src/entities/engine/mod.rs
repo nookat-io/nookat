@@ -99,6 +99,14 @@ pub struct InstallationProgress {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct ColimaEngineStopProgress {
+    pub step: String,
+    pub message: String,
+    pub percentage: u8,
+    pub logs: Vec<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ColimaConfig {
     pub cpu: u8,
     pub memory: u16,

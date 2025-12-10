@@ -6,11 +6,13 @@ import { AlertCircle, CheckCircle, Loader2, RefreshCw } from 'lucide-react';
 import {
   InstallationProgress as ProgressType,
   InstallationStep,
+  StopStep,
+  ColimaEngineStopProgressType,
 } from '../types';
 
 interface InstallationProgressProps {
-  step: InstallationStep;
-  progress: ProgressType;
+  step: InstallationStep | StopStep;
+  progress: ProgressType | ColimaEngineStopProgressType;
   error: string | null;
   onRetry?: () => void;
   className?: string;
@@ -24,7 +26,11 @@ export function InstallationProgress({
   className = '',
 }: InstallationProgressProps) {
   const isActive =
-    step === 'installing' || step === 'starting-vm' || step === 'validating';
+    step === 'installing' ||
+    step === 'starting-vm' ||
+    step === 'validating' ||
+    step === 'stopping-vm' ||
+    step === 'stopping';
   const isComplete = step === 'complete';
   const hasError = step === 'error' || error;
 
@@ -75,7 +81,9 @@ export function InstallationProgress({
           <div className="space-y-3">
             <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-md">
               <p className="text-sm text-destructive font-medium">
-                Installation failed
+                {step === 'stopping-vm' || step === 'stopping'
+                  ? 'Stop operation failed'
+                  : 'Installation failed'}
               </p>
               <p className="text-sm text-muted-foreground mt-1">
                 {error || 'An unexpected error occurred'}

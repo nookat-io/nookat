@@ -20,9 +20,9 @@ export function EngineSettings() {
   // Computed values
   const isEngineRunning = Boolean(state.dockerInfo?.server_version);
   const isInstalling =
-    state.step === 'installing' ||
-    state.step === 'starting-vm' ||
-    state.step === 'validating';
+    state.installationStep === 'installing' ||
+    state.installationStep === 'starting-vm' ||
+    state.installationStep === 'validating';
 
   // Show loading state while checking engine status
   if (isChecking) {
@@ -56,20 +56,24 @@ export function EngineSettings() {
         onToggle={() => actions.setShowEngineConfig(!state.showEngineConfig)}
       >
         <EngineConfiguration
+          dockerInfo={state.dockerInfo}
           colimaAvailable={state.colimaAvailable}
           config={state.config}
           onConfigChange={actions.setConfig}
           onStartEngine={actions.handleStartEngine}
           isInstalling={isInstalling}
           isEngineRunning={isEngineRunning}
-          step={state.step}
-          progress={state.progress}
+          installationStep={state.installationStep}
+          stopStep={state.stopStep}
+          installationProgress={state.installationProgress}
+          stopProgress={state.stopProgress}
           error={state.error}
           onRetry={actions.handleRetry}
           method={state.method}
           onMethodChange={actions.setMethod}
           homebrewAvailable={state.homebrewAvailable}
           onInstall={actions.handleInstall}
+          onStopEngine={actions.handleStopEngine}
         />
       </CollapsibleSection>
     </div>

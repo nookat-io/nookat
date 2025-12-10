@@ -21,6 +21,10 @@ pub async fn start_colima_vm(_app: &AppHandle, _config: ColimaConfig) -> Result<
     todo!("Colima is only implemented on macOS for now, other platforms are not supported yet");
 }
 
+pub async fn stop_colima_vm(app_handle: &AppHandle) -> Result<(), String> {
+    todo!("Colima is only implemented on macOS for now, other platforms are not supported yet");
+}
+
 #[instrument(skip_all, err)]
 pub async fn is_colima_available(_app: &AppHandle) -> Result<bool, String> {
     // Colima is only implemented on macOS for now, other platforms are not supported yet
