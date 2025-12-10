@@ -1,6 +1,6 @@
 use crate::entities::EngineStatus;
 use crate::entities::{ColimaConfig, InstallationMethod};
-use crate::services::engine::{install_colima, start_colima_vm};
+use crate::services::engine::{install_colima, start_colima_vm, stop_colima_vm};
 use crate::services::shell::{is_colima_available, is_homebrew_available};
 use crate::state::SharedEngineState;
 use tauri::State;
@@ -42,6 +42,13 @@ pub async fn start_colima_vm_command(
 ) -> Result<(), String> {
     info!("Starting Colima VM with config: {:?}", config);
     start_colima_vm(&app, config).await
+}
+
+#[tauri::command]
+#[instrument(skip_all, err)]
+pub async fn stop_colima_vm_command(app: tauri::AppHandle) -> Result<(), String> {
+    info!("Stopping Colima VM");
+    stop_colima_vm(&app).await
 }
 
 #[tauri::command]

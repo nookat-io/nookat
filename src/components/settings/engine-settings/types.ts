@@ -10,7 +10,21 @@ export type InstallationStep =
   | 'complete'
   | 'error';
 
+export type StopStep =
+  | 'idle'
+  | 'stopping-vm'
+  | 'stopping'
+  | 'complete'
+  | 'error';
+
 export interface InstallationProgress {
+  step: string;
+  message: string;
+  percentage: number;
+  logs: string[];
+}
+
+export interface ColimaEngineStopProgressType {
   step: string;
   message: string;
   percentage: number;

@@ -54,6 +54,7 @@ use crate::handlers::{
     start_colima_vm_command,
     start_container,
     start_engine_state_monitoring,
+    stop_colima_vm_command,
     stop_container,
     unpause_container,
     update_language,
@@ -197,6 +198,7 @@ pub fn run() {
             check_colima_availability,
             install_colima_command,
             start_colima_vm_command,
+            stop_colima_vm_command,
         ])
         .setup(|app| {
             let engine_state = SharedEngineState::new(app.app_handle().clone());
