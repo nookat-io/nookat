@@ -1,5 +1,7 @@
 import { invoke } from '@tauri-apps/api/core';
 import { toast } from 'sonner';
+import { VolumePruneResult } from './volume-types';
+import { formatBytes } from '../../utils/format';
 
 export interface VolumeActionOptions {
   onActionComplete?: () => void;
@@ -105,8 +107,21 @@ export class VolumeActionService {
 
   static async pruneVolumes(options: VolumeActionOptions = {}) {
     try {
-      const result = await invoke<string>('prune_volumes');
-      toast.success(result);
+      const result = await invoke<VolumePruneResult>('prune_volumes');
+      const count = result.volumes_deleted.length;
+
+      // Report exactly what the daemon said it removed. Anything derived on this
+      // side (a before/after volume count, for instance) races with the rest of
+      // the system and can credit the prune with volumes it never touched.
+      if (count === 0) {
+        toast.success('No unused anonymous volumes to remove');
+      } else {
+        toast.success(
+          `Removed ${count} ${this.getVolumeText(count)}, reclaimed ${formatBytes(
+            result.space_reclaimed
+          )}`
+        );
+      }
 
       setTimeout(() => {
         options.onActionComplete?.();

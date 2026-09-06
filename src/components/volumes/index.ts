@@ -12,4 +12,4 @@ export { VolumeActions } from './volume-actions';
 export { VolumeActionService } from './volume-actions-service';
 
 // Types
-export { type Volume } from './volume-types';
+export { type Volume, type VolumePruneResult } from './volume-types';
