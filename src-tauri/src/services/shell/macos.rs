@@ -203,12 +203,22 @@ pub async fn check_colima_status(app: &AppHandle) -> Result<bool, String> {
         .await
         .map_err(|e| format!("Failed to check Colima status: {}", e))?;
 
+    // `colima status` reports through its logger, which writes to stderr and
+    // leaves stdout empty, so the report has to be read from both streams.
+    // The exit code is the authoritative signal: 0 when the VM is running,
+    // non-zero (with "colima is not running") when it is not.
     if !output.status.success() {
         return Ok(false);
     }
 
-    let status_text = String::from_utf8_lossy(&output.stdout);
-    Ok(status_text.contains("Running"))
+    let status_text = format!(
+        "{}{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    )
+    .to_lowercase();
+
+    Ok(!status_text.contains("is not running"))
 }
 
 #[instrument(skip_all, err)]

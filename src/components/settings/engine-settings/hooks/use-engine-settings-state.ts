@@ -229,11 +229,15 @@ export function useEngineSettingsState(): [
 
         const unlistenStopComplete = listen('vm-stop-complete', async () => {
           setStopStep('complete');
+          // The backend reports what it actually did (stopped the VM, or found
+          // it already stopped), so keep its final message instead of claiming
+          // a stop that may not have happened.
           setStopProgress(prev => ({
-            step: 'Engine Stopped',
-            message: 'Colima engine has been stopped successfully',
+            step: prev.step || 'Engine Stopped',
+            message:
+              prev.message || 'Colima engine has been stopped successfully',
             percentage: 100,
-            logs: [...prev.logs, '[INFO] Engine stopped successfully'],
+            logs: prev.logs,
           }));
           // Refresh Docker info after stopping
           setTimeout(() => {
