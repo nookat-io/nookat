@@ -227,18 +227,16 @@ export function useEngineSettingsState(): [
         });
         unlistenPromises.push(unlistenStopProgress);
 
-        const unlistenStopComplete = listen('vm-stop-complete', async () => {
+        const unlistenStopComplete = listen('vm-stop-complete', async event => {
           setStopStep('complete');
-          // The backend reports what it actually did (stopped the VM, or found
-          // it already stopped), so keep its final message instead of claiming
-          // a stop that may not have happened.
-          setStopProgress(prev => ({
-            step: prev.step || 'Engine Stopped',
-            message:
-              prev.message || 'Colima engine has been stopped successfully',
-            percentage: 100,
-            logs: prev.logs,
-          }));
+          // The event carries the terminal progress, so the final state does
+          // not depend on the last 'vm-stop-progress' arriving first. The
+          // backend reports what it actually did (stopped the VM, or found it
+          // already stopped), so keep its message instead of claiming a stop
+          // that may not have happened.
+          const finalProgress =
+            event.payload as ColimaEngineStopProgressType | null;
+          setStopProgress(prev => finalProgress ?? { ...prev, percentage: 100 });
           // Refresh Docker info after stopping
           setTimeout(() => {
             fetchDockerInfo().catch(() => {});

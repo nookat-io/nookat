@@ -10,7 +10,6 @@ use bollard::Docker;
 use std::time::Duration;
 use tauri::{AppHandle, Emitter};
 use tokio::sync::mpsc;
-use tokio::time::Instant;
 use tracing::{debug, instrument, warn};
 
 #[instrument(skip_all, err)]
@@ -233,29 +232,51 @@ pub async fn start_colima_vm(app_handle: &AppHandle, config: ColimaConfig) -> Re
 /// Poll `colima status` until the VM reports as stopped.
 ///
 /// `colima stop` returns before the VM has fully torn down, so the shutdown has
-/// to be observed rather than assumed after a fixed delay.
+/// to be observed rather than assumed after a fixed delay. The whole wait is
+/// bounded, so a `colima status` invocation that never returns cannot wedge the
+/// stop flow.
 #[instrument(skip_all, err)]
 async fn wait_for_colima_stopped(app_handle: &AppHandle) -> Result<(), String> {
     const POLL_INTERVAL: Duration = Duration::from_millis(500);
     const TIMEOUT: Duration = Duration::from_secs(60);
 
-    let deadline = Instant::now() + TIMEOUT;
+    // A status check can fail transiently while the VM tears down, so keep
+    // polling on error and report the last failure only if the wait expires.
+    let mut last_error: Option<String> = None;
 
-    loop {
-        if let Ok(false) = check_colima_status(app_handle).await {
-            debug!("Colima VM reported as stopped");
-            return Ok(());
+    let poll = async {
+        loop {
+            match check_colima_status(app_handle).await {
+                Ok(false) => return,
+                Ok(true) => last_error = None,
+                Err(e) => {
+                    warn!("Failed to check Colima status while stopping: {}", e);
+                    last_error = Some(e);
+                }
+            }
+
+            tokio::time::sleep(POLL_INTERVAL).await;
         }
+    };
 
-        if Instant::now() >= deadline {
-            return Err(format!(
-                "Colima VM did not report as stopped within {} seconds",
-                TIMEOUT.as_secs()
-            ));
-        }
+    let stopped = tokio::time::timeout(TIMEOUT, poll).await.is_ok();
 
-        tokio::time::sleep(POLL_INTERVAL).await;
+    if stopped {
+        debug!("Colima VM reported as stopped");
+        return Ok(());
     }
+
+    Err(match last_error {
+        Some(e) => format!(
+            "Colima VM did not report as stopped within {} seconds; the last status check failed: {}",
+            TIMEOUT.as_secs(),
+            e
+        ),
+        None => format!(
+            "Colima VM did not report as stopped within {} seconds",
+            TIMEOUT.as_secs()
+        ),
+    })
 }
 
 #[instrument(skip_all, err)]
@@ -302,7 +323,7 @@ pub async fn stop_colima_vm(app_handle: &AppHandle) -> Result<(), String> {
                 .logs
                 .push("[INFO] Colima VM is already stopped".to_string());
             let _ = tx_clone.send(progress.clone()).await;
-            return Ok(());
+            return Ok(progress);
         }
 
         // Step 2: Stop Colima VM
@@ -348,7 +369,7 @@ pub async fn stop_colima_vm(app_handle: &AppHandle) -> Result<(), String> {
             .push("[INFO] Colima VM stopped successfully".to_string());
         let _ = tx_clone.send(progress.clone()).await;
 
-        Ok(())
+        Ok(progress)
     });
 
     // Handle progress updates and send them to the frontend
@@ -364,17 +385,19 @@ pub async fn stop_colima_vm(app_handle: &AppHandle) -> Result<(), String> {
         .await
         .map_err(|e| format!("VM stop task failed: {}", e))?;
 
-    // Send completion event
+    // Send completion event. The terminal progress rides along with it: the
+    // relay task above may not have drained the channel yet, so the frontend
+    // cannot rely on the last `vm-stop-progress` arriving first.
     match &result {
-        Ok(_) => {
-            let _ = app_handle_for_events.emit("vm-stop-complete", ());
+        Ok(final_progress) => {
+            let _ = app_handle_for_events.emit("vm-stop-complete", final_progress);
         }
         Err(e) => {
             let _ = app_handle_for_events.emit("vm-stop-error", e);
         }
     }
 
-    result
+    result.map(|_| ())
 }
 
 #[instrument(skip_all, err)]
