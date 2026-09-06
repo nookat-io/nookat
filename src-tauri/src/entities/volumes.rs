@@ -1,4 +1,4 @@
-use bollard::models::{VolumeScopeEnum, VolumeUsageData};
+use bollard::models::{VolumePruneResponse, VolumeScopeEnum, VolumeUsageData};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -65,5 +65,57 @@ impl From<bollard::models::Volume> for Volume {
             options: volume.options,
             usage_data: volume.usage_data.map(UsageData::from),
         }
+    }
+}
+
+/// Outcome of a volume prune, taken verbatim from the daemon's prune response.
+///
+/// Never derive these numbers by diffing the volume list before and after the
+/// prune: that races with anything else touching the daemon and cannot tell a
+/// pruned volume from one created or removed concurrently.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct VolumePruneResult {
+    pub volumes_deleted: Vec<String>,
+    pub space_reclaimed: i64,
+}
+
+impl From<VolumePruneResponse> for VolumePruneResult {
+    fn from(response: VolumePruneResponse) -> Self {
+        VolumePruneResult {
+            volumes_deleted: response.volumes_deleted.unwrap_or_default(),
+            space_reclaimed: response.space_reclaimed.unwrap_or_default(),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn prune_result_takes_the_daemon_response_verbatim() {
+        let response = VolumePruneResponse {
+            volumes_deleted: Some(vec!["anon-a".to_string(), "anon-b".to_string()]),
+            space_reclaimed: Some(2048),
+        };
+
+        let result = VolumePruneResult::from(response);
+
+        assert_eq!(result.volumes_deleted, vec!["anon-a", "anon-b"]);
+        assert_eq!(result.space_reclaimed, 2048);
+    }
+
+    #[test]
+    fn prune_result_reports_nothing_deleted_when_the_daemon_omits_the_fields() {
+        // The daemon omits both fields when it removed nothing. That must read
+        // as "zero volumes deleted", never as missing data to be filled in by
+        // some client-side estimate.
+        let result = VolumePruneResult::from(VolumePruneResponse {
+            volumes_deleted: None,
+            space_reclaimed: None,
+        });
+
+        assert!(result.volumes_deleted.is_empty());
+        assert_eq!(result.space_reclaimed, 0);
     }
 }

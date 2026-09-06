@@ -23,3 +23,9 @@ export interface Volume {
   options: Record<string, string>;
   usage_data?: UsageData;
 }
+
+// Volume prune result matching backend, taken verbatim from the daemon response
+export interface VolumePruneResult {
+  volumes_deleted: string[];
+  space_reclaimed: number;
+}

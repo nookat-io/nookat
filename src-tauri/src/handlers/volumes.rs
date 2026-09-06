@@ -1,4 +1,4 @@
-use crate::entities::Volume;
+use crate::entities::{Volume, VolumePruneResult};
 use crate::services::VolumesService;
 use crate::state::SharedEngineState;
 use tauri::State;
@@ -55,24 +55,13 @@ pub async fn inspect_volume(
 
 #[tauri::command]
 #[instrument(skip_all, err)]
-pub async fn prune_volumes(state: State<'_, SharedEngineState>) -> Result<String, String> {
+pub async fn prune_volumes(
+    state: State<'_, SharedEngineState>,
+) -> Result<VolumePruneResult, String> {
     debug!("Pruning unused volumes");
 
     let engine = state.get_engine().await?;
     let docker = engine.docker.as_ref().ok_or("Docker not found")?;
 
-    // Get initial count of volumes
-    let initial_volumes = VolumesService::get_volumes(docker).await?;
-    let initial_count = initial_volumes.len();
-
-    // Perform the pruning
-    VolumesService::prune_volumes(docker).await?;
-
-    // Get final count of volumes
-    let final_volumes = VolumesService::get_volumes(docker).await?;
-    let final_count = final_volumes.len();
-
-    let pruned_count = initial_count.saturating_sub(final_count);
-
-    Ok(format!("Pruned {} unused volumes", pruned_count))
+    VolumesService::prune_volumes(docker).await
 }
