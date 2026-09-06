@@ -87,3 +87,33 @@ pub async fn create_engine(app: &AppHandle) -> Result<Engine, String> {
         docker: None,
     })
 }
+
+/// Decide whether a stop request should actually issue `colima stop`.
+///
+/// Only a definitive "the VM is not running" answer justifies skipping the
+/// stop. A failed status check falls through to attempting the stop, so an
+/// unreadable status can never make the app report a stop it never performed.
+#[cfg_attr(not(target_os = "macos"), allow(dead_code))]
+pub fn should_stop_vm(status: &Result<bool, String>) -> bool {
+    !matches!(status, Ok(false))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::should_stop_vm;
+
+    #[test]
+    fn stops_when_the_vm_is_running() {
+        assert!(should_stop_vm(&Ok(true)));
+    }
+
+    #[test]
+    fn skips_the_stop_when_the_vm_is_not_running() {
+        assert!(!should_stop_vm(&Ok(false)));
+    }
+
+    #[test]
+    fn attempts_the_stop_when_the_status_check_fails() {
+        assert!(should_stop_vm(&Err("colima not found".to_string())));
+    }
+}

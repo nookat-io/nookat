@@ -1,11 +1,13 @@
 use crate::entities::{
     ColimaConfig, ColimaEngineStopProgress, InstallationMethod, InstallationProgress,
 };
+use crate::services::engine::should_stop_vm;
 use crate::services::shell::{
     check_colima_status, get_docker_context_endpoints, install_packages_via_homebrew,
     start_colima_with_config, stop_colima, validate_colima_startup,
 };
 use bollard::Docker;
+use std::time::Duration;
 use tauri::{AppHandle, Emitter};
 use tokio::sync::mpsc;
 use tracing::{debug, instrument, warn};
@@ -227,6 +229,56 @@ pub async fn start_colima_vm(app_handle: &AppHandle, config: ColimaConfig) -> Re
     result
 }
 
+/// Poll `colima status` until the VM reports as stopped.
+///
+/// `colima stop` returns before the VM has fully torn down, so the shutdown has
+/// to be observed rather than assumed after a fixed delay. The whole wait is
+/// bounded, so a `colima status` invocation that never returns cannot wedge the
+/// stop flow.
+#[instrument(skip_all, err)]
+async fn wait_for_colima_stopped(app_handle: &AppHandle) -> Result<(), String> {
+    const POLL_INTERVAL: Duration = Duration::from_millis(500);
+    const TIMEOUT: Duration = Duration::from_secs(60);
+
+    // A status check can fail transiently while the VM tears down, so keep
+    // polling on error and report the last failure only if the wait expires.
+    let mut last_error: Option<String> = None;
+
+    let poll = async {
+        loop {
+            match check_colima_status(app_handle).await {
+                Ok(false) => return,
+                Ok(true) => last_error = None,
+                Err(e) => {
+                    warn!("Failed to check Colima status while stopping: {}", e);
+                    last_error = Some(e);
+                }
+            }
+
+            tokio::time::sleep(POLL_INTERVAL).await;
+        }
+    };
+
+    let stopped = tokio::time::timeout(TIMEOUT, poll).await.is_ok();
+
+    if stopped {
+        debug!("Colima VM reported as stopped");
+        return Ok(());
+    }
+
+    Err(match last_error {
+        Some(e) => format!(
+            "Colima VM did not report as stopped within {} seconds; the last status check failed: {}",
+            TIMEOUT.as_secs(),
+            e
+        ),
+        None => format!(
+            "Colima VM did not report as stopped within {} seconds",
+            TIMEOUT.as_secs()
+        ),
+    })
+}
+
 #[instrument(skip_all, err)]
 pub async fn stop_colima_vm(app_handle: &AppHandle) -> Result<(), String> {
     debug!("Stopping Colima VM");
@@ -263,15 +315,15 @@ pub async fn stop_colima_vm(app_handle: &AppHandle) -> Result<(), String> {
         let _ = tx_clone.send(progress.clone()).await;
 
         let status_result = check_colima_status(&app_handle_clone).await;
-        if let Ok(true) = status_result {
-            progress.step = "Colima VM is running".to_string();
-            progress.message = "Colima VM is running".to_string();
-            progress.percentage = 30;
+        if !should_stop_vm(&status_result) {
+            progress.step = "Colima VM is already stopped".to_string();
+            progress.message = "Colima VM was not running, nothing to stop".to_string();
+            progress.percentage = 100;
             progress
                 .logs
-                .push("[INFO] Colima VM is running".to_string());
+                .push("[INFO] Colima VM is already stopped".to_string());
             let _ = tx_clone.send(progress.clone()).await;
-            return Ok(());
+            return Ok(progress);
         }
 
         // Step 2: Stop Colima VM
@@ -290,8 +342,24 @@ pub async fn stop_colima_vm(app_handle: &AppHandle) -> Result<(), String> {
             let _ = tx_clone.send(progress.clone()).await;
             return Err(e.clone());
         }
-        // Wait a bit for the VM to fully stop
-        tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
+
+        // Step 3: Confirm the VM actually went down
+        progress.step = "Confirming VM shutdown...".to_string();
+        progress.message = "Waiting for the Colima VM to report as stopped".to_string();
+        progress.percentage = 70;
+        progress
+            .logs
+            .push("[INFO] Waiting for Colima VM to report as stopped".to_string());
+        let _ = tx_clone.send(progress.clone()).await;
+
+        if let Err(e) = wait_for_colima_stopped(&app_handle_clone).await {
+            progress.step = "VM stop failed".to_string();
+            progress.message = e.clone();
+            progress.percentage = 100;
+            progress.logs.push(format!("[ERROR] {}", e));
+            let _ = tx_clone.send(progress.clone()).await;
+            return Err(e);
+        }
 
         progress.step = "VM stop complete".to_string();
         progress.message = "Colima VM is stopped successfully".to_string();
@@ -301,7 +369,7 @@ pub async fn stop_colima_vm(app_handle: &AppHandle) -> Result<(), String> {
             .push("[INFO] Colima VM stopped successfully".to_string());
         let _ = tx_clone.send(progress.clone()).await;
 
-        Ok(())
+        Ok(progress)
     });
 
     // Handle progress updates and send them to the frontend
@@ -317,17 +385,19 @@ pub async fn stop_colima_vm(app_handle: &AppHandle) -> Result<(), String> {
         .await
         .map_err(|e| format!("VM stop task failed: {}", e))?;
 
-    // Send completion event
+    // Send completion event. The terminal progress rides along with it: the
+    // relay task above may not have drained the channel yet, so the frontend
+    // cannot rely on the last `vm-stop-progress` arriving first.
     match &result {
-        Ok(_) => {
-            let _ = app_handle_for_events.emit("vm-stop-complete", ());
+        Ok(final_progress) => {
+            let _ = app_handle_for_events.emit("vm-stop-complete", final_progress);
         }
         Err(e) => {
             let _ = app_handle_for_events.emit("vm-stop-error", e);
         }
     }
 
-    result
+    result.map(|_| ())
 }
 
 #[instrument(skip_all, err)]
