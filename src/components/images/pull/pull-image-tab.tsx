@@ -28,8 +28,8 @@ interface PullImageTabProps {
   onTagChange: (tag: string) => void;
   onClearSelection: () => void;
   disabled?: boolean;
-  searchContainerRef: React.RefObject<HTMLDivElement>;
-  searchInputRef: React.RefObject<HTMLInputElement>;
+  searchContainerRef: React.RefObject<HTMLDivElement | null>;
+  searchInputRef: React.RefObject<HTMLInputElement | null>;
 }
 
 export function PullImageTab({

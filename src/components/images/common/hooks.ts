@@ -355,7 +355,9 @@ export function useSelectionFeedback() {
     isVisible: false,
   });
 
-  const feedbackTimeoutRef = useRef<ReturnType<typeof setTimeout>>();
+  const feedbackTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(
+    undefined
+  );
 
   const showFeedback = useCallback((message: string) => {
     setFeedback({ message, isVisible: true });
