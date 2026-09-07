@@ -17,6 +17,7 @@ import {
   Terminal,
   Info,
   AlertTriangle,
+  RefreshCw,
 } from 'lucide-react';
 import {
   ColimaConfig,
@@ -38,6 +39,8 @@ import { useState } from 'react';
 interface EngineConfigurationProps {
   dockerInfo: DockerInfo | null;
   colimaSupported: boolean | null;
+  colimaSupportError: string | null;
+  onRetrySupportCheck: () => void;
   colimaAvailable: boolean | null;
   config: ColimaConfig;
   onConfigChange: (config: ColimaConfig) => void;
@@ -61,6 +64,8 @@ interface EngineConfigurationProps {
 export function EngineConfiguration({
   dockerInfo,
   colimaSupported,
+  colimaSupportError,
+  onRetrySupportCheck,
   colimaAvailable,
   config,
   onConfigChange,
@@ -95,6 +100,27 @@ export function EngineConfiguration({
         title="Engine management is available on macOS only"
         message="Nookat installs and runs the Colima engine on macOS. On this platform it connects to the Docker daemon already running on your machine - start, stop and configure that daemon with the tool you installed it with."
       />
+    );
+  }
+
+  // The platform probe failed, so whether Colima applies here is unknown.
+  // Guessing either way is worse than saying so: guessing "supported" offers
+  // controls that may not work, guessing "unsupported" hides the only way to
+  // start an engine on macOS.
+  if (colimaSupportError) {
+    return (
+      <div className="space-y-3">
+        <InfoBanner
+          icon={AlertTriangle}
+          title="Could not determine engine support for this platform"
+          message={colimaSupportError}
+          variant="error"
+        />
+        <Button onClick={onRetrySupportCheck} variant="outline" size="sm">
+          <RefreshCw className="h-4 w-4 mr-2" />
+          Retry
+        </Button>
+      </div>
     );
   }
 

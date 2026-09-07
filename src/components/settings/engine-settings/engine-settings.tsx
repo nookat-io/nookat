@@ -58,6 +58,8 @@ export function EngineSettings() {
         <EngineConfiguration
           dockerInfo={state.dockerInfo}
           colimaSupported={state.colimaSupported}
+          colimaSupportError={state.colimaSupportError}
+          onRetrySupportCheck={actions.checkColimaSupport}
           colimaAvailable={state.colimaAvailable}
           config={state.config}
           onConfigChange={actions.setConfig}
