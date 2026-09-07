@@ -34,7 +34,7 @@ uuid = { version = "1.19", features = ["v4"] }
 lazy_static = "1.4"
 
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
-sha2 = "0.10"
+sha2 = "0.11"
 tempfile = "3.24"
 flate2 = "1.1"
 tar = "0.4"
