@@ -85,11 +85,7 @@ To allow it, open the DMG, drag Nookat to Applications, and then either:
 - Open **System Settings -> Privacy & Security**, scroll to the message about Nookat being blocked, and click **Open Anyway**.
 
 You only need to do this once.
-If macOS still refuses to launch it, clear the download quarantine flag manually:
-
-```bash
-xattr -dr com.apple.quarantine /Applications/Nookat.app
-```
+Both options keep macOS in charge of checking the app, so use them rather than stripping the quarantine attribute by hand - that would skip the check for every file in the bundle, including on a download that is not actually the one we published.
 
 ## Development Setup
 
