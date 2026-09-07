@@ -1,36 +1,29 @@
-#![allow(unused)]
-
 use crate::entities::{ColimaConfig, InstallationMethod};
+use crate::services::engine::colima_unmanaged;
 use crate::services::shell::get_docker_context_endpoints;
 use bollard::Docker;
 use tauri::AppHandle;
 use tracing::{debug, instrument, warn};
 
-#[instrument(skip_all, err)]
-pub async fn is_homebrew_available(_app: &AppHandle) -> Result<bool, String> {
-    // Homebrew is only available on macOS
-    Ok(false)
-}
+// Nookat does not manage a container engine on Linux: it connects to the
+// daemon the user already runs. These entry points exist so the shared
+// `#[tauri::command]` wrappers compile on every platform, and they report the
+// unsupported operation through the `Result` they already return. Returning an
+// error rather than panicking is the whole point - see `colima_unmanaged`.
 
 #[instrument(skip_all, err)]
 pub async fn install_colima(_app: &AppHandle, _method: InstallationMethod) -> Result<(), String> {
-    // Colima is only implemented on macOS for now, other platforms are not supported yet
-    todo!("Colima is only implemented on macOS for now, other platforms are not supported yet");
+    colima_unmanaged()
 }
 
 #[instrument(skip_all, err)]
 pub async fn start_colima_vm(_app: &AppHandle, _config: ColimaConfig) -> Result<(), String> {
-    todo!("Colima is only implemented on macOS for now, other platforms are not supported yet");
-}
-
-pub async fn stop_colima_vm(app_handle: &AppHandle) -> Result<(), String> {
-    todo!("Colima is only implemented on macOS for now, other platforms are not supported yet");
+    colima_unmanaged()
 }
 
 #[instrument(skip_all, err)]
-pub async fn is_colima_available(_app: &AppHandle) -> Result<bool, String> {
-    // Colima is only implemented on macOS for now, other platforms are not supported yet
-    Ok(false)
+pub async fn stop_colima_vm(_app: &AppHandle) -> Result<(), String> {
+    colima_unmanaged()
 }
 
 #[instrument(skip_all, err)]

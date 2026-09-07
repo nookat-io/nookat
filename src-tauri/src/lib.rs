@@ -30,6 +30,7 @@ use crate::handlers::{
     get_theme,
     inspect_volume,
     install_colima_command,
+    is_colima_supported,
     // Containers
     list_containers,
     // Images
@@ -196,6 +197,7 @@ pub fn run() {
             start_engine_state_monitoring,
             check_homebrew_availability,
             check_colima_availability,
+            is_colima_supported,
             install_colima_command,
             start_colima_vm_command,
             stop_colima_vm_command,

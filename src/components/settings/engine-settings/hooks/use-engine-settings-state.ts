@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { DockerInfo } from '../../../../types/docker-info';
@@ -12,6 +12,11 @@ import {
 } from '../types';
 
 export interface EngineSettingsState {
+  // Platform support: whether this build manages Colima at all. Null while the
+  // answer is still unknown, which includes a failed probe.
+  colimaSupported: boolean | null;
+  colimaSupportError: string | null;
+
   // Installation state
   method: InstallationMethod;
   installationStep: InstallationStep;
@@ -40,12 +45,19 @@ export interface EngineSettingsActions {
   handleRetry: () => void;
   fetchDockerInfo: () => Promise<void>;
   handleStopEngine: () => Promise<void>;
+  checkColimaSupport: () => Promise<void>;
 }
 
 export function useEngineSettingsState(): [
   EngineSettingsState,
   EngineSettingsActions,
 ] {
+  // Platform support
+  const [colimaSupported, setColimaSupported] = useState<boolean | null>(null);
+  const [colimaSupportError, setColimaSupportError] = useState<string | null>(
+    null
+  );
+
   // Installation state
   const [method, setMethod] = useState<InstallationMethod>('homebrew');
   const [installationStep, setInstallationStep] =
@@ -81,6 +93,30 @@ export function useEngineSettingsState(): [
   // UI state
   const [showEngineConfig, setShowEngineConfig] = useState(true);
 
+  // Whether this build can manage Colima at all. The answer is
+  // platform-constant, so this gets its own mount-time effect rather than
+  // riding along with the availability checks below, which refire. Retry is
+  // the only thing that asks again.
+  const checkColimaSupport = useCallback(async () => {
+    setColimaSupportError(null);
+    try {
+      setColimaSupported(await invoke<boolean>('is_colima_supported'));
+    } catch (err) {
+      // A failed probe is not an answer. Reading it as "unsupported" would
+      // hide the install and start controls on macOS - where they are the
+      // only way to get an engine running - and tell the user Colima works
+      // on macOS only while they are sitting on macOS. Stay unknown and let
+      // them retry.
+      console.error('Error checking Colima platform support:', err);
+      setColimaSupported(null);
+      setColimaSupportError(err instanceof Error ? err.message : String(err));
+    }
+  }, []);
+
+  useEffect(() => {
+    checkColimaSupport();
+  }, [checkColimaSupport]);
+
   // Check availability on mount
   useEffect(() => {
     const checkAvailability = async () => {
@@ -98,10 +134,6 @@ export function useEngineSettingsState(): [
         if (!isHomebrewAvailable && method === 'homebrew') {
           setMethod('binary');
         }
-
-        if (isColimaAvailable) {
-          fetchDockerInfo();
-        }
       } catch (error) {
         console.error('Error checking availability:', error);
         setHomebrewAvailable(false);
@@ -110,6 +142,12 @@ export function useEngineSettingsState(): [
           setMethod('binary');
         }
       }
+
+      // Engine info comes from whichever daemon is reachable, which on Linux
+      // and Windows - and on macOS behind Docker Desktop - is never Colima.
+      // Gating this on Colima left the Engine Status card empty for everyone
+      // else.
+      fetchDockerInfo();
     };
 
     checkAvailability();
@@ -347,6 +385,8 @@ export function useEngineSettingsState(): [
   };
 
   const state: EngineSettingsState = {
+    colimaSupported,
+    colimaSupportError,
     method,
     installationStep,
     stopStep,
@@ -372,6 +412,7 @@ export function useEngineSettingsState(): [
     handleRetry,
     fetchDockerInfo,
     handleStopEngine,
+    checkColimaSupport,
   };
 
   return [state, actions];
