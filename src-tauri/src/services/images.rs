@@ -1,7 +1,8 @@
 use crate::entities::{Image, PruneResult};
-use bollard::container::ListContainersOptions;
-use bollard::image::{CreateImageOptions, ListImagesOptions, RemoveImageOptions};
 use bollard::models::ImageSummary;
+use bollard::query_parameters::{
+    CreateImageOptions, ListContainersOptions, ListImagesOptions, RemoveImageOptions,
+};
 use bollard::Docker;
 use std::collections::{HashMap, HashSet};
 use tracing::{debug, instrument};
@@ -15,14 +16,14 @@ impl ImagesService {
         docker: &Docker,
     ) -> Result<(Vec<ImageSummary>, HashSet<String>), String> {
         // Get all images
-        let image_options: ListImagesOptions<String> = ListImagesOptions::default();
+        let image_options = ListImagesOptions::default();
         let images = docker
             .list_images(Some(image_options))
             .await
             .map_err(|e| format!("Failed to list images: {}", e))?;
 
         // Get all containers to check which images are in use
-        let container_options: ListContainersOptions<String> = ListContainersOptions {
+        let container_options = ListContainersOptions {
             all: true,
             ..Default::default()
         };
@@ -106,7 +107,9 @@ impl ImagesService {
         let mut filters: HashMap<String, Vec<String>> = HashMap::new();
         filters.insert("dangling".to_string(), vec!["false".to_string()]);
 
-        let options = bollard::image::PruneImagesOptions::<String> { filters };
+        let options = bollard::query_parameters::PruneImagesOptions {
+            filters: Some(filters),
+        };
 
         let result = docker
             .prune_images(Some(options))
@@ -134,6 +137,7 @@ impl ImagesService {
         let options = RemoveImageOptions {
             force: false,
             noprune: false,
+            ..Default::default()
         };
 
         docker
@@ -167,8 +171,10 @@ impl ImagesService {
         debug!("Full image name for pull: {}", full_image_name);
 
         // Create options for pulling the image
-        let mut options = CreateImageOptions::default();
-        options.from_image = full_image_name.clone();
+        let options = CreateImageOptions {
+            from_image: Some(full_image_name.clone()),
+            ..Default::default()
+        };
 
         debug!("Pull options: {:?}", options);
 
@@ -214,7 +220,10 @@ impl ImagesService {
                         has_success = true;
                     }
 
-                    if let Some(error) = create_info.error {
+                    // bollard now surfaces pull failures through `errorDetail` rather
+                    // than a flat `error` string.
+                    if let Some(error) = create_info.error_detail.and_then(|detail| detail.message)
+                    {
                         debug!("Pull error: {}", error);
                         last_error = Some(error);
                     }

@@ -24,6 +24,7 @@ export enum ContainerState {
   Exited = 'exited',
   Removing = 'removing',
   Dead = 'dead',
+  Stopping = 'stopping',
 }
 
 // Mount point type enum matching backend

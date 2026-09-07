@@ -15,8 +15,8 @@ interface DockerHubSearchProps {
   onSearchKeyDown: (e: React.KeyboardEvent) => void;
 
   disabled?: boolean;
-  containerRef: React.RefObject<HTMLDivElement>;
-  inputRef: React.RefObject<HTMLInputElement>;
+  containerRef: React.RefObject<HTMLDivElement | null>;
+  inputRef: React.RefObject<HTMLInputElement | null>;
   hasSelectedImage?: boolean;
 }
 

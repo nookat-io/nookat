@@ -1,11 +1,9 @@
 use bollard::models::{ContainerStateStatusEnum, ContainerSummary};
-use bollard::{
-    container::{
-        ListContainersOptions, LogsOptions, RemoveContainerOptions, RestartContainerOptions,
-        StartContainerOptions, StopContainerOptions,
-    },
-    Docker,
+use bollard::query_parameters::{
+    ListContainersOptions, LogsOptions, RemoveContainerOptions, RestartContainerOptions,
+    StartContainerOptions, StopContainerOptions,
 };
+use bollard::Docker;
 use tracing::instrument;
 
 #[derive(Default, Debug)]
@@ -14,7 +12,7 @@ pub struct ContainersService {}
 impl ContainersService {
     #[instrument(skip_all, err)]
     pub async fn get_containers(docker: &Docker) -> Result<Vec<ContainerSummary>, String> {
-        let options: ListContainersOptions<String> = ListContainersOptions {
+        let options = ListContainersOptions {
             all: true,
             size: true,
             ..Default::default()
@@ -30,9 +28,7 @@ impl ContainersService {
 
     #[instrument(skip_all, err)]
     pub async fn start_container(docker: &Docker, id: &str) -> Result<(), String> {
-        let options = StartContainerOptions::<String> {
-            ..Default::default()
-        };
+        let options = StartContainerOptions::default();
 
         docker
             .start_container(id, Some(options))
@@ -44,7 +40,10 @@ impl ContainersService {
 
     #[instrument(skip_all, err)]
     pub async fn stop_container(docker: &Docker, id: &str) -> Result<(), String> {
-        let options = StopContainerOptions { t: 0 };
+        let options = StopContainerOptions {
+            t: Some(0),
+            ..Default::default()
+        };
 
         docker
             .stop_container(id, Some(options))
@@ -76,7 +75,10 @@ impl ContainersService {
 
     #[instrument(skip_all, err)]
     pub async fn restart_container(docker: &Docker, id: &str) -> Result<(), String> {
-        let options = RestartContainerOptions { t: 0 };
+        let options = RestartContainerOptions {
+            t: Some(0),
+            ..Default::default()
+        };
 
         docker
             .restart_container(id, Some(options))
@@ -120,7 +122,7 @@ impl ContainersService {
 
     #[instrument(skip_all, err)]
     pub async fn get_container_logs(docker: &Docker, id: &str) -> Result<Vec<String>, String> {
-        let options = LogsOptions::<String> {
+        let options = LogsOptions {
             stdout: true,
             stderr: true,
             ..Default::default()
@@ -167,7 +169,7 @@ impl ContainersService {
     pub async fn prune_containers(docker: &Docker) -> Result<(), String> {
         // Use the prune containers method
         docker
-            .prune_containers(None::<bollard::container::PruneContainersOptions<String>>)
+            .prune_containers(None::<bollard::query_parameters::PruneContainersOptions>)
             .await
             .map_err(|e| format!("Failed to prune containers: {}", e))?;
 

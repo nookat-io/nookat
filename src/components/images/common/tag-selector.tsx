@@ -32,6 +32,7 @@ export function TagSelector({
   // Filter suggestions based on input value
   useEffect(() => {
     if (!inputValue.trim()) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- TECH-005
       setFilteredSuggestions(tagSuggestions);
     } else {
       const filtered = tagSuggestions.filter(suggestion =>
@@ -44,6 +45,7 @@ export function TagSelector({
 
   // Sync input value with tag prop
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- TECH-005
     setInputValue(tag);
   }, [tag]);
 

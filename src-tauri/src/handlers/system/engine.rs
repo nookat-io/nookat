@@ -1,6 +1,6 @@
 use crate::entities::EngineStatus;
 use crate::entities::{ColimaConfig, InstallationMethod};
-use crate::services::engine::{install_colima, start_colima_vm, stop_colima_vm};
+use crate::services::engine::{install_colima, start_colima_vm, stop_colima_vm, COLIMA_MANAGED};
 use crate::services::shell::{is_colima_available, is_homebrew_available};
 use crate::state::SharedEngineState;
 use tauri::State;
@@ -56,4 +56,17 @@ pub async fn stop_colima_vm_command(app: tauri::AppHandle) -> Result<(), String>
 pub async fn check_colima_availability(app: tauri::AppHandle) -> Result<bool, String> {
     info!("Checking Colima availability");
     is_colima_available(&app).await
+}
+
+/// Whether this build can install and run Colima at all.
+///
+/// `check_colima_availability` answers "is Colima installed on this machine";
+/// this answers the question that comes before it, so the frontend can leave
+/// the install / start / stop controls out entirely on a platform where they
+/// can never succeed.
+#[tauri::command]
+#[instrument(skip_all)]
+pub fn is_colima_supported() -> bool {
+    debug!("Colima supported on this platform: {}", COLIMA_MANAGED);
+    COLIMA_MANAGED
 }

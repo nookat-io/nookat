@@ -18,6 +18,7 @@ export function ContainerStatusBadge({ state }: ContainerStatusBadgeProps) {
       case 'dead':
         return 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300';
       case 'removing':
+      case 'stopping':
         return 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300';
       default:
         return '';

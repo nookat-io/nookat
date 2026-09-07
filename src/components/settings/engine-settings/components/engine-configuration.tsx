@@ -17,6 +17,7 @@ import {
   Terminal,
   Info,
   AlertTriangle,
+  RefreshCw,
 } from 'lucide-react';
 import {
   ColimaConfig,
@@ -30,12 +31,16 @@ import { ResourceInput } from './resource-input';
 import { InstallationProgress } from './installation-progress';
 import { MethodCard, InfoBanner } from './index';
 import { DockerInfo } from '../../../../types/docker-info';
+import { LoadingSpinner } from '../../../ui/loading-spinner';
 import { ConfirmDialog } from '../../../common/ConfirmDialog';
 import { Dialog, DialogTrigger } from '../../../ui/dialog';
 import { useState } from 'react';
 
 interface EngineConfigurationProps {
   dockerInfo: DockerInfo | null;
+  colimaSupported: boolean | null;
+  colimaSupportError: string | null;
+  onRetrySupportCheck: () => void;
   colimaAvailable: boolean | null;
   config: ColimaConfig;
   onConfigChange: (config: ColimaConfig) => void;
@@ -58,6 +63,9 @@ interface EngineConfigurationProps {
 
 export function EngineConfiguration({
   dockerInfo,
+  colimaSupported,
+  colimaSupportError,
+  onRetrySupportCheck,
   colimaAvailable,
   config,
   onConfigChange,
@@ -80,6 +88,49 @@ export function EngineConfiguration({
   const showStopProgress = stopStep !== 'idle';
   const isStopping = stopStep === 'stopping-vm' || stopStep === 'stopping';
   const [isStopDialogOpen, setIsStopDialogOpen] = useState(false);
+
+  // Colima only runs on macOS. Everywhere else Nookat attaches to a daemon
+  // something else started, so there is nothing here to install, start or
+  // stop - and offering those controls would offer actions the backend can
+  // only refuse.
+  if (colimaSupported === false) {
+    return (
+      <InfoBanner
+        icon={Info}
+        title="Engine management is available on macOS only"
+        message="Nookat installs and runs the Colima engine on macOS. On this platform it connects to the Docker daemon already running on your machine - start, stop and configure that daemon with the tool you installed it with."
+      />
+    );
+  }
+
+  // The platform probe failed, so whether Colima applies here is unknown.
+  // Guessing either way is worse than saying so: guessing "supported" offers
+  // controls that may not work, guessing "unsupported" hides the only way to
+  // start an engine on macOS.
+  if (colimaSupportError) {
+    return (
+      <div className="space-y-3">
+        <InfoBanner
+          icon={AlertTriangle}
+          title="Could not determine engine support for this platform"
+          message={colimaSupportError}
+          variant="error"
+        />
+        <Button onClick={onRetrySupportCheck} variant="outline" size="sm">
+          <RefreshCw className="h-4 w-4 mr-2" />
+          Retry
+        </Button>
+      </div>
+    );
+  }
+
+  // Nothing is known about the engine yet. Rendering the configuration form
+  // now only makes it flash on screen before the install card replaces it.
+  if (colimaSupported === null || colimaAvailable === null) {
+    return (
+      <LoadingSpinner message="Checking engine setup..." className="py-8" />
+    );
+  }
 
   // Show installation section if Colima is not available
   if (colimaAvailable === false) {

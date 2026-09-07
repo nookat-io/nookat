@@ -31,6 +31,7 @@ export function SentryProvider({ children }: { children: React.ReactNode }) {
           replaysSessionSampleRate: 0.0,
           replaysOnErrorSampleRate: 1.0,
         });
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- TECH-005
         setIsInitialized(true);
         setSentryError(null);
         console.log('Sentry initialized');

@@ -1,6 +1,6 @@
 use crate::entities::{Container, Engine, EngineState, Image, Network, Volume};
 use crate::state::SharedEngineState;
-use bollard::system::EventsOptions;
+use bollard::query_parameters::EventsOptions;
 use bollard::Docker;
 use chrono::Utc;
 use futures_util::StreamExt;
@@ -278,10 +278,10 @@ impl EngineStateMonitor {
         last_state: &Arc<Mutex<Option<EngineState>>>,
         app_handle: &tauri::AppHandle,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-        let options = EventsOptions::<String> {
+        let options = EventsOptions {
             since: None,
             until: None,
-            filters: std::collections::HashMap::new(),
+            filters: None,
         };
 
         let mut events = docker.events(Some(options));

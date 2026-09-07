@@ -78,10 +78,22 @@ export function VolumeActions({
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Confirm Prune Operation</DialogTitle>
-          <DialogDescription>
-            This will remove all unused volumes from your system. <br />
-            This action cannot be undone. Are you sure you want to continue?
+          <DialogTitle>Prune anonymous volumes?</DialogTitle>
+          <DialogDescription asChild>
+            <div className="space-y-3">
+              <p>
+                This removes <strong>anonymous</strong> volumes - the ones
+                Docker generated for a container - that no container is using
+                any more.
+              </p>
+              <p>
+                Named volumes are <strong>kept</strong>, even when nothing is
+                using them, because they are the ones you created deliberately
+                to outlive their containers. To remove a named volume, select it
+                in the table and use Delete.
+              </p>
+              <p>This cannot be undone.</p>
+            </div>
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>
@@ -97,7 +109,7 @@ export function VolumeActions({
             onClick={handlePrune}
             disabled={isLoading === 'prune'}
           >
-            {isLoading === 'prune' ? 'Pruning...' : 'Prune Volumes'}
+            {isLoading === 'prune' ? 'Pruning...' : 'Prune Anonymous Volumes'}
           </Button>
         </DialogFooter>
       </DialogContent>

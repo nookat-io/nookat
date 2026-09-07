@@ -24,13 +24,12 @@ pub fn init_sentry() -> Option<ClientInitGuard> {
         // With the `panic` feature enabled in Cargo.toml, sentry::init automatically
         // registers a robust global panic handler that captures panics (including from
         // other threads) with stacktraces.
-        guard = Some(init((
-            SENTRY_DSN.unwrap(),
-            ClientOptions {
-                release: Some(env!("CARGO_PKG_VERSION").into()),
-                ..Default::default()
-            },
-        )));
+        // `ClientOptions` is `#[non_exhaustive]`, so it has to be built from its
+        // default rather than with a struct literal.
+        let mut options = ClientOptions::default();
+        options.release = Some(env!("CARGO_PKG_VERSION").into());
+
+        guard = Some(init((SENTRY_DSN.unwrap(), options)));
         info!("Sentry crash reporting initialized");
 
         // Set application tags
