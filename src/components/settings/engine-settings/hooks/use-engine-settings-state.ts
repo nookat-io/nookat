@@ -12,6 +12,10 @@ import {
 } from '../types';
 
 export interface EngineSettingsState {
+  // Platform support: whether this build manages Colima at all. Null until the
+  // backend answers.
+  colimaSupported: boolean | null;
+
   // Installation state
   method: InstallationMethod;
   installationStep: InstallationStep;
@@ -46,6 +50,9 @@ export function useEngineSettingsState(): [
   EngineSettingsState,
   EngineSettingsActions,
 ] {
+  // Platform support
+  const [colimaSupported, setColimaSupported] = useState<boolean | null>(null);
+
   // Installation state
   const [method, setMethod] = useState<InstallationMethod>('homebrew');
   const [installationStep, setInstallationStep] =
@@ -81,6 +88,17 @@ export function useEngineSettingsState(): [
   // UI state
   const [showEngineConfig, setShowEngineConfig] = useState(true);
 
+  // Whether this build can manage Colima at all. Platform-constant, so it is
+  // asked once and never re-probed.
+  useEffect(() => {
+    invoke<boolean>('is_colima_supported')
+      .then(setColimaSupported)
+      .catch(error => {
+        console.error('Error checking Colima platform support:', error);
+        setColimaSupported(false);
+      });
+  }, []);
+
   // Check availability on mount
   useEffect(() => {
     const checkAvailability = async () => {
@@ -98,10 +116,6 @@ export function useEngineSettingsState(): [
         if (!isHomebrewAvailable && method === 'homebrew') {
           setMethod('binary');
         }
-
-        if (isColimaAvailable) {
-          fetchDockerInfo();
-        }
       } catch (error) {
         console.error('Error checking availability:', error);
         setHomebrewAvailable(false);
@@ -110,6 +124,12 @@ export function useEngineSettingsState(): [
           setMethod('binary');
         }
       }
+
+      // Engine info comes from whichever daemon is reachable, which on Linux
+      // and Windows - and on macOS behind Docker Desktop - is never Colima.
+      // Gating this on Colima left the Engine Status card empty for everyone
+      // else.
+      fetchDockerInfo();
     };
 
     checkAvailability();
@@ -347,6 +367,7 @@ export function useEngineSettingsState(): [
   };
 
   const state: EngineSettingsState = {
+    colimaSupported,
     method,
     installationStep,
     stopStep,

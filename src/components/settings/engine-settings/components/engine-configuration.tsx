@@ -30,12 +30,14 @@ import { ResourceInput } from './resource-input';
 import { InstallationProgress } from './installation-progress';
 import { MethodCard, InfoBanner } from './index';
 import { DockerInfo } from '../../../../types/docker-info';
+import { LoadingSpinner } from '../../../ui/loading-spinner';
 import { ConfirmDialog } from '../../../common/ConfirmDialog';
 import { Dialog, DialogTrigger } from '../../../ui/dialog';
 import { useState } from 'react';
 
 interface EngineConfigurationProps {
   dockerInfo: DockerInfo | null;
+  colimaSupported: boolean | null;
   colimaAvailable: boolean | null;
   config: ColimaConfig;
   onConfigChange: (config: ColimaConfig) => void;
@@ -58,6 +60,7 @@ interface EngineConfigurationProps {
 
 export function EngineConfiguration({
   dockerInfo,
+  colimaSupported,
   colimaAvailable,
   config,
   onConfigChange,
@@ -80,6 +83,28 @@ export function EngineConfiguration({
   const showStopProgress = stopStep !== 'idle';
   const isStopping = stopStep === 'stopping-vm' || stopStep === 'stopping';
   const [isStopDialogOpen, setIsStopDialogOpen] = useState(false);
+
+  // Colima only runs on macOS. Everywhere else Nookat attaches to a daemon
+  // something else started, so there is nothing here to install, start or
+  // stop - and offering those controls would offer actions the backend can
+  // only refuse.
+  if (colimaSupported === false) {
+    return (
+      <InfoBanner
+        icon={Info}
+        title="Engine management is available on macOS only"
+        message="Nookat installs and runs the Colima engine on macOS. On this platform it connects to the Docker daemon already running on your machine - start, stop and configure that daemon with the tool you installed it with."
+      />
+    );
+  }
+
+  // Nothing is known about the engine yet. Rendering the configuration form
+  // now only makes it flash on screen before the install card replaces it.
+  if (colimaSupported === null || colimaAvailable === null) {
+    return (
+      <LoadingSpinner message="Checking engine setup..." className="py-8" />
+    );
+  }
 
   // Show installation section if Colima is not available
   if (colimaAvailable === false) {
