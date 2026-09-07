@@ -40,7 +40,7 @@ flate2 = "1.1"
 tar = "0.4"
 async-trait = "0.1"
 
-sentry = { version = "0.42", features = ["panic", "tracing"] }
+sentry = { version = "0.49", features = ["panic", "tracing"] }
 sentry-tracing = "0.42"
 
 tracing = "0.1"
