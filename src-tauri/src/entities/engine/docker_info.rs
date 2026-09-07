@@ -1,7 +1,5 @@
-use bollard::models::SystemInfo;
-use bollard::system::Version;
+use bollard::models::{SystemInfo, SystemVersion};
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 use std::collections::HashMap;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -13,7 +11,7 @@ pub struct DockerInfoPlatform {
 pub struct DockerInfoComponent {
     pub name: String,
     pub version: String,
-    pub details: Option<HashMap<String, Value>>,
+    pub details: Option<HashMap<String, String>>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -37,7 +35,6 @@ pub struct DockerInfo {
     pub plugins: Option<DockerInfoPlugins>,
     pub memory_limit: Option<bool>,
     pub swap_limit: Option<bool>,
-    pub kernel_memory_tcp: Option<bool>,
     pub cpu_cfs_period: Option<bool>,
     pub cpu_cfs_quota: Option<bool>,
     pub cpu_shares: Option<bool>,
@@ -45,8 +42,6 @@ pub struct DockerInfo {
     pub pids_limit: Option<bool>,
     pub oom_kill_disable: Option<bool>,
     pub ipv4_forwarding: Option<bool>,
-    pub bridge_nf_iptables: Option<bool>,
-    pub bridge_nf_ip6tables: Option<bool>,
     pub debug: Option<bool>,
     pub nfd: Option<i64>,
     pub n_goroutines: Option<i64>,
@@ -84,15 +79,12 @@ pub struct DockerInfo {
     pub version_os: Option<String>,
     pub version_arch: Option<String>,
     pub version_kernel_version: Option<String>,
-    #[cfg(not(target_os = "windows"))]
-    pub version_experimental: Option<String>,
-    #[cfg(target_os = "windows")]
     pub version_experimental: Option<bool>,
     pub build_time: Option<String>,
 }
 
-impl From<(SystemInfo, Version)> for DockerInfo {
-    fn from((info, version): (SystemInfo, Version)) -> Self {
+impl From<(SystemInfo, SystemVersion)> for DockerInfo {
+    fn from((info, version): (SystemInfo, SystemVersion)) -> Self {
         let plugins = info.plugins.map(|p| DockerInfoPlugins {
             volume: p.volume,
             network: p.network,
@@ -127,7 +119,6 @@ impl From<(SystemInfo, Version)> for DockerInfo {
             plugins,
             memory_limit: info.memory_limit,
             swap_limit: info.swap_limit,
-            kernel_memory_tcp: info.kernel_memory_tcp,
             cpu_cfs_period: info.cpu_cfs_period,
             cpu_cfs_quota: info.cpu_cfs_quota,
             cpu_shares: info.cpu_shares,
@@ -135,8 +126,6 @@ impl From<(SystemInfo, Version)> for DockerInfo {
             pids_limit: info.pids_limit,
             oom_kill_disable: info.oom_kill_disable,
             ipv4_forwarding: info.ipv4_forwarding,
-            bridge_nf_iptables: info.bridge_nf_iptables,
-            bridge_nf_ip6tables: info.bridge_nf_ip6tables,
             debug: info.debug,
             nfd: info.nfd,
             n_goroutines: info.n_goroutines,

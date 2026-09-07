@@ -15,13 +15,13 @@ pub enum PortTypeEnum {
     Sctp,
 }
 
-impl From<bollard::models::PortTypeEnum> for PortTypeEnum {
-    fn from(port_type: bollard::models::PortTypeEnum) -> Self {
+impl From<bollard::models::PortSummaryTypeEnum> for PortTypeEnum {
+    fn from(port_type: bollard::models::PortSummaryTypeEnum) -> Self {
         match port_type {
-            bollard::models::PortTypeEnum::TCP => PortTypeEnum::Tcp,
-            bollard::models::PortTypeEnum::UDP => PortTypeEnum::Udp,
-            bollard::models::PortTypeEnum::SCTP => PortTypeEnum::Sctp,
-            bollard::models::PortTypeEnum::EMPTY => PortTypeEnum::Empty,
+            bollard::models::PortSummaryTypeEnum::TCP => PortTypeEnum::Tcp,
+            bollard::models::PortSummaryTypeEnum::UDP => PortTypeEnum::Udp,
+            bollard::models::PortSummaryTypeEnum::SCTP => PortTypeEnum::Sctp,
+            bollard::models::PortSummaryTypeEnum::EMPTY => PortTypeEnum::Empty,
         }
     }
 }
@@ -43,8 +43,8 @@ pub struct Port {
     pub port_type: Option<PortTypeEnum>,
 }
 
-impl From<bollard::models::Port> for Port {
-    fn from(port: bollard::models::Port) -> Self {
+impl From<bollard::models::PortSummary> for Port {
+    fn from(port: bollard::models::PortSummary) -> Self {
         Port {
             ip: port.ip,
             private_port: port.private_port,

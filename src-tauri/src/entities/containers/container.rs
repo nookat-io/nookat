@@ -1,5 +1,5 @@
 use crate::entities::containers::{ContainerNetworkSettings, MountPoint, Port};
-use bollard::secret::ContainerSummary;
+use bollard::models::ContainerSummary;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -52,6 +52,9 @@ pub enum ContainerState {
 
     #[serde(rename = "dead")]
     Dead,
+
+    #[serde(rename = "stopping")]
+    Stopping,
 }
 
 impl From<String> for ContainerState {
@@ -65,25 +68,29 @@ impl From<String> for ContainerState {
             "exited" => ContainerState::Exited,
             "removing" => ContainerState::Removing,
             "dead" => ContainerState::Dead,
+            "stopping" => ContainerState::Stopping,
             _ => ContainerState::Empty,
         }
     }
 }
 
-// impl From<bollard::models::ContainerSummaryStateEnum> for ContainerState {
-//     fn from(state: bollard::models::ContainerSummaryStateEnum) -> Self {
-//         match state {
-//             bollard::models::ContainerSummaryStateEnum::EMPTY => ContainerState::EMPTY,
-//             bollard::models::ContainerSummaryStateEnum::CREATED => ContainerState::CREATED,
-//             bollard::models::ContainerSummaryStateEnum::RUNNING => ContainerState::RUNNING,
-//             bollard::models::ContainerSummaryStateEnum::PAUSED => ContainerState::PAUSED,
-//             bollard::models::ContainerSummaryStateEnum::RESTARTING => ContainerState::RESTARTING,
-//             bollard::models::ContainerSummaryStateEnum::EXITED => ContainerState::EXITED,
-//             bollard::models::ContainerSummaryStateEnum::REMOVING => ContainerState::REMOVING,
-//             bollard::models::ContainerSummaryStateEnum::DEAD => ContainerState::DEAD,
-//         }
-//     }
-// }
+impl From<bollard::models::ContainerSummaryStateEnum> for ContainerState {
+    fn from(state: bollard::models::ContainerSummaryStateEnum) -> Self {
+        use bollard::models::ContainerSummaryStateEnum as Bollard;
+
+        match state {
+            Bollard::EMPTY => ContainerState::Empty,
+            Bollard::CREATED => ContainerState::Created,
+            Bollard::RUNNING => ContainerState::Running,
+            Bollard::PAUSED => ContainerState::Paused,
+            Bollard::RESTARTING => ContainerState::Restarting,
+            Bollard::EXITED => ContainerState::Exited,
+            Bollard::REMOVING => ContainerState::Removing,
+            Bollard::DEAD => ContainerState::Dead,
+            Bollard::STOPPING => ContainerState::Stopping,
+        }
+    }
+}
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Container {

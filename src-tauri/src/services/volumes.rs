@@ -4,14 +4,15 @@ use tracing::{debug, instrument};
 pub struct VolumesService {}
 
 use crate::entities::{Volume, VolumePruneResult};
-use bollard::container::ListContainersOptions;
-use bollard::volume::{ListVolumesOptions, PruneVolumesOptions, RemoveVolumeOptions};
+use bollard::query_parameters::{
+    ListContainersOptions, ListVolumesOptions, PruneVolumesOptions, RemoveVolumeOptions,
+};
 use bollard::Docker;
 
 impl VolumesService {
     #[instrument(skip_all, err)]
     pub async fn get_volumes(docker: &Docker) -> Result<Vec<Volume>, String> {
-        let options: ListVolumesOptions<String> = ListVolumesOptions::default();
+        let options = ListVolumesOptions::default();
 
         let bollard_volumes = docker
             .list_volumes(Some(options))
@@ -21,7 +22,7 @@ impl VolumesService {
             .unwrap_or_default();
 
         // Get all containers to check volume usage
-        let containers_options = ListContainersOptions::<String> {
+        let containers_options = ListContainersOptions {
             all: true, // Include stopped containers
             ..Default::default()
         };
@@ -104,7 +105,7 @@ impl VolumesService {
     pub async fn prune_volumes(docker: &Docker) -> Result<VolumePruneResult, String> {
         debug!("Pruning unused anonymous volumes");
 
-        let options: PruneVolumesOptions<String> = PruneVolumesOptions::default();
+        let options = PruneVolumesOptions::default();
 
         let result: VolumePruneResult = docker
             .prune_volumes(Some(options))
