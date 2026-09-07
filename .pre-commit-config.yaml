@@ -15,19 +15,27 @@ repos:
 
   # ESLint for TypeScript/React
   - repo: https://github.com/pre-commit/mirrors-eslint
-    rev: v9.9.1
+    rev: v10.10.0
     hooks:
       - id: eslint
         files: \.(js|ts|tsx)$
         types: [file]
+        # Keep this list in sync with the devDependencies in package.json - this
+        # hook installs its own copy of the toolchain, so any drift here lints
+        # with different rules than `npm run lint` does.
+        # `typescript` is aliased to the TypeScript 6 API package on purpose:
+        # typescript-eslint cannot load the TypeScript 7 compiler yet, while
+        # `tsc` itself runs TypeScript 7 through the `@typescript/native` alias.
         additional_dependencies:
-          - eslint@^9.9.1
-          - '@eslint/js@^9.9.1'
-          - 'typescript-eslint@^8.3.0'
-          - 'eslint-plugin-react-hooks@^5.1.0-rc.0'
-          - 'eslint-plugin-react-refresh@^0.4.11'
-          - '@types/react@^18.3.5'
-          - '@types/react-dom@^18.3.0'
+          - eslint@^10.9.1
+          - '@eslint/js@^10.0.1'
+          - 'typescript-eslint@^8.49.0'
+          - 'eslint-plugin-react-hooks@^7.1.1'
+          - 'eslint-plugin-react-refresh@^0.5.6'
+          - 'typescript@npm:@typescript/typescript6@^6.0.2'
+          - 'globals@^16.4.0'
+          - '@types/react@^19.2.18'
+          - '@types/react-dom@^19.2.7'
 
   # TypeScript type checking
   - repo: local

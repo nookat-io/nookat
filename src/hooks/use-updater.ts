@@ -149,6 +149,7 @@ export const useUpdater = (
   // Auto-check for updates on mount only if enabled in settings
   useEffect(() => {
     if (config?.startup.check_for_updates) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- TECH-005
       checkForUpdates();
     }
   }, [checkForUpdates, config?.startup.check_for_updates]);

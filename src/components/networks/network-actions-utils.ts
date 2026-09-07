@@ -7,7 +7,7 @@ export async function removeNetwork(name: string): Promise<void> {
     console.error('Error removing network:', error);
     const errorMessage =
       error instanceof Error ? error.message : 'Failed to remove network';
-    throw new Error(errorMessage);
+    throw new Error(errorMessage, { cause: error });
   }
 }
 
@@ -18,6 +18,6 @@ export async function bulkRemoveNetworks(names: string[]): Promise<void> {
     console.error('Error removing networks:', error);
     const errorMessage =
       error instanceof Error ? error.message : 'Failed to remove networks';
-    throw new Error(errorMessage);
+    throw new Error(errorMessage, { cause: error });
   }
 }

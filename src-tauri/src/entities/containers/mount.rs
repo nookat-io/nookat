@@ -64,17 +64,14 @@ impl ::std::convert::AsRef<str> for MountPointType {
     }
 }
 
-impl From<bollard::models::MountPointTypeEnum> for MountPointType {
-    fn from(mount_point_type: bollard::models::MountPointTypeEnum) -> Self {
-        match mount_point_type {
-            bollard::models::MountPointTypeEnum::EMPTY => MountPointType::Empty,
-            bollard::models::MountPointTypeEnum::BIND => MountPointType::Bind,
-            bollard::models::MountPointTypeEnum::VOLUME => MountPointType::Volume,
-            // bollard::models::MountPointTypeEnum::IMAGE => MountPointType::IMAGE,
-            bollard::models::MountPointTypeEnum::TMPFS => MountPointType::Tmpfs,
-            bollard::models::MountPointTypeEnum::NPIPE => MountPointType::Npipe,
-            bollard::models::MountPointTypeEnum::CLUSTER => MountPointType::Cluster,
-        }
+// bollard models a mount point's type as a bare string (`models::MountPointType`
+// is an alias for `String`) rather than an enum, so the daemon is free to report a
+// type this build has never heard of. An unrecognised value degrades to `Empty`
+// instead of failing, because one unknown mount type must not take out the whole
+// container listing.
+impl From<bollard::models::MountPointType> for MountPointType {
+    fn from(mount_point_type: bollard::models::MountPointType) -> Self {
+        mount_point_type.parse().unwrap_or(MountPointType::Empty)
     }
 }
 

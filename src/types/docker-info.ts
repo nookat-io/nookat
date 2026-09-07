@@ -1,7 +1,7 @@
 interface DockerInfoComponent {
   name: string;
   version: string;
-  details?: Record<string, unknown>;
+  details?: Record<string, string>;
 }
 
 interface DockerInfoPlatform {
@@ -28,7 +28,6 @@ export interface DockerInfo {
   plugins?: DockerInfoPlugins;
   memory_limit?: boolean;
   swap_limit?: boolean;
-  kernel_memory_tcp?: boolean;
   cpu_cfs_period?: boolean;
   cpu_cfs_quota?: boolean;
   cpu_shares?: boolean;
@@ -36,8 +35,6 @@ export interface DockerInfo {
   pids_limit?: boolean;
   oom_kill_disable?: boolean;
   ipv4_forwarding?: boolean;
-  bridge_nf_iptables?: boolean;
-  bridge_nf_ip6tables?: boolean;
   debug?: boolean;
   nfd?: number;
   n_goroutines?: number;
@@ -76,6 +73,6 @@ export interface DockerInfo {
   version_os?: string;
   version_arch?: string;
   version_kernel_version?: string;
-  version_experimental?: string | boolean;
+  version_experimental?: boolean;
   build_time?: string;
 }
