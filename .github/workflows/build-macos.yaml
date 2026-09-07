@@ -1,5 +1,16 @@
 name: Build macOS
 
+# NOTE: This build is NOT signed with an Apple Developer ID and NOT notarized.
+# The bundle is ad-hoc signed instead (APPLE_SIGNING_IDENTITY: '-'), which is the
+# minimum macOS requires to launch a universal binary on Apple Silicon. Users will
+# still see a Gatekeeper "unidentified developer" warning on first launch and have
+# to allow the app explicitly (see the macOS section in README.md).
+#
+# To restore proper signing + notarization once an Apple Developer Program
+# membership is available, re-add the APPLE_CERTIFICATE / APPLE_CERTIFICATE_PASSWORD
+# / KEYCHAIN_PASSWORD / APPLE_ID / APPLE_ID_PASSWORD / APPLE_TEAM_ID secrets, the
+# keychain import step, and drop the ad-hoc APPLE_SIGNING_IDENTITY below.
+
 on:
   workflow_call:
     inputs:
@@ -10,18 +21,6 @@ on:
         required: true
         type: string
     secrets:
-      APPLE_CERTIFICATE:
-        required: true
-      APPLE_CERTIFICATE_PASSWORD:
-        required: true
-      KEYCHAIN_PASSWORD:
-        required: true
-      APPLE_ID:
-        required: true
-      APPLE_ID_PASSWORD:
-        required: true
-      APPLE_TEAM_ID:
-        required: true
       TAURI_SIGNING_PUBLIC_KEY:
         required: true
       TAURI_SIGNING_PRIVATE_KEY:
@@ -59,27 +58,6 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
 
-      - name: Import Apple Developer Certificate
-        env:
-          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
-          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
-        run: |
-          echo $APPLE_CERTIFICATE | base64 --decode > certificate.p12
-          security create-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
-          security default-keychain -s build.keychain
-          security unlock-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
-          security set-keychain-settings -t 3600 -u build.keychain
-          security import certificate.p12 -k build.keychain -P "$APPLE_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
-          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" build.keychain
-          security find-identity -v -p codesigning build.keychain
-
-      - name: Verify certificate
-        run: |
-          CERT_INFO=$(security find-identity -v -p codesigning build.keychain | grep "Developer ID Application")
-          CERT_ID=$(echo "$CERT_INFO" | awk -F'"' '{print $2}')
-          echo "Certificate imported successfully."
-
       - name: Set public key for updater
         env:
           TAURI_SIGNING_PUBLIC_KEY: ${{ secrets.TAURI_SIGNING_PUBLIC_KEY }}
@@ -95,12 +73,8 @@ jobs:
       - name: Build and Publish
         uses: tauri-apps/tauri-action@v0
         env:
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
-          APPLE_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
-          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          # Ad-hoc signature. No Apple Developer ID, no notarization.
+          APPLE_SIGNING_IDENTITY: '-'
           VITE_APTABASE_APP_KEY: ${{ secrets.VITE_APTABASE_APP_KEY }}
           VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
           SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
@@ -115,9 +89,21 @@ jobs:
           updaterJsonKeepUniversal: true
           args: --target universal-apple-darwin
 
+      - name: Verify ad-hoc signature
+        run: |
+          APP="src-tauri/target/universal-apple-darwin/release/bundle/macos/Nookat.app"
+          if [ ! -d "$APP" ]; then
+            echo "Expected app bundle not found at $APP"
+            exit 1
+          fi
+          codesign --verify --deep --strict --verbose=2 "$APP"
+          codesign --display --verbose=2 "$APP"
+          echo "Ad-hoc signature verified. The app is intentionally not notarized."
+
       - name: Build Summary
         run: |
           echo "✅ macOS build completed successfully!"
           echo "Version: ${{ inputs.version }}"
           echo "Version Tag: ${{ inputs.version-tag }}"
           echo "Target: universal-apple-darwin (aarch64 + x86_64)"
+          echo "Signing: ad-hoc (unsigned, not notarized) - users must allow the app in Privacy & Security"

@@ -42,7 +42,7 @@ jobs:
           echo "Preparing release ${{ steps.get-version.outputs.version-tag }}..."
           echo "Release coordination started at $(date)"
 
-  # macOS build job
+  # macOS build job (unsigned / ad-hoc signed - see build-macos.yaml)
   build-macos:
     needs: release-coordinator
     uses: ./.github/workflows/build-macos.yaml
@@ -50,12 +50,6 @@ jobs:
       version: ${{ needs.release-coordinator.outputs.version }}
       version-tag: ${{ needs.release-coordinator.outputs.version-tag }}
     secrets:
-      APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
-      APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-      KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
-      APPLE_ID: ${{ secrets.APPLE_ID }}
-      APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
-      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
       TAURI_SIGNING_PUBLIC_KEY: ${{ secrets.TAURI_SIGNING_PUBLIC_KEY }}
       TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
       TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
