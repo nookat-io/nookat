@@ -25,7 +25,7 @@ tauri = { version = "2", features = [ "tray-icon", "macos-private-api"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 
-bollard = { version = "0.18", features = ["pipe"] }
+bollard = { version = "0.21", features = ["pipe"] }
 dirs = "6"
 image = "0.25"
 futures-util = "0.3"
