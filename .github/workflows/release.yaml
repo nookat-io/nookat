@@ -42,7 +42,7 @@ jobs:
           echo "Preparing release ${{ steps.get-version.outputs.version-tag }}..."
           echo "Release coordination started at $(date)"
 
-  # macOS build job (unsigned / ad-hoc signed - see build-macos.yaml)
+  # macOS build job (ad-hoc signed, not notarized - see build-macos.yaml)
   build-macos:
     needs: release-coordinator
     uses: ./.github/workflows/build-macos.yaml

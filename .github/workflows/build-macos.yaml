@@ -144,4 +144,4 @@ jobs:
           echo "Version: ${{ inputs.version }}"
           echo "Version Tag: ${{ inputs.version-tag }}"
           echo "Target: universal-apple-darwin (aarch64 + x86_64)"
-          echo "Signing: ad-hoc (unsigned, not notarized) - users must allow the app in Privacy & Security"
+          echo "Signing: ad-hoc, no Developer ID, not notarized - users must allow the app in Privacy & Security"
