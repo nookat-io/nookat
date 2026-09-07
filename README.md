@@ -77,15 +77,15 @@ You can download the latest release from [GitHub Releases](https://github.com/no
 ### macOS: first launch
 
 The macOS builds are not signed with an Apple Developer ID, so Gatekeeper will refuse to open the app on the first launch with a message like "Nookat cannot be opened because Apple cannot check it for malicious software".
-This is expected, and the app is safe - it is built in public from this repository by the [release workflow](.github/workflows/build-macos.yaml).
+The warning means macOS cannot tell who published the app, which is expected here: releases are built by the public [release workflow](.github/workflows/build-macos.yaml) in this repository, and we do not currently hold the Apple Developer Program membership that signing and notarization require.
 
 To allow it, open the DMG, drag Nookat to Applications, and then either:
 
 - Right-click (or Control-click) Nookat in Applications and choose **Open**, then confirm **Open** in the dialog, or
-- Open **System Settings -> Privacy & Security**, scroll to the message about Nookat being blocked, and click **Open Anyway**.
+- Open Nookat normally and let macOS block it, then go to **System Settings -> Privacy & Security**, scroll to the message about Nookat being blocked, and click **Open Anyway**. The message and the button only appear after a blocked launch attempt.
 
 You only need to do this once.
-Both options keep macOS in charge of checking the app, so use them rather than stripping the quarantine attribute by hand - that would skip the check for every file in the bundle, including on a download that is not actually the one we published.
+Prefer either of these over stripping the quarantine attribute by hand: they scope the exception to this one app and leave macOS to keep checking everything else you download.
 
 ## Development Setup
 
