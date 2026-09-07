@@ -74,6 +74,19 @@ _Container management interface_
 
 You can download the latest release from [GitHub Releases](https://github.com/nookat-io/nookat/releases)
 
+### macOS: first launch
+
+The macOS builds are not signed with an Apple Developer ID, so Gatekeeper will refuse to open the app on the first launch with a message like "Nookat cannot be opened because Apple cannot check it for malicious software".
+The warning means macOS cannot tell who published the app, which is expected here: releases are built by the public [release workflow](.github/workflows/build-macos.yaml) in this repository, and we do not currently hold the Apple Developer Program membership that signing and notarization require.
+
+To allow it, open the DMG, drag Nookat to Applications, and then either:
+
+- Right-click (or Control-click) Nookat in Applications and choose **Open**, then confirm **Open** in the dialog, or
+- Open Nookat normally and let macOS block it, then go to **System Settings -> Privacy & Security**, scroll to the message about Nookat being blocked, and click **Open Anyway**. The message and the button only appear after a blocked launch attempt.
+
+You only need to do this once.
+Prefer either of these over stripping the quarantine attribute by hand: they scope the exception to this one app and leave macOS to keep checking everything else you download.
+
 ## Development Setup
 
 ### Prerequisites
@@ -111,7 +124,7 @@ Nookat is built with a modern, cross-platform architecture:
 
 - **Frontend**: React with TypeScript and Tailwind CSS
 - **Backend**: Rust with Tauri
-- **Container Engine**: Colima an Lima as a container runtime
+- **Container Engine**: Colima and Lima as a container runtime
 - **Docker API**: bollard-rs for Docker daemon communication
 
 ## Contributing

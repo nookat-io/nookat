@@ -1,5 +1,17 @@
 name: Build macOS
 
+# NOTE: This build is NOT signed with an Apple Developer ID and NOT notarized.
+# The bundle is ad-hoc signed instead (APPLE_SIGNING_IDENTITY: '-'), which is the
+# minimum macOS requires to launch a universal binary on Apple Silicon. Users will
+# still see a Gatekeeper "unidentified developer" warning on first launch and have
+# to allow the app explicitly (see the macOS section in README.md).
+#
+# To restore proper signing + notarization once an Apple Developer Program
+# membership is available, re-add the APPLE_CERTIFICATE / APPLE_CERTIFICATE_PASSWORD
+# / KEYCHAIN_PASSWORD / APPLE_ID / APPLE_ID_PASSWORD / APPLE_TEAM_ID secrets and
+# the keychain import step, and drop the ad-hoc APPLE_SIGNING_IDENTITY from both
+# tauri-action steps below.
+
 on:
   workflow_call:
     inputs:
@@ -10,18 +22,6 @@ on:
         required: true
         type: string
     secrets:
-      APPLE_CERTIFICATE:
-        required: true
-      APPLE_CERTIFICATE_PASSWORD:
-        required: true
-      KEYCHAIN_PASSWORD:
-        required: true
-      APPLE_ID:
-        required: true
-      APPLE_ID_PASSWORD:
-        required: true
-      APPLE_TEAM_ID:
-        required: true
       TAURI_SIGNING_PUBLIC_KEY:
         required: true
       TAURI_SIGNING_PRIVATE_KEY:
@@ -59,27 +59,6 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
 
-      - name: Import Apple Developer Certificate
-        env:
-          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
-          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
-        run: |
-          echo $APPLE_CERTIFICATE | base64 --decode > certificate.p12
-          security create-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
-          security default-keychain -s build.keychain
-          security unlock-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
-          security set-keychain-settings -t 3600 -u build.keychain
-          security import certificate.p12 -k build.keychain -P "$APPLE_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
-          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" build.keychain
-          security find-identity -v -p codesigning build.keychain
-
-      - name: Verify certificate
-        run: |
-          CERT_INFO=$(security find-identity -v -p codesigning build.keychain | grep "Developer ID Application")
-          CERT_ID=$(echo "$CERT_INFO" | awk -F'"' '{print $2}')
-          echo "Certificate imported successfully."
-
       - name: Set public key for updater
         env:
           TAURI_SIGNING_PUBLIC_KEY: ${{ secrets.TAURI_SIGNING_PUBLIC_KEY }}
@@ -92,15 +71,59 @@ jobs:
             exit 1
           fi
 
-      - name: Build and Publish
+      # The build and the release upload are deliberately two separate
+      # tauri-action invocations. tauri-action creates the release and uploads
+      # assets inside the same step that builds, so a single invocation would
+      # publish the DMG before anything had a chance to check it. Splitting them
+      # lets the signature check gate the upload: a bundle that fails
+      # verification never reaches the draft release. tauri-action skips all
+      # uploads when neither tagName nor releaseId is set.
+      #
+      # tauri-action always builds, so the publish step re-runs `tauri build`.
+      # Cargo is incremental within the job, so nothing is recompiled and the
+      # cost is one extra bundling pass. There is no supported way to hand
+      # tauri-action a set of already-built artifacts, and generating latest.json
+      # by hand instead would duplicate logic the Linux and Windows jobs share.
+      - name: Build
+        id: build
         uses: tauri-apps/tauri-action@v0
         env:
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
-          APPLE_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
-          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          # Ad-hoc signature. No Apple Developer ID, no notarization.
+          APPLE_SIGNING_IDENTITY: '-'
+          VITE_APTABASE_APP_KEY: ${{ secrets.VITE_APTABASE_APP_KEY }}
+          VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
+          SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+          TAURI_SIGNING_PUBLIC_KEY: ${{ secrets.TAURI_SIGNING_PUBLIC_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          args: --target universal-apple-darwin
+
+      - name: Verify ad-hoc signature
+        env:
+          ARTIFACT_PATHS: ${{ steps.build.outputs.artifactPaths }}
+        run: |
+          set -euo pipefail
+
+          APPS=$(printf '%s' "$ARTIFACT_PATHS" | jq -r '.[] | select(endswith(".app"))')
+          if [ -z "$APPS" ]; then
+            echo "No .app bundle found in the build artifacts:"
+            printf '%s\n' "$ARTIFACT_PATHS"
+            exit 1
+          fi
+
+          while IFS= read -r app; do
+            echo "Verifying $app"
+            codesign --verify --deep --strict --verbose=2 "$app"
+            codesign --display --verbose=2 "$app"
+          done <<< "$APPS"
+
+          echo "Ad-hoc signature verified. The app is intentionally not notarized."
+
+      - name: Publish draft release
+        uses: tauri-apps/tauri-action@v0
+        env:
+          APPLE_SIGNING_IDENTITY: '-'
           VITE_APTABASE_APP_KEY: ${{ secrets.VITE_APTABASE_APP_KEY }}
           VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
           SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
@@ -121,3 +144,4 @@ jobs:
           echo "Version: ${{ inputs.version }}"
           echo "Version Tag: ${{ inputs.version-tag }}"
           echo "Target: universal-apple-darwin (aarch64 + x86_64)"
+          echo "Signing: ad-hoc, no Developer ID, not notarized - users must allow the app in Privacy & Security"
