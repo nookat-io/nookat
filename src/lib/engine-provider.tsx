@@ -190,6 +190,7 @@ export function EngineProvider({ children }: EngineProviderProps) {
     mountedRef.current = true;
 
     // Initial fetch
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- TECH-005
     fetchEngineInfo(true);
 
     // Check status every second

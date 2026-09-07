@@ -32,6 +32,7 @@ export function Sidebar() {
   // Initialize from config whenever config changes
   useEffect(() => {
     if (config) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- TECH-005
       setCollapsed(config.sidebar_collapsed);
     }
   }, [config]);

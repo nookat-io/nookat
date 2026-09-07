@@ -114,8 +114,20 @@ export function useEngineSettingsState(): [
   }, []);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- TECH-005
     checkColimaSupport();
   }, [checkColimaSupport]);
+
+  // Fetch Docker info
+  const fetchDockerInfo = useCallback(async () => {
+    try {
+      const info = await invoke<DockerInfo>('get_docker_info');
+      setDockerInfo(info);
+    } catch (err) {
+      console.error('Error fetching Docker info:', err);
+      setDockerInfo(null);
+    }
+  }, []);
 
   // Check availability on mount
   useEffect(() => {
@@ -151,18 +163,7 @@ export function useEngineSettingsState(): [
     };
 
     checkAvailability();
-  }, [method]);
-
-  // Fetch Docker info
-  const fetchDockerInfo = async () => {
-    try {
-      const info = await invoke<DockerInfo>('get_docker_info');
-      setDockerInfo(info);
-    } catch (err) {
-      console.error('Error fetching Docker info:', err);
-      setDockerInfo(null);
-    }
-  };
+  }, [method, fetchDockerInfo]);
 
   // Event listeners for installation progress
   useEffect(() => {
@@ -251,7 +252,7 @@ export function useEngineSettingsState(): [
         });
       };
     }
-  }, [installationStep]);
+  }, [installationStep, fetchDockerInfo]);
 
   // Event listeners for stop progress
   useEffect(() => {
@@ -274,7 +275,9 @@ export function useEngineSettingsState(): [
           // that may not have happened.
           const finalProgress =
             event.payload as ColimaEngineStopProgressType | null;
-          setStopProgress(prev => finalProgress ?? { ...prev, percentage: 100 });
+          setStopProgress(
+            prev => finalProgress ?? { ...prev, percentage: 100 }
+          );
           // Refresh Docker info after stopping
           setTimeout(() => {
             fetchDockerInfo().catch(() => {});
@@ -305,7 +308,7 @@ export function useEngineSettingsState(): [
         });
       };
     }
-  }, [stopStep]);
+  }, [stopStep, fetchDockerInfo]);
 
   // Handlers
   const handleInstall = async () => {

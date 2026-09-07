@@ -108,6 +108,7 @@ export function ContainerLogsForm({
 
   useEffect(() => {
     if (isOpen) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- TECH-005
       fetchLogs();
     }
   }, [isOpen, fetchLogs]);
