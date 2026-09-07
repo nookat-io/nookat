@@ -41,7 +41,7 @@ tar = "0.4"
 async-trait = "0.1"
 
 sentry = { version = "0.42", features = ["panic", "tracing"] }
-sentry-tracing = "0.42"
+sentry-tracing = "0.49"
 
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
