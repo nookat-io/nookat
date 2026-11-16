@@ -29,49 +29,60 @@ export const useUpdater = (
   const [error, setError] = useState<string | null>(null);
   const [updateInstance, setUpdateInstance] = useState<Update | null>(null);
 
-  // Check for updates
-  const checkForUpdates = useCallback(async () => {
-    setIsChecking(true);
-    setError(null);
+  // Check for updates. `announceResult` controls whether "no update" and
+  // failures are reported with a toast; an available update always is.
+  const runCheck = useCallback(
+    async (announceResult: boolean) => {
+      setIsChecking(true);
+      setError(null);
 
-    try {
-      const update = await check();
+      try {
+        const update = await check();
 
-      if (update) {
-        setUpdateAvailable(true);
-        setUpdateInstance(update);
-        setCurrentUpdate({
-          version: update.version,
-          date: update.date,
-          body: update.body,
-          pubDate: undefined,
-        });
-        toast.success(`Update available: v${update.version}`);
-      } else {
-        setUpdateAvailable(false);
-        setCurrentUpdate(null);
-        setUpdateInstance(null);
-        toast.info('No updates available');
-      }
-
-      // Update the last check timestamp
-      if (updateLastCheck) {
-        try {
-          await updateLastCheck();
-        } catch (err) {
-          console.warn('Failed to update last check timestamp:', err);
+        if (update) {
+          setUpdateAvailable(true);
+          setUpdateInstance(update);
+          setCurrentUpdate({
+            version: update.version,
+            date: update.date,
+            body: update.body,
+            pubDate: undefined,
+          });
+          toast.success(`Update available: v${update.version}`);
+        } else {
+          setUpdateAvailable(false);
+          setCurrentUpdate(null);
+          setUpdateInstance(null);
+          if (announceResult) {
+            toast.info('No updates available');
+          }
         }
+
+        // Update the last check timestamp
+        if (updateLastCheck) {
+          try {
+            await updateLastCheck();
+          } catch (err) {
+            console.warn('Failed to update last check timestamp:', err);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to check for updates:', err);
+        const errorMessage =
+          err instanceof Error ? err.message : 'Failed to check for updates';
+        setError(errorMessage);
+        if (announceResult) {
+          toast.error(errorMessage);
+        }
+      } finally {
+        setIsChecking(false);
       }
-    } catch (err) {
-      console.error('Failed to check for updates:', err);
-      const errorMessage =
-        err instanceof Error ? err.message : 'Failed to check for updates';
-      setError(errorMessage);
-      toast.error(errorMessage);
-    } finally {
-      setIsChecking(false);
-    }
-  }, [updateLastCheck]);
+    },
+    [updateLastCheck]
+  );
+
+  // User-initiated check: always report the outcome.
+  const checkForUpdates = useCallback(() => runCheck(true), [runCheck]);
 
   // Download and install update
   const downloadAndInstall = useCallback(async () => {
@@ -148,11 +159,13 @@ export const useUpdater = (
 
   // Auto-check for updates on mount only if enabled in settings
   useEffect(() => {
+    // Automatic check whenever the settings mount: stay quiet unless there is
+    // an update to offer, so opening settings does not toast every time.
     if (config?.startup.check_for_updates) {
       // eslint-disable-next-line react-hooks/set-state-in-effect -- TECH-005
-      checkForUpdates();
+      runCheck(false);
     }
-  }, [checkForUpdates, config?.startup.check_for_updates]);
+  }, [runCheck, config?.startup.check_for_updates]);
 
   return {
     // State
