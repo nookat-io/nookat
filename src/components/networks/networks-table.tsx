@@ -160,7 +160,9 @@ export function NetworksTable({
               />
             )}
           </TableCell>
-          <TableCell className="font-medium">{network.name}</TableCell>
+          <TableCell className="font-medium truncate" title={network.name}>
+            {network.name}
+          </TableCell>
           <TableCell className="text-muted-foreground">
             {network.driver}
           </TableCell>
@@ -230,25 +232,49 @@ export function NetworksTable({
                   onCheckedChange={value => handleSelectAll(value === true)}
                 />
               </TableHead>
-              <SortableTableHeader sortKey="name" onSort={handleSort}>
+              <SortableTableHeader
+                sortKey="name"
+                onSort={handleSort}
+                className="w-[25%]"
+              >
                 Name
               </SortableTableHeader>
-              <SortableTableHeader sortKey="driver" onSort={handleSort}>
+              <SortableTableHeader
+                sortKey="driver"
+                onSort={handleSort}
+                className="w-[9%]"
+              >
                 Driver
               </SortableTableHeader>
-              <SortableTableHeader sortKey="created" onSort={handleSort}>
+              <SortableTableHeader
+                sortKey="created"
+                onSort={handleSort}
+                className="w-[16%]"
+              >
                 Created
               </SortableTableHeader>
-              <SortableTableHeader sortKey="subnet" onSort={handleSort}>
+              <SortableTableHeader
+                sortKey="subnet"
+                onSort={handleSort}
+                className="w-[16%]"
+              >
                 Subnet
               </SortableTableHeader>
-              <SortableTableHeader sortKey="gateway" onSort={handleSort}>
+              <SortableTableHeader
+                sortKey="gateway"
+                onSort={handleSort}
+                className="w-[14%]"
+              >
                 Gateway
               </SortableTableHeader>
-              <SortableTableHeader sortKey="isSystem" onSort={handleSort}>
+              <SortableTableHeader
+                sortKey="isSystem"
+                onSort={handleSort}
+                className="w-[11%]"
+              >
                 Type
               </SortableTableHeader>
-              <TableHead className="w-24">Actions</TableHead>
+              <TableHead className="w-[9%]">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody className="flex-1">{renderTableBody()}</TableBody>
