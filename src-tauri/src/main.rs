@@ -2,9 +2,34 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use nookat_lib::sentry::init_sentry;
+use sentry_tracing::{BreadcrumbLayer, ErrorLayer, LogLayer, SpanLayer};
+use tracing::{Level, Subscriber};
 use tracing_appender::rolling::{RollingFileAppender, Rotation};
+use tracing_subscriber::filter::{filter_fn, LevelFilter};
+use tracing_subscriber::registry::LookupSpan;
 use tracing_subscriber::EnvFilter;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, Layer};
+
+/// Sends tracing data to Sentry with the same level routing as the deprecated
+/// `sentry_tracing::layer()`: INFO and above become spans and structured logs,
+/// ERROR events become Sentry error events, and WARN and INFO events are kept as
+/// breadcrumbs attached to the next captured error.
+///
+/// The individual layers do not filter by level themselves, so every one of them
+/// needs its own filter. Never combine this with the legacy layer: installing both
+/// a `SentryLayer` and a `SpanLayer` can panic when a span is created.
+fn sentry_layer<S>() -> impl Layer<S>
+where
+    S: Subscriber + for<'a> LookupSpan<'a>,
+{
+    SpanLayer::new()
+        .with_filter(LevelFilter::INFO)
+        .and_then(BreadcrumbLayer::new().with_filter(filter_fn(|metadata| {
+            matches!(*metadata.level(), Level::WARN | Level::INFO)
+        })))
+        .and_then(ErrorLayer::new().with_filter(LevelFilter::ERROR))
+        .and_then(LogLayer::new().with_filter(LevelFilter::INFO))
+}
 
 fn setup_file_logging() -> Result<RollingFileAppender, Box<dyn std::error::Error>> {
     let home_dir = dirs::home_dir().ok_or("Could not determine home directory")?;
@@ -34,13 +59,10 @@ fn initialize_tracing(
                 tracing_subscriber::fmt::layer()
                     .with_writer(file_appender)
                     .with_ansi(false)
-                    .with_filter(tracing_subscriber::filter::LevelFilter::DEBUG),
+                    .with_filter(LevelFilter::DEBUG),
             )
-            .with(
-                tracing_subscriber::fmt::layer()
-                    .with_filter(tracing_subscriber::filter::LevelFilter::INFO),
-            )
-            .with(sentry_tracing::layer())
+            .with(tracing_subscriber::fmt::layer().with_filter(LevelFilter::INFO))
+            .with(sentry_layer())
             .init();
     } else {
         tracing_subscriber::registry()
@@ -49,7 +71,7 @@ fn initialize_tracing(
                     .unwrap_or_else(|_| "nookat_lib=info,bollard=warn,info".into()),
             )
             .with(tracing_subscriber::fmt::layer())
-            .with(sentry_tracing::layer())
+            .with(sentry_layer())
             .init();
     }
 
