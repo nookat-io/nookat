@@ -64,7 +64,7 @@ _Container management interface_
 
 ### Prerequisites
 
-- **macOS**: macOS 10.15 or later
+- **macOS**: macOS 11 (Big Sur) or later, with Safari updated to 16.4 or later on macOS 11 and 12, since Nookat renders with the system WebKit
 - **Linux**: Most modern distributions
 - **Windows**: Windows 10 or later
 - **Any [OCI](https://opencontainers.org/)-compatible container runtime**, or install [Colima](https://github.com/abiosoft/colima) in Nookat app settings
