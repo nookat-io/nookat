@@ -429,6 +429,101 @@ describe('CreateContainerDialog', () => {
     expect(nextButton()).toBeDisabled();
   });
 
+  it('asks before pulling from a registry that looks like a well-known one', async () => {
+    const { user, calls } = renderWizard({ pull_image: () => null });
+    await openWizard(user);
+
+    await user.type(
+      screen.getByRole('textbox', { name: 'Image' }),
+      'ghrc.io/acme/api:2'
+    );
+    expect(
+      screen.getByText(
+        'ghrc.io looks like ghcr.io (GitHub Container Registry), but it is a different registry. Check the spelling before you pull.'
+      )
+    ).toBeInTheDocument();
+
+    await user.click(
+      screen.getByRole('button', { name: 'Pull ghrc.io/acme/api:2' })
+    );
+    expect(
+      screen.getByRole('dialog', { name: 'Pull from ghrc.io?' })
+    ).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(calls).toEqual([]);
+    expect(
+      screen.getByRole('dialog', { name: 'Create Container' })
+    ).toBeInTheDocument();
+
+    await user.click(
+      screen.getByRole('button', { name: 'Pull ghrc.io/acme/api:2' })
+    );
+    await user.click(screen.getByRole('button', { name: 'Pull anyway' }));
+
+    expect(calls).toEqual([
+      {
+        cmd: 'pull_image',
+        args: { imageName: 'acme/api', tag: '2', registry: 'ghrc.io' },
+      },
+    ]);
+  });
+
+  it('asks before pulling an image named like a popular official one', async () => {
+    const { user, calls } = renderWizard({ pull_image: () => null });
+    await openWizard(user);
+
+    await user.type(
+      screen.getByRole('textbox', { name: 'Image' }),
+      'ubunti:24.04'
+    );
+    await user.click(screen.getByRole('button', { name: 'Pull ubunti:24.04' }));
+
+    expect(
+      screen.getByRole('dialog', { name: 'Pull ubunti?' })
+    ).toBeInTheDocument();
+    expect(calls).toEqual([]);
+  });
+
+  it('only notes a registry it does not know and pulls without asking', async () => {
+    const { user, calls } = renderWizard({ pull_image: () => null });
+    await openWizard(user);
+
+    await user.type(
+      screen.getByRole('textbox', { name: 'Image' }),
+      'registry.example.com/team/api:1'
+    );
+    expect(
+      screen.getByText(
+        'registry.example.com is not a registry Nookat recognizes. Pull only images you trust.'
+      )
+    ).toBeInTheDocument();
+    await user.click(
+      screen.getByRole('button', {
+        name: 'Pull registry.example.com/team/api:1',
+      })
+    );
+
+    expect(calls).toEqual([
+      {
+        cmd: 'pull_image',
+        args: {
+          imageName: 'team/api',
+          tag: '1',
+          registry: 'registry.example.com',
+        },
+      },
+    ]);
+  });
+
+  it('offers no pull for a reference Docker would reject', async () => {
+    const { user } = renderWizard();
+    await openWizard(user);
+
+    await user.type(screen.getByRole('textbox', { name: 'Image' }), 'My App');
+
+    expect(screen.queryByRole('button', { name: /^Pull / })).toBeNull();
+  });
+
   it('warns about a host port a running container already publishes, without blocking', async () => {
     const { user } = renderWizard();
     await openWizard(user);
