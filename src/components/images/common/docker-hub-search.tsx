@@ -57,7 +57,6 @@ export function DockerHubSearch({
         {isSearching && (
           <Loader2 className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
         )}
-        {/* Search Dropdown */}
         {isSearchDropdownOpen && (
           <div className="absolute z-9999 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-xl max-h-72 overflow-y-auto left-0 top-full">
             {searchError ? (
@@ -77,14 +76,6 @@ export function DockerHubSearch({
                     onClick={event => {
                       event.preventDefault();
                       event.stopPropagation();
-                      // Add visual feedback
-                      const element = event.currentTarget as HTMLElement;
-                      if (element) {
-                        element.style.backgroundColor = '#fef3c7'; // yellow-200
-                        setTimeout(() => {
-                          element.style.backgroundColor = '';
-                        }, 200);
-                      }
                       onImageSelect(image);
                     }}
                   >

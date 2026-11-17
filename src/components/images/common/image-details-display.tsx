@@ -47,7 +47,6 @@ export function ImageDetailsDisplay({
       </div>
 
       <div className="space-y-3">
-        {/* Full Image Name Preview */}
         <div className="p-2 bg-gray-100 rounded border border-gray-300">
           <p className="text-xs text-gray-800 font-mono">
             {pullData.registry}/{pullData.imageName}:{pullData.tag}
