@@ -56,7 +56,6 @@ jobs:
           $content = $content -replace "YOUR_PUBLIC_KEY_HERE", $env:TAURI_SIGNING_PUBLIC_KEY
           Set-Content tauri.conf.json -Value $content -NoNewline
 
-          # Verify the replacement was successful
           $updatedContent = Get-Content tauri.conf.json -Raw
           if ($updatedContent -like "*YOUR_PUBLIC_KEY_HERE*") {
             Write-Error "Updater public key replacement failed - placeholder still exists."
