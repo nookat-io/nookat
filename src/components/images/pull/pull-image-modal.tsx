@@ -1,4 +1,4 @@
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Button } from '../../ui/button';
 import {
   Dialog,
@@ -24,6 +24,13 @@ import {
   useTagSuggestions,
 } from '../common/hooks';
 import { errorMessage } from '../../../utils/error-message';
+import {
+  ImageSourceCheck,
+  checkImageReference,
+  needsConfirmation,
+} from '../../../lib/image-source';
+import { pullReference } from '../common/utils';
+import { ImageSourceConfirmDialog } from '../common/image-source-warnings';
 
 const SUCCESS_MESSAGE_VISIBLE_MS = 2000;
 
@@ -53,6 +60,8 @@ export function PullImage() {
   const { showFeedback, resetFeedback } = useSelectionFeedback();
   const { tagSuggestions, isLoadingTags, tagError, fetchTags, clearTags } =
     useTagSuggestions();
+  const [sourceToConfirm, setSourceToConfirm] =
+    useState<ImageSourceCheck | null>(null);
 
   const resetPullForm = useCallback(() => {
     resetForms();
@@ -128,7 +137,7 @@ export function PullImage() {
     });
   };
 
-  const handlePull = async () => {
+  const handlePull = () => {
     const imageName = pullData.imageName.trim();
     if (!imageName) {
       setError('Image name is required');
@@ -145,6 +154,17 @@ export function PullImage() {
       return;
     }
 
+    const source = checkImageReference(pullReference(pullData));
+    if (needsConfirmation(source)) {
+      setSourceToConfirm(source);
+      return;
+    }
+
+    pullImage();
+  };
+
+  const pullImage = async () => {
+    setSourceToConfirm(null);
     setRunning('Pulling image...');
 
     try {
@@ -207,6 +227,12 @@ export function PullImage() {
         />
 
         <ProgressDisplay progress={progress} />
+
+        <ImageSourceConfirmDialog
+          check={sourceToConfirm}
+          onCancel={() => setSourceToConfirm(null)}
+          onConfirm={pullImage}
+        />
 
         <DialogFooter>
           <Button

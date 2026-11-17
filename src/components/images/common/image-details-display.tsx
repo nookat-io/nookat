@@ -1,14 +1,13 @@
 import { Crown, Zap, Star, Download } from 'lucide-react';
 import { DockerHubImage } from '../../../types/docker-images';
-import { formatNumber } from './utils';
+import { checkImageReference } from '../../../lib/image-source';
+import { formatNumber, pullReference } from './utils';
+import { PullFormData } from './types';
+import { ImageSourceNote } from './image-source-warnings';
 
 interface ImageDetailsDisplayProps {
   image: DockerHubImage;
-  pullData: {
-    registry: string;
-    imageName: string;
-    tag: string;
-  };
+  pullData: PullFormData;
   onClear: () => void;
 }
 
@@ -54,6 +53,8 @@ export function ImageDetailsDisplay({
             {pullData.registry}/{pullData.imageName}:{pullData.tag}
           </p>
         </div>
+
+        <ImageSourceNote check={checkImageReference(pullReference(pullData))} />
 
         <div className="space-y-2 text-sm">
           <div className="flex items-center gap-4">
