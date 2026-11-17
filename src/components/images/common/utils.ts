@@ -20,10 +20,22 @@ export const DEFAULT_PULL_DATA: PullFormData = {
   registry: DOCKER_HUB,
 };
 
-export const pullReference = ({ registry, imageName, tag }: PullFormData) =>
-  registry === DOCKER_HUB
+export const trimPullData = ({
+  imageName,
+  tag,
+  registry,
+}: PullFormData): PullFormData => ({
+  imageName: imageName.trim(),
+  tag,
+  registry: registry.trim(),
+});
+
+export function pullReference(pullData: PullFormData) {
+  const { registry, imageName, tag } = trimPullData(pullData);
+  return registry === DOCKER_HUB
     ? `${imageName}:${tag}`
     : `${registry}/${imageName}:${tag}`;
+}
 
 export const DEFAULT_PROGRESS_STATE: ProgressState = {
   isRunning: false,

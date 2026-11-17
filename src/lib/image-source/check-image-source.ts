@@ -20,6 +20,11 @@ export type ImageSourceCheck =
   | { kind: 'lookalike-image'; image: string; resembles: string }
   | { kind: 'invalid' };
 
+export type LookalikeCheck = Extract<
+  ImageSourceCheck,
+  { kind: 'lookalike-registry' | 'lookalike-image' }
+>;
+
 export type RegistryCheck = Exclude<
   ImageSourceCheck,
   { kind: 'lookalike-image' }
@@ -184,5 +189,7 @@ export function checkImageReference(reference: string): ImageSourceCheck {
     : checkRegistry(parsed.registry);
 }
 
-export const needsConfirmation = (check: ImageSourceCheck) =>
+export const needsConfirmation = (
+  check: ImageSourceCheck
+): check is LookalikeCheck =>
   check.kind === 'lookalike-registry' || check.kind === 'lookalike-image';

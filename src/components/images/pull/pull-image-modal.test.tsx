@@ -109,6 +109,25 @@ describe('PullImage', () => {
     expect(pulls).toEqual([]);
   });
 
+  it('checks and pulls the registry without the spaces around it', async () => {
+    const pulls = mockDockerHub([NGINX]);
+    const user = await choosePullSource({
+      registry: ' ghrc.io ',
+      image: 'nginx',
+    });
+
+    expect(
+      screen.getByText(/^ghrc\.io looks like ghcr\.io/)
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Pull' }));
+    await user.click(screen.getByRole('button', { name: 'Pull anyway' }));
+
+    expect(pulls).toEqual([
+      { imageName: 'library/nginx', tag: 'latest', registry: 'ghrc.io' },
+    ]);
+  });
+
   it('asks before pulling an image named like a popular official image', async () => {
     const pulls = mockDockerHub([searchResult('ubunti', false)]);
     const user = await choosePullSource({ image: 'ubunti' });

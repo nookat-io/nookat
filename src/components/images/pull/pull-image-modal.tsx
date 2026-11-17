@@ -25,11 +25,12 @@ import {
 } from '../common/hooks';
 import { errorMessage } from '../../../utils/error-message';
 import {
-  ImageSourceCheck,
+  LookalikeCheck,
   checkImageReference,
   needsConfirmation,
 } from '../../../lib/image-source';
-import { pullReference } from '../common/utils';
+import { pullReference, trimPullData } from '../common/utils';
+import { PullFormData } from '../common/types';
 import { ImageSourceConfirmDialog } from '../common/image-source-warnings';
 
 const SUCCESS_MESSAGE_VISIBLE_MS = 2000;
@@ -60,8 +61,10 @@ export function PullImage() {
   const { showFeedback, resetFeedback } = useSelectionFeedback();
   const { tagSuggestions, isLoadingTags, tagError, fetchTags, clearTags } =
     useTagSuggestions();
-  const [sourceToConfirm, setSourceToConfirm] =
-    useState<ImageSourceCheck | null>(null);
+  const [pullToConfirm, setPullToConfirm] = useState<{
+    request: PullFormData;
+    source: LookalikeCheck;
+  } | null>(null);
 
   const resetPullForm = useCallback(() => {
     resetForms();
@@ -138,41 +141,37 @@ export function PullImage() {
   };
 
   const handlePull = () => {
-    const imageName = pullData.imageName.trim();
-    if (!imageName) {
+    const request = trimPullData(pullData);
+    if (!request.imageName) {
       setError('Image name is required');
       return;
     }
 
-    if (hasSpaceOrTab(imageName)) {
+    if (hasSpaceOrTab(request.imageName)) {
       setError('Image name cannot contain spaces or tabs');
       return;
     }
 
-    if (hasSpaceOrTab(pullData.registry.trim())) {
+    if (hasSpaceOrTab(request.registry)) {
       setError('Registry cannot contain spaces or tabs');
       return;
     }
 
-    const source = checkImageReference(pullReference(pullData));
+    const source = checkImageReference(pullReference(request));
     if (needsConfirmation(source)) {
-      setSourceToConfirm(source);
+      setPullToConfirm({ request, source });
       return;
     }
 
-    pullImage();
+    pullImage(request);
   };
 
-  const pullImage = async () => {
-    setSourceToConfirm(null);
+  const pullImage = async ({ imageName, tag, registry }: PullFormData) => {
+    setPullToConfirm(null);
     setRunning('Pulling image...');
 
     try {
-      await invoke('pull_image', {
-        imageName: pullData.imageName,
-        tag: pullData.tag,
-        registry: pullData.registry,
-      });
+      await invoke('pull_image', { imageName, tag, registry });
       setSuccess('Image pulled successfully!');
     } catch (error) {
       console.error('Pull image error:', error);
@@ -228,11 +227,13 @@ export function PullImage() {
 
         <ProgressDisplay progress={progress} />
 
-        <ImageSourceConfirmDialog
-          check={sourceToConfirm}
-          onCancel={() => setSourceToConfirm(null)}
-          onConfirm={pullImage}
-        />
+        {pullToConfirm && (
+          <ImageSourceConfirmDialog
+            check={pullToConfirm.source}
+            onCancel={() => setPullToConfirm(null)}
+            onConfirm={() => pullImage(pullToConfirm.request)}
+          />
+        )}
 
         <DialogFooter>
           <Button
