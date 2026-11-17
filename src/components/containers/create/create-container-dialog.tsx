@@ -143,7 +143,7 @@ export function CreateContainerDialog() {
         </DialogHeader>
 
         <div className="flex min-h-0 flex-1">
-          <div className="w-56 shrink-0 overflow-y-auto border-r bg-muted/30 p-3">
+          <div className="w-60 shrink-0 overflow-y-auto border-r bg-muted/30 p-3">
             <WizardStepper
               current={state.step}
               invalid={invalidSteps(issues)}

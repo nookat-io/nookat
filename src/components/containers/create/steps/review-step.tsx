@@ -57,7 +57,7 @@ function Lines({ items, empty }: { items: string[]; empty: string }) {
   return (
     <ul className="space-y-0.5">
       {items.map((item, index) => (
-        <li key={index} className="break-all font-mono text-xs leading-5">
+        <li key={index} className="wrap-anywhere font-mono text-xs leading-5">
           {item}
         </li>
       ))}
@@ -236,7 +236,7 @@ export function ReviewStep({
         </div>
         <pre
           aria-labelledby="docker-command-heading"
-          className="max-h-40 overflow-y-auto whitespace-pre-wrap break-all px-3 py-2.5 font-mono text-xs leading-5"
+          className="max-h-40 overflow-y-auto whitespace-pre-wrap wrap-anywhere px-3 py-2.5 font-mono text-xs leading-5"
         >
           {command}
         </pre>

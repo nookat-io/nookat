@@ -30,7 +30,7 @@ export function EnvironmentStep({ form, issues, dispatch }: StepProps) {
   return (
     <div className="space-y-6">
       <section className="space-y-3" aria-labelledby="environment-heading">
-        <div className="flex items-center justify-between gap-2">
+        <div className="flex min-h-9 items-center justify-between gap-2">
           <h4 id="environment-heading" className="text-sm font-medium">
             Environment variables
           </h4>
