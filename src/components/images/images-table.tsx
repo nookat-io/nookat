@@ -158,19 +158,19 @@ export function ImagesTable({
           </div>
         </TableCell>
         <TableCell className="text-muted-foreground max-w-[150px]">
-          <div className="truncate max-w-full" title={image.tag || ''}>
-            {image.tag}
+          <div className="truncate max-w-full" title={image.tag ?? '<none>'}>
+            {image.tag ?? '<none>'}
           </div>
         </TableCell>
-        <TableCell className="text-muted-foreground text-center">
+        <TableCell className="text-muted-foreground whitespace-nowrap">
           {formatDistanceToNow(new Date(image.created * 1000), {
             addSuffix: true,
           })}
         </TableCell>
-        <TableCell className="text-muted-foreground text-center">
+        <TableCell className="text-muted-foreground">
           {formatBytes(image.size)}
         </TableCell>
-        <TableCell className="text-center">
+        <TableCell>
           <Badge
             variant={image.in_use ? 'default' : 'secondary'}
             className={
@@ -233,7 +233,7 @@ export function ImagesTable({
                 <SortableTableHeader
                   sortKey="repository"
                   onSort={handleSort}
-                  className="w-[35%]"
+                  className="w-[30%]"
                 >
                   Name
                 </SortableTableHeader>
@@ -247,7 +247,7 @@ export function ImagesTable({
                 <SortableTableHeader
                   sortKey="created"
                   onSort={handleSort}
-                  className="w-[10%]"
+                  className="w-[15%]"
                 >
                   Created
                 </SortableTableHeader>
@@ -281,7 +281,9 @@ export function ImagesTable({
             <DialogDescription>
               Are you sure you want to delete the image{' '}
               <span className="font-mono font-medium">
-                {imageToDelete?.repository}:{imageToDelete?.tag}
+                {imageToDelete?.tag
+                  ? `${imageToDelete.repository}:${imageToDelete.tag}`
+                  : imageToDelete?.repository}
               </span>
               ? This action cannot be undone.
               {imageToDelete?.in_use && (

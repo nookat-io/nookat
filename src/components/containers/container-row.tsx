@@ -54,13 +54,17 @@ export function ContainerRow({
       <TableCell>
         {container.state && <ContainerStatusBadge state={container.state} />}
       </TableCell>
-      <TableCell className="text-muted-foreground">
+      <TableCell className="text-muted-foreground whitespace-nowrap">
         {container.created
           ? `${formatDistanceToNow(new Date(container.created * 1000))} ago`
-          : ''}
+          : '-'}
       </TableCell>
       <TableCell className="text-muted-foreground">
-        {container.ports && <PortMappings ports={container.ports} />}
+        {container.ports?.length ? (
+          <PortMappings ports={container.ports} />
+        ) : (
+          '-'
+        )}
       </TableCell>
       <TableCell className="text-left">
         <ContainerRowActions

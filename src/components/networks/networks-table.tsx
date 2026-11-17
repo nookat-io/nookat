@@ -19,7 +19,7 @@ import {
   DropdownMenuTrigger,
 } from '../ui/dropdown-menu';
 import { formatDistanceToNow } from 'date-fns';
-import { Network } from './network-types';
+import { Network, isSystemNetwork } from './network-types';
 import { removeNetwork } from './network-actions-utils';
 import { toast } from 'sonner';
 import { useState } from 'react';
@@ -55,19 +55,14 @@ export function NetworksTable({
   const { sortedData: sortedNetworks, handleSort } = useTableSort(
     networksArray.map(network => ({
       ...network,
-      isSystem:
-        network.name === 'bridge' ||
-        network.name === 'host' ||
-        network.name === 'none',
+      isSystem: isSystemNetwork(network),
     })),
     'name',
     'asc'
   );
 
   const handleSelectAll = (checked: boolean) => {
-    const selectableNetworks = sortedNetworks.filter(
-      n => n.name !== 'bridge' && n.name !== 'host' && n.name !== 'none'
-    );
+    const selectableNetworks = sortedNetworks.filter(n => !isSystemNetwork(n));
     if (checked) {
       onSelectionChange(selectableNetworks.map(n => n.id));
     } else {
@@ -133,10 +128,7 @@ export function NetworksTable({
     }
 
     return sortedNetworks.map(network => {
-      const isSystemNetwork =
-        network.name === 'bridge' ||
-        network.name === 'host' ||
-        network.name === 'none';
+      const isSystem = isSystemNetwork(network);
       const createdDate = network.created
         ? (() => {
             try {
@@ -151,7 +143,7 @@ export function NetworksTable({
       return (
         <TableRow key={network.id}>
           <TableCell>
-            {!isSystemNetwork && (
+            {!isSystem && (
               <Checkbox
                 checked={selectedNetworks.includes(network.id)}
                 onCheckedChange={checked =>
@@ -166,7 +158,7 @@ export function NetworksTable({
           <TableCell className="text-muted-foreground">
             {network.driver}
           </TableCell>
-          <TableCell className="text-muted-foreground">
+          <TableCell className="text-muted-foreground whitespace-nowrap">
             {createdDate ? `${formatDistanceToNow(createdDate)} ago` : '-'}
           </TableCell>
           <TableCell className="text-muted-foreground text-xs font-mono">
@@ -176,35 +168,32 @@ export function NetworksTable({
             {network.gateway || '-'}
           </TableCell>
           <TableCell>
-            <Badge variant={isSystemNetwork ? 'secondary' : 'default'}>
-              {isSystemNetwork ? 'System' : 'Custom'}
+            <Badge variant={isSystem ? 'secondary' : 'default'}>
+              {isSystem ? 'System' : 'Custom'}
             </Badge>
           </TableCell>
           <TableCell>
-            {!isSystemNetwork && (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="sm">
-                    <MoreHorizontal className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem
-                    className="text-destructive"
-                    disabled={
-                      network.containers > 0 ||
-                      deletingNetworks.has(network.name)
-                    }
-                    onClick={() => handleDeleteNetwork(network.name)}
-                  >
-                    <Trash2 className="mr-2 h-4 w-4" />
-                    {deletingNetworks.has(network.name)
-                      ? 'Deleting...'
-                      : 'Delete'}
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            )}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild disabled={isSystem}>
+                <Button variant="ghost" size="sm">
+                  <MoreHorizontal className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem
+                  className="text-destructive"
+                  disabled={
+                    network.containers > 0 || deletingNetworks.has(network.name)
+                  }
+                  onClick={() => handleDeleteNetwork(network.name)}
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  {deletingNetworks.has(network.name)
+                    ? 'Deleting...'
+                    : 'Delete'}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </TableCell>
         </TableRow>
       );
@@ -222,12 +211,7 @@ export function NetworksTable({
                   checked={
                     selectedNetworks.length > 0 &&
                     selectedNetworks.length ===
-                      sortedNetworks.filter(
-                        n =>
-                          n.name !== 'bridge' &&
-                          n.name !== 'host' &&
-                          n.name !== 'none'
-                      ).length
+                      sortedNetworks.filter(n => !isSystemNetwork(n)).length
                   }
                   onCheckedChange={value => handleSelectAll(value === true)}
                 />
