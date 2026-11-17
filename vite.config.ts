@@ -1,3 +1,4 @@
+/// <reference types="vitest/config" />
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
@@ -19,6 +20,13 @@ export default defineConfig(async () => ({
 
   define: {
     'import.meta.env.VITE_APP_VERSION': JSON.stringify(packageJson.version),
+  },
+
+  test: {
+    environment: 'jsdom',
+    include: ['src/**/*.test.{ts,tsx}'],
+    setupFiles: ['./src/tests/setup.ts'],
+    restoreMocks: true,
   },
 
   // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
