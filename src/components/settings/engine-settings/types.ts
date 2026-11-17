@@ -12,12 +12,7 @@ export type InstallationOperation = 'install' | 'start';
 
 export type EngineOperation = InstallationOperation | 'stop';
 
-export type StopStep =
-  | 'idle'
-  | 'stopping-vm'
-  | 'stopping'
-  | 'complete'
-  | 'error';
+export type StopStep = 'idle' | 'stopping-vm' | 'complete' | 'error';
 
 export interface InstallationProgress {
   step: string;

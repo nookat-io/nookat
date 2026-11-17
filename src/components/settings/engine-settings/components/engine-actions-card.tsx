@@ -41,7 +41,7 @@ export function EngineActionsCard({
   onStopEngine,
 }: EngineActionsCardProps) {
   const [isStopDialogOpen, setIsStopDialogOpen] = useState(false);
-  const isStopping = stopStep === 'stopping-vm' || stopStep === 'stopping';
+  const isStopping = stopStep === 'stopping-vm';
 
   return (
     <Card>

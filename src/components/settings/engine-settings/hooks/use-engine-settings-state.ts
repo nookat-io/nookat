@@ -239,52 +239,36 @@ export function useEngineSettingsState(): [
   }, [installationStep, fetchDockerInfo]);
 
   useEffect(() => {
-    if (stopStep === 'stopping-vm' || stopStep === 'stopping') {
-      const unlistenPromises: Promise<() => void>[] = [];
-
-      if (stopStep === 'stopping-vm') {
-        const unlistenStopProgress = listen('vm-stop-progress', event => {
-          const progressData = event.payload as ColimaEngineStopProgressType;
-          setStopProgress(progressData);
-        });
-        unlistenPromises.push(unlistenStopProgress);
-
-        const unlistenStopComplete = listen('vm-stop-complete', async event => {
-          setStopStep('complete');
-          const progressReportedByBackend =
-            event.payload as ColimaEngineStopProgressType | null;
-          setStopProgress(
-            prev => progressReportedByBackend ?? { ...prev, percentage: 100 }
-          );
-          setTimeout(() => {
-            fetchDockerInfo().catch(() => {});
-            setStopStep('idle');
-          }, 2000);
-        });
-        unlistenPromises.push(unlistenStopComplete);
-
-        const unlistenStopError = listen('vm-stop-error', event => {
-          const errorMsg = event.payload as string;
-          setError(errorMsg);
-          setStopStep('error');
-        });
-        unlistenPromises.push(unlistenStopError);
-      }
-
-      if (stopStep === 'stopping') {
-        const unlistenStopProgress = listen('engine-stop-progress', event => {
-          const progressData = event.payload as ColimaEngineStopProgressType;
-          setStopProgress(progressData);
-        });
-        unlistenPromises.push(unlistenStopProgress);
-      }
-
-      return () => {
-        unlistenPromises.forEach(unlisten => {
-          unlisten.then(cleanup => cleanup());
-        });
-      };
+    if (stopStep !== 'stopping-vm') {
+      return;
     }
+
+    const unlistenPromises = [
+      listen<ColimaEngineStopProgressType>('vm-stop-progress', event =>
+        setStopProgress(event.payload)
+      ),
+      listen<ColimaEngineStopProgressType | null>('vm-stop-complete', event => {
+        setStopStep('complete');
+        const progressReportedByBackend = event.payload;
+        setStopProgress(
+          prev => progressReportedByBackend ?? { ...prev, percentage: 100 }
+        );
+        setTimeout(() => {
+          fetchDockerInfo().catch(() => {});
+          setStopStep('idle');
+        }, 2000);
+      }),
+      listen<string>('vm-stop-error', event => {
+        setError(event.payload);
+        setStopStep('error');
+      }),
+    ];
+
+    return () => {
+      unlistenPromises.forEach(unlisten => {
+        unlisten.then(cleanup => cleanup());
+      });
+    };
   }, [stopStep, fetchDockerInfo]);
 
   const handleInstall = async () => {
