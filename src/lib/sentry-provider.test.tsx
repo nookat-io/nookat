@@ -5,6 +5,7 @@ import { AppConfig, Language, TelemetrySettings, Theme } from '../types/config';
 
 const sentry = vi.hoisted(() => ({
   init: vi.fn(),
+  close: vi.fn(() => Promise.resolve(true)),
   replayIntegration: vi.fn(() => 'replay integration'),
   captureConsoleIntegration: vi.fn(() => 'console integration'),
 }));
@@ -83,6 +84,27 @@ async function sentryProviderWith({
 
 const sentryStatus = () => screen.getByText(/^initialized:/).textContent;
 
+const EXPECTED_INIT_OPTIONS = {
+  dsn: DSN,
+  dataCollection: { userInfo: false, cookies: false, httpBodies: [] },
+  integrations: ['replay integration', 'console integration'],
+  replaysSessionSampleRate: 0,
+  replaysOnErrorSampleRate: 1,
+};
+
+const switchErrorReporting = (
+  configService: {
+    updateTelemetrySettings: (s: TelemetrySettings) => Promise<void>;
+  },
+  errorReporting: boolean
+) =>
+  act(() =>
+    configService.updateTelemetrySettings({
+      send_anonymous_usage_data: false,
+      error_reporting: errorReporting,
+    })
+  );
+
 const silenceConsole = () => {
   vi.spyOn(console, 'log').mockImplementation(() => {});
   vi.spyOn(console, 'error').mockImplementation(() => {});
@@ -91,6 +113,7 @@ const silenceConsole = () => {
 describe('SentryProvider', () => {
   beforeEach(() => {
     sentry.init.mockReset();
+    sentry.close.mockClear();
     sentry.replayIntegration.mockClear();
     sentry.captureConsoleIntegration.mockClear();
     silenceConsole();
@@ -107,13 +130,7 @@ describe('SentryProvider', () => {
       expect(sentryStatus()).toBe('initialized: true, error: none')
     );
     expect(sentry.init).toHaveBeenCalledTimes(1);
-    expect(sentry.init).toHaveBeenCalledWith({
-      dsn: DSN,
-      dataCollection: { userInfo: false, cookies: false, httpBodies: [] },
-      integrations: ['replay integration', 'console integration'],
-      replaysSessionSampleRate: 0,
-      replaysOnErrorSampleRate: 1,
-    });
+    expect(sentry.init).toHaveBeenCalledWith(EXPECTED_INIT_OPTIONS);
     expect(sentry.replayIntegration).toHaveBeenCalledWith({
       maskAllText: true,
       blockAllMedia: true,
@@ -132,6 +149,7 @@ describe('SentryProvider', () => {
       )
     );
     expect(sentry.init).not.toHaveBeenCalled();
+    expect(sentry.close).not.toHaveBeenCalled();
     expect(sentryStatus()).toBe('initialized: false, error: none');
   });
 
@@ -153,17 +171,67 @@ describe('SentryProvider', () => {
     });
     await waitFor(() => expect(console.log).toHaveBeenCalled());
 
-    await act(() =>
-      configService.updateTelemetrySettings({
-        send_anonymous_usage_data: false,
-        error_reporting: true,
-      })
-    );
+    await switchErrorReporting(configService, true);
 
     await waitFor(() =>
       expect(sentryStatus()).toBe('initialized: true, error: none')
     );
     expect(sentry.init).toHaveBeenCalledTimes(1);
+  });
+
+  it('closes Sentry as soon as error reporting is switched off in settings, so no more reports are sent before a restart', async () => {
+    const { configService } = await sentryProviderWith({
+      errorReporting: true,
+    });
+    await waitFor(() =>
+      expect(sentryStatus()).toBe('initialized: true, error: none')
+    );
+
+    await switchErrorReporting(configService, false);
+
+    await waitFor(() =>
+      expect(sentryStatus()).toBe('initialized: false, error: none')
+    );
+    expect(sentry.close).toHaveBeenCalledTimes(1);
+  });
+
+  it('starts Sentry again with the same options when error reporting is switched back on', async () => {
+    const { configService } = await sentryProviderWith({
+      errorReporting: true,
+    });
+    await waitFor(() =>
+      expect(sentryStatus()).toBe('initialized: true, error: none')
+    );
+    await switchErrorReporting(configService, false);
+    await waitFor(() =>
+      expect(sentryStatus()).toBe('initialized: false, error: none')
+    );
+
+    await switchErrorReporting(configService, true);
+
+    await waitFor(() =>
+      expect(sentryStatus()).toBe('initialized: true, error: none')
+    );
+    expect(sentry.init).toHaveBeenCalledTimes(2);
+    expect(sentry.init).toHaveBeenLastCalledWith(EXPECTED_INIT_OPTIONS);
+  });
+
+  it('reuses the integrations across restarts, because Session Replay throws when a second instance is created in the same page', async () => {
+    const { configService } = await sentryProviderWith({
+      errorReporting: true,
+    });
+    await waitFor(() => expect(sentry.init).toHaveBeenCalledTimes(1));
+
+    await switchErrorReporting(configService, false);
+    await switchErrorReporting(configService, true);
+
+    await waitFor(() => expect(sentry.init).toHaveBeenCalledTimes(2));
+    const [first, second] = sentry.init.mock.calls.map(
+      ([options]) => options.integrations
+    );
+    expect(second).toBe(first);
+    expect(sentry.replayIntegration).toHaveBeenCalledTimes(1);
+    expect(sentry.captureConsoleIntegration).toHaveBeenCalledTimes(1);
   });
 
   it('reports a failed Sentry init through the context instead of crashing the app', async () => {
