@@ -18,7 +18,7 @@ const fallbackConfig = (): AppConfig => ({
   startup: {
     start_on_system_startup: false,
     minimize_to_tray: true,
-    check_for_updates: true,
+    check_for_updates: false,
     auto_update_settings: false,
   },
   sidebar_collapsed: false,
