@@ -3195,6 +3195,7 @@ dependencies = [
  "dirs 7.0.0",
  "futures-util",
  "image",
+ "ipnet",
  "reqwest 0.12.28",
  "sentry",
  "sentry-tracing",
