@@ -1,10 +1,14 @@
+use bollard::container::LogOutput;
 use bollard::models::{ContainerStateStatusEnum, ContainerSummary};
 use bollard::query_parameters::{
-    ListContainersOptions, LogsOptions, RemoveContainerOptions, RestartContainerOptions,
-    StartContainerOptions, StopContainerOptions,
+    ListContainersOptions, LogsOptions, PruneContainersOptions, RemoveContainerOptions,
+    RestartContainerOptions, StartContainerOptions, StopContainerOptions,
 };
 use bollard::Docker;
+use futures_util::StreamExt;
 use tracing::instrument;
+
+const NO_LOGS_MESSAGE: &str = "No logs available for this container";
 
 #[derive(Default, Debug)]
 pub struct ContainersService {}
@@ -128,38 +132,22 @@ impl ContainersService {
             ..Default::default()
         };
 
-        // Use the logs method to get container logs
-        let logs_stream = docker.logs(id, Some(options));
-
-        // Convert the logs stream to strings
+        let mut log_stream = docker.logs(id, Some(options));
         let mut logs = Vec::new();
 
-        // Collect all log entries from the stream
-        use futures_util::StreamExt;
-
-        let mut stream = logs_stream;
-        while let Some(log_entry) = stream.next().await {
-            match log_entry {
-                Ok(bollard::container::LogOutput::StdOut { message })
-                | Ok(bollard::container::LogOutput::StdErr { message }) => {
-                    // Convert bytes to string
-                    if let Ok(log_line) = String::from_utf8(message.to_vec()) {
-                        logs.push(log_line);
-                    }
+        while let Some(log_output) = log_stream.next().await {
+            match log_output.map_err(|e| format!("Error reading log stream: {}", e))? {
+                LogOutput::StdOut { message }
+                | LogOutput::StdErr { message }
+                | LogOutput::Console { message } => {
+                    logs.push(String::from_utf8_lossy(&message).into_owned());
                 }
-                Ok(_) => {
-                    // Handle other log output types if needed
-                    continue;
-                }
-                Err(e) => {
-                    return Err(format!("Error reading log stream: {}", e));
-                }
+                LogOutput::StdIn { .. } => {}
             }
         }
 
-        // If no logs were collected, return a default message
         if logs.is_empty() {
-            logs.push("No logs available for this container".to_string());
+            logs.push(NO_LOGS_MESSAGE.to_string());
         }
 
         Ok(logs)
@@ -167,9 +155,8 @@ impl ContainersService {
 
     #[instrument(skip_all, err)]
     pub async fn prune_containers(docker: &Docker) -> Result<(), String> {
-        // Use the prune containers method
         docker
-            .prune_containers(None::<bollard::query_parameters::PruneContainersOptions>)
+            .prune_containers(None::<PruneContainersOptions>)
             .await
             .map_err(|e| format!("Failed to prune containers: {}", e))?;
 
