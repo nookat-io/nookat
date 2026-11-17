@@ -12,7 +12,7 @@ import { Container } from './container-types';
 import { ContainerLogsForm } from './container-logs-form';
 import { ContainerRow } from './container-row';
 import { ContainerGroupRow } from './container-group-row';
-import { organizeContainers } from './container-utils';
+import { formatContainerName, organizeContainers } from './container-utils';
 import { LoadingSpinner } from '../ui/loading-spinner';
 import { ErrorDisplay } from '../ui/error-display';
 import { SortableTableHeader } from '../ui/sortable-table-header';
@@ -22,7 +22,6 @@ interface ContainersTableProps {
   selectedContainers: string[];
   onSelectionChange: (_selected: string[]) => void;
   containers: Container[];
-  onActionComplete?: () => void;
   isLoading?: boolean;
   error?: string | null;
   onRetry?: () => void;
@@ -32,7 +31,6 @@ export function ContainersTable({
   selectedContainers,
   onSelectionChange,
   containers,
-  onActionComplete,
   isLoading = false,
   error = null,
   onRetry,
@@ -64,8 +62,7 @@ export function ContainersTable({
 
   const { individualContainers, groupedContainers } = organizeContainers(
     sortedContainers,
-    expandedGroups,
-    true
+    expandedGroups
   );
 
   const allContainers = [
@@ -140,7 +137,6 @@ export function ContainersTable({
             selectedContainers={selectedContainers}
             onToggleGroup={toggleGroup}
             onSelectionChange={handleSelectContainer}
-            onActionComplete={onActionComplete}
             onOpenLogs={handleOpenLogs}
           />
         ))}
@@ -151,7 +147,6 @@ export function ContainersTable({
             container={container}
             isSelected={selectedContainers.includes(container.id)}
             onSelectionChange={handleSelectContainer}
-            onActionComplete={onActionComplete}
             onOpenLogs={handleOpenLogs}
           />
         ))}
@@ -220,7 +215,7 @@ export function ContainersTable({
         <ContainerLogsForm
           containerId={selectedContainerForLogs.id}
           containerName={
-            selectedContainerForLogs.names?.[0]?.replace(/^\//, '') ||
+            formatContainerName(selectedContainerForLogs) ||
             selectedContainerForLogs.id ||
             'Unknown Container'
           }

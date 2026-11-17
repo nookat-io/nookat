@@ -4,14 +4,12 @@ import { Container } from './container-types';
 interface ContainerHeaderProps {
   selectedContainers: string[];
   containers: Container[];
-  onActionComplete?: () => void;
   onSelectionChange?: (selected: string[]) => void;
 }
 
 export function ContainerHeader({
   selectedContainers,
   containers,
-  onActionComplete,
   onSelectionChange,
 }: ContainerHeaderProps) {
   return (
@@ -30,7 +28,6 @@ export function ContainerHeader({
             <ContainerActions
               selectedContainers={selectedContainers}
               containers={containers}
-              onActionComplete={onActionComplete}
               onSelectionChange={onSelectionChange}
             />
           </div>

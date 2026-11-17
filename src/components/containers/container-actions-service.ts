@@ -1,124 +1,100 @@
 import { invoke } from '@tauri-apps/api/core';
 import { toast } from 'sonner';
 
-export interface ContainerActionOptions {
-  onActionComplete?: () => void;
-  onSelectionChange?: (selected: string[]) => void;
+type ContainerAction =
+  | 'start'
+  | 'stop'
+  | 'pause'
+  | 'resume'
+  | 'restart'
+  | 'remove';
+
+const PAST_TENSE: Record<ContainerAction, string> = {
+  start: 'Started',
+  stop: 'Stopped',
+  pause: 'Paused',
+  resume: 'Resumed',
+  restart: 'Restarted',
+  remove: 'Removed',
+};
+
+type ContainerTarget = { id: string } | { ids: string[] };
+
+function describeTarget(target: ContainerTarget): string {
+  if ('id' in target || target.ids.length === 1) {
+    return 'container';
+  }
+  return `${target.ids.length} containers`;
+}
+
+async function runContainerAction(
+  action: ContainerAction,
+  command: string,
+  target: ContainerTarget
+): Promise<boolean> {
+  const containers = describeTarget(target);
+  try {
+    await invoke(command, target);
+    toast.success(`${PAST_TENSE[action]} ${containers}`);
+    return true;
+  } catch (error) {
+    console.error(`Failed to ${action} ${containers}:`, error);
+    toast.error(`Failed to ${action} ${containers}: ${error}`);
+    return false;
+  }
 }
 
 export class ContainerActionService {
-  private static async executeAction(
-    action: string,
-    params: { id?: string; ids?: string[] },
-    options: ContainerActionOptions = {}
-  ) {
-    try {
-      await invoke(action, params);
-
-      const count = Array.isArray(params.ids) ? params.ids.length : 1;
-      const containerText = count === 1 ? 'container' : 'containers';
-      const countText = count === 1 ? '' : `${count} `;
-
-      let message = '';
-      if (action.includes('restart')) {
-        message = `Restarted ${countText}${containerText}`;
-      } else if (action.includes('start')) {
-        message = `Started ${countText}${containerText}`;
-      } else if (action.includes('stop')) {
-        message = `Stopped ${countText}${containerText}`;
-      } else if (action.includes('unpause')) {
-        message = `Resumed ${countText}${containerText}`;
-      } else if (action.includes('pause')) {
-        message = `Paused ${countText}${containerText}`;
-      } else if (action.includes('remove') || action.includes('delete')) {
-        message = `Removed ${countText}${containerText}`;
-      }
-
-      toast.success(message);
-
-      // Clear selections for destructive actions
-      if (action.includes('remove') || action.includes('delete')) {
-        options.onSelectionChange?.([]);
-      }
-
-      // Add a small delay to ensure the backend operation completes before refreshing
-      setTimeout(() => {
-        options.onActionComplete?.();
-      }, 500);
-    } catch (error) {
-      console.error(`Error ${action}ing container:`, error);
-      const count = Array.isArray(params.ids) ? params.ids.length : 1;
-      const containerText = count === 1 ? 'container' : 'containers';
-      const countText = count === 1 ? '' : `${count} `;
-
-      let actionName = 'perform action on';
-      if (action.includes('restart')) {
-        actionName = 'restart';
-      } else if (action.includes('start')) {
-        actionName = 'start';
-      } else if (action.includes('stop')) {
-        actionName = 'stop';
-      } else if (action.includes('unpause')) {
-        actionName = 'resume';
-      } else if (action.includes('pause')) {
-        actionName = 'pause';
-      } else if (action.includes('remove') || action.includes('delete')) {
-        actionName = 'remove';
-      }
-
-      toast.error(
-        `Failed to ${actionName} ${countText}${containerText}: ${error}`
-      );
-
-      // Refresh even on error to ensure UI is in sync
-      setTimeout(() => {
-        options.onActionComplete?.();
-      }, 500);
-    }
+  static startContainer(id: string) {
+    return runContainerAction('start', 'start_container', { id });
   }
 
-  static async startContainer(
-    containerId: string,
-    options: ContainerActionOptions = {}
-  ) {
-    await this.executeAction('start_container', { id: containerId }, options);
+  static stopContainer(id: string) {
+    return runContainerAction('stop', 'stop_container', { id });
   }
 
-  static async stopContainer(
-    containerId: string,
-    options: ContainerActionOptions = {}
-  ) {
-    await this.executeAction('stop_container', { id: containerId }, options);
+  static pauseContainer(id: string) {
+    return runContainerAction('pause', 'pause_container', { id });
   }
 
-  static async pauseContainer(
-    containerId: string,
-    options: ContainerActionOptions = {}
-  ) {
-    await this.executeAction('pause_container', { id: containerId }, options);
+  static resumeContainer(id: string) {
+    return runContainerAction('resume', 'unpause_container', { id });
   }
 
-  static async resumeContainer(
-    containerId: string,
-    options: ContainerActionOptions = {}
-  ) {
-    await this.executeAction('unpause_container', { id: containerId }, options);
+  static restartContainer(id: string) {
+    return runContainerAction('restart', 'restart_container', { id });
   }
 
-  static async restartContainer(
-    containerId: string,
-    options: ContainerActionOptions = {}
-  ) {
-    await this.executeAction('restart_container', { id: containerId }, options);
+  static deleteContainer(id: string, isRunning: boolean) {
+    const command = isRunning ? 'force_remove_container' : 'remove_container';
+    return runContainerAction('remove', command, { id });
   }
 
-  static async deleteContainer(
-    containerId: string,
-    isRunning: boolean,
-    options: ContainerActionOptions = {}
-  ) {
-    const action = isRunning ? 'force_remove_container' : 'remove_container';
-    await this.executeAction(action, { id: containerId }, options);
+  static bulkStartContainers(ids: string[]) {
+    return runContainerAction('start', 'bulk_start_containers', { ids });
+  }
+
+  static bulkStopContainers(ids: string[]) {
+    return runContainerAction('stop', 'bulk_stop_containers', { ids });
+  }
+
+  static bulkPauseContainers(ids: string[]) {
+    return runContainerAction('pause', 'bulk_pause_containers', { ids });
+  }
+
+  static bulkResumeContainers(ids: string[]) {
+    return runContainerAction('resume', 'bulk_unpause_containers', { ids });
+  }
+
+  static bulkRestartContainers(ids: string[]) {
+    return runContainerAction('restart', 'bulk_restart_containers', { ids });
+  }
+
+  static bulkDeleteContainers(ids: string[], hasRunning: boolean) {
+    const command = hasRunning
+      ? 'bulk_force_remove_containers'
+      : 'bulk_remove_containers';
+    return runContainerAction('remove', command, { ids });
   }
 
   static async openTerminal(containerId: string) {
@@ -131,88 +107,13 @@ export class ContainerActionService {
     }
   }
 
-  // Bulk actions
-  static async bulkStartContainers(
-    containerIds: string[],
-    options: ContainerActionOptions = {}
-  ) {
-    await this.executeAction(
-      'bulk_start_containers',
-      { ids: containerIds },
-      options
-    );
-  }
-
-  static async bulkStopContainers(
-    containerIds: string[],
-    options: ContainerActionOptions = {}
-  ) {
-    await this.executeAction(
-      'bulk_stop_containers',
-      { ids: containerIds },
-      options
-    );
-  }
-
-  static async bulkPauseContainers(
-    containerIds: string[],
-    options: ContainerActionOptions = {}
-  ) {
-    await this.executeAction(
-      'bulk_pause_containers',
-      { ids: containerIds },
-      options
-    );
-  }
-
-  static async bulkResumeContainers(
-    containerIds: string[],
-    options: ContainerActionOptions = {}
-  ) {
-    await this.executeAction(
-      'bulk_unpause_containers',
-      { ids: containerIds },
-      options
-    );
-  }
-
-  static async bulkRestartContainers(
-    containerIds: string[],
-    options: ContainerActionOptions = {}
-  ) {
-    await this.executeAction(
-      'bulk_restart_containers',
-      { ids: containerIds },
-      options
-    );
-  }
-
-  static async bulkDeleteContainers(
-    containerIds: string[],
-    hasRunning: boolean,
-    options: ContainerActionOptions = {}
-  ) {
-    const action = hasRunning
-      ? 'bulk_force_remove_containers'
-      : 'bulk_remove_containers';
-    await this.executeAction(action, { ids: containerIds }, options);
-  }
-
-  static async pruneContainers(options: ContainerActionOptions = {}) {
+  static async pruneContainers() {
     try {
       await invoke('prune_containers');
       toast.success('Pruned stopped containers');
-
-      setTimeout(() => {
-        options.onActionComplete?.();
-      }, 500);
     } catch (error) {
       console.error('Error pruning containers:', error);
       toast.error(`Failed to prune containers: ${error}`);
-
-      setTimeout(() => {
-        options.onActionComplete?.();
-      }, 500);
     }
   }
 }

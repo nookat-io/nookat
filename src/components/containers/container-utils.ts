@@ -1,4 +1,4 @@
-import { Container } from './container-types';
+import { Container, ContainerState } from './container-types';
 
 export interface ContainerGroup {
   projectName: string;
@@ -14,78 +14,61 @@ export const getProjectName = (container: Container): string | null => {
 
 export const organizeContainers = (
   containers: Container[],
-  expandedGroups: Set<string>,
-  preserveOrder: boolean = false
+  expandedGroups: Set<string>
 ) => {
   const individualContainers: Container[] = [];
-  const groupedContainers: Record<string, Container[]> = {};
+  const containersByProject = new Map<string, Container[]>();
 
   containers.forEach(container => {
     const projectName = getProjectName(container);
-
-    if (projectName) {
-      // Container belongs to a compose project
-      if (!groupedContainers[projectName]) {
-        groupedContainers[projectName] = [];
-      }
-      groupedContainers[projectName].push(container);
-    } else {
-      // Individual container (not part of a compose project)
+    if (!projectName) {
       individualContainers.push(container);
+      return;
     }
+    const projectContainers = containersByProject.get(projectName) ?? [];
+    projectContainers.push(container);
+    containersByProject.set(projectName, projectContainers);
   });
 
-  if (preserveOrder) {
-    // Preserve the order of containers as they were passed in
-    const groups: ContainerGroup[] = Object.entries(groupedContainers).map(
-      ([projectName, containers]) => ({
-        projectName,
-        containers: containers, // Keep original order
-        isExpanded: expandedGroups.has(projectName),
-      })
-    );
+  const groupedContainers: ContainerGroup[] = Array.from(
+    containersByProject,
+    ([projectName, projectContainers]) => ({
+      projectName,
+      containers: projectContainers,
+      isExpanded: expandedGroups.has(projectName),
+    })
+  );
 
-    // Sort groups by the position of their first container in the original array
-    const sortedGroups = groups.sort((a, b) => {
-      const firstIndexA = containers.findIndex(
-        c => c.id === a.containers[0]?.id
-      );
-      const firstIndexB = containers.findIndex(
-        c => c.id === b.containers[0]?.id
-      );
-      return firstIndexA - firstIndexB;
-    });
-
-    return {
-      individualContainers, // Keep original order
-      groupedContainers: sortedGroups,
-    };
-  } else {
-    // Sort containers by creation time (newest first) - original behavior
-    const sortByCreatedTime = (a: Container, b: Container) =>
-      (b.created ?? 0) - (a.created ?? 0);
-
-    const groups: ContainerGroup[] = Object.entries(groupedContainers).map(
-      ([projectName, containers]) => ({
-        projectName,
-        containers: containers.sort(sortByCreatedTime),
-        isExpanded: expandedGroups.has(projectName),
-      })
-    );
-
-    // Sort groups by the creation time of their newest container
-    const sortedGroups = groups.sort((a, b) => {
-      const newestA = Math.max(...a.containers.map(c => c.created ?? 0));
-      const newestB = Math.max(...b.containers.map(c => c.created ?? 0));
-      return newestB - newestA;
-    });
-
-    return {
-      individualContainers: individualContainers.sort(sortByCreatedTime),
-      groupedContainers: sortedGroups,
-    };
-  }
+  return { individualContainers, groupedContainers };
 };
+
+const isInState = (container: Container, states: ContainerState[]) =>
+  container.state !== undefined && states.includes(container.state);
+
+export const canStartContainer = (container: Container) =>
+  isInState(container, [ContainerState.Exited, ContainerState.Created]);
+
+export const canStopContainer = (container: Container) =>
+  isInState(container, [ContainerState.Running, ContainerState.Restarting]);
+
+export const canRestartContainer = canStopContainer;
+
+export const isContainerRunning = (container: Container) =>
+  container.state === ContainerState.Running;
+
+export const canPauseContainer = isContainerRunning;
+
+export const canOpenContainerTerminal = isContainerRunning;
+
+export const canResumeContainer = (container: Container) =>
+  container.state === ContainerState.Paused;
+
+export const canDeleteContainer = (container: Container) =>
+  isInState(container, [
+    ContainerState.Exited,
+    ContainerState.Created,
+    ContainerState.Running,
+  ]);
 
 export const formatContainerName = (container: Container): string => {
   if (container.names && container.names.length > 0) {

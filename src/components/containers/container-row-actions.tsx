@@ -16,29 +16,30 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '../ui/dropdown-menu';
-import { Container, ContainerState } from './container-types';
+import { Container } from './container-types';
 import { ContainerActionService } from './container-actions-service';
+import {
+  canDeleteContainer,
+  canOpenContainerTerminal,
+  canPauseContainer,
+  canRestartContainer,
+  canResumeContainer,
+  canStartContainer,
+  canStopContainer,
+  isContainerRunning,
+} from './container-utils';
 
 interface ContainerRowActionsProps {
   container: Container;
-  onActionComplete?: () => void;
   onOpenLogs: (container: Container) => void;
 }
 
 export function ContainerRowActions({
   container,
-  onActionComplete,
   onOpenLogs,
 }: ContainerRowActionsProps) {
   const [openingTerminal, setOpeningTerminal] = useState(false);
-
-  const handleAction = async (action: () => Promise<void>) => {
-    try {
-      await action();
-    } catch {
-      // Error handling is done in the service
-    }
-  };
+  const isRunning = isContainerRunning(container);
 
   const handleOpenTerminal = async () => {
     setOpeningTerminal(true);
@@ -57,97 +58,54 @@ export function ContainerRowActions({
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
-        {/* Start action - available for exited, created containers */}
-        {container.state &&
-          [ContainerState.Exited, ContainerState.Created].includes(
-            container.state
-          ) && (
-            <DropdownMenuItem
-              onClick={() =>
-                handleAction(() =>
-                  ContainerActionService.startContainer(container.id, {
-                    onActionComplete,
-                  })
-                )
-              }
-            >
-              <Play className="mr-2 h-4 w-4" />
-              Start
-            </DropdownMenuItem>
-          )}
-
-        {/* Stop action - available for running, restarting containers */}
-        {container.state &&
-          [ContainerState.Running, ContainerState.Restarting].includes(
-            container.state
-          ) && (
-            <DropdownMenuItem
-              onClick={() =>
-                handleAction(() =>
-                  ContainerActionService.stopContainer(container.id, {
-                    onActionComplete,
-                  })
-                )
-              }
-            >
-              <Square className="mr-2 h-4 w-4" />
-              Stop
-            </DropdownMenuItem>
-          )}
-
-        {/* Pause action - available for running containers */}
-        {container.state && container.state === ContainerState.Running && (
+        {canStartContainer(container) && (
           <DropdownMenuItem
-            onClick={() =>
-              handleAction(() =>
-                ContainerActionService.pauseContainer(container.id, {
-                  onActionComplete,
-                })
-              )
-            }
+            onClick={() => ContainerActionService.startContainer(container.id)}
+          >
+            <Play className="mr-2 h-4 w-4" />
+            Start
+          </DropdownMenuItem>
+        )}
+
+        {canStopContainer(container) && (
+          <DropdownMenuItem
+            onClick={() => ContainerActionService.stopContainer(container.id)}
+          >
+            <Square className="mr-2 h-4 w-4" />
+            Stop
+          </DropdownMenuItem>
+        )}
+
+        {canPauseContainer(container) && (
+          <DropdownMenuItem
+            onClick={() => ContainerActionService.pauseContainer(container.id)}
           >
             <Pause className="mr-2 h-4 w-4" />
             Pause
           </DropdownMenuItem>
         )}
 
-        {/* Resume action - available for paused containers */}
-        {container.state && container.state === ContainerState.Paused && (
+        {canResumeContainer(container) && (
           <DropdownMenuItem
-            onClick={() =>
-              handleAction(() =>
-                ContainerActionService.resumeContainer(container.id, {
-                  onActionComplete,
-                })
-              )
-            }
+            onClick={() => ContainerActionService.resumeContainer(container.id)}
           >
             <Play className="mr-2 h-4 w-4" />
             Resume
           </DropdownMenuItem>
         )}
 
-        {/* Restart action - available for running, restarting containers */}
-        {container.state &&
-          [ContainerState.Running, ContainerState.Restarting].includes(
-            container.state
-          ) && (
-            <DropdownMenuItem
-              onClick={() =>
-                handleAction(() =>
-                  ContainerActionService.restartContainer(container.id, {
-                    onActionComplete,
-                  })
-                )
-              }
-            >
-              <RotateCcw className="mr-2 h-4 w-4" />
-              Restart
-            </DropdownMenuItem>
-          )}
+        {canRestartContainer(container) && (
+          <DropdownMenuItem
+            onClick={() =>
+              ContainerActionService.restartContainer(container.id)
+            }
+          >
+            <RotateCcw className="mr-2 h-4 w-4" />
+            Restart
+          </DropdownMenuItem>
+        )}
 
-        {/* Terminal - available for running containers */}
-        {container.state && container.state === ContainerState.Running && (
+        {canOpenContainerTerminal(container) && (
           <DropdownMenuItem
             onClick={handleOpenTerminal}
             disabled={openingTerminal}
@@ -157,37 +115,22 @@ export function ContainerRowActions({
           </DropdownMenuItem>
         )}
 
-        {/* Logs - available for all containers */}
         <DropdownMenuItem onClick={() => onOpenLogs(container)}>
           <ExternalLink className="mr-2 h-4 w-4" />
           Logs
         </DropdownMenuItem>
 
-        {/* Delete action - available for exited, created, running containers */}
-        {container.state &&
-          [
-            ContainerState.Exited,
-            ContainerState.Created,
-            ContainerState.Running,
-          ].includes(container.state) && (
-            <DropdownMenuItem
-              className="text-destructive"
-              onClick={() =>
-                handleAction(() =>
-                  ContainerActionService.deleteContainer(
-                    container.id,
-                    container.state === ContainerState.Running,
-                    { onActionComplete }
-                  )
-                )
-              }
-            >
-              <Trash2 className="mr-2 h-4 w-4" />
-              {container.state === ContainerState.Running
-                ? 'Force Delete'
-                : 'Delete'}
-            </DropdownMenuItem>
-          )}
+        {canDeleteContainer(container) && (
+          <DropdownMenuItem
+            className="text-destructive"
+            onClick={() =>
+              ContainerActionService.deleteContainer(container.id, isRunning)
+            }
+          >
+            <Trash2 className="mr-2 h-4 w-4" />
+            {isRunning ? 'Force Delete' : 'Delete'}
+          </DropdownMenuItem>
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
   );

@@ -7,7 +7,16 @@ import {
   Pause,
   Play as ResumeIcon,
 } from 'lucide-react';
-import { Container, ContainerState } from './container-types';
+import { Container } from './container-types';
+import {
+  canDeleteContainer,
+  canPauseContainer,
+  canRestartContainer,
+  canResumeContainer,
+  canStartContainer,
+  canStopContainer,
+  isContainerRunning,
+} from './container-utils';
 import { useState } from 'react';
 import { ContainerActionService } from './container-actions-service';
 import { ContainerPruneConfirmDialog } from './dialogs/ContainerPruneConfirmDialog';
@@ -15,14 +24,12 @@ import { ContainerPruneConfirmDialog } from './dialogs/ContainerPruneConfirmDial
 interface ContainerActionsProps {
   selectedContainers: string[];
   containers: Container[];
-  onActionComplete?: () => void;
   onSelectionChange?: (selected: string[]) => void;
 }
 
 export function ContainerActions({
   selectedContainers,
   containers,
-  onActionComplete,
   onSelectionChange,
 }: ContainerActionsProps) {
   const [isLoading, setIsLoading] = useState<string | null>(null);
@@ -32,62 +39,18 @@ export function ContainerActions({
     selectedContainers.includes(container.id)
   );
 
-  const canStart =
-    selectedContainerData.length > 0 &&
-    selectedContainerData.every(
-      container =>
-        container.state &&
-        [ContainerState.Exited, ContainerState.Created].includes(
-          container.state
-        )
-    );
+  const allSelected = (predicate: (container: Container) => boolean) =>
+    selectedContainerData.length > 0 && selectedContainerData.every(predicate);
 
-  const canStop =
-    selectedContainerData.length > 0 &&
-    selectedContainerData.every(
-      container =>
-        container.state &&
-        [ContainerState.Running, ContainerState.Restarting].includes(
-          container.state
-        )
-    );
-
-  const canPause =
-    selectedContainerData.length > 0 &&
-    selectedContainerData.every(
-      container => container.state === ContainerState.Running
-    );
-
-  const canResume =
-    selectedContainerData.length > 0 &&
-    selectedContainerData.every(
-      container => container.state === ContainerState.Paused
-    );
-
-  const canRestart =
-    selectedContainerData.length > 0 &&
-    selectedContainerData.every(
-      container =>
-        container.state &&
-        [ContainerState.Running, ContainerState.Restarting].includes(
-          container.state
-        )
-    );
-
-  const canDelete =
-    selectedContainerData.length > 0 &&
-    selectedContainerData.every(
-      container =>
-        container.state &&
-        [
-          ContainerState.Exited,
-          ContainerState.Created,
-          ContainerState.Running,
-        ].includes(container.state)
-    );
+  const canStart = allSelected(canStartContainer);
+  const canStop = allSelected(canStopContainer);
+  const canPause = allSelected(canPauseContainer);
+  const canResume = allSelected(canResumeContainer);
+  const canRestart = allSelected(canRestartContainer);
+  const canDelete = allSelected(canDeleteContainer);
 
   const handleAction = async (
-    action: () => Promise<void>,
+    action: () => Promise<unknown>,
     actionName: string
   ) => {
     setIsLoading(actionName);
@@ -100,81 +63,51 @@ export function ContainerActions({
 
   const handleStart = () =>
     handleAction(
-      () =>
-        ContainerActionService.bulkStartContainers(selectedContainers, {
-          onActionComplete,
-          onSelectionChange,
-        }),
+      () => ContainerActionService.bulkStartContainers(selectedContainers),
       'start'
     );
 
   const handleStop = () =>
     handleAction(
-      () =>
-        ContainerActionService.bulkStopContainers(selectedContainers, {
-          onActionComplete,
-          onSelectionChange,
-        }),
+      () => ContainerActionService.bulkStopContainers(selectedContainers),
       'stop'
     );
 
   const handlePause = () =>
     handleAction(
-      () =>
-        ContainerActionService.bulkPauseContainers(selectedContainers, {
-          onActionComplete,
-          onSelectionChange,
-        }),
+      () => ContainerActionService.bulkPauseContainers(selectedContainers),
       'pause'
     );
 
   const handleResume = () =>
     handleAction(
-      () =>
-        ContainerActionService.bulkResumeContainers(selectedContainers, {
-          onActionComplete,
-          onSelectionChange,
-        }),
+      () => ContainerActionService.bulkResumeContainers(selectedContainers),
       'resume'
     );
 
   const handleRestart = () =>
     handleAction(
-      () =>
-        ContainerActionService.bulkRestartContainers(selectedContainers, {
-          onActionComplete,
-          onSelectionChange,
-        }),
+      () => ContainerActionService.bulkRestartContainers(selectedContainers),
       'restart'
     );
 
-  const handleDelete = () => {
-    const hasRunning = selectedContainerData.some(
-      c => c.state === ContainerState.Running
-    );
-    handleAction(
-      () =>
-        ContainerActionService.bulkDeleteContainers(
-          selectedContainers,
-          hasRunning,
-          { onActionComplete, onSelectionChange }
-        ),
-      'delete'
-    );
-  };
+  const handleDelete = () =>
+    handleAction(async () => {
+      const hasRunning = selectedContainerData.some(isContainerRunning);
+      const deleted = await ContainerActionService.bulkDeleteContainers(
+        selectedContainers,
+        hasRunning
+      );
+      if (deleted) {
+        onSelectionChange?.([]);
+      }
+    }, 'delete');
 
-  const handlePrune = () => {
-    handleAction(
-      () =>
-        ContainerActionService.pruneContainers({
-          onActionComplete: () => {
-            setPruneDialogOpen(false);
-            onActionComplete?.();
-          },
-        }),
-      'prune'
-    );
-  };
+  const handlePrune = () =>
+    handleAction(async () => {
+      await ContainerActionService.pruneContainers();
+      setPruneDialogOpen(false);
+    }, 'prune');
 
   if (selectedContainers.length === 0) {
     return (

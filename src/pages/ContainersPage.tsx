@@ -25,7 +25,6 @@ export default function ContainersPage() {
 
   const { engineState, isLoading, error } = useEngineState();
 
-  // Convert containers from Record to array for compatibility
   const containers = engineState ? Object.values(engineState.containers) : [];
 
   const filteredContainers = useFilter(
@@ -41,7 +40,6 @@ export default function ContainersPage() {
         <ContainerHeader
           selectedContainers={selected}
           containers={containers}
-          onActionComplete={() => {}}
           onSelectionChange={setSelected}
         />
       }
@@ -58,7 +56,6 @@ export default function ContainersPage() {
           selectedContainers={selected}
           onSelectionChange={setSelected}
           containers={filteredContainers}
-          onActionComplete={() => {}}
           isLoading={isLoading}
           error={error}
           onRetry={() => window.location.reload()}
