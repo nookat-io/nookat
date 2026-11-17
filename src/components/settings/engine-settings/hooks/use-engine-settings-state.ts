@@ -5,6 +5,7 @@ import { listen } from '@tauri-apps/api/event';
 import { DockerInfo } from '../../../../types/docker-info';
 import { errorMessage } from '../../../../utils/error-message';
 import {
+  BinaryInstallPlan,
   InstallationMethod,
   InstallationOperation,
   InstallationStep,
@@ -50,6 +51,11 @@ export interface EngineSettingsState {
   error: string | null;
   dockerInfo: DockerInfo | null;
   showEngineConfig: boolean;
+  binaryInstallPlan: BinaryInstallPlan | null;
+  binaryInstallPlanError: string | null;
+  startPromptOpen: boolean;
+  isSwitchingDockerContext: boolean;
+  dockerContextError: string | null;
 }
 
 export interface EngineSettingsActions {
@@ -66,6 +72,9 @@ export interface EngineSettingsActions {
   fetchColimaVm: () => Promise<void>;
   handleStopEngine: () => Promise<void>;
   checkColimaSupport: () => Promise<void>;
+  dismissStartPrompt: () => void;
+  startEngineFromPrompt: () => Promise<void>;
+  switchDockerToColima: () => Promise<void>;
 }
 
 export function useEngineSettingsState(): [
@@ -110,6 +119,17 @@ export function useEngineSettingsState(): [
   const { status: engineStatus } = useEngineStatus();
   const engineAnswers =
     typeof engineStatus === 'object' && 'Running' in engineStatus;
+  const [binaryInstallPlan, setBinaryInstallPlan] =
+    useState<BinaryInstallPlan | null>(null);
+  const [binaryInstallPlanError, setBinaryInstallPlanError] = useState<
+    string | null
+  >(null);
+  const [startPromptOpen, setStartPromptOpen] = useState(false);
+  const [isSwitchingDockerContext, setIsSwitchingDockerContext] =
+    useState(false);
+  const [dockerContextError, setDockerContextError] = useState<string | null>(
+    null
+  );
 
   const probeColimaSupport = useCallback(
     () =>
@@ -164,6 +184,22 @@ export function useEngineSettingsState(): [
       fetchColimaVm();
     }
   }, [colimaAvailable, fetchColimaVm]);
+
+  useEffect(() => {
+    if (colimaAvailable !== false) {
+      return;
+    }
+    invoke<BinaryInstallPlan>('get_binary_install_plan').then(
+      plan => {
+        setBinaryInstallPlan(plan);
+        setBinaryInstallPlanError(null);
+      },
+      err => {
+        console.error('Error describing the binary installation:', err);
+        setBinaryInstallPlanError(errorMessage(err));
+      }
+    );
+  }, [colimaAvailable]);
 
   useEffect(() => {
     const checkAvailability = async () => {
@@ -222,6 +258,7 @@ export function useEngineSettingsState(): [
         const unlistenComplete = listen('installation-complete', async () => {
           setInstallationStep('complete');
           setColimaAvailable(true);
+          setStartPromptOpen(true);
           setInstallationProgress(prev => ({
             step: 'Installation Complete!',
             message:
@@ -388,6 +425,29 @@ export function useEngineSettingsState(): [
     }
   };
 
+  const dismissStartPrompt = () => setStartPromptOpen(false);
+
+  const startEngineFromPrompt = () => {
+    setStartPromptOpen(false);
+    return handleStartEngine();
+  };
+
+  const switchDockerToColima = () => {
+    setIsSwitchingDockerContext(true);
+    setDockerContextError(null);
+    return invoke('use_colima_docker_context_command')
+      .then(
+        async () => {
+          await Promise.all([fetchColimaVm(), fetchDockerInfo()]);
+        },
+        err => {
+          console.error('Error switching the Docker context to Colima:', err);
+          setDockerContextError(errorMessage(err));
+        }
+      )
+      .finally(() => setIsSwitchingDockerContext(false));
+  };
+
   const changeSetting: ChangeColimaVmSetting = (setting, value) => {
     setChanges(previous =>
       withSettingChange(previous, setting, value, colimaVm?.profile.settings)
@@ -429,6 +489,11 @@ export function useEngineSettingsState(): [
     error,
     dockerInfo,
     showEngineConfig,
+    binaryInstallPlan,
+    binaryInstallPlanError,
+    startPromptOpen,
+    isSwitchingDockerContext,
+    dockerContextError,
   };
 
   const actions: EngineSettingsActions = {
@@ -445,6 +510,9 @@ export function useEngineSettingsState(): [
     fetchColimaVm,
     handleStopEngine,
     checkColimaSupport,
+    dismissStartPrompt,
+    startEngineFromPrompt,
+    switchDockerToColima,
   };
 
   return [state, actions];

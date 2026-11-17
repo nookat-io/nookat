@@ -1,7 +1,8 @@
 use crate::entities::EngineStatus;
-use crate::entities::{ColimaVm, ColimaVmSettingsChanges, InstallationMethod};
+use crate::entities::{BinaryInstallPlan, ColimaVm, ColimaVmSettingsChanges, InstallationMethod};
 use crate::services::engine::{
-    install_colima, read_colima_vm, start_colima_vm, stop_colima_vm, COLIMA_MANAGED,
+    binary_install_plan, install_colima, read_colima_vm, start_colima_vm, stop_colima_vm,
+    use_colima_docker_context, COLIMA_MANAGED,
 };
 use crate::services::shell::{is_colima_available, is_homebrew_available};
 use crate::state::SharedEngineState;
@@ -37,6 +38,25 @@ pub async fn install_colima_command(
 
 #[tauri::command]
 #[instrument(skip_all, err)]
+pub async fn get_binary_install_plan(app: tauri::AppHandle) -> Result<BinaryInstallPlan, String> {
+    debug!("Describing the binary installation");
+    binary_install_plan(&app).await
+}
+
+#[tauri::command]
+#[instrument(skip_all, err)]
+pub async fn use_colima_docker_context_command(
+    app: tauri::AppHandle,
+    state: State<'_, SharedEngineState>,
+) -> Result<(), String> {
+    info!("Switching the Docker CLI to the Colima context");
+    let switched = use_colima_docker_context(&app).await;
+    state.forget_connection().await;
+    switched
+}
+
+#[tauri::command]
+#[instrument(skip_all, err)]
 pub async fn get_colima_vm(app: tauri::AppHandle) -> Result<ColimaVm, String> {
     debug!("Reading the Colima VM profile");
     read_colima_vm(&app).await
@@ -46,17 +66,25 @@ pub async fn get_colima_vm(app: tauri::AppHandle) -> Result<ColimaVm, String> {
 #[instrument(skip_all, err)]
 pub async fn start_colima_vm_command(
     app: tauri::AppHandle,
+    state: State<'_, SharedEngineState>,
     changes: ColimaVmSettingsChanges,
 ) -> Result<(), String> {
     info!("Starting Colima VM with changes: {:?}", changes);
-    start_colima_vm(&app, changes).await
+    let started = start_colima_vm(&app, changes).await;
+    state.forget_connection().await;
+    started
 }
 
 #[tauri::command]
 #[instrument(skip_all, err)]
-pub async fn stop_colima_vm_command(app: tauri::AppHandle) -> Result<(), String> {
+pub async fn stop_colima_vm_command(
+    app: tauri::AppHandle,
+    state: State<'_, SharedEngineState>,
+) -> Result<(), String> {
     info!("Stopping Colima VM");
-    stop_colima_vm(&app).await
+    let stopped = stop_colima_vm(&app).await;
+    state.forget_connection().await;
+    stopped
 }
 
 #[tauri::command]

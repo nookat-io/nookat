@@ -82,10 +82,30 @@ export type ColimaPerformanceWarning =
   | { kind: 'FewCpus'; cpus: number }
   | { kind: 'RosettaOff' };
 
+export interface DockerCliContext {
+  name: string;
+  host: string | null;
+  uses_colima: boolean;
+}
+
 export interface ColimaVm {
   profile: ColimaProfile;
   host: ColimaHost;
   warnings: ColimaPerformanceWarning[];
+  docker_context: DockerCliContext | null;
+}
+
+export interface BinaryComponent {
+  name: string;
+  version: string;
+}
+
+export interface BinaryInstallPlan {
+  install_dir: string;
+  bin_dir: string;
+  components: BinaryComponent[];
+  download_bytes: number;
+  installed_bytes: number;
 }
 
 export interface CollapsibleSectionProps {

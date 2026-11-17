@@ -1,7 +1,9 @@
+mod binary_install;
 mod colima;
 mod docker_info;
 use bollard::Docker;
 
+pub use self::binary_install::*;
 pub use self::colima::*;
 pub use self::docker_info::*;
 
@@ -36,6 +38,7 @@ pub enum EngineStatus {
 pub struct Engine {
     pub engine_status: EngineStatus,
     pub docker: Option<Docker>,
+    pub endpoint: Option<String>,
 }
 
 impl Engine {
@@ -50,8 +53,8 @@ pub enum InstallationMethod {
     Binary,
 }
 
-#[cfg(target_os = "macos")]
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[cfg(any(target_os = "macos", test))]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct InstallationProgress {
     pub step: String,
     pub message: String,

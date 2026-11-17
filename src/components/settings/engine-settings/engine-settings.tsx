@@ -74,8 +74,16 @@ export function EngineSettings() {
           method={state.method}
           onMethodChange={actions.setMethod}
           homebrewAvailable={state.homebrewAvailable}
+          binaryInstallPlan={state.binaryInstallPlan}
+          binaryInstallPlanError={state.binaryInstallPlanError}
           onInstall={actions.handleInstall}
           onStopEngine={actions.handleStopEngine}
+          startPromptOpen={state.startPromptOpen}
+          onStartFromPrompt={actions.startEngineFromPrompt}
+          onDismissStartPrompt={actions.dismissStartPrompt}
+          isSwitchingDockerContext={state.isSwitchingDockerContext}
+          dockerContextError={state.dockerContextError}
+          onSwitchDockerToColima={actions.switchDockerToColima}
         />
       </CollapsibleSection>
     </div>
