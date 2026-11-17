@@ -1,4 +1,5 @@
 import { act, render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { emit } from '@tauri-apps/api/event';
 import { mockIPC } from '@tauri-apps/api/mocks';
 import { describe, expect, it, vi } from 'vitest';
@@ -38,9 +39,13 @@ function snapshot({
 function mockEngine({
   pull,
   startMonitoring = () => null,
+  readStatus = () => running,
+  readDockerInfo = () => ({}),
 }: {
   pull: () => Promise<EngineState>;
   startMonitoring?: () => unknown;
+  readStatus?: () => unknown;
+  readDockerInfo?: () => unknown;
 }) {
   let pullRequested!: () => void;
   const requested = new Promise<void>(resolve => (pullRequested = resolve));
@@ -48,9 +53,9 @@ function mockEngine({
     cmd => {
       switch (cmd) {
         case 'engine_status':
-          return running;
+          return readStatus();
         case 'get_docker_info':
-          return {};
+          return readDockerInfo();
         case 'start_engine_state_monitoring':
           return startMonitoring();
         case 'get_engine_state':
@@ -65,8 +70,12 @@ function mockEngine({
   return { pullRequested: requested };
 }
 
+let checkingPerRender: boolean[] = [];
+
 function EngineView() {
-  const { engineState, status, isLoading, error } = useEngine();
+  const { engineState, status, isLoading, error, isChecking, refetch } =
+    useEngine();
+  checkingPerRender.push(isChecking);
   return (
     <ul>
       <li>version: {engineState?.version ?? 'none'}</li>
@@ -74,8 +83,12 @@ function EngineView() {
         containers: {Object.keys(engineState?.containers ?? {}).join(',')}
       </li>
       <li>status: {JSON.stringify(status)}</li>
+      <li>checking: {String(isChecking)}</li>
       <li>loading: {String(isLoading)}</li>
       <li>error: {error ?? 'none'}</li>
+      <li>
+        <button onClick={() => refetch()}>check engine</button>
+      </li>
     </ul>
   );
 }
@@ -84,6 +97,7 @@ const field = (name: string) =>
   screen.getByText(new RegExp(`^${name}:`)).textContent;
 
 function renderProvider() {
+  checkingPerRender = [];
   render(
     <EngineProvider>
       <EngineView />
@@ -92,6 +106,14 @@ function renderProvider() {
 }
 
 const flushPromises = () => new Promise(resolve => setTimeout(resolve, 0));
+
+const neverResolves = () => new Promise<never>(() => {});
+
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>(settle => (resolve = settle));
+  return { promise, resolve };
+}
 
 describe('EngineProvider', () => {
   it('shows the snapshot it pulls on mount', async () => {
@@ -172,5 +194,58 @@ describe('EngineProvider', () => {
     );
     expect(field('loading')).toBe('loading: false');
     expect(field('version')).toBe('version: none');
+  });
+
+  it('reports checking from its very first render until the first status read returns, so the engine error gate does not flash', async () => {
+    const statusRead = deferred<EngineStatus>();
+    mockEngine({ pull: neverResolves, readStatus: () => statusRead.promise });
+
+    renderProvider();
+
+    expect(checkingPerRender[0]).toBe(true);
+    expect(field('checking')).toBe('checking: true');
+    await act(async () => statusRead.resolve(running));
+    expect(field('checking')).toBe('checking: false');
+    expect(field('status')).toBe(`status: ${JSON.stringify(running)}`);
+  });
+
+  it('treats a running engine whose daemon does not answer as unknown', async () => {
+    mockEngine({
+      pull: neverResolves,
+      readDockerInfo: () => {
+        throw new Error('connection refused');
+      },
+    });
+
+    renderProvider();
+
+    await waitFor(() => expect(field('checking')).toBe('checking: false'));
+    expect(field('status')).toBe('status: "Unknown"');
+  });
+
+  it('treats a status it does not recognise as unknown', async () => {
+    mockEngine({ pull: neverResolves, readStatus: () => ({ Paused: {} }) });
+
+    renderProvider();
+
+    await waitFor(() => expect(field('checking')).toBe('checking: false'));
+    expect(field('status')).toBe('status: "Unknown"');
+  });
+
+  it('shows checking again while a manual refresh reads the status', async () => {
+    const user = userEvent.setup();
+    let statusRead = Promise.resolve<EngineStatus>('Unknown');
+    mockEngine({ pull: neverResolves, readStatus: () => statusRead });
+    renderProvider();
+    await waitFor(() => expect(field('checking')).toBe('checking: false'));
+    const manualRead = deferred<EngineStatus>();
+    statusRead = manualRead.promise;
+
+    await user.click(screen.getByRole('button', { name: 'check engine' }));
+
+    expect(field('checking')).toBe('checking: true');
+    await act(async () => manualRead.resolve(running));
+    expect(field('checking')).toBe('checking: false');
+    expect(field('status')).toBe(`status: ${JSON.stringify(running)}`);
   });
 });
