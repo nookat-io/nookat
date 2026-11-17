@@ -1,6 +1,6 @@
 import { Button } from '../ui/button';
 import { Trash2 } from 'lucide-react';
-import { bulkRemoveNetworks } from './network-actions-utils';
+import { bulkRemoveNetworks } from './network-actions-service';
 import { toast } from 'sonner';
 import { useState } from 'react';
 import { errorMessage } from '../../utils/error-message';

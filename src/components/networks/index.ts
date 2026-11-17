@@ -5,6 +5,6 @@ export { NetworksTable } from './networks-table';
 
 export { NetworkActions } from './network-actions';
 
-export { removeNetwork, bulkRemoveNetworks } from './network-actions-utils';
+export { removeNetwork, bulkRemoveNetworks } from './network-actions-service';
 
 export { type Network, type Ipam, type IpamConfig } from './network-types';
