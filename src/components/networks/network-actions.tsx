@@ -6,13 +6,11 @@ import { useState } from 'react';
 
 interface NetworkActionsProps {
   selectedNetworks: string[];
-  onActionComplete?: () => void;
   onSelectionChange?: (selected: string[]) => void;
 }
 
 export function NetworkActions({
   selectedNetworks,
-  onActionComplete,
   onSelectionChange,
 }: NetworkActionsProps) {
   const [isDeleting, setIsDeleting] = useState(false);
@@ -26,7 +24,6 @@ export function NetworkActions({
       toast.success(
         `Successfully deleted ${selectedNetworks.length} network(s)`
       );
-      onActionComplete?.();
       onSelectionChange?.([]);
     } catch (error) {
       console.error('Failed to delete networks:', error);
