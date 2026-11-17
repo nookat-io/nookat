@@ -24,6 +24,7 @@ export interface EngineState {
   docker_info: DockerInfo | null;
 
   // Metadata
+  // Publication sequence number; a higher version is always a fresher snapshot.
   version: number;
   last_updated: string; // ISO string from DateTime<Utc>
 }

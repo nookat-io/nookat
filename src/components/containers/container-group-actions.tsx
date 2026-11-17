@@ -1,5 +1,11 @@
 import { Button } from '../ui/button';
-import { Play, Square, Trash2 } from 'lucide-react';
+import { MoreHorizontal, Play, Square, Trash2 } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '../ui/dropdown-menu';
 import { ContainerActionService } from './container-actions-service';
 
 interface ContainerGroupActionsProps {
@@ -24,63 +30,62 @@ export function ContainerGroupActions({
   };
 
   return (
-    <div className="flex flex-wrap gap-1 items-center min-w-0">
-      {/* Start action for stopped groups */}
-      {allStopped && (
-        <Button
-          variant="outline"
-          size="sm"
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" size="sm" aria-label="Group actions">
+          <MoreHorizontal className="h-4 w-4" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        {/* Start action for stopped groups */}
+        {allStopped && (
+          <DropdownMenuItem
+            onClick={() =>
+              handleAction(() =>
+                ContainerActionService.bulkStartContainers(containerIds, {
+                  onActionComplete,
+                })
+              )
+            }
+          >
+            <Play className="mr-2 h-4 w-4" />
+            Start
+          </DropdownMenuItem>
+        )}
+
+        {/* Stop action for groups with running containers */}
+        {hasRunningContainers && (
+          <DropdownMenuItem
+            onClick={() =>
+              handleAction(() =>
+                ContainerActionService.bulkStopContainers(containerIds, {
+                  onActionComplete,
+                })
+              )
+            }
+          >
+            <Square className="mr-2 h-4 w-4" />
+            Stop
+          </DropdownMenuItem>
+        )}
+
+        {/* Delete action for all groups */}
+        <DropdownMenuItem
+          className="text-destructive"
           onClick={() =>
             handleAction(() =>
-              ContainerActionService.bulkStartContainers(containerIds, {
-                onActionComplete,
-              })
+              ContainerActionService.bulkDeleteContainers(
+                containerIds,
+                hasRunningContainers,
+                { onActionComplete }
+              )
             )
           }
-          className="h-7 px-2 text-xs"
         >
-          <Play className="mr-1 h-3 w-3" />
-          Start
-        </Button>
-      )}
-
-      {/* Stop action for groups with running containers */}
-      {hasRunningContainers && (
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() =>
-            handleAction(() =>
-              ContainerActionService.bulkStopContainers(containerIds, {
-                onActionComplete,
-              })
-            )
-          }
-          className="h-7 px-2 text-xs"
-        >
-          <Square className="mr-1 h-3 w-3" />
-          Stop
-        </Button>
-      )}
-
-      {/* Delete action for all groups */}
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={() =>
-          handleAction(() =>
-            ContainerActionService.bulkDeleteContainers(
-              containerIds,
-              hasRunningContainers,
-              { onActionComplete }
-            )
-          )
-        }
-        className="h-7 px-2 text-xs text-destructive hover:text-destructive"
-      >
-        <Trash2 className="mr-1 h-3 w-3" />
-        Delete
-      </Button>
-    </div>
+          <Trash2 className="mr-2 h-4 w-4" />
+          {hasRunningContainers ? 'Force Delete' : 'Delete'}
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }

@@ -17,6 +17,9 @@ pub struct EngineState {
     pub docker_info: Option<DockerInfo>,
 
     // Metadata
+    /// Publication sequence number. Every snapshot the engine state monitor
+    /// publishes is one higher than the last, in the order the state was read,
+    /// so a higher version is always the fresher snapshot.
     pub version: u64,
     pub last_updated: DateTime<Utc>,
 }
