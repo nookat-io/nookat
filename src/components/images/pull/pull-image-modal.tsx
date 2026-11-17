@@ -29,7 +29,11 @@ import {
   checkImageReference,
   needsConfirmation,
 } from '../../../lib/image-source';
-import { pullReference, trimPullData } from '../common/utils';
+import {
+  DEFAULT_PROGRESS_STATE,
+  pullReference,
+  trimPullData,
+} from '../common/utils';
 import { PullFormData } from '../common/types';
 import { ImageSourceConfirmDialog } from '../common/image-source-warnings';
 
@@ -62,6 +66,13 @@ export function PullImage() {
     request: PullFormData;
     source: LookalikeCheck;
   } | null>(null);
+  const [attemptedReference, setAttemptedReference] = useState<string | null>(
+    null
+  );
+  const progressOfChosenImage =
+    progress.isRunning || attemptedReference === pullReference(pullData)
+      ? progress
+      : DEFAULT_PROGRESS_STATE;
 
   const resetPullForm = useCallback(() => {
     resetForms();
@@ -139,6 +150,7 @@ export function PullImage() {
 
   const handlePull = () => {
     const request = trimPullData(pullData);
+    setAttemptedReference(pullReference(request));
     if (!request.imageName) {
       setError('Image name is required');
       return;
@@ -222,7 +234,7 @@ export function PullImage() {
           searchInputRef={searchInputRef}
         />
 
-        <ProgressDisplay progress={progress} />
+        <ProgressDisplay progress={progressOfChosenImage} />
 
         {pullToConfirm && (
           <ImageSourceConfirmDialog
