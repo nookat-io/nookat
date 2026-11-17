@@ -4,11 +4,6 @@ use crate::state::SharedEngineState;
 use tauri::State;
 use tracing::{debug, instrument};
 
-/// Get the complete engine state including all Docker entities.
-///
-/// The state is read and published by the engine state monitor, so the
-/// snapshot carries the next version in the same sequence as the
-/// `engine_state_update` pushes, and the frontend can tell which one is newer.
 #[tauri::command]
 #[instrument(skip_all, err)]
 pub async fn get_engine_state(
@@ -19,7 +14,7 @@ pub async fn get_engine_state(
 
     let engine_state = engine_state_monitor(&app, state.inner())
         .await
-        .refresh()
+        .publish_current_state()
         .await
         .map_err(|e| e.to_string())?;
 
