@@ -83,14 +83,13 @@ describe('useTableSort', () => {
     expect(sortBy(data, 'labels.tier')).toEqual(['db', 'web', 'tmp']);
   });
 
-  it('sorts containers by their first name without the leading slash', () => {
+  it('sorts containers by their first name without the leading slash, unnamed first', () => {
     const data: Row[] = [
       { id: '1', names: ['/zeta'] },
       { id: '2', names: ['/alpha', '/zzz-alias'] },
       { id: '3', names: [] },
     ];
 
-    // A container without names sorts as an empty name, so it comes first.
     expect(sortBy(data, 'names')).toEqual(['3', '2', '1']);
   });
 

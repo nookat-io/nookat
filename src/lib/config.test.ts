@@ -17,17 +17,13 @@ function savedConfig(): AppConfig {
   };
 }
 
-/**
- * A fake backend that keeps the config and the OS autostart state, and
- * records every command the service sends.
- */
 function mockBackend({
   config = savedConfig(),
-  autostart = config.startup.start_on_system_startup,
+  osAutostart = config.startup.start_on_system_startup,
   readConfig,
 }: {
   config?: AppConfig;
-  autostart?: boolean;
+  osAutostart?: boolean;
   readConfig?: () => Promise<AppConfig>;
 } = {}) {
   const calls: { cmd: string; args?: unknown }[] = [];
@@ -46,12 +42,12 @@ function mockBackend({
         };
         return null;
       case 'plugin:autostart|is_enabled':
-        return autostart;
+        return osAutostart;
       case 'plugin:autostart|enable':
-        autostart = true;
+        osAutostart = true;
         return null;
       case 'plugin:autostart|disable':
-        autostart = false;
+        osAutostart = false;
         return null;
       default:
         throw new Error(`Unexpected command ${cmd}`);
@@ -60,11 +56,10 @@ function mockBackend({
   return {
     calls,
     count: (cmd: string) => calls.filter(call => call.cmd === cmd).length,
-    autostart: () => autostart,
+    osAutostart: () => osAutostart,
   };
 }
 
-/** ConfigService is a singleton, so every test loads a fresh module. */
 async function freshService() {
   vi.resetModules();
   const { ConfigService } = await import('./config');
@@ -73,7 +68,6 @@ async function freshService() {
 
 describe('ConfigService', () => {
   beforeEach(() => {
-    // Loading schedules an autostart sync; tests run it explicitly.
     vi.useFakeTimers();
   });
 
@@ -165,7 +159,7 @@ describe('ConfigService', () => {
       ...startup,
       start_on_system_startup: true,
     });
-    expect(backend.autostart()).toBe(true);
+    expect(backend.osAutostart()).toBe(true);
     expect(backend.count('plugin:autostart|enable')).toBe(1);
 
     await service.updateStartupSettings({
@@ -180,12 +174,11 @@ describe('ConfigService', () => {
       ...startup,
       start_on_system_startup: false,
     });
-    expect(backend.autostart()).toBe(false);
+    expect(backend.osAutostart()).toBe(false);
   });
 
   it('adopts the OS autostart state when it differs from the saved setting', async () => {
-    // Autostart was switched on outside the app, e.g. in System Settings.
-    mockBackend({ autostart: true });
+    mockBackend({ osAutostart: true });
     const service = await freshService();
     await service.loadConfig();
     const subscriber = vi.fn();

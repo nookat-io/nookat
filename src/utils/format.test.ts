@@ -24,8 +24,7 @@ describe('formatBytes', () => {
     expect(formatBytes(1024 ** 5)).toBe('1024 TB');
   });
 
-  it('rejects negative and non-finite sizes', () => {
-    // Docker reports -1 when a size is unknown.
+  it('rejects negative and non-finite sizes, such as the -1 Docker reports for an unknown size', () => {
     expect(formatBytes(-1)).toBe('Invalid size');
     expect(formatBytes(Number.NaN)).toBe('Invalid size');
     expect(formatBytes(Number.POSITIVE_INFINITY)).toBe('Invalid size');

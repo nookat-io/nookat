@@ -35,11 +35,6 @@ function snapshot({
   };
 }
 
-/**
- * Mocks the backend commands the provider calls on mount. `pull` answers
- * `get_engine_state`; `pullRequested` resolves once the provider asked for it,
- * which is after it started listening for pushed updates.
- */
 function mockEngine({
   pull,
   startMonitoring = () => null,
@@ -96,8 +91,7 @@ function renderProvider() {
   );
 }
 
-/** Lets every pending promise chain, such as a resolved invoke, finish. */
-const settle = () => new Promise(resolve => setTimeout(resolve, 0));
+const flushPromises = () => new Promise(resolve => setTimeout(resolve, 0));
 
 describe('EngineProvider', () => {
   it('shows the snapshot it pulls on mount', async () => {
@@ -136,32 +130,23 @@ describe('EngineProvider', () => {
     renderProvider();
     await act(() => pullRequested);
 
-    // The container was removed while the pull was still reading, so the
-    // monitor pushes the removal before the pull returns.
-    await act(() =>
-      emit(
-        'engine_state_update',
-        snapshot({
-          version: 2,
-          containers: [],
-          lastUpdated: '2026-01-01T00:00:01Z',
-        })
-      )
-    );
+    const removalPushedDuringPull = snapshot({
+      version: 2,
+      containers: [],
+      lastUpdated: '2026-01-01T00:00:01Z',
+    });
+    await act(() => emit('engine_state_update', removalPushedDuringPull));
     expect(field('version')).toBe('version: 2');
 
-    // The pull read the old state, but its timestamp is taken after the slow
-    // read, so it looks newer by time. Only the version tells them apart.
+    const stalePullStampedAfterRemoval = snapshot({
+      version: 1,
+      containers: ['removed'],
+      status: 'Unknown',
+      lastUpdated: '2026-01-01T00:00:02Z',
+    });
     await act(async () => {
-      finishPull(
-        snapshot({
-          version: 1,
-          containers: ['removed'],
-          status: 'Unknown',
-          lastUpdated: '2026-01-01T00:00:02Z',
-        })
-      );
-      await settle();
+      finishPull(stalePullStampedAfterRemoval);
+      await flushPromises();
     });
 
     expect(field('version')).toBe('version: 2');

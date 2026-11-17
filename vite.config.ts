@@ -22,8 +22,6 @@ export default defineConfig(async () => ({
     'import.meta.env.VITE_APP_VERSION': JSON.stringify(packageJson.version),
   },
 
-  // Unit tests, run with `npm test`. They share the plugins, aliases and
-  // defines above, so code under test is built the same way as in the app.
   test: {
     environment: 'jsdom',
     include: ['src/**/*.test.{ts,tsx}'],
