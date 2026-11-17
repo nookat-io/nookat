@@ -1,9 +1,29 @@
+use crate::entities::ColimaConfig;
 use tauri::AppHandle;
+use tauri_plugin_shell::process::Output;
 use tauri_plugin_shell::ShellExt;
 use tracing::{debug, instrument};
 
+async fn run_in_login_shell(
+    app: &AppHandle,
+    command: &str,
+) -> Result<Output, tauri_plugin_shell::Error> {
+    app.shell()
+        .command("zsh")
+        .args(["-l", "-c", command])
+        .output()
+        .await
+}
+
+fn stdout_and_stderr(output: &Output) -> String {
+    format!(
+        "{}{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    )
+}
+
 #[instrument(skip_all, err)]
-/// Opens a terminal with docker exec command for the given container
 pub async fn open_container_terminal(app: &AppHandle, container_id: &str) -> Result<(), String> {
     let shell_commands = ["bash", "sh"];
 
@@ -31,35 +51,30 @@ pub async fn open_container_terminal(app: &AppHandle, container_id: &str) -> Res
     Err("Failed to open terminal on macOS".to_string())
 }
 
-/// Check if a command is available in PATH
 #[instrument(skip_all, err)]
 async fn is_command_available(app: &AppHandle, command: &str) -> Result<bool, String> {
-    let output = app
-        .shell()
-        .command("zsh")
-        .args(["-l", "-c", &format!("which {}", command)])
-        .output()
+    let output = run_in_login_shell(app, &format!("which {}", command))
         .await
         .map_err(|e| format!("Failed to check {} availability: {}", command, e))?;
 
     Ok(output.status.success())
 }
 
-/// Check if a command is working by running it with --version
 #[instrument(skip_all, err)]
-async fn is_command_working(app: &AppHandle, command: &str) -> Result<bool, String> {
-    let output = app
-        .shell()
-        .command("zsh")
-        .args(["-l", "-c", &format!("{} --version", command)])
-        .output()
+async fn command_version(app: &AppHandle, command: &str) -> Result<Option<String>, String> {
+    let output = run_in_login_shell(app, &format!("{} --version", command))
         .await
         .map_err(|e| format!("Failed to check {} version: {}", command, e))?;
 
-    Ok(output.status.success())
+    if !output.status.success() {
+        return Ok(None);
+    }
+
+    Ok(Some(
+        String::from_utf8_lossy(&output.stdout).trim().to_string(),
+    ))
 }
 
-/// Check if Docker command is available and working
 #[instrument(skip_all, err)]
 pub async fn is_docker_command_available(app: &AppHandle) -> Result<bool, String> {
     debug!("Checking if Docker command is available");
@@ -68,11 +83,7 @@ pub async fn is_docker_command_available(app: &AppHandle) -> Result<bool, String
         output_str.to_lowercase().contains("version")
     }
 
-    let output = app
-        .shell()
-        .command("zsh")
-        .args(["-l", "-c", "docker --version"])
-        .output()
+    let output = run_in_login_shell(app, "docker --version")
         .await
         .map_err(|e| format!("Failed to execute docker command: {}", e))?;
 
@@ -91,17 +102,15 @@ pub async fn is_docker_command_available(app: &AppHandle) -> Result<bool, String
     Ok(result)
 }
 
-/// Check if Homebrew is available and working
 #[instrument(skip_all, err)]
 pub async fn is_homebrew_available(app: &AppHandle) -> Result<bool, String> {
     if !is_command_available(app, "brew").await? {
         return Ok(false);
     }
 
-    is_command_working(app, "brew").await
+    Ok(command_version(app, "brew").await?.is_some())
 }
 
-/// Check if Colima is available and working
 #[instrument(skip_all, err)]
 pub async fn is_colima_available(app: &AppHandle) -> Result<bool, String> {
     debug!("Checking if Colima is available on the system");
@@ -111,29 +120,15 @@ pub async fn is_colima_available(app: &AppHandle) -> Result<bool, String> {
         return Ok(false);
     }
 
-    if !is_command_working(app, "colima").await? {
+    let Some(version) = command_version(app, "colima").await? else {
         debug!("Colima command exists but failed to execute");
         return Ok(false);
-    }
+    };
 
-    // Get version for logging
-    let version_output = app
-        .shell()
-        .command("zsh")
-        .args(["-l", "-c", "colima --version"])
-        .output()
-        .await
-        .map_err(|e| format!("Failed to check Colima version: {}", e))?;
-
-    let version = String::from_utf8_lossy(&version_output.stdout)
-        .trim()
-        .to_string();
     debug!("Colima is available, version: {}", version);
     Ok(true)
 }
 
-// Package management
-/// Install packages via Homebrew
 #[instrument(skip_all, err)]
 pub async fn install_packages_via_homebrew(
     app: &AppHandle,
@@ -144,11 +139,7 @@ pub async fn install_packages_via_homebrew(
     for package in packages {
         debug!("Installing package: {}", package);
 
-        let output = app
-            .shell()
-            .command("zsh")
-            .args(["-l", "-c", &format!("brew install {}", package)])
-            .output()
+        let output = run_in_login_shell(app, &format!("brew install {}", package))
             .await
             .map_err(|e| format!("Failed to execute brew install {}: {}", package, e))?;
 
@@ -163,20 +154,12 @@ pub async fn install_packages_via_homebrew(
     Ok(())
 }
 
-/// Get Docker context endpoints
 #[instrument(skip_all, err)]
 pub async fn get_docker_context_endpoints(app: &AppHandle) -> Result<Vec<String>, String> {
-    let context_output = app
-        .shell()
-        .command("zsh")
-        .args([
-            "-l",
-            "-c",
-            "docker context ls --format '{{.DockerEndpoint}}'",
-        ])
-        .output()
-        .await
-        .map_err(|e| format!("Failed to get Docker contexts: {}", e))?;
+    let context_output =
+        run_in_login_shell(app, "docker context ls --format '{{.DockerEndpoint}}'")
+            .await
+            .map_err(|e| format!("Failed to get Docker contexts: {}", e))?;
 
     if !context_output.status.success() {
         return Err("Failed to list Docker contexts".to_string());
@@ -192,33 +175,18 @@ pub async fn get_docker_context_endpoints(app: &AppHandle) -> Result<Vec<String>
         .collect())
 }
 
-/// Check Colima VM status
 #[instrument(skip_all, err)]
 pub async fn check_colima_status(app: &AppHandle) -> Result<bool, String> {
-    let output = app
-        .shell()
-        .command("zsh")
-        .args(["-l", "-c", "colima status"])
-        .output()
+    let output = run_in_login_shell(app, "colima status")
         .await
         .map_err(|e| format!("Failed to check Colima status: {}", e))?;
 
-    // `colima status` reports through its logger, which writes to stderr and
-    // leaves stdout empty, so the report has to be read from both streams.
-    // The exit code is the authoritative signal: 0 when the VM is running,
-    // non-zero (with "colima is not running") when it is not.
     if !output.status.success() {
         return Ok(false);
     }
 
-    let status_text = format!(
-        "{}{}",
-        String::from_utf8_lossy(&output.stdout),
-        String::from_utf8_lossy(&output.stderr)
-    )
-    .to_lowercase();
-
-    Ok(!status_text.contains("is not running"))
+    let colima_log_output = stdout_and_stderr(&output).to_lowercase();
+    Ok(!colima_log_output.contains("is not running"))
 }
 
 #[instrument(skip_all, err)]
@@ -226,11 +194,7 @@ pub async fn stop_colima(app: &AppHandle) -> Result<(), String> {
     debug!("Stopping Colima");
     debug!("Executing: colima stop");
 
-    let output = app
-        .shell()
-        .command("zsh")
-        .args(["-l", "-c", "colima stop"])
-        .output()
+    let output = run_in_login_shell(app, "colima stop")
         .await
         .map_err(|e| format!("Failed to stop Colima: {}", e))?;
 
@@ -243,39 +207,20 @@ pub async fn stop_colima(app: &AppHandle) -> Result<(), String> {
     Ok(())
 }
 
-/// Start Colima VM with configuration
 #[instrument(skip_all, err)]
 pub async fn start_colima_with_config(
     app: &AppHandle,
-    config: &crate::entities::ColimaConfig,
+    config: &ColimaConfig,
 ) -> Result<(), String> {
     debug!("Starting Colima with config: {:?}", config);
 
-    let mut args = vec!["start"];
+    let command = format!(
+        "colima start --cpu {} --memory {} --disk {} --arch {}",
+        config.cpu, config.memory, config.disk, config.architecture
+    );
+    debug!("Executing: {}", command);
 
-    // Add CPU configuration
-    let cpu_str = config.cpu.to_string();
-    args.extend_from_slice(&["--cpu", &cpu_str]);
-
-    // Add memory configuration
-    let memory_str = config.memory.to_string();
-    args.extend_from_slice(&["--memory", &memory_str]);
-
-    // Add disk configuration
-    let disk_str = config.disk.to_string();
-    args.extend_from_slice(&["--disk", &disk_str]);
-
-    // Add architecture configuration
-    let architecture_str = config.architecture.to_string();
-    args.extend_from_slice(&["--arch", &architecture_str]);
-
-    debug!("Executing: colima {}", args.join(" "));
-
-    let output = app
-        .shell()
-        .command("zsh")
-        .args(["-l", "-c", &format!("colima {}", args.join(" "))])
-        .output()
+    let output = run_in_login_shell(app, &command)
         .await
         .map_err(|e| format!("Failed to start Colima: {}", e))?;
 
@@ -288,17 +233,11 @@ pub async fn start_colima_with_config(
     Ok(())
 }
 
-/// Validate Colima startup by checking Docker connectivity
 #[instrument(skip_all, err)]
 pub async fn validate_colima_startup(app: &AppHandle) -> Result<(), String> {
     debug!("Validating Colima startup");
 
-    // Check if Docker is responding
-    let docker_check = app
-        .shell()
-        .command("zsh")
-        .args(["-l", "-c", "docker version"])
-        .output()
+    let docker_check = run_in_login_shell(app, "docker version")
         .await
         .map_err(|e| format!("Docker command failed: {}", e))?;
 
@@ -306,12 +245,7 @@ pub async fn validate_colima_startup(app: &AppHandle) -> Result<(), String> {
         return Err("Docker is not responding after Colima startup".to_string());
     }
 
-    // Check if we can connect to Docker daemon
-    let info_check = app
-        .shell()
-        .command("zsh")
-        .args(["-l", "-c", "docker info"])
-        .output()
+    let info_check = run_in_login_shell(app, "docker info")
         .await
         .map_err(|e| format!("Docker info command failed: {}", e))?;
 

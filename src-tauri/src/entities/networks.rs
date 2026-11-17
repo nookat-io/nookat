@@ -29,14 +29,7 @@ pub struct IpamConfig {
 }
 
 impl Network {
-    /// Build a `Network` from the daemon's network listing.
-    ///
-    /// `attached_containers` has to be supplied by the caller because the Docker
-    /// API stopped returning a network's container map on the list endpoint - it
-    /// is only populated by an inspect with `verbose` set. The count is what the
-    /// UI uses to keep the Delete action disabled while a network is still in
-    /// use, so it is derived from the container listing instead.
-    pub fn from_summary(network: bollard::models::Network, attached_containers: i64) -> Self {
+    pub fn from_summary(network: bollard::models::Network, attached_container_count: i64) -> Self {
         let ipam_config = network.ipam.as_ref().and_then(|ipam| {
             ipam.config.as_ref().map(|configs| {
                 configs
@@ -62,7 +55,7 @@ impl Network {
             created: network.created,
             subnet: first_config.as_ref().and_then(|c| c.subnet.clone()),
             gateway: first_config.as_ref().and_then(|c| c.gateway.clone()),
-            containers: attached_containers,
+            containers: attached_container_count,
             internal: network.internal.unwrap_or(false),
             ipam: Ipam {
                 driver: network.ipam.as_ref().and_then(|i| i.driver.clone()),

@@ -23,38 +23,30 @@ impl SharedEngineState {
     pub async fn get_engine(&self) -> Result<Arc<Engine>, String> {
         debug!("Getting engine");
 
-        // First, check if engine exists and is running without holding the lock
-        {
-            let engine_guard = self.engine.lock().await;
-            if let Some(ref engine) = *engine_guard {
-                if engine.is_running() {
-                    debug!("Engine exists and is running, returning existing instance");
-                    return Ok(engine.clone());
-                }
-            }
-        } // Guard is dropped here
+        if let Some(engine) = running(&*self.engine.lock().await) {
+            debug!("Engine exists and is running, returning existing instance");
+            return Ok(engine);
+        }
 
-        // Engine doesn't exist or isn't running, need to create one
         debug!("Creating new engine instance");
         let new_engine = Arc::new(engine::create_engine(&self.app_handle).await?);
 
-        // Reacquire the mutex and handle race conditions
-        let mut engine_guard = self.engine.lock().await;
-
-        // Check if another task created an engine while we were waiting
-        if let Some(ref existing_engine) = *engine_guard {
-            if existing_engine.is_running() {
-                debug!(
-                    "Another task created engine while we were waiting, using existing instance"
-                );
-                return Ok(existing_engine.clone());
-            }
+        let mut cached_engine = self.engine.lock().await;
+        if let Some(engine) = running(&cached_engine) {
+            debug!("Another task created engine while we were waiting, using existing instance");
+            return Ok(engine);
         }
 
-        // Set our newly created engine
-        debug!("Setting newly created engine instance");
-        *engine_guard = Some(new_engine.clone());
+        debug!("Caching newly created engine instance");
+        *cached_engine = Some(new_engine.clone());
 
         Ok(new_engine)
     }
+}
+
+fn running(engine: &Option<Arc<Engine>>) -> Option<Arc<Engine>> {
+    engine
+        .as_ref()
+        .filter(|engine| engine.is_running())
+        .cloned()
 }

@@ -23,7 +23,6 @@ impl ConfigService {
         Ok(())
     }
 
-    /// Migrate config from any version to the current version
     #[instrument(skip_all, err)]
     pub fn migrate_config(versioned_config: VersionedAppConfig) -> Result<AppConfig, String> {
         let mut versioned_config = versioned_config;
@@ -42,52 +41,40 @@ impl ConfigService {
         }
     }
 
-    /// Get current configuration with automatic migration
     #[instrument(skip_all, err)]
     pub fn get_config() -> Result<AppConfig, String> {
         let config_path = ConfigService::get_config_path()?;
 
-        if config_path.exists() {
+        let config = if config_path.exists() {
             let content = fs::read_to_string(&config_path)
                 .map_err(|e| format!("Failed to read config file: {}", e))?;
-
-            // First, try to parse as versioned config
-            match serde_json::from_str::<VersionedAppConfig>(&content) {
-                Ok(versioned_config) => {
-                    let migrated_config = ConfigService::migrate_config(versioned_config)?;
-                    ConfigService::save_config(&migrated_config)?;
-                    Ok(migrated_config)
-                }
-                Err(_) => {
-                    // Try to parse as legacy V1 config
-                    match serde_json::from_str::<AppConfigV1>(&content) {
-                        Ok(legacy_config) => {
-                            warn!("Detected legacy V1 config, migrating to V2");
-                            let migrated_config = AppConfig::from(legacy_config);
-                            // Save the migrated config to update the file
-                            ConfigService::save_config(&migrated_config)?;
-                            Ok(migrated_config)
-                        }
-                        Err(e) => {
-                            // Config is corrupted, fall back to defaults
-                            warn!("Config file is corrupted, falling back to defaults: {}", e);
-                            let default_config = AppConfig::default();
-                            ConfigService::save_config(&default_config)?;
-                            Ok(default_config)
-                        }
-                    }
-                }
-            }
+            ConfigService::parse_config(&content)?
         } else {
-            // Create default config if it doesn't exist
             info!("Config file does not exist, creating default config");
-            let default_config = AppConfig::default();
-            ConfigService::save_config(&default_config)?;
-            Ok(default_config)
+            AppConfig::default()
+        };
+
+        ConfigService::save_config(&config)?;
+        Ok(config)
+    }
+
+    fn parse_config(content: &str) -> Result<AppConfig, String> {
+        if let Ok(versioned_config) = serde_json::from_str::<VersionedAppConfig>(content) {
+            return ConfigService::migrate_config(versioned_config);
+        }
+
+        match serde_json::from_str::<AppConfigV1>(content) {
+            Ok(untagged_v1_config) => {
+                warn!("Detected legacy V1 config, migrating to V2");
+                Ok(AppConfig::from(untagged_v1_config))
+            }
+            Err(e) => {
+                warn!("Config file is corrupted, falling back to defaults: {}", e);
+                Ok(AppConfig::default())
+            }
         }
     }
 
-    /// Save configuration to file
     #[instrument(skip_all, err)]
     pub fn save_config(config: &AppConfig) -> Result<(), String> {
         ConfigService::ensure_config_dir()?;

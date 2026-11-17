@@ -5,6 +5,9 @@ use bollard::Docker;
 use std::collections::HashMap;
 use tracing::instrument;
 
+const SYSTEM_NETWORKS: [&str; 3] = ["bridge", "host", "none"];
+const MAX_NETWORK_NAME_LENGTH: usize = 128;
+
 #[derive(Default, Debug)]
 pub struct NetworksService {}
 
@@ -33,19 +36,15 @@ impl NetworksService {
             .collect())
     }
 
-    /// Count how many containers are attached to each network, keyed by network name.
-    ///
-    /// Stopped containers are included: a network that a stopped container is still
-    /// attached to cannot be removed, so it has to count as in use.
     #[instrument(skip_all, err)]
     async fn count_attached_containers(docker: &Docker) -> Result<HashMap<String, i64>, String> {
-        let options = ListContainersOptions {
+        let running_and_stopped_containers = ListContainersOptions {
             all: true,
             ..Default::default()
         };
 
         let containers = docker
-            .list_containers(Some(options))
+            .list_containers(Some(running_and_stopped_containers))
             .await
             .map_err(|e| format!("Failed to list containers: {}", e))?;
 
@@ -68,20 +67,7 @@ impl NetworksService {
 
     #[instrument(skip_all, err)]
     pub async fn remove_network(docker: &Docker, name: &str) -> Result<(), String> {
-        // Validate network name
-        if name.trim().is_empty() {
-            return Err("Network name cannot be empty".to_string());
-        }
-
-        if name.len() > 128 {
-            return Err("Network name too long (max 128 characters)".to_string());
-        }
-
-        // Check for system networks (case-insensitive)
-        let lower_name = name.to_lowercase();
-        if lower_name == "bridge" || lower_name == "host" || lower_name == "none" {
-            return Err(format!("Cannot remove system network: {}", name));
-        }
+        ensure_removable(name)?;
 
         docker
             .remove_network(name)
@@ -93,28 +79,10 @@ impl NetworksService {
 
     #[instrument(skip_all, err)]
     pub async fn bulk_remove_networks(docker: &Docker, names: &[String]) -> Result<(), String> {
-        let mut errors = Vec::new();
-
-        for name in names {
-            if name.trim().is_empty() {
-                errors.push("Network name cannot be empty".to_string());
-                continue;
-            }
-
-            if name.len() > 128 {
-                errors.push(format!(
-                    "Network name too long (max 128 characters): {}",
-                    name
-                ));
-                continue;
-            }
-
-            let lower_name = name.to_lowercase();
-            if lower_name == "bridge" || lower_name == "host" || lower_name == "none" {
-                errors.push(format!("Cannot remove system network: {}", name));
-                continue;
-            }
-        }
+        let mut errors: Vec<String> = names
+            .iter()
+            .filter_map(|name| ensure_removable(name).err())
+            .collect();
 
         if !errors.is_empty() {
             return Err(errors.join("; "));
@@ -131,5 +99,47 @@ impl NetworksService {
         } else {
             Err(errors.join("; "))
         }
+    }
+}
+
+fn ensure_removable(name: &str) -> Result<(), String> {
+    if name.trim().is_empty() {
+        return Err("Network name cannot be empty".to_string());
+    }
+
+    if name.len() > MAX_NETWORK_NAME_LENGTH {
+        return Err(format!(
+            "Network name too long (max {} characters): {}",
+            MAX_NETWORK_NAME_LENGTH, name
+        ));
+    }
+
+    if SYSTEM_NETWORKS.contains(&name.to_lowercase().as_str()) {
+        return Err(format!("Cannot remove system network: {}", name));
+    }
+
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::ensure_removable;
+
+    #[test]
+    fn a_user_network_can_be_removed() {
+        assert!(ensure_removable("my-app_default").is_ok());
+    }
+
+    #[test]
+    fn system_networks_cannot_be_removed_in_any_letter_case() {
+        for name in ["bridge", "HOST", "None"] {
+            assert!(ensure_removable(name).is_err(), "{name}");
+        }
+    }
+
+    #[test]
+    fn blank_and_overlong_names_are_rejected() {
+        assert!(ensure_removable("  ").is_err());
+        assert!(ensure_removable(&"n".repeat(129)).is_err());
     }
 }

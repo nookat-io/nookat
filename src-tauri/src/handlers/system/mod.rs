@@ -44,16 +44,10 @@ pub async fn get_docker_info(state: State<'_, SharedEngineState>) -> Result<Dock
                 .map_err(|e| format!("Failed to get Docker version: {}", e))?;
             Ok(DockerInfo::from((info, version)))
         }
-        _ => {
-            return Err("DockerInfo is not available".to_string());
-        }
+        _ => Err("DockerInfo is not available".to_string()),
     }
 }
 
-/// Returns the app's engine state monitor, creating it on first use.
-///
-/// Every engine state snapshot the frontend receives, pushed or pulled, goes
-/// through this one monitor, which is what keeps their versions in order.
 pub(crate) async fn engine_state_monitor(
     app: &tauri::AppHandle,
     state: &SharedEngineState,
@@ -76,7 +70,6 @@ pub async fn start_engine_state_monitoring(
     app: tauri::AppHandle,
     state: State<'_, SharedEngineState>,
 ) -> Result<(), String> {
-    // Starting a monitor that is already running is a no-op.
     engine_state_monitor(&app, state.inner())
         .await
         .start_monitoring()
