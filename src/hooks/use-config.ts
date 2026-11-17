@@ -15,7 +15,6 @@ export function useConfig() {
 
   const configService = ConfigService.getInstance();
 
-  // Subscribe to config changes
   useEffect(() => {
     const unsubscribe = configService.subscribe(newConfig => {
       setConfig(newConfig);
@@ -23,7 +22,6 @@ export function useConfig() {
       setError(null);
     });
 
-    // Load config if not already loaded
     if (!config) {
       configService.loadConfig().catch(err => {
         setError(
