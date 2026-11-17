@@ -1,11 +1,11 @@
 import { AlertTriangle, Info } from 'lucide-react';
-import { ConfirmDialog } from '../../common/ConfirmDialog';
-import { Dialog } from '../../ui/dialog';
+import { ConfirmDialog } from './ConfirmDialog';
+import { Dialog } from '../ui/dialog';
 import {
   ImageSourceCheck,
   LookalikeCheck,
   needsConfirmation,
-} from '../../../lib/image-source';
+} from '../../lib/image-source';
 
 function lookalikeSummary(check: LookalikeCheck) {
   return check.kind === 'lookalike-registry'

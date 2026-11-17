@@ -35,7 +35,7 @@ import {
   trimPullData,
 } from '../common/utils';
 import { PullFormData } from '../common/types';
-import { ImageSourceConfirmDialog } from '../common/image-source-warnings';
+import { ImageSourceConfirmDialog } from '../../common/image-source-warnings';
 
 const SUCCESS_MESSAGE_VISIBLE_MS = 2000;
 
