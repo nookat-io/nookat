@@ -59,7 +59,7 @@ export function DockerHubSearch({
         )}
         {/* Search Dropdown */}
         {isSearchDropdownOpen && (
-          <div className="absolute z-[9999] w-full mt-1 bg-white border border-gray-200 rounded-md shadow-xl max-h-72 overflow-y-auto left-0 top-full">
+          <div className="absolute z-9999 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-xl max-h-72 overflow-y-auto left-0 top-full">
             {searchError ? (
               <div className="p-3 text-sm text-red-600">{searchError}</div>
             ) : searchResults.length === 0 ? (

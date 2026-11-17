@@ -34,7 +34,7 @@ export default function SettingsPage() {
       <div className="flex-1 overflow-hidden">
         <div className="p-6 max-w-full h-full overflow-auto">
           <Tabs defaultValue="general" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-3 bg-card/50 backdrop-blur-sm">
+            <TabsList className="grid w-full grid-cols-3 bg-card/50 backdrop-blur-xs">
               <TabsTrigger value="general">General</TabsTrigger>
               <TabsTrigger value="engine">Engine</TabsTrigger>
               <TabsTrigger value="proxy">Proxy</TabsTrigger>

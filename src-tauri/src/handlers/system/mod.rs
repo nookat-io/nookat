@@ -50,37 +50,36 @@ pub async fn get_docker_info(state: State<'_, SharedEngineState>) -> Result<Dock
     }
 }
 
+/// Returns the app's engine state monitor, creating it on first use.
+///
+/// Every engine state snapshot the frontend receives, pushed or pulled, goes
+/// through this one monitor, which is what keeps their versions in order.
+pub(crate) async fn engine_state_monitor(
+    app: &tauri::AppHandle,
+    state: &SharedEngineState,
+) -> Arc<EngineStateMonitor> {
+    ENGINE_STATE_MONITOR
+        .lock()
+        .await
+        .get_or_insert_with(|| {
+            Arc::new(EngineStateMonitor::new(
+                Arc::new(state.clone()),
+                app.clone(),
+            ))
+        })
+        .clone()
+}
+
 #[tauri::command]
 #[instrument(skip_all, err)]
 pub async fn start_engine_state_monitoring(
     app: tauri::AppHandle,
     state: State<'_, SharedEngineState>,
 ) -> Result<(), String> {
-    let monitor = {
-        let mut guard = ENGINE_STATE_MONITOR.lock().await;
-        if guard.as_ref().is_some() {
-            return Ok(());
-        }
-        let monitor = Arc::new(EngineStateMonitor::new(
-            Arc::new(state.inner().clone()),
-            app.clone(),
-        ));
-        *guard = Some(monitor.clone());
-        monitor
-    };
-
-    if let Err(e) = monitor.start_monitoring().await {
-        // rollback if startup failed
-        let mut guard = ENGINE_STATE_MONITOR.lock().await;
-        if guard
-            .as_ref()
-            .map(|m| Arc::ptr_eq(m, &monitor))
-            .unwrap_or(false)
-        {
-            *guard = None;
-        }
-        return Err(format!("Failed to start engine state monitoring: {}", e));
-    }
-
-    Ok(())
+    // Starting a monitor that is already running is a no-op.
+    engine_state_monitor(&app, state.inner())
+        .await
+        .start_monitoring()
+        .await
+        .map_err(|e| format!("Failed to start engine state monitoring: {}", e))
 }

@@ -174,7 +174,7 @@ export function ContainerLogsForm({
                   {isLoading ? 'Loading logs...' : 'No logs found'}
                 </div>
               ) : (
-                <pre className="text-sm font-mono whitespace-pre-wrap break-words">
+                <pre className="text-sm font-mono whitespace-pre-wrap wrap-break-word">
                   {filteredLogs.join('\n')}
                 </pre>
               )}

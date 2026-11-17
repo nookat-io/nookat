@@ -7,7 +7,7 @@ import {
   ReactNode,
 } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import { listen } from '@tauri-apps/api/event';
+import { listen, UnlistenFn } from '@tauri-apps/api/event';
 import { EngineState } from '../types/engine-state';
 import { EngineStatus } from '../types/engine-status';
 import { Container } from '../components/containers/container-types';
@@ -125,51 +125,79 @@ export function EngineProvider({ children }: EngineProviderProps) {
     await fetchEngineInfo(true); // Show loading state for manual refresh
   }, [fetchEngineInfo]);
 
-  // Start engine state monitoring when component mounts
+  // Subscribe to engine state updates, start the backend monitor, then pull the
+  // current snapshot.
+  //
+  // The monitor only emits when the engine state changes, and it keeps running
+  // across webview reloads. A remounted provider (a reload, or a Vite full
+  // reload in dev) would otherwise sit without data until the next Docker change
+  // and then time out. The listener goes in first so no push can slip between
+  // the pull and the subscription.
   useEffect(() => {
-    const startMonitoring = async () => {
-      try {
-        // Start the engine state monitoring
-        await invoke('start_engine_state_monitoring');
-        console.log('Engine state monitoring started');
-      } catch (err) {
-        console.error('Failed to start engine state monitoring:', err);
-        setError('Failed to start engine state monitoring');
-        setIsLoading(false);
+    let cancelled = false;
+    let unlisten: UnlistenFn | undefined;
+    // The monitor publishes pushed and pulled snapshots in the order it read
+    // them, each one version higher than the last. A pull can still resolve
+    // after a newer push, so anything not newer than the last applied snapshot
+    // is stale and changes nothing.
+    let appliedVersion = 0;
+
+    const applySnapshot = (snapshot: EngineState) => {
+      if (cancelled || !mountedRef.current) return;
+      if (snapshot.version <= appliedVersion) return;
+      appliedVersion = snapshot.version;
+
+      setEngineState(snapshot);
+      setError(null);
+      setIsLoading(false);
+
+      if (snapshot.engine_status) {
+        setEngineStatus(snapshot.engine_status);
+      }
+
+      // Stop status polling once we have live updates
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
       }
     };
 
-    startMonitoring();
-  }, []);
-
-  // Listen for engine state updates via Tauri events
-  useEffect(() => {
-    const unlisten = listen('engine_state_update', event => {
-      try {
-        const engineStateData = event.payload as EngineState;
-        if (!mountedRef.current) return;
-        setEngineState(engineStateData);
-        setError(null);
-        setIsLoading(false);
-
-        // Update engine status from the state update if available
-        if (engineStateData.engine_status) {
-          setEngineStatus(engineStateData.engine_status);
-        }
-
-        // Stop status polling once we have live updates
-        if (intervalRef.current) {
-          clearInterval(intervalRef.current);
-          intervalRef.current = null;
-        }
-      } catch (err) {
-        console.error('Error parsing engine state update:', err);
-        setError('Failed to parse engine state update');
+    const subscribe = async () => {
+      const stopListening = await listen<EngineState>(
+        'engine_state_update',
+        event => applySnapshot(event.payload)
+      );
+      if (cancelled) {
+        stopListening();
+        return;
       }
-    });
+      unlisten = stopListening;
+
+      try {
+        await invoke('start_engine_state_monitoring');
+      } catch (err) {
+        console.error('Failed to start engine state monitoring:', err);
+        if (!cancelled) {
+          setError('Failed to start engine state monitoring');
+          setIsLoading(false);
+        }
+        return;
+      }
+
+      try {
+        applySnapshot(await invoke<EngineState>('get_engine_state'));
+      } catch (err) {
+        // A failed read, such as the engine going away mid-read. The monitor
+        // keeps publishing on its own, so the next push fills in.
+        console.warn('Engine state snapshot unavailable:', err);
+      }
+    };
+
+    subscribe();
 
     return () => {
-      unlisten.then(f => f());
+      cancelled = true;
+      unlisten?.();
     };
   }, []);
 
