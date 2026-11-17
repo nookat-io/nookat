@@ -92,11 +92,13 @@ export function ContainerLogsForm({
     startLoadingLogs(async () => {
       try {
         const response = await invoke('container_logs', { id: containerId });
-        setLogs(Array.isArray(response) ? response : []);
+        startLoadingLogs(() =>
+          setLogs(Array.isArray(response) ? response : [])
+        );
       } catch (error) {
         console.error('Failed to fetch logs:', error);
         toast.error('Failed to fetch logs');
-        setLogs([]);
+        startLoadingLogs(() => setLogs([]));
       }
     });
   }, [containerId]);
