@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Serialize, Deserialize, Eq, Ord)]
@@ -64,116 +62,35 @@ impl ::std::convert::AsRef<str> for MountPointType {
     }
 }
 
-// bollard models a mount point's type as a bare string (`models::MountPointType`
-// is an alias for `String`) rather than an enum, so the daemon is free to report a
-// type this build has never heard of. An unrecognised value degrades to `Empty`
-// instead of failing, because one unknown mount type must not take out the whole
-// container listing.
 impl From<bollard::models::MountPointType> for MountPointType {
     fn from(mount_point_type: bollard::models::MountPointType) -> Self {
         mount_point_type.parse().unwrap_or(MountPointType::Empty)
     }
 }
 
-/// Optional configuration for the `tmpfs` type.
-#[allow(dead_code)]
-#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
-pub struct MountTmpfsOptions {
-    /// The size for the tmpfs mount in bytes.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub size_bytes: Option<i64>,
-
-    /// The permission mode for the tmpfs mount in an integer.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub mode: Option<i64>,
-
-    /// The options to be passed to the tmpfs mount. An array of arrays. Flag options should be provided as 1-length arrays. Other types should be provided as as 2-length arrays, where the first item is the key and the second the value.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub options: Option<Vec<Vec<String>>>,
-}
-
-/// Optional configuration for the `volume` type.
-#[allow(dead_code)]
-#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
-pub struct MountVolumeOptions {
-    /// Populate volume with data from the target.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub no_copy: Option<bool>,
-
-    /// User-defined key/value metadata.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub labels: Option<HashMap<String, String>>,
-
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub driver_config: Option<MountVolumeOptionsDriverConfig>,
-
-    /// Source path inside the volume. Must be relative without any back traversals.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub subpath: Option<String>,
-}
-
-/// Map of driver specific options
-#[allow(dead_code)]
-#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
-pub struct MountVolumeOptionsDriverConfig {
-    /// Name of the driver to use to create the volume.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub name: Option<String>,
-
-    /// key/value map of driver specific options.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub options: Option<HashMap<String, String>>,
-}
-
-/// MountPoint represents a mount point configuration inside the container.
-/// This is used for reporting the mountpoints in use by a container.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct MountPoint {
-    /// The mount type:  - `bind` a mount of a file or directory from the host i
-    /// nto the container.
-    /// - `volume` a docker volume with the given `Name`.
-    /// - `image` a docker image
-    /// - `tmpfs` a `tmpfs`.
-    /// - `npipe` a named pipe from the host into the container.
-    /// - `cluster` a Swarm cluster volume
     #[serde(skip_serializing_if = "Option::is_none")]
     pub mount_type: Option<MountPointType>,
 
-    /// Name is the name reference to the underlying data defined by `Source`
-    /// e.g., the volume name.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
 
-    /// Source location of the mount.  For volumes, this contains the storage
-    /// location of the volume (within `/var/lib/docker/volumes/`).
-    /// For bind-mounts, and `npipe`, this contains the source (host) part of the bind-mount.
-    /// For `tmpfs` mount points, this field is empty.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub source: Option<String>,
 
-    /// Destination is the path relative to the container root (`/`) where the
-    /// `Source` is mounted inside the container.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub destination: Option<String>,
 
-    /// Driver is the volume driver used to create the volume (if it is a volume).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub driver: Option<String>,
 
-    /// Mode is a comma separated list of options supplied by the user when
-    /// creating the bind/volume mount.  The default is platform-specific
-    /// (`\"z\"` on Linux, empty on Windows).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub mode: Option<String>,
 
-    /// Whether the mount is mounted writable (read-write).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub rw: Option<bool>,
 
-    /// Propagation describes how mounts are propagated from the host into the
-    /// mount point, and vice-versa. Refer to the
-    /// [Linux kernel documentation](https://www.kernel.org/doc/Documentation/filesystems/sharedsubtree.txt)
-    /// for details. This field is not used on Windows.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub propagation: Option<String>,
 }
@@ -190,5 +107,26 @@ impl From<bollard::models::MountPoint> for MountPoint {
             rw: mount_point.rw,
             propagation: mount_point.propagation,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::MountPointType;
+
+    #[test]
+    fn a_known_mount_type_keeps_its_kind() {
+        assert_eq!(
+            MountPointType::from("volume".to_string()),
+            MountPointType::Volume
+        );
+    }
+
+    #[test]
+    fn a_mount_type_this_build_does_not_know_reads_as_empty_instead_of_failing_the_listing() {
+        assert_eq!(
+            MountPointType::from("some-future-type".to_string()),
+            MountPointType::Empty
+        );
     }
 }
