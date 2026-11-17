@@ -8,7 +8,7 @@ use std::sync::Arc;
 use tauri::State;
 use tauri_plugin_opener::OpenerExt;
 use tokio::sync::Mutex;
-use tracing::instrument;
+use tracing::{info, instrument};
 
 static ENGINE_STATE_MONITOR: Mutex<Option<Arc<EngineStateMonitor>>> = Mutex::const_new(None);
 
@@ -22,6 +22,13 @@ pub async fn open_url(app: tauri::AppHandle, url: String) -> Result<(), String> 
     app.opener()
         .open_url(&url, None::<&str>)
         .map_err(|e| format!("Failed to open URL: {}", e))
+}
+
+#[tauri::command]
+#[instrument(skip_all)]
+pub async fn restart_app(app: tauri::AppHandle) {
+    info!("Restarting to run the installed update");
+    app.request_restart();
 }
 
 #[tauri::command]

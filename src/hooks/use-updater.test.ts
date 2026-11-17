@@ -1,4 +1,5 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
+import { mockIPC } from '@tauri-apps/api/mocks';
 import type { Update } from '@tauri-apps/plugin-updater';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AppConfig, Language, Theme } from '../types/config';
@@ -45,6 +46,32 @@ function pendingCheck() {
     })
   );
   return { finish, fail };
+}
+
+function installableUpdate(install: () => Promise<void>): Update {
+  return Object.assign({}, availableUpdate, {
+    downloadAndInstall: vi.fn(install),
+  });
+}
+
+function mockRestart(restart: () => unknown = () => null) {
+  const restarts = vi.fn(restart);
+  mockIPC(cmd => {
+    if (cmd === 'restart_app') {
+      return restarts();
+    }
+    throw new Error(`Unexpected command ${cmd}`);
+  });
+  return restarts;
+}
+
+async function findAndInstall(update: Update) {
+  updater.check.mockResolvedValueOnce(update);
+  const { result } = renderUpdater(false);
+  await act(async () => result.current.checkForUpdates());
+  await waitFor(() => expect(result.current.hasUpdate).toBe(true));
+  await act(() => result.current.downloadAndInstall());
+  return result;
 }
 
 function renderUpdater(checksAutomatically: boolean) {
@@ -154,6 +181,41 @@ describe('useUpdater', () => {
     await waitFor(() => expect(result.current.isChecking).toBe(false));
     expect(toast.error).toHaveBeenCalledWith('offline');
     expect(result.current.error).toBe('offline');
+  });
+
+  it('restarts Nookat once the update is installed, so the new version runs', async () => {
+    const restarts = mockRestart();
+    const update = installableUpdate(async () => {});
+
+    await findAndInstall(update);
+
+    expect(update.downloadAndInstall).toHaveBeenCalled();
+    expect(restarts).toHaveBeenCalledTimes(1);
+    expect(toast.success).toHaveBeenCalledWith(
+      'Update installed, restarting Nookat'
+    );
+  });
+
+  it('asks for a manual restart when the automatic restart fails', async () => {
+    mockRestart(() => Promise.reject('restart refused'));
+
+    await findAndInstall(installableUpdate(async () => {}));
+
+    expect(toast.error).toHaveBeenCalledWith(
+      'Update installed, but Nookat could not restart: restart refused. Restart it to finish updating.'
+    );
+  });
+
+  it('does not restart when installing the update fails', async () => {
+    const restarts = mockRestart();
+
+    const result = await findAndInstall(
+      installableUpdate(() => Promise.reject('signature mismatch'))
+    );
+
+    expect(restarts).not.toHaveBeenCalled();
+    expect(toast.error).toHaveBeenCalledWith('signature mismatch');
+    expect(result.current.isInstalling).toBe(false);
   });
 
   it('shows the reason the updater plugin gives, which arrives as a plain string rather than an Error', async () => {
