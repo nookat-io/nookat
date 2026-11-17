@@ -3,6 +3,11 @@
 # Please see the documentation for all configuration options:
 # https://docs.github.com/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
 
+# Every update goes into one of two groups per ecosystem: minor and patch
+# updates, and major updates. Major updates usually need a migration and stay
+# open the longest. As separate PRs they used up `open-pull-requests-limit`
+# and kept the minor and patch group from being opened at all.
+
 version: 2
 updates:
   - package-ecosystem: "npm"
@@ -16,6 +21,11 @@ updates:
         update-types:
           - "minor"
           - "patch"
+      npm-major-dependencies:
+        patterns:
+          - "*"
+        update-types:
+          - "major"
     open-pull-requests-limit: 5
 
   - package-ecosystem: "cargo"
@@ -29,4 +39,9 @@ updates:
         update-types:
           - "minor"
           - "patch"
+      cargo-major-dependencies:
+        patterns:
+          - "*"
+        update-types:
+          - "major"
     open-pull-requests-limit: 5
