@@ -2,7 +2,7 @@
 
 import { Button } from '../../ui/button';
 import { Dialog, DialogTrigger } from '../../ui/dialog';
-import { Trash, AlertTriangle } from 'lucide-react';
+import { BrushCleaning, AlertTriangle } from 'lucide-react';
 import { ConfirmDialog } from '../../common/ConfirmDialog';
 
 interface PruneConfirmDialogProps {
@@ -27,7 +27,7 @@ export function PruneConfirmDialog({
           onClick={() => onOpenChange(true)}
           disabled={isPruning}
         >
-          <Trash className="mr-2 h-4 w-4" />
+          <BrushCleaning className="mr-2 h-4 w-4" />
           {isPruning ? 'Pruning...' : 'Prune Unused'}
         </Button>
       </DialogTrigger>

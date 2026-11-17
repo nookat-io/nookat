@@ -1,5 +1,5 @@
 import { Button } from '../ui/button';
-import { Trash2, Trash } from 'lucide-react';
+import { BrushCleaning, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { VolumeActionService } from './volume-actions-service';
 import {
@@ -72,7 +72,7 @@ export function VolumeActions({
           onClick={() => setConfirmDialogOpen(true)}
           disabled={isLoading === 'prune'}
         >
-          <Trash className="mr-2 h-4 w-4" />
+          <BrushCleaning className="mr-2 h-4 w-4" />
           {isLoading === 'prune' ? 'Pruning...' : 'Prune Unused'}
         </Button>
       </DialogTrigger>

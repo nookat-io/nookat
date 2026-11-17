@@ -20,7 +20,11 @@ export function SentryProvider({ children }: { children: React.ReactNode }) {
       try {
         Sentry.init({
           dsn: SENTRY_DSN,
-          sendDefaultPii: false,
+          dataCollection: {
+            userInfo: false,
+            cookies: false,
+            httpBodies: [],
+          },
           integrations: [
             Sentry.replayIntegration({
               maskAllText: true,
