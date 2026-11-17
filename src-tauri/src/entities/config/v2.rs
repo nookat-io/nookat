@@ -72,6 +72,11 @@ mod tests {
     }
 
     #[test]
+    fn test_fresh_config_closes_to_tray() {
+        assert!(AppConfigV2::default().startup.minimize_to_tray);
+    }
+
+    #[test]
     fn test_versioned_config_serialization() {
         let v2_config = AppConfigV2 {
             theme: Theme::Light,

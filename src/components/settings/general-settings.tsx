@@ -111,7 +111,7 @@ export function GeneralSettings() {
       // Show success toast with descriptive message
       const settingNames: Record<string, string> = {
         start_on_system_startup: 'Start on system boot',
-        minimize_to_tray: 'Minimize to system tray',
+        minimize_to_tray: 'Close to tray',
         check_for_updates: 'Check for updates',
         auto_update_settings: 'Automatic updates',
       };
@@ -303,14 +303,14 @@ export function GeneralSettings() {
 
           <div className="flex items-center justify-between">
             <div className="space-y-0.5">
-              <Label htmlFor="minimize-to-tray">Minimize to system tray</Label>
+              <Label htmlFor="close-to-tray">Close to tray</Label>
               <div className="text-sm text-muted-foreground">
-                Keep Nookat running in the background when the close button is
-                clicked
+                Keep Nookat running in the menu bar or system tray when the
+                window is closed
               </div>
             </div>
             <Switch
-              id="minimize-to-tray"
+              id="close-to-tray"
               checked={config.startup.minimize_to_tray}
               onCheckedChange={checked =>
                 handleStartupChange('minimize_to_tray', checked)

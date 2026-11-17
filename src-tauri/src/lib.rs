@@ -72,9 +72,47 @@ use tauri::{
     image::Image,
     menu::{MenuBuilder, MenuItem},
     tray::TrayIconBuilder,
-    App, Manager,
+    App, AppHandle, Manager, RunEvent, Window, WindowEvent,
 };
-use tracing::{error, instrument};
+use tracing::instrument;
+
+const MAIN_WINDOW_LABEL: &str = "main";
+
+#[instrument(skip_all, err)]
+fn show_main_window(app: &AppHandle) -> tauri::Result<()> {
+    #[cfg(target_os = "macos")]
+    app.set_activation_policy(tauri::ActivationPolicy::Regular)?;
+    let window = app
+        .get_webview_window(MAIN_WINDOW_LABEL)
+        .ok_or(tauri::Error::WindowNotFound)?;
+    window.unminimize()?;
+    window.show()?;
+    window.set_focus()
+}
+
+#[instrument(skip_all, err)]
+fn hide_to_tray(window: &Window) -> tauri::Result<()> {
+    window.hide()?;
+    #[cfg(target_os = "macos")]
+    window
+        .app_handle()
+        .set_activation_policy(tauri::ActivationPolicy::Accessory)?;
+    Ok(())
+}
+
+fn closes_to_tray() -> bool {
+    ConfigService::get_config().is_ok_and(|config| config.startup.minimize_to_tray)
+}
+
+#[cfg(target_os = "macos")]
+fn on_run_event(app: &AppHandle, event: RunEvent) {
+    if let RunEvent::Reopen { .. } = event {
+        let _ = show_main_window(app);
+    }
+}
+
+#[cfg(not(target_os = "macos"))]
+fn on_run_event(_app: &AppHandle, _event: RunEvent) {}
 
 #[instrument(skip_all)]
 fn build_tray(app: &mut App) -> Result<(), String> {
@@ -101,27 +139,7 @@ fn build_tray(app: &mut App) -> Result<(), String> {
         .menu(&menu)
         .on_menu_event(|app, event| match event.id.as_ref() {
             "open" => {
-                // Try to find the main window by getting the first available window
-                // or by trying common default window IDs
-                let window = app
-                    .get_webview_window("main")
-                    .or_else(|| app.get_webview_window("primary"))
-                    .or_else(|| app.get_webview_window("default"))
-                    .or_else(|| {
-                        // If no specific window found, try to get any available window
-                        app.webview_windows().values().next().cloned()
-                    });
-
-                if let Some(window) = window {
-                    if let Err(e) = window.show() {
-                        error!("Failed to show window: {}", e);
-                    }
-                    if let Err(e) = window.set_focus() {
-                        error!("Failed to focus window: {}", e);
-                    }
-                } else {
-                    error!("No main window found to show");
-                }
+                let _ = show_main_window(app);
             }
             "quit" => {
                 app.exit(0);
@@ -208,25 +226,17 @@ pub fn run() {
             Ok(build_tray(app)?)
         })
         .on_window_event(|window, event| {
-            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
-                if let Ok(config) = ConfigService::get_config() {
-                    if config.startup.minimize_to_tray {
-                        if let Err(e) = window.hide() {
-                            error!("Failed to hide window: {}", e);
-                            window.app_handle().exit(0);
-                        }
-                        api.prevent_close();
-                    } else {
-                        window.app_handle().exit(0);
-                    }
+            if let WindowEvent::CloseRequested { api, .. } = event {
+                if closes_to_tray() && hide_to_tray(window).is_ok() {
+                    api.prevent_close();
                 } else {
                     window.app_handle().exit(0);
                 }
             }
-            // There is no Minimized event in Tauri v2, so we can't handle minimize directly.
         })
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application")
+        .run(on_run_event);
 
     // Flush Sentry events before shutdown
     flush_sentry();
