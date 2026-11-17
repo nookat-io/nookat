@@ -158,8 +158,8 @@ export function ImagesTable({
           </div>
         </TableCell>
         <TableCell className="text-muted-foreground max-w-[150px]">
-          <div className="truncate max-w-full" title={image.tag || ''}>
-            {image.tag}
+          <div className="truncate max-w-full" title={image.tag ?? '<none>'}>
+            {image.tag ?? '<none>'}
           </div>
         </TableCell>
         <TableCell className="text-muted-foreground text-center">
@@ -281,7 +281,9 @@ export function ImagesTable({
             <DialogDescription>
               Are you sure you want to delete the image{' '}
               <span className="font-mono font-medium">
-                {imageToDelete?.repository}:{imageToDelete?.tag}
+                {imageToDelete?.tag
+                  ? `${imageToDelete.repository}:${imageToDelete.tag}`
+                  : imageToDelete?.repository}
               </span>
               ? This action cannot be undone.
               {imageToDelete?.in_use && (

@@ -379,7 +379,7 @@ fn to_image(summary: &ImageSummary, used_image_ids: &HashSet<String>) -> Image {
         .find(|reference| reference.as_str() != UNTAGGED_REFERENCE);
     let (repository, tag) = match reference {
         Some(reference) => split_reference(reference),
-        None => (untagged_name(&summary.id), None),
+        None => (untagged_repository(summary), None),
     };
 
     Image {
@@ -403,8 +403,18 @@ fn split_reference(reference: &str) -> (String, Option<String>) {
     }
 }
 
-fn untagged_name(id: &str) -> String {
-    format!("<untagged>@{}", id.strip_prefix("sha256:").unwrap_or(id))
+fn untagged_repository(summary: &ImageSummary) -> String {
+    summary
+        .repo_digests
+        .iter()
+        .filter_map(|digest| digest.rsplit_once('@'))
+        .map(|(repository, _)| repository)
+        .find(|repository| *repository != "<none>")
+        .map(str::to_string)
+        .unwrap_or_else(|| {
+            let id = summary.id.strip_prefix("sha256:").unwrap_or(&summary.id);
+            format!("<untagged>@{id}")
+        })
 }
 
 #[cfg(test)]
@@ -418,6 +428,16 @@ mod tests {
             id: id.to_string(),
             repo_tags: repo_tags.iter().map(|tag| tag.to_string()).collect(),
             ..Default::default()
+        }
+    }
+
+    fn pulled_then_untagged(id: &str, repo_digests: &[&str]) -> ImageSummary {
+        ImageSummary {
+            repo_digests: repo_digests
+                .iter()
+                .map(|digest| digest.to_string())
+                .collect(),
+            ..summary(id, &[])
         }
     }
 
@@ -473,6 +493,34 @@ mod tests {
         let image = to_image(&summary("sha256:abc", &["<none>:<none>"]), &HashSet::new());
 
         assert!(image.dangling);
+        assert_eq!(image.repository.as_deref(), Some("<untagged>@abc"));
+    }
+
+    #[test]
+    fn an_untagged_image_keeps_the_repository_it_was_pulled_from() {
+        let image = to_image(
+            &pulled_then_untagged(
+                "sha256:abc",
+                &[
+                    "localhost:5000/app@sha256:0123",
+                    "ghcr.io/org/app@sha256:4567",
+                ],
+            ),
+            &HashSet::new(),
+        );
+
+        assert!(image.dangling);
+        assert_eq!(image.repository.as_deref(), Some("localhost:5000/app"));
+        assert_eq!(image.tag, None);
+    }
+
+    #[test]
+    fn an_untagged_image_with_a_none_digest_falls_back_to_its_id() {
+        let image = to_image(
+            &pulled_then_untagged("sha256:abc", &["<none>@<none>"]),
+            &HashSet::new(),
+        );
+
         assert_eq!(image.repository.as_deref(), Some("<untagged>@abc"));
     }
 
