@@ -7,6 +7,7 @@ export interface Image {
   created: number;
   size: number;
   in_use: boolean;
+  dangling: boolean;
 }
 
 // Prune result interface matching backend

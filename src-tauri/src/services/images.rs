@@ -47,56 +47,10 @@ impl ImagesService {
     pub async fn get_images(docker: &Docker) -> Result<Vec<Image>, String> {
         let (images, used_image_ids) = Self::get_images_and_used_ids(docker).await?;
 
-        let result: Vec<Image> = images
+        Ok(images
             .iter()
-            .map(|image| {
-                let mut image_name = None;
-                let mut image_tag = None;
-
-                if !image.repo_tags.is_empty() {
-                    let tag_full = image.repo_tags[0].clone();
-                    let parts: Vec<&str> = tag_full.splitn(2, ':').collect();
-
-                    if parts.len() == 2 {
-                        image_name = Some(parts[0].to_string());
-                        image_tag = Some(parts[1].to_string());
-                    } else if parts.len() == 1 {
-                        // Handle case where there's no tag (just repository name)
-                        image_name = Some(parts[0].to_string());
-                        image_tag = None;
-                    }
-                } else {
-                    let id = image.id.clone();
-                    if id.starts_with("sha256:") {
-                        // For untagged images with SHA256 IDs, use a shortened version as name
-                        // and indicate it's untagged rather than using a misleading tag
-                        image_name = Some(format!(
-                            "<untagged>@{}",
-                            id.split(":").nth(1).unwrap_or("unknown")
-                        ));
-                        image_tag = None; // Keep as None to indicate no tag
-                    } else {
-                        image_name = Some(format!("<untagged>@{}", id));
-                        image_tag = None; // Keep as None to indicate no tag
-                    }
-                }
-
-                // Check if this image is in use by any container
-                let in_use = used_image_ids.contains(&image.id);
-
-                Image {
-                    id: image.id.clone(),
-                    repository: image_name,
-                    tag: image_tag,
-                    image_id: image.id.clone(),
-                    created: image.created,
-                    size: image.size,
-                    in_use,
-                }
-            })
-            .collect();
-
-        Ok(result)
+            .map(|summary| to_image(summary, &used_image_ids))
+            .collect())
     }
 
     #[instrument(skip_all, err)]
@@ -413,5 +367,169 @@ impl ImagesService {
 
         debug!("Found {} tags for image: {}", all_tags.len(), image_name);
         Ok(all_tags)
+    }
+}
+
+const UNTAGGED_REFERENCE: &str = "<none>:<none>";
+
+fn to_image(summary: &ImageSummary, used_image_ids: &HashSet<String>) -> Image {
+    let reference = summary
+        .repo_tags
+        .iter()
+        .find(|reference| reference.as_str() != UNTAGGED_REFERENCE);
+    let (repository, tag) = match reference {
+        Some(reference) => split_reference(reference),
+        None => (untagged_repository(summary), None),
+    };
+
+    Image {
+        id: summary.id.clone(),
+        repository: Some(repository),
+        tag,
+        image_id: summary.id.clone(),
+        created: summary.created,
+        size: summary.size,
+        in_use: used_image_ids.contains(&summary.id),
+        dangling: reference.is_none(),
+    }
+}
+
+fn split_reference(reference: &str) -> (String, Option<String>) {
+    match reference.rsplit_once(':') {
+        Some((repository, tag)) if !tag.contains('/') => {
+            (repository.to_string(), Some(tag.to_string()))
+        }
+        _ => (reference.to_string(), None),
+    }
+}
+
+fn untagged_repository(summary: &ImageSummary) -> String {
+    summary
+        .repo_digests
+        .iter()
+        .filter_map(|digest| digest.rsplit_once('@'))
+        .map(|(repository, _)| repository)
+        .find(|repository| *repository != "<none>")
+        .map(str::to_string)
+        .unwrap_or_else(|| {
+            let id = summary.id.strip_prefix("sha256:").unwrap_or(&summary.id);
+            format!("<untagged>@{id}")
+        })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{split_reference, to_image};
+    use bollard::models::ImageSummary;
+    use std::collections::HashSet;
+
+    fn summary(id: &str, repo_tags: &[&str]) -> ImageSummary {
+        ImageSummary {
+            id: id.to_string(),
+            repo_tags: repo_tags.iter().map(|tag| tag.to_string()).collect(),
+            ..Default::default()
+        }
+    }
+
+    fn pulled_then_untagged(id: &str, repo_digests: &[&str]) -> ImageSummary {
+        ImageSummary {
+            repo_digests: repo_digests
+                .iter()
+                .map(|digest| digest.to_string())
+                .collect(),
+            ..summary(id, &[])
+        }
+    }
+
+    fn reference(repository: &str, tag: Option<&str>) -> (String, Option<String>) {
+        (repository.to_string(), tag.map(str::to_string))
+    }
+
+    #[test]
+    fn splits_a_reference_at_the_tag_separator() {
+        assert_eq!(
+            split_reference("nginx:1.27"),
+            reference("nginx", Some("1.27"))
+        );
+        assert_eq!(
+            split_reference("ghcr.io/org/app:latest"),
+            reference("ghcr.io/org/app", Some("latest"))
+        );
+    }
+
+    #[test]
+    fn keeps_a_registry_port_in_the_repository() {
+        assert_eq!(
+            split_reference("localhost:5000/app:1.0"),
+            reference("localhost:5000/app", Some("1.0"))
+        );
+        assert_eq!(
+            split_reference("localhost:5000/app"),
+            reference("localhost:5000/app", None)
+        );
+    }
+
+    #[test]
+    fn a_tagged_image_is_not_dangling_even_when_unused() {
+        let image = to_image(&summary("sha256:abc", &["postgres:18"]), &HashSet::new());
+
+        assert!(!image.dangling);
+        assert!(!image.in_use);
+        assert_eq!(image.repository.as_deref(), Some("postgres"));
+        assert_eq!(image.tag.as_deref(), Some("18"));
+    }
+
+    #[test]
+    fn an_image_without_tags_is_dangling() {
+        let image = to_image(&summary("sha256:abc", &[]), &HashSet::new());
+
+        assert!(image.dangling);
+        assert_eq!(image.repository.as_deref(), Some("<untagged>@abc"));
+        assert_eq!(image.tag, None);
+    }
+
+    #[test]
+    fn an_image_tagged_none_by_an_older_daemon_is_dangling() {
+        let image = to_image(&summary("sha256:abc", &["<none>:<none>"]), &HashSet::new());
+
+        assert!(image.dangling);
+        assert_eq!(image.repository.as_deref(), Some("<untagged>@abc"));
+    }
+
+    #[test]
+    fn an_untagged_image_keeps_the_repository_it_was_pulled_from() {
+        let image = to_image(
+            &pulled_then_untagged(
+                "sha256:abc",
+                &[
+                    "localhost:5000/app@sha256:0123",
+                    "ghcr.io/org/app@sha256:4567",
+                ],
+            ),
+            &HashSet::new(),
+        );
+
+        assert!(image.dangling);
+        assert_eq!(image.repository.as_deref(), Some("localhost:5000/app"));
+        assert_eq!(image.tag, None);
+    }
+
+    #[test]
+    fn an_untagged_image_with_a_none_digest_falls_back_to_its_id() {
+        let image = to_image(
+            &pulled_then_untagged("sha256:abc", &["<none>@<none>"]),
+            &HashSet::new(),
+        );
+
+        assert_eq!(image.repository.as_deref(), Some("<untagged>@abc"));
+    }
+
+    #[test]
+    fn an_image_is_in_use_when_a_container_runs_it() {
+        let used = HashSet::from(["sha256:abc".to_string()]);
+        let image = to_image(&summary("sha256:abc", &[]), &used);
+
+        assert!(image.in_use);
+        assert!(image.dangling);
     }
 }
