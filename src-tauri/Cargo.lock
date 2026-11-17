@@ -3190,21 +3190,16 @@ dependencies = [
 name = "nookat"
 version = "0.1.8"
 dependencies = [
- "async-trait",
  "bollard",
  "chrono",
  "dirs 7.0.0",
- "flate2",
  "futures-util",
  "image",
- "lazy_static",
  "reqwest 0.12.28",
  "sentry",
  "sentry-tracing",
  "serde",
  "serde_json",
- "sha2 0.11.1",
- "tar",
  "tauri",
  "tauri-build",
  "tauri-plugin-autostart",
@@ -3213,11 +3208,9 @@ dependencies = [
  "tauri-plugin-updater",
  "tempfile",
  "tokio",
- "tokio-util",
  "tracing",
  "tracing-appender",
  "tracing-subscriber",
- "uuid",
 ]
 
 [[package]]

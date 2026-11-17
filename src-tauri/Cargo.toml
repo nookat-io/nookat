@@ -14,7 +14,6 @@ tauri-build = { version = "2", features = [] }
 
 [dependencies]
 tokio = { version = "1.49.0", features = ["full"] }
-tokio-util = { version = "0.7", features = ["io"] }
 
 tauri = { version = "2", features = [ "tray-icon", "macos-private-api"] }
 serde = { version = "1", features = ["derive"] }
@@ -25,15 +24,8 @@ dirs = "7"
 image = "0.25"
 futures-util = "0.3"
 chrono = { version = "0.4", features = ["serde"] }
-uuid = { version = "1.19", features = ["v4"] }
-lazy_static = "1.4"
 
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
-sha2 = "0.11"
-tempfile = "3.24"
-flate2 = "1.1"
-tar = "0.4"
-async-trait = "0.1"
 
 sentry = { version = "0.49", features = ["panic", "tracing"] }
 sentry-tracing = "0.49"
@@ -47,3 +39,6 @@ tauri-plugin-shell = "2"
 tauri-plugin-autostart = "2"
 tauri-plugin-updater = "2"
 tauri-plugin-opener = "2.5"
+
+[dev-dependencies]
+tempfile = "3.24"
