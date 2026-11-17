@@ -57,6 +57,17 @@ repos:
         files: \.(ts|tsx)$
         pass_filenames: false
 
+  # Frontend unit tests that cover the files being checked: the test files
+  # themselves and every test that imports a changed file, directly or not.
+  - repo: local
+    hooks:
+      - id: vitest-related
+        name: Vitest
+        entry: npx --no-install vitest related --run --passWithNoTests
+        language: system
+        files: \.(ts|tsx)$
+        require_serial: true
+
   # Cargo fmt for Rust
   - repo: local
     hooks:
