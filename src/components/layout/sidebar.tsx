@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import {
   Container,
@@ -25,20 +25,11 @@ const navigation = [
 
 export function Sidebar() {
   const { config, updateSidebarCollapsed } = useConfig();
-  const [collapsed, setCollapsed] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const location = useLocation();
-
-  // Initialize from config whenever config changes
-  useEffect(() => {
-    if (config) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- TECH-005
-      setCollapsed(config.sidebar_collapsed);
-    }
-  }, [config]);
+  const collapsed = config?.sidebar_collapsed ?? false;
 
   const handleToggleCollapsed = async () => {
-    // Prevent rapid clicks while saving is in progress
     if (isSaving) {
       return;
     }
@@ -46,13 +37,9 @@ export function Sidebar() {
     setIsSaving(true);
 
     try {
-      // Use functional update to get the latest state value
       await updateSidebarCollapsed(!collapsed);
-      // Update local state only after save succeeds
-      setCollapsed(prevCollapsed => !prevCollapsed);
     } catch (error) {
       console.error('Failed to persist sidebar state:', error);
-      // Keep current state on error - don't update local state
     } finally {
       setIsSaving(false);
     }
