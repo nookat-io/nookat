@@ -1,5 +1,3 @@
-// Engine Settings Types
-
 export type InstallationMethod = 'homebrew' | 'binary';
 
 export type InstallationStep =

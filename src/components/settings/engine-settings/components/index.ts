@@ -1,8 +1,6 @@
-// Unified Components
 export { InstallationProgress } from './installation-progress';
 export { EngineConfiguration } from './engine-configuration';
 
-// Reusable Components
 export { ResourceInput } from './resource-input';
 export { MethodCard } from './method-card';
 export { InfoBanner } from './info-banner';
