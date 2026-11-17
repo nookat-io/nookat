@@ -43,6 +43,9 @@ jobs:
       - name: Type check frontend
         run: npm run type-check
 
+      - name: Unit test frontend
+        run: npm test
+
       - name: Rust format check
         run: |
           cd src-tauri
