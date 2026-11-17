@@ -136,17 +136,18 @@ export function EngineProvider({ children }: EngineProviderProps) {
   useEffect(() => {
     let cancelled = false;
     let unlisten: UnlistenFn | undefined;
+    // The monitor publishes pushed and pulled snapshots in the order it read
+    // them, each one version higher than the last. A pull can still resolve
+    // after a newer push, so anything not newer than the last applied snapshot
+    // is stale and changes nothing.
+    let appliedVersion = 0;
 
     const applySnapshot = (snapshot: EngineState) => {
       if (cancelled || !mountedRef.current) return;
+      if (snapshot.version <= appliedVersion) return;
+      appliedVersion = snapshot.version;
 
-      // A pulled snapshot can resolve after a newer pushed one; keep the newer.
-      setEngineState(previous =>
-        previous &&
-        Date.parse(previous.last_updated) > Date.parse(snapshot.last_updated)
-          ? previous
-          : snapshot
-      );
+      setEngineState(snapshot);
       setError(null);
       setIsLoading(false);
 
@@ -186,8 +187,8 @@ export function EngineProvider({ children }: EngineProviderProps) {
       try {
         applySnapshot(await invoke<EngineState>('get_engine_state'));
       } catch (err) {
-        // Expected while the engine is down; the monitor pushes a status-only
-        // update for that case.
+        // A failed read, such as the engine going away mid-read. The monitor
+        // keeps publishing on its own, so the next push fills in.
         console.warn('Engine state snapshot unavailable:', err);
       }
     };

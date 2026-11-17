@@ -346,86 +346,104 @@ impl EngineStateMonitor {
         Ok(())
     }
 
-    /// Check for state changes and broadcast if changes are detected
+    /// Reads the engine state now and publishes it whether or not it changed,
+    /// so a frontend that missed earlier pushes, such as one that just
+    /// reloaded, gets the current state in the same version sequence as the
+    /// pushes. Returns the published snapshot.
+    pub async fn refresh(&self) -> Result<EngineState, Box<dyn std::error::Error + Send + Sync>> {
+        let engine = self.state.get_engine().await?;
+
+        // Held from the read through the publish, see `publish`.
+        let mut last_state = self.last_state.lock().await;
+        let current = match &engine.docker {
+            Some(docker) => Self::fetch_current_engine_state(docker, &self.state).await?,
+            None => Self::status_only_state(&engine),
+        };
+
+        Ok(Self::publish(&mut last_state, current, &self.app_handle)?.clone())
+    }
+
+    /// Reads the engine state and publishes it if it changed since the last
+    /// published snapshot.
     async fn check_and_broadcast_state_changes(
         docker: &Docker,
         state: &Arc<SharedEngineState>,
         last_state: &Arc<Mutex<Option<EngineState>>>,
         app_handle: &tauri::AppHandle,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-        // Get current state
-        let current_state = Self::fetch_current_engine_state(docker, state).await?;
+        // Held from the read through the publish, see `publish`.
+        let mut last_state = last_state.lock().await;
+        let current = Self::fetch_current_engine_state(docker, state).await?;
 
-        // Check if state has changed
-        let should_broadcast = {
-            let last_state_guard = last_state.lock().await;
-            if let Some(ref last) = *last_state_guard {
-                Self::has_state_changed(last, &current_state)
-            } else {
-                // First time, always broadcast
-                true
-            }
-        };
-
-        if should_broadcast {
-            // Update last state
-            {
-                let mut last_state_guard = last_state.lock().await;
-                *last_state_guard = Some(current_state.clone());
-            }
-
-            // Emit Tauri event to frontend
-            let engine_state_json = serde_json::to_value(&current_state)?;
-            app_handle.emit("engine_state_update", &engine_state_json)?;
-
-            debug!("Engine state updated and broadcasted via Tauri event");
+        let changed = last_state
+            .as_ref()
+            .is_none_or(|previous| Self::has_state_changed(previous, &current));
+        if changed {
+            let published = Self::publish(&mut last_state, current, app_handle)?;
+            debug!(
+                "Engine state {} broadcasted via Tauri event",
+                published.version
+            );
         }
 
         Ok(())
     }
 
-    /// Emit a status-only EngineState when Docker is unavailable
+    /// Publishes a status-only EngineState when Docker is unavailable, if the
+    /// status changed since the last published snapshot.
     async fn emit_status_only(
         engine: Arc<Engine>,
         last_state: &Arc<Mutex<Option<EngineState>>>,
         app_handle: &tauri::AppHandle,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-        // Check previous status to avoid redundant emits
-        let should_emit = {
-            let last_state_guard = last_state.lock().await;
-            if let Some(ref previous) = *last_state_guard {
-                previous.engine_status != engine.engine_status
-            } else {
-                true
-            }
-        };
+        let mut last_state = last_state.lock().await;
 
-        if !should_emit {
-            return Ok(());
+        let changed = last_state
+            .as_ref()
+            .is_none_or(|previous| previous.engine_status != engine.engine_status);
+        if changed {
+            Self::publish(
+                &mut last_state,
+                Self::status_only_state(&engine),
+                app_handle,
+            )?;
         }
 
-        // Construct a minimal EngineState with only status updated
-        let current = EngineState {
+        Ok(())
+    }
+
+    /// A minimal EngineState that carries only the engine status.
+    fn status_only_state(engine: &Engine) -> EngineState {
+        EngineState {
             containers: HashMap::new(),
             images: HashMap::new(),
             volumes: HashMap::new(),
             networks: HashMap::new(),
             engine_status: engine.engine_status.clone(),
             docker_info: None,
-            version: 1,
+            version: 0, // Assigned when the snapshot is published
             last_updated: Utc::now(),
-        };
-
-        // Update last_state
-        {
-            let mut last_state_guard = last_state.lock().await;
-            *last_state_guard = Some(current.clone());
         }
+    }
 
-        // Emit event
-        app_handle.emit("engine_state_update", &serde_json::to_value(&current)?)?;
-
-        Ok(())
+    /// Stamps `snapshot` with the next version, emits it to the frontend and
+    /// records it as the last published snapshot.
+    ///
+    /// Callers hold the `last_state` lock from reading the engine state through
+    /// this call. Reads and publishes therefore happen one at a time, in order,
+    /// so a higher version always means a later read. The frontend applies a
+    /// snapshot only if its version is higher than the one it already has,
+    /// which keeps a slow read from replacing a newer snapshot.
+    fn publish<'a>(
+        last_state: &'a mut Option<EngineState>,
+        mut snapshot: EngineState,
+        app_handle: &tauri::AppHandle,
+    ) -> Result<&'a EngineState, Box<dyn std::error::Error + Send + Sync>> {
+        snapshot.version = last_state
+            .as_ref()
+            .map_or(1, |previous| previous.version + 1);
+        app_handle.emit("engine_state_update", &serde_json::to_value(&snapshot)?)?;
+        Ok(last_state.insert(snapshot))
     }
 
     /// Check if the state has meaningful changes
@@ -516,7 +534,7 @@ impl EngineStateMonitor {
             },
             engine_status: engine.engine_status.clone(),
             docker_info: None, // TODO: Implement in follow-up
-            version: 1,        // TODO: Implement versioning in follow-up
+            version: 0,        // Assigned when the snapshot is published
             last_updated: chrono::Utc::now(),
         };
 
