@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useTransition } from 'react';
+import { invoke } from '@tauri-apps/api/core';
 import { check, Update, DownloadEvent } from '@tauri-apps/plugin-updater';
 import { toast } from 'sonner';
 import { AppConfig } from '../types/config';
@@ -18,6 +19,18 @@ export interface UpdateProgress {
 }
 
 type CheckOutcomesToAnnounce = 'every-outcome' | 'available-update-only';
+
+async function restartToRunInstalledUpdate() {
+  toast.success('Update installed, restarting Nookat');
+  try {
+    await invoke('restart_app');
+  } catch (err) {
+    console.error('Failed to restart after the update:', err);
+    toast.error(
+      `Update installed, but Nookat could not restart: ${errorMessage(err)}. Restart it to finish updating.`
+    );
+  }
+}
 
 export const useUpdater = (
   config?: AppConfig,
@@ -139,9 +152,7 @@ export const useUpdater = (
       setCurrentUpdate(null);
       setUpdateInstance(null);
 
-      toast.success(
-        'Update installed successfully! Please, restart the app to apply the changes.'
-      );
+      await restartToRunInstalledUpdate();
     } catch (err) {
       console.error('Failed to install update:', err);
       const message = errorMessage(err, 'Failed to install update');
