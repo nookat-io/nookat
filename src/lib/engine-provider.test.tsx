@@ -30,7 +30,6 @@ function snapshot({
     volumes: {},
     networks: {},
     engine_status: status,
-    docker_info: null,
     version,
     last_updated: lastUpdated,
   };

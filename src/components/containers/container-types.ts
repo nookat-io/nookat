@@ -34,24 +34,6 @@ export enum MountPointType {
   Cluster = 'cluster',
 }
 
-export interface MountTmpfsOptions {
-  size_bytes?: number;
-  mode?: number;
-  options?: string[][];
-}
-
-export interface MountVolumeOptionsDriverConfig {
-  name?: string;
-  options?: Record<string, string>;
-}
-
-export interface MountVolumeOptions {
-  no_copy?: boolean;
-  labels?: Record<string, string>;
-  driver_config?: MountVolumeOptionsDriverConfig;
-  subpath?: string;
-}
-
 export interface MountPoint {
   mount_type?: MountPointType;
   name?: string;
@@ -61,8 +43,6 @@ export interface MountPoint {
   mode?: string;
   rw?: boolean;
   propagation?: string;
-  tmpfs_options?: MountTmpfsOptions;
-  volume_options?: MountVolumeOptions;
 }
 
 export interface ContainerHostConfig {
