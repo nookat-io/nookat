@@ -49,6 +49,16 @@ describe('normalizeImageReference', () => {
     );
   });
 
+  it('treats index.docker.io as Docker Hub', () => {
+    expect(normalizeImageReference('index.docker.io/library/redis:7')).toBe(
+      'redis:7'
+    );
+  });
+
+  it('keeps a reference Docker would reject as it was typed', () => {
+    expect(normalizeImageReference('My App ')).toBe('My App');
+  });
+
   it('leaves an empty reference empty', () => {
     expect(normalizeImageReference('  ')).toBe('');
   });
@@ -84,6 +94,11 @@ describe('pullTarget', () => {
   it('cannot pull by digest or from an empty reference', () => {
     expect(pullTarget('nginx@sha256:0123')).toBeNull();
     expect(pullTarget('')).toBeNull();
+  });
+
+  it('cannot pull a reference Docker would reject', () => {
+    expect(pullTarget('My App')).toBeNull();
+    expect(pullTarget('nginx:bad/tag')).toBeNull();
   });
 });
 

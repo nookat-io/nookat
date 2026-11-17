@@ -1,4 +1,13 @@
 import { useState } from 'react';
+import {
+  ImageSourceConfirmDialog,
+  ImageSourceNote,
+} from '../../../common/image-source-warnings';
+import {
+  LookalikeCheck,
+  checkImageReference,
+  needsConfirmation,
+} from '../../../../lib/image-source';
 import { Check, Download, Loader2, Search } from 'lucide-react';
 import { Button } from '../../../ui/button';
 import { Input } from '../../../ui/input';
@@ -43,6 +52,19 @@ export function ImageStep({
     !/\s/.test(trimmedQuery) &&
     pullTarget(normalized) !== null;
   const imageError = form.image ? issues.errors.image : undefined;
+  const source = canPull ? checkImageReference(normalized) : null;
+  const [lookalikeToConfirm, setLookalikeToConfirm] = useState<{
+    reference: string;
+    check: LookalikeCheck;
+  } | null>(null);
+
+  const pull = () => {
+    if (source && needsConfirmation(source)) {
+      setLookalikeToConfirm({ reference: normalized, check: source });
+      return;
+    }
+    onPull(normalized);
+  };
 
   return (
     <div className="space-y-4">
@@ -66,25 +88,35 @@ export function ImageStep({
         </div>
       </div>
 
-      {canPull && (
-        <div className="flex items-center justify-between gap-4 rounded-md border border-dashed p-3">
-          <p className="text-sm text-muted-foreground">
-            <span className="font-mono text-foreground">{normalized}</span> is
-            not on this machine yet.
-          </p>
-          <Button
-            size="sm"
-            onClick={() => onPull(normalized)}
-            disabled={pulling !== null}
-          >
-            {pulling === normalized ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <Download className="mr-2 h-4 w-4" />
-            )}
-            {pulling === normalized ? 'Pulling...' : `Pull ${normalized}`}
-          </Button>
+      {canPull && source && (
+        <div className="space-y-3 rounded-md border border-dashed p-3">
+          <div className="flex items-center justify-between gap-4">
+            <p className="text-sm text-muted-foreground">
+              <span className="font-mono text-foreground">{normalized}</span> is
+              not on this machine yet.
+            </p>
+            <Button size="sm" onClick={pull} disabled={pulling !== null}>
+              {pulling === normalized ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Download className="mr-2 h-4 w-4" />
+              )}
+              {pulling === normalized ? 'Pulling...' : `Pull ${normalized}`}
+            </Button>
+          </div>
+          <ImageSourceNote check={source} />
         </div>
+      )}
+
+      {lookalikeToConfirm && (
+        <ImageSourceConfirmDialog
+          check={lookalikeToConfirm.check}
+          onCancel={() => setLookalikeToConfirm(null)}
+          onConfirm={() => {
+            setLookalikeToConfirm(null);
+            onPull(lookalikeToConfirm.reference);
+          }}
+        />
       )}
 
       <div className="flex items-baseline justify-between gap-4 text-sm">
