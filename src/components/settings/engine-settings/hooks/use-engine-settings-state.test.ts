@@ -1,9 +1,26 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { emit } from '@tauri-apps/api/event';
 import { mockIPC } from '@tauri-apps/api/mocks';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { EngineStatus } from '../../../../types/engine-status';
 import { ColimaEngineStopProgressType } from '../types';
 import { useEngineSettingsState } from './use-engine-settings-state';
+
+const RUNNING: EngineStatus = { Running: 'Docker' };
+
+const engine = vi.hoisted(() => ({ status: 'Unknown' as EngineStatus }));
+
+vi.mock('../../../../hooks/use-engine-status', () => ({
+  useEngineStatus: () => ({
+    status: engine.status,
+    refetch: async () => {},
+    isChecking: false,
+  }),
+}));
+
+beforeEach(() => {
+  engine.status = RUNNING;
+});
 
 interface Backend {
   colimaSupported?: () => Promise<boolean>;
@@ -11,6 +28,7 @@ interface Backend {
   colimaAvailable?: boolean;
   installColima?: () => Promise<null>;
   startEngine?: () => Promise<null>;
+  dockerInfo?: () => Promise<unknown>;
 }
 
 function mockBackend({
@@ -19,6 +37,7 @@ function mockBackend({
   colimaAvailable = true,
   installColima = async () => null,
   startEngine = async () => null,
+  dockerInfo = async () => ({ server_version: '28.0.0' }),
 }: Backend = {}) {
   const calls: string[] = [];
   mockIPC(
@@ -32,7 +51,7 @@ function mockBackend({
         case 'check_colima_availability':
           return colimaAvailable;
         case 'get_docker_info':
-          return { server_version: '28.0.0' };
+          return dockerInfo();
         case 'install_colima_command':
           return installColima();
         case 'start_colima_vm_command':
@@ -49,10 +68,11 @@ function mockBackend({
 }
 
 function renderEngineSettings() {
-  const { result } = renderHook(() => useEngineSettingsState());
+  const { result, rerender } = renderHook(() => useEngineSettingsState());
   return {
     state: () => result.current[0],
     actions: () => result.current[1],
+    rerender,
   };
 }
 
@@ -131,6 +151,66 @@ describe('useEngineSettingsState', () => {
     );
     expect(state().colimaAvailable).toBe(false);
     expect(state().method).toBe('binary');
+  });
+
+  it('reloads the engine info when the engine stops answering and again when it is back', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    let engineAnswers = true;
+    mockBackend({
+      dockerInfo: async () => {
+        if (!engineAnswers) throw new Error('Docker is not running');
+        return { operating_system: 'Ubuntu 24.04.4 LTS' };
+      },
+    });
+    const { state, rerender } = renderEngineSettings();
+    await waitFor(() => expect(state().dockerInfo).not.toBeNull());
+
+    engineAnswers = false;
+    engine.status = 'Unknown';
+    rerender();
+    await waitFor(() => expect(state().dockerInfo).toBeNull());
+
+    engineAnswers = true;
+    engine.status = { Running: 'Docker' };
+    rerender();
+    await waitFor(() =>
+      expect(state().dockerInfo).toEqual({
+        operating_system: 'Ubuntu 24.04.4 LTS',
+      })
+    );
+  });
+
+  it('reloads the engine info when Nookat connects to another engine that is already running', async () => {
+    let operatingSystem = 'Ubuntu 24.04.4 LTS';
+    mockBackend({
+      dockerInfo: async () => ({ operating_system: operatingSystem }),
+    });
+    const { state } = renderEngineSettings();
+    await waitFor(() =>
+      expect(state().dockerInfo).toEqual({
+        operating_system: 'Ubuntu 24.04.4 LTS',
+      })
+    );
+
+    operatingSystem = 'OrbStack';
+    await act(() => emit('engine-connected'));
+
+    await waitFor(() =>
+      expect(state().dockerInfo).toEqual({ operating_system: 'OrbStack' })
+    );
+  });
+
+  it('does not reload the engine info on every status poll while the engine keeps running', async () => {
+    const backend = mockBackend();
+    const { state, rerender } = renderEngineSettings();
+    await waitFor(() => expect(state().dockerInfo).not.toBeNull());
+    const loadsAfterMount = backend.count('get_docker_info');
+
+    engine.status = { Running: 'Docker' };
+    rerender();
+    await flushPromises();
+
+    expect(backend.count('get_docker_info')).toBe(loadsAfterMount);
   });
 
   it('keeps the stop message the backend reports instead of claiming a stop it did not do', async () => {
