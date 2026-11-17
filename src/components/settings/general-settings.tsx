@@ -26,6 +26,7 @@ import { useUpdater } from '../../hooks/use-updater';
 import { Language } from '../../types/config';
 import { Download, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
+import { errorMessage } from '../../utils/error-message';
 
 export function GeneralSettings() {
   const {
@@ -82,11 +83,7 @@ export function GeneralSettings() {
       }
     } catch (error) {
       console.error('Failed to update telemetry settings:', error);
-      const errorMessage =
-        error instanceof Error
-          ? error.message
-          : 'Failed to update telemetry settings';
-      toast.error(errorMessage);
+      toast.error(errorMessage(error, 'Failed to update telemetry settings'));
     } finally {
       setSaving(false);
     }
@@ -115,11 +112,7 @@ export function GeneralSettings() {
       toast.success(`${settingName} ${action}`);
     } catch (error) {
       console.error('Failed to update startup settings:', error);
-      const errorMessage =
-        error instanceof Error
-          ? error.message
-          : 'Failed to update startup settings';
-      toast.error(errorMessage);
+      toast.error(errorMessage(error, 'Failed to update startup settings'));
     } finally {
       setSaving(false);
     }
@@ -137,9 +130,7 @@ export function GeneralSettings() {
       );
     } catch (error) {
       console.error('Failed to update language:', error);
-      const errorMessage =
-        error instanceof Error ? error.message : 'Failed to update language';
-      toast.error(errorMessage);
+      toast.error(errorMessage(error, 'Failed to update language'));
     } finally {
       setSaving(false);
     }

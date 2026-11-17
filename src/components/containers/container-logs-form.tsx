@@ -12,6 +12,7 @@ import { Input } from '../ui/input';
 import { Download, RefreshCw, Copy, Search, FileText } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
 import { toast } from 'sonner';
+import { errorMessage } from '../../utils/error-message';
 
 interface ContainerLogsFormProps {
   containerId: string;
@@ -97,7 +98,7 @@ export function ContainerLogsForm({
         );
       } catch (error) {
         console.error('Failed to fetch logs:', error);
-        toast.error('Failed to fetch logs');
+        toast.error(`Failed to fetch logs: ${errorMessage(error)}`);
         startLoadingLogs(() => setLogs([]));
       }
     });

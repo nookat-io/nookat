@@ -79,16 +79,16 @@ describe('ContainerLogsForm', () => {
     expect(reads).toEqual(['c0ffee', 'c0ffee']);
   });
 
-  it('shows no logs and a toast when the logs cannot be read', async () => {
+  it('shows no logs and a toast with the reason the backend gives when the logs cannot be read', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => {});
-    mockLogReads(async () => {
-      throw new Error('container is gone');
-    });
+    mockLogReads(() => Promise.reject('No such container: c0ffee'));
 
     renderLogs();
 
     expect(await screen.findByText('No logs found')).toBeInTheDocument();
-    expect(toast.error).toHaveBeenCalledWith('Failed to fetch logs');
+    expect(toast.error).toHaveBeenCalledWith(
+      'Failed to fetch logs: No such container: c0ffee'
+    );
     expect(screen.getByRole('button', { name: 'Refresh' })).toBeEnabled();
   });
 });

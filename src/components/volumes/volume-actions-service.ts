@@ -2,14 +2,12 @@ import { invoke } from '@tauri-apps/api/core';
 import { toast } from 'sonner';
 import { VolumePruneResult } from './volume-types';
 import { formatBytes } from '../../utils/format';
+import { errorMessage } from '../../utils/error-message';
 
 const volumeNoun = (count: number) => (count === 1 ? 'volume' : 'volumes');
 
 const describeVolumes = (count: number) =>
   count === 1 ? 'volume' : `${count} volumes`;
-
-const errorMessage = (error: unknown) =>
-  error instanceof Error ? error.message : String(error);
 
 async function deleteVolumes(
   command: string,

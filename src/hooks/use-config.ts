@@ -7,6 +7,7 @@ import {
   Theme,
   Language,
 } from '../types/config';
+import { errorMessage } from '../utils/error-message';
 
 export function useConfig() {
   const configService = ConfigService.getInstance();
@@ -25,9 +26,7 @@ export function useConfig() {
 
     if (!config) {
       configService.loadConfig().catch(err => {
-        setError(
-          err instanceof Error ? err.message : 'Failed to load configuration'
-        );
+        setError(errorMessage(err, 'Failed to load configuration'));
         setLoading(false);
       });
     }
@@ -41,7 +40,7 @@ export function useConfig() {
         setError(null);
         await configService.updateTheme(theme);
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to update theme');
+        setError(errorMessage(err, 'Failed to update theme'));
         throw err;
       }
     },
@@ -54,9 +53,7 @@ export function useConfig() {
         setError(null);
         await configService.updateLanguage(language);
       } catch (err) {
-        setError(
-          err instanceof Error ? err.message : 'Failed to update language'
-        );
+        setError(errorMessage(err, 'Failed to update language'));
         throw err;
       }
     },
@@ -69,11 +66,7 @@ export function useConfig() {
         setError(null);
         await configService.updateTelemetrySettings(settings);
       } catch (err) {
-        setError(
-          err instanceof Error
-            ? err.message
-            : 'Failed to update telemetry settings'
-        );
+        setError(errorMessage(err, 'Failed to update telemetry settings'));
         throw err;
       }
     },
@@ -86,11 +79,7 @@ export function useConfig() {
         setError(null);
         await configService.updateStartupSettings(settings);
       } catch (err) {
-        setError(
-          err instanceof Error
-            ? err.message
-            : 'Failed to update startup settings'
-        );
+        setError(errorMessage(err, 'Failed to update startup settings'));
         throw err;
       }
     },
@@ -103,11 +92,7 @@ export function useConfig() {
         setError(null);
         await configService.updateSidebarCollapsed(sidebar_collapsed);
       } catch (err) {
-        setError(
-          err instanceof Error
-            ? err.message
-            : 'Failed to update sidebar collapsed state'
-        );
+        setError(errorMessage(err, 'Failed to update sidebar collapsed state'));
         throw err;
       }
     },
@@ -119,11 +104,7 @@ export function useConfig() {
       setError(null);
       await configService.updateLastUpdateCheck();
     } catch (err) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : 'Failed to update last update check'
-      );
+      setError(errorMessage(err, 'Failed to update last update check'));
       throw err;
     }
   }, [configService]);
@@ -134,9 +115,7 @@ export function useConfig() {
       setError(null);
       await configService.refreshConfig();
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : 'Failed to reload configuration'
-      );
+      setError(errorMessage(err, 'Failed to reload configuration'));
     } finally {
       setLoading(false);
     }

@@ -23,7 +23,7 @@ import {
   useSelectionFeedback,
   useTagSuggestions,
 } from '../common/hooks';
-import { extractErrorMessage } from '../common/utils';
+import { errorMessage } from '../../../utils/error-message';
 
 const SUCCESS_MESSAGE_VISIBLE_MS = 2000;
 
@@ -156,7 +156,7 @@ export function PullImage() {
       setSuccess('Image pulled successfully!');
     } catch (error) {
       console.error('Pull image error:', error);
-      setError(extractErrorMessage(error));
+      setError(errorMessage(error));
     }
   };
 

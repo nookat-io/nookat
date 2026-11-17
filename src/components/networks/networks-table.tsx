@@ -27,6 +27,7 @@ import { LoadingSpinner } from '../ui/loading-spinner';
 import { ErrorDisplay } from '../ui/error-display';
 import { SortableTableHeader } from '../ui/sortable-table-header';
 import { useTableSort } from '../../hooks/use-table-sort';
+import { errorMessage } from '../../utils/error-message';
 
 interface NetworksTableProps {
   selectedNetworks: string[];
@@ -83,9 +84,7 @@ export function NetworksTable({
       toast.success(`Successfully deleted network "${networkName}"`);
     } catch (error) {
       console.error('Failed to delete network:', error);
-      const errorMessage =
-        error instanceof Error ? error.message : 'Failed to delete network';
-      toast.error(errorMessage);
+      toast.error(errorMessage(error, 'Failed to delete network'));
     } finally {
       setDeletingNetworks(prev => {
         const newSet = new Set(prev);
