@@ -58,6 +58,7 @@ interface Backend {
   homebrewAvailable?: boolean;
   colimaInstalled?: boolean;
   dockerContext?: typeof ORBSTACK_CONTEXT | null;
+  operatingSystem?: { beforeSwitch: string; afterSwitch: string };
 }
 
 function mockBackend({
@@ -66,6 +67,7 @@ function mockBackend({
   homebrewAvailable = true,
   colimaInstalled = true,
   dockerContext = null,
+  operatingSystem,
 }: Backend = {}) {
   const startRequests: unknown[] = [];
   const installRequests: unknown[] = [];
@@ -88,6 +90,14 @@ function mockBackend({
           contextSwitches.push(args);
           return null;
         case 'get_docker_info':
+          if (operatingSystem) {
+            return {
+              operating_system:
+                contextSwitches.length === 0
+                  ? operatingSystem.beforeSwitch
+                  : operatingSystem.afterSwitch,
+            };
+          }
           if (otherEngineAnswers) {
             return { server_version: '28.0.0', ncpu: 12 };
           }
@@ -212,6 +222,29 @@ describe('EngineSettings', () => {
     );
 
     expect(contextSwitches).toHaveLength(1);
+  });
+
+  it('shows the Colima engine in Engine Status once docker commands switch to it', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    const user = userEvent.setup();
+    mockBackend({
+      profileStatus: 'Running',
+      dockerContext: ORBSTACK_CONTEXT,
+      operatingSystem: {
+        beforeSwitch: 'OrbStack',
+        afterSwitch: 'Ubuntu 24.04.3 LTS',
+      },
+    });
+    render(<EngineSettings />);
+
+    expect(await screen.findByText('OrbStack')).toBeInTheDocument();
+    await user.click(
+      await screen.findByRole('button', {
+        name: 'Use Colima for docker commands',
+      })
+    );
+
+    expect(await screen.findByText('Ubuntu 24.04.3 LTS')).toBeInTheDocument();
   });
 
   it('confirms when terminal docker commands already reach Colima', async () => {

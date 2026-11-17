@@ -31,6 +31,8 @@ pub use unmanaged_colima::*;
 
 pub const COLIMA_MANAGED: bool = cfg!(target_os = "macos");
 
+const DOCKER_HOST_ENV_VAR: &str = "DOCKER_HOST";
+
 #[cfg(any(not(target_os = "macos"), test))]
 pub fn colima_unmanaged<T>() -> Result<T, String> {
     Err(format!(
@@ -62,17 +64,29 @@ async fn connect_to_docker_with_local_defaults() -> Result<Docker, String> {
 
 #[instrument(skip_all, err)]
 async fn connect_to_docker(app: &AppHandle) -> Result<Docker, String> {
-    if let Ok(docker) = connect_to_docker_with_local_defaults().await {
-        return Ok(docker);
+    let docker_host_is_set = std::env::var_os(DOCKER_HOST_ENV_VAR).is_some();
+    if docker_host_is_set {
+        if let Ok(docker) = connect_to_docker_with_local_defaults().await {
+            return Ok(docker);
+        }
+        debug!("DOCKER_HOST is not reachable, trying Docker contexts");
     }
-    debug!("local defaults connection failed, trying Docker contexts");
 
     if let Ok(docker) = self::connect_to_docker_using_different_contexts(app).await {
         return Ok(docker);
     }
-    debug!("context connection failed");
+    debug!("No Docker context is reachable");
 
-    Err("Failed to connect to Docker after local defaults and context-based attempts".to_string())
+    if !docker_host_is_set {
+        if let Ok(docker) = connect_to_docker_with_local_defaults().await {
+            return Ok(docker);
+        }
+    }
+
+    Err(
+        "Failed to connect to Docker through DOCKER_HOST, the Docker contexts or the default socket"
+            .to_string(),
+    )
 }
 
 #[instrument(skip_all, err)]
