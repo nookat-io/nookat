@@ -8,6 +8,7 @@ export {
 } from './check-image-source';
 export {
   DOCKER_HUB,
+  OFFICIAL_NAMESPACE,
   parseImageReference,
   parseRegistryHost,
   type ImageReference,

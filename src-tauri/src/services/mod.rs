@@ -1,4 +1,5 @@
 mod config;
+mod container_creation;
 mod containers;
 pub(crate) mod engine;
 pub mod engine_state_monitor;
@@ -9,6 +10,7 @@ mod updater;
 mod volumes;
 
 pub use config::*;
+pub use container_creation::ContainerCreationService;
 pub use containers::*;
 pub use images::*;
 pub use networks::*;
