@@ -1,5 +1,3 @@
-'use client';
-
 import { Dialog, DialogTrigger } from '../../ui/dialog';
 import { Trash2, AlertTriangle } from 'lucide-react';
 import { Button } from '../../ui/button';
