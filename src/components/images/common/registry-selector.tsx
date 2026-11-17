@@ -42,7 +42,8 @@ export function RegistrySelector({
       {registryState.showCustomRegistry && (
         <Input
           id="pull-custom-registry"
-          placeholder="Enter custom registry (e.g., gcr.io, ecr.aws.com)"
+          aria-label="Registry address"
+          placeholder="e.g. ghcr.io, public.ecr.aws or localhost:5000"
           value={registryState.customRegistry}
           onChange={e => onCustomRegistryChange(e.target.value)}
           disabled={disabled}
