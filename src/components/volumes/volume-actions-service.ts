@@ -3,103 +3,37 @@ import { toast } from 'sonner';
 import { VolumePruneResult } from './volume-types';
 import { formatBytes } from '../../utils/format';
 
-export interface VolumeActionOptions {
-  onActionComplete?: () => void;
-  onSelectionChange?: (selected: string[]) => void;
+const volumeNoun = (count: number) => (count === 1 ? 'volume' : 'volumes');
+
+const describeVolumes = (count: number) =>
+  count === 1 ? 'volume' : `${count} volumes`;
+
+const errorMessage = (error: unknown) =>
+  error instanceof Error ? error.message : String(error);
+
+async function deleteVolumes(
+  command: string,
+  target: { name: string } | { names: string[] }
+): Promise<boolean> {
+  const volumes = describeVolumes('names' in target ? target.names.length : 1);
+  try {
+    await invoke(command, target);
+    toast.success(`Deleted ${volumes}`);
+    return true;
+  } catch (error) {
+    console.error(`Failed to delete ${volumes}:`, error);
+    toast.error(`Failed to delete ${volumes}: ${errorMessage(error)}`);
+    return false;
+  }
 }
 
 export class VolumeActionService {
-  private static getActionDisplayName(action: string): string {
-    const actionMap: Record<string, string> = {
-      remove_volume: 'Deleted',
-      bulk_remove_volumes: 'Deleted',
-      inspect_volume: 'Inspected',
-      prune_volumes: 'Pruned',
-    };
-
-    return actionMap[action] || 'processed';
+  static removeVolume(name: string) {
+    return deleteVolumes('remove_volume', { name });
   }
 
-  private static getActionVerb(action: string): string {
-    const verbMap: Record<string, string> = {
-      remove_volume: 'delete',
-      bulk_remove_volumes: 'delete',
-      inspect_volume: 'inspect',
-      prune_volumes: 'prune',
-    };
-
-    return verbMap[action] || 'process';
-  }
-
-  private static getVolumeText(count: number): string {
-    return count === 1 ? 'volume' : 'volumes';
-  }
-
-  private static getCountText(count: number): string {
-    return count === 1 ? '' : `${count} `;
-  }
-
-  private static async executeAction(
-    action: string,
-    params: { name?: string; names?: string[] },
-    options: VolumeActionOptions = {}
-  ) {
-    try {
-      await invoke(action, params);
-
-      const count = Array.isArray(params.names) ? params.names.length : 1;
-      const actionDisplayName = this.getActionDisplayName(action);
-      const countText = this.getCountText(count);
-      const volumeText = this.getVolumeText(count);
-
-      const successMessage = `${actionDisplayName} ${countText}${volumeText}`;
-      toast.success(successMessage);
-
-      // Clear selections for destructive actions
-      if (action.includes('remove') || action.includes('delete')) {
-        options.onSelectionChange?.([]);
-      }
-
-      // Add a small delay to ensure the backend operation completes before refreshing
-      setTimeout(() => {
-        options.onActionComplete?.();
-      }, 500);
-    } catch (error) {
-      console.error(`Error executing ${action}:`, error);
-
-      const count = Array.isArray(params.names) ? params.names.length : 1;
-      const actionVerb = this.getActionVerb(action);
-      const countText = this.getCountText(count);
-      const volumeText = this.getVolumeText(count);
-
-      const errorMessage =
-        error instanceof Error ? error.message : String(error);
-      const failureMessage = `Failed to ${actionVerb} ${countText}${volumeText}: ${errorMessage}`;
-      toast.error(failureMessage);
-
-      // Refresh even on error to ensure UI is in sync
-      setTimeout(() => {
-        options.onActionComplete?.();
-      }, 500);
-    }
-  }
-
-  static async removeVolume(
-    volumeName: string,
-    options: VolumeActionOptions = {}
-  ) {
-    await this.executeAction('remove_volume', { name: volumeName }, options);
-  }
-
-  static async bulkRemoveVolumes(
-    volumeNames: string[],
-    options: VolumeActionOptions = {}
-  ) {
-    await this.executeAction(
-      'bulk_remove_volumes',
-      { names: volumeNames },
-      options
-    );
+  static bulkRemoveVolumes(names: string[]) {
+    return deleteVolumes('bulk_remove_volumes', { names });
   }
 
   static async inspectVolume(volumeName: string) {
@@ -109,43 +43,29 @@ export class VolumeActionService {
       return result;
     } catch (error) {
       console.error('Error inspecting volume:', error);
-      const errorMessage =
-        error instanceof Error ? error.message : String(error);
-      toast.error(`Failed to inspect volume: ${errorMessage}`);
+      toast.error(`Failed to inspect volume: ${errorMessage(error)}`);
       throw error;
     }
   }
 
-  static async pruneVolumes(options: VolumeActionOptions = {}) {
+  static async pruneVolumes() {
     try {
-      const result = await invoke<VolumePruneResult>('prune_volumes');
-      const count = result.volumes_deleted.length;
+      const { volumes_deleted, space_reclaimed } =
+        await invoke<VolumePruneResult>('prune_volumes');
+      const count = volumes_deleted.length;
 
-      // Report exactly what the daemon said it removed. Anything derived on this
-      // side (a before/after volume count, for instance) races with the rest of
-      // the system and can credit the prune with volumes it never touched.
       if (count === 0) {
         toast.success('No unused anonymous volumes to remove');
       } else {
         toast.success(
-          `Removed ${count} ${this.getVolumeText(count)}, reclaimed ${formatBytes(
-            result.space_reclaimed
+          `Removed ${count} ${volumeNoun(count)}, reclaimed ${formatBytes(
+            space_reclaimed
           )}`
         );
       }
-
-      setTimeout(() => {
-        options.onActionComplete?.();
-      }, 500);
     } catch (error) {
       console.error('Error pruning volumes:', error);
-      const errorMessage =
-        error instanceof Error ? error.message : String(error);
-      toast.error(`Failed to prune volumes: ${errorMessage}`);
-
-      setTimeout(() => {
-        options.onActionComplete?.();
-      }, 500);
+      toast.error(`Failed to prune volumes: ${errorMessage(error)}`);
     }
   }
 }
