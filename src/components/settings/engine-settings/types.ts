@@ -8,6 +8,10 @@ export type InstallationStep =
   | 'complete'
   | 'error';
 
+export type InstallationOperation = 'install' | 'start';
+
+export type EngineOperation = InstallationOperation | 'stop';
+
 export type StopStep =
   | 'idle'
   | 'stopping-vm'

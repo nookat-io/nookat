@@ -4,13 +4,21 @@ import { Progress } from '../../../ui/progress';
 import { Badge } from '../../../ui/badge';
 import { AlertCircle, CheckCircle, Loader2, RefreshCw } from 'lucide-react';
 import {
+  EngineOperation,
   InstallationProgress as ProgressType,
   InstallationStep,
   StopStep,
   ColimaEngineStopProgressType,
 } from '../types';
 
+const FAILURE_TITLES: Record<EngineOperation, string> = {
+  install: 'Installation failed',
+  start: 'Engine start failed',
+  stop: 'Engine stop failed',
+};
+
 interface InstallationProgressProps {
+  operation: EngineOperation;
   step: InstallationStep | StopStep;
   progress: ProgressType | ColimaEngineStopProgressType;
   error: string | null;
@@ -19,6 +27,7 @@ interface InstallationProgressProps {
 }
 
 export function InstallationProgress({
+  operation,
   step,
   progress,
   error,
@@ -32,7 +41,7 @@ export function InstallationProgress({
     step === 'stopping-vm' ||
     step === 'stopping';
   const isComplete = step === 'complete';
-  const hasError = step === 'error' || error;
+  const hasError = step === 'error';
 
   if (!isActive && !isComplete && !hasError) {
     return null;
@@ -79,9 +88,7 @@ export function InstallationProgress({
           <div className="space-y-3">
             <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-md">
               <p className="text-sm text-destructive font-medium">
-                {step === 'stopping-vm' || step === 'stopping'
-                  ? 'Stop operation failed'
-                  : 'Installation failed'}
+                {FAILURE_TITLES[operation]}
               </p>
               <p className="text-sm text-muted-foreground mt-1">
                 {error || 'An unexpected error occurred'}

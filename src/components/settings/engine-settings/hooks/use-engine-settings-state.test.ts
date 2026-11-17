@@ -9,12 +9,16 @@ interface Backend {
   colimaSupported?: () => Promise<boolean>;
   homebrewAvailable?: boolean;
   colimaAvailable?: boolean;
+  installColima?: () => Promise<null>;
+  startEngine?: () => Promise<null>;
 }
 
 function mockBackend({
   colimaSupported = async () => true,
   homebrewAvailable = true,
   colimaAvailable = true,
+  installColima = async () => null,
+  startEngine = async () => null,
 }: Backend = {}) {
   const calls: string[] = [];
   mockIPC(
@@ -29,6 +33,10 @@ function mockBackend({
           return colimaAvailable;
         case 'get_docker_info':
           return { server_version: '28.0.0' };
+        case 'install_colima_command':
+          return installColima();
+        case 'start_colima_vm_command':
+          return startEngine();
         case 'stop_colima_vm_command':
           return null;
         default:
@@ -142,5 +150,36 @@ describe('useEngineSettingsState', () => {
 
     expect(state().stopStep).toBe('complete');
     expect(state().stopProgress).toEqual(alreadyStopped);
+  });
+
+  it('remembers that the engine start failed, not the installation, so the failure is titled after the start', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    mockBackend({
+      startEngine: () => Promise.reject('colima start: exit status 1'),
+    });
+    const { state, actions } = renderEngineSettings();
+    await waitFor(() => expect(state().dockerInfo).not.toBeNull());
+
+    await act(() => actions().handleStartEngine());
+
+    expect(state().installationOperation).toBe('start');
+    expect(state().installationStep).toBe('error');
+    expect(state().error).toBe('colima start: exit status 1');
+  });
+
+  it('remembers that the installation failed when the install command rejects', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    mockBackend({
+      colimaAvailable: false,
+      installColima: () => Promise.reject('brew install colima: exit status 1'),
+    });
+    const { state, actions } = renderEngineSettings();
+    await waitFor(() => expect(state().dockerInfo).not.toBeNull());
+
+    await act(() => actions().handleInstall());
+
+    expect(state().installationOperation).toBe('install');
+    expect(state().installationStep).toBe('error');
+    expect(state().error).toBe('brew install colima: exit status 1');
   });
 });

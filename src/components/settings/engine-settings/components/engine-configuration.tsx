@@ -2,6 +2,7 @@ import { Button } from '../../../ui/button';
 import { Info, AlertTriangle, RefreshCw } from 'lucide-react';
 import {
   ColimaConfig,
+  InstallationOperation,
   InstallationStep,
   InstallationMethod,
   InstallationProgress as InstallationProgressType,
@@ -26,6 +27,7 @@ interface EngineConfigurationProps {
   onStartEngine: () => void;
   isInstalling: boolean;
   isEngineRunning: boolean;
+  installationOperation: InstallationOperation;
   installationStep: InstallationStep;
   stopStep: StopStep;
   installationProgress: InstallationProgressType;
@@ -50,6 +52,7 @@ export function EngineConfiguration({
   onStartEngine,
   isInstalling,
   isEngineRunning,
+  installationOperation,
   installationStep,
   stopStep,
   installationProgress,
@@ -103,6 +106,7 @@ export function EngineConfiguration({
         method={method}
         onMethodChange={onMethodChange}
         homebrewAvailable={homebrewAvailable}
+        installationOperation={installationOperation}
         installationStep={installationStep}
         installationProgress={installationProgress}
         isInstalling={isInstalling}
@@ -124,6 +128,7 @@ export function EngineConfiguration({
       <EngineActionsCard
         isEngineRunning={isEngineRunning}
         isInstalling={isInstalling}
+        installationOperation={installationOperation}
         installationStep={installationStep}
         installationProgress={installationProgress}
         stopStep={stopStep}
