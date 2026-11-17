@@ -2,9 +2,12 @@ name: '[CD] Release'
 
 on:
   workflow_dispatch:
+  # A release starts when its version tag is pushed, or created by publishing
+  # a GitHub release for a new tag. The tag must match the version in
+  # tauri.conf.json, see "Check the tag matches the version" below.
   push:
-    branches:
-      - release
+    tags:
+      - 'v*'
 
 concurrency:
   # This prevents concurrency
@@ -36,6 +39,21 @@ jobs:
           echo "version-tag=$VERSION_TAG" >> $GITHUB_OUTPUT
           echo "Version: $VERSION"
           echo "Version Tag: $VERSION_TAG"
+
+      # The builds read the version from tauri.conf.json, not from the tag, and
+      # upload to the release named after that version. A tag on a commit whose
+      # version was not bumped would rebuild the previous version and overwrite
+      # the assets of its already published release.
+      - name: Check the tag matches the version
+        if: github.ref_type == 'tag'
+        env:
+          TAG: ${{ github.ref_name }}
+          VERSION_TAG: ${{ steps.get-version.outputs.version-tag }}
+        run: |
+          if [ "$TAG" != "$VERSION_TAG" ]; then
+            echo "::error::Tag $TAG does not match version $VERSION_TAG in src-tauri/tauri.conf.json. Bump the version with 'just upgrade_version' and tag that commit."
+            exit 1
+          fi
 
       - name: Prepare Release
         run: |
