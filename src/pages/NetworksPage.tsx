@@ -6,7 +6,10 @@ import { useEngineState } from '../hooks/use-engine-state';
 import { useFilter } from '../utils/use-filter';
 import { PageLayout } from '../components/layout/page-layout';
 import { usePageAnalytics } from '../hooks/use-analytics';
-import { Network } from '../components/networks/network-types';
+import {
+  NetworkFilter,
+  networkFilter,
+} from '../components/networks/network-filter';
 
 export default function NetworksPage() {
   usePageAnalytics('networks');
@@ -18,18 +21,19 @@ export default function NetworksPage() {
     setFilter,
     searchTerm,
     setSearchTerm,
-  } = usePageState<'all' | 'system' | 'others'>('all');
+  } = usePageState<NetworkFilter>('all');
 
   const { engineState, isLoading, error } = useEngineState();
 
   // Convert networks from Record to array for compatibility
   const networks = engineState ? Object.values(engineState.networks) : [];
 
-  const filteredNetworks = useFilter<Network>(networks, filter, searchTerm, {
-    searchFields: ['name', 'driver'],
-    filterField: 'name',
-    filterValue: filter === 'system' ? ['bridge', 'host', 'none'] : undefined,
-  });
+  const filteredNetworks = useFilter(
+    networks,
+    filter,
+    searchTerm,
+    networkFilter
+  );
 
   return (
     <PageLayout

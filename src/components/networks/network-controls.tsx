@@ -1,10 +1,11 @@
 import { Button } from '../ui/button';
+import { NetworkFilter } from './network-filter';
 import { Input } from '../ui/input';
 import { Search } from 'lucide-react';
 
 interface NetworkControlsProps {
-  filter: 'all' | 'system' | 'others';
-  onFilterChange: (filter: 'all' | 'system' | 'others') => void;
+  filter: NetworkFilter;
+  onFilterChange: (filter: NetworkFilter) => void;
   searchTerm: string;
   onSearchChange: (term: string) => void;
 }

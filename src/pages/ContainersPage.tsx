@@ -6,7 +6,10 @@ import { useEngineState } from '../hooks/use-engine-state';
 import { useFilter } from '../utils/use-filter';
 import { PageLayout } from '../components/layout/page-layout';
 import { usePageAnalytics } from '../hooks/use-analytics';
-import { Container } from '../components/containers/container-types';
+import {
+  ContainerFilter,
+  containerFilter,
+} from '../components/containers/container-filter';
 
 export default function ContainersPage() {
   usePageAnalytics('containers');
@@ -18,21 +21,18 @@ export default function ContainersPage() {
     setFilter,
     searchTerm,
     setSearchTerm,
-  } = usePageState<'all' | 'running' | 'stopped'>('all');
+  } = usePageState<ContainerFilter>('all');
 
   const { engineState, isLoading, error } = useEngineState();
 
   // Convert containers from Record to array for compatibility
   const containers = engineState ? Object.values(engineState.containers) : [];
 
-  const filteredContainers = useFilter<Container>(
+  const filteredContainers = useFilter(
     containers,
     filter,
     searchTerm,
-    {
-      searchFields: ['names', 'image'],
-      filterField: 'state',
-    }
+    containerFilter
   );
 
   return (
