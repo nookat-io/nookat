@@ -1,5 +1,6 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import tailwindcss from '@tailwindcss/vite';
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
 
@@ -11,7 +12,7 @@ const packageJson = JSON.parse(
 
 // https://vite.dev/config/
 export default defineConfig(async () => ({
-  plugins: [react()],
+  plugins: [react(), tailwindcss()],
   optimizeDeps: {
     exclude: ['lucide-react'],
   },

@@ -1,6 +1,99 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import 'tailwindcss';
+@import 'tw-animate-css';
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+  Tailwind 4.3 switched its default sans stack to `-apple-system, ...`, which
+  prefers Roboto or Helvetica Neue on Linux. Keep the system UI font that the
+  app has always rendered with.
+*/
+@theme {
+  --font-sans:
+    ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
+    'Segoe UI Symbol', 'Noto Color Emoji';
+
+  /*
+    Tailwind v4 writes these as ratios such as calc(1 / 0.75), which come out
+    a hair under a whole pixel. WebKit truncates the line box to 15px instead
+    of 16px, so every line of small text lost a pixel. Keep the exact v3
+    values.
+  */
+  --text-xs--line-height: 1rem;
+  --text-sm--line-height: 1.25rem;
+  --text-base--line-height: 1.5rem;
+  --text-lg--line-height: 1.75rem;
+  --text-xl--line-height: 1.75rem;
+  --text-2xl--line-height: 2rem;
+  --text-3xl--line-height: 2.25rem;
+  --text-4xl--line-height: 2.5rem;
+}
+
+/*
+  Tailwind v4 changed `space-y-*` and `space-x-*` from a leading margin on
+  every following sibling to a trailing margin on every child but the last.
+  A vertical margin on an inline child does nothing, so a <label> followed by
+  an input lost its gap. Keep the v3 rule: every following sibling that is
+  not hidden gets the space as its leading margin and no trailing margin, and
+  the first child's trailing margin from the v4 rule is cancelled.
+*/
+@utility space-y-* {
+  & > :first-child:not(:last-child) {
+    margin-block-end: 0;
+  }
+  & > :not([hidden]) ~ :not([hidden]) {
+    margin-block-start: calc(var(--spacing) * --value(number));
+    margin-block-end: 0;
+  }
+}
+
+@utility space-x-* {
+  & > :first-child:not(:last-child) {
+    margin-inline-end: 0;
+  }
+  & > :not([hidden]) ~ :not([hidden]) {
+    margin-inline-start: calc(var(--spacing) * --value(number));
+    margin-inline-end: 0;
+  }
+}
+
+/*
+  The semantic colors are HSL channel triples that the light and dark themes
+  below redefine. `inline` makes each utility read them on the element it
+  styles, so they follow whichever theme applies there.
+*/
+@theme inline {
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+
+  --color-destructive: hsl(var(--destructive));
+  --color-destructive-foreground: hsl(var(--destructive-foreground));
+
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+
+  --color-popover: hsl(var(--popover));
+  --color-popover-foreground: hsl(var(--popover-foreground));
+
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+
+  --radius-lg: var(--radius);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-sm: calc(var(--radius) - 4px);
+}
 
 @layer base {
   :root {
@@ -60,8 +153,22 @@
 }
 
 @layer base {
-  * {
+  /*
+    Tailwind v4 defaults border colors to currentColor. Keep every border on
+    the theme border color unless a utility sets another one.
+  */
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
     @apply border-border;
+  }
+
+  /* Tailwind v4 gives buttons the default cursor; keep the pointer. */
+  button:not(:disabled),
+  [role='button']:not(:disabled) {
+    cursor: pointer;
   }
 
   body {
