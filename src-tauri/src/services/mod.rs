@@ -1,3 +1,5 @@
+#[cfg(any(target_os = "macos", test))]
+pub(crate) mod colima;
 mod config;
 mod container_creation;
 mod containers;

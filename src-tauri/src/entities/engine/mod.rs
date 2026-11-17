@@ -1,6 +1,8 @@
+mod colima;
 mod docker_info;
 use bollard::Docker;
 
+pub use self::colima::*;
 pub use self::docker_info::*;
 
 use serde::{Deserialize, Serialize};
@@ -64,23 +66,4 @@ pub struct ColimaEngineStopProgress {
     pub message: String,
     pub percentage: u8,
     pub logs: Vec<String>,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct ColimaConfig {
-    pub cpu: u8,
-    pub memory: u16,
-    pub disk: u16,
-    pub architecture: String,
-}
-
-impl Default for ColimaConfig {
-    fn default() -> Self {
-        Self {
-            cpu: 4,
-            memory: 8,
-            disk: 60,
-            architecture: "host".to_string(),
-        }
-    }
 }

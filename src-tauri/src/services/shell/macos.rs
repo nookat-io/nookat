@@ -1,4 +1,8 @@
-use crate::entities::ColimaConfig;
+use crate::entities::{ColimaHost, ColimaProfileStatus};
+use crate::services::colima::{
+    parse_colima_list, parse_host_sysctl, ColimaInstance, HOST_SYSCTL_KEYS,
+};
+use std::ffi::OsStr;
 use tauri::AppHandle;
 use tauri_plugin_shell::process::Output;
 use tauri_plugin_shell::ShellExt;
@@ -17,23 +21,24 @@ const RUN_IN_A_TERMINAL_WINDOW: &str = r#"on run argv
     end tell
 end run"#;
 
-async fn run_in_login_shell(
+const EXEC_PROGRAM_WITH_ARGUMENTS: &str = r#"exec "$0" "$@""#;
+const SYSCTL: &str = "/usr/sbin/sysctl";
+
+async fn run_in_login_shell<I, S>(
     app: &AppHandle,
-    command: &str,
-) -> Result<Output, tauri_plugin_shell::Error> {
+    program: &str,
+    args: I,
+) -> Result<Output, tauri_plugin_shell::Error>
+where
+    I: IntoIterator<Item = S>,
+    S: AsRef<OsStr>,
+{
     app.shell()
         .command("zsh")
-        .args(["-l", "-c", command])
+        .args(["-l", "-c", EXEC_PROGRAM_WITH_ARGUMENTS, program])
+        .args(args)
         .output()
         .await
-}
-
-fn stdout_and_stderr(output: &Output) -> String {
-    format!(
-        "{}{}",
-        String::from_utf8_lossy(&output.stdout),
-        String::from_utf8_lossy(&output.stderr)
-    )
 }
 
 #[instrument(skip_all, err)]
@@ -69,7 +74,7 @@ fn osascript_args_running_in_terminal(shell_command: &str) -> [&str; 3] {
 
 #[instrument(skip_all, err)]
 async fn is_command_available(app: &AppHandle, command: &str) -> Result<bool, String> {
-    let output = run_in_login_shell(app, &format!("which {}", command))
+    let output = run_in_login_shell(app, "which", [command])
         .await
         .map_err(|e| format!("Failed to check {} availability: {}", command, e))?;
 
@@ -78,7 +83,7 @@ async fn is_command_available(app: &AppHandle, command: &str) -> Result<bool, St
 
 #[instrument(skip_all, err)]
 async fn command_version(app: &AppHandle, command: &str) -> Result<Option<String>, String> {
-    let output = run_in_login_shell(app, &format!("{} --version", command))
+    let output = run_in_login_shell(app, command, ["--version"])
         .await
         .map_err(|e| format!("Failed to check {} version: {}", command, e))?;
 
@@ -99,7 +104,7 @@ pub async fn is_docker_command_available(app: &AppHandle) -> Result<bool, String
         output_str.to_lowercase().contains("version")
     }
 
-    let output = run_in_login_shell(app, "docker --version")
+    let output = run_in_login_shell(app, "docker", ["--version"])
         .await
         .map_err(|e| format!("Failed to execute docker command: {}", e))?;
 
@@ -155,7 +160,7 @@ pub async fn install_packages_via_homebrew(
     for package in packages {
         debug!("Installing package: {}", package);
 
-        let output = run_in_login_shell(app, &format!("brew install {}", package))
+        let output = run_in_login_shell(app, "brew", ["install", package])
             .await
             .map_err(|e| format!("Failed to execute brew install {}: {}", package, e))?;
 
@@ -172,10 +177,13 @@ pub async fn install_packages_via_homebrew(
 
 #[instrument(skip_all, err)]
 pub async fn get_docker_context_endpoints(app: &AppHandle) -> Result<Vec<String>, String> {
-    let context_output =
-        run_in_login_shell(app, "docker context ls --format '{{.DockerEndpoint}}'")
-            .await
-            .map_err(|e| format!("Failed to get Docker contexts: {}", e))?;
+    let context_output = run_in_login_shell(
+        app,
+        "docker",
+        ["context", "ls", "--format", "{{.DockerEndpoint}}"],
+    )
+    .await
+    .map_err(|e| format!("Failed to get Docker contexts: {}", e))?;
 
     if !context_output.status.success() {
         return Err("Failed to list Docker contexts".to_string());
@@ -192,25 +200,55 @@ pub async fn get_docker_context_endpoints(app: &AppHandle) -> Result<Vec<String>
 }
 
 #[instrument(skip_all, err)]
-pub async fn check_colima_status(app: &AppHandle) -> Result<bool, String> {
-    let output = run_in_login_shell(app, "colima status")
+pub async fn list_colima_instances(app: &AppHandle) -> Result<Vec<ColimaInstance>, String> {
+    let output = run_in_login_shell(app, "colima", ["list", "--json"])
         .await
-        .map_err(|e| format!("Failed to check Colima status: {}", e))?;
+        .map_err(|e| format!("Failed to list Colima profiles: {}", e))?;
 
     if !output.status.success() {
-        return Ok(false);
+        return Err(format!(
+            "Failed to list Colima profiles: {}",
+            String::from_utf8_lossy(&output.stderr).trim()
+        ));
     }
 
-    let colima_log_output = stdout_and_stderr(&output).to_lowercase();
-    Ok(!colima_log_output.contains("is not running"))
+    parse_colima_list(&String::from_utf8_lossy(&output.stdout))
 }
 
 #[instrument(skip_all, err)]
-pub async fn stop_colima(app: &AppHandle) -> Result<(), String> {
-    debug!("Stopping Colima");
-    debug!("Executing: colima stop");
+pub async fn colima_profile_status(
+    app: &AppHandle,
+    profile: &str,
+) -> Result<ColimaProfileStatus, String> {
+    let instances = list_colima_instances(app).await?;
+    let status = instances
+        .into_iter()
+        .find(|instance| instance.name == profile)
+        .map_or(ColimaProfileStatus::Missing, |instance| {
+            instance.status.unwrap_or(ColimaProfileStatus::Unknown)
+        });
 
-    let output = run_in_login_shell(app, "colima stop")
+    Ok(status)
+}
+
+#[instrument(skip_all, err)]
+pub async fn read_colima_host(app: &AppHandle) -> Result<ColimaHost, String> {
+    let output = app
+        .shell()
+        .command(SYSCTL)
+        .args(HOST_SYSCTL_KEYS)
+        .output()
+        .await
+        .map_err(|e| format!("Failed to read host hardware with sysctl: {}", e))?;
+
+    parse_host_sysctl(&String::from_utf8_lossy(&output.stdout))
+}
+
+#[instrument(skip_all, err)]
+pub async fn stop_colima(app: &AppHandle, profile: &str) -> Result<(), String> {
+    debug!("Stopping Colima profile {}", profile);
+
+    let output = run_in_login_shell(app, "colima", ["stop", &format!("--profile={profile}")])
         .await
         .map_err(|e| format!("Failed to stop Colima: {}", e))?;
 
@@ -224,19 +262,10 @@ pub async fn stop_colima(app: &AppHandle) -> Result<(), String> {
 }
 
 #[instrument(skip_all, err)]
-pub async fn start_colima_with_config(
-    app: &AppHandle,
-    config: &ColimaConfig,
-) -> Result<(), String> {
-    debug!("Starting Colima with config: {:?}", config);
+pub async fn start_colima(app: &AppHandle, args: &[String]) -> Result<(), String> {
+    debug!("Executing: colima {:?}", args);
 
-    let command = format!(
-        "colima start --cpu {} --memory {} --disk {} --arch {}",
-        config.cpu, config.memory, config.disk, config.architecture
-    );
-    debug!("Executing: {}", command);
-
-    let output = run_in_login_shell(app, &command)
+    let output = run_in_login_shell(app, "colima", args)
         .await
         .map_err(|e| format!("Failed to start Colima: {}", e))?;
 
@@ -251,7 +280,7 @@ pub async fn start_colima_with_config(
 
 #[instrument(skip_all, err(level = "debug"))]
 pub async fn check_docker_responds(app: &AppHandle) -> Result<(), String> {
-    let docker_check = run_in_login_shell(app, "docker version")
+    let docker_check = run_in_login_shell(app, "docker", ["version"])
         .await
         .map_err(|e| format!("Docker command failed: {}", e))?;
 
@@ -262,7 +291,7 @@ pub async fn check_docker_responds(app: &AppHandle) -> Result<(), String> {
         ));
     }
 
-    let info_check = run_in_login_shell(app, "docker info")
+    let info_check = run_in_login_shell(app, "docker", ["info"])
         .await
         .map_err(|e| format!("Docker info command failed: {}", e))?;
 

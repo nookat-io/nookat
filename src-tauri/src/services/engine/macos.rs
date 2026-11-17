@@ -1,13 +1,20 @@
 use crate::entities::{
-    ColimaConfig, ColimaEngineStopProgress, InstallationMethod, InstallationProgress,
+    ColimaEngineStopProgress, ColimaProfileStatus, ColimaVm, ColimaVmSettingsChanges,
+    InstallationMethod, InstallationProgress,
+};
+use crate::services::colima::{
+    colima_home, colima_profile, colima_profile_name, colima_start_args, parse_profile_config,
+    performance_warnings, profile_config_path, ColimaProfileConfig, PROFILE_ENV_VAR,
 };
 use crate::services::engine::should_stop_vm;
 use crate::services::shell::{
-    check_colima_status, check_docker_responds, get_docker_context_endpoints,
-    install_packages_via_homebrew, start_colima_with_config, stop_colima,
+    check_docker_responds, colima_profile_status, get_docker_context_endpoints,
+    install_packages_via_homebrew, list_colima_instances, read_colima_host, start_colima,
+    stop_colima,
 };
 use bollard::Docker;
 use serde::Serialize;
+use std::path::Path;
 use std::time::Duration;
 use tauri::{AppHandle, Emitter};
 use tracing::{debug, instrument, warn};
@@ -20,6 +27,52 @@ fn emit(app_handle: &AppHandle, event: &str, payload: impl Serialize + Clone) {
     if let Err(e) = app_handle.emit(event, payload) {
         warn!("Failed to emit {}: {}", event, e);
     }
+}
+
+fn current_colima_profile() -> String {
+    colima_profile_name(std::env::var(PROFILE_ENV_VAR).ok().as_deref())
+}
+
+fn read_profile_config(path: &Path) -> Option<ColimaProfileConfig> {
+    let yaml = std::fs::read_to_string(path)
+        .inspect_err(|e| warn!("Failed to read Colima profile config {:?}: {}", path, e))
+        .ok()?;
+
+    parse_profile_config(&yaml)
+        .inspect_err(|e| warn!("Failed to parse Colima profile config {:?}: {}", path, e))
+        .ok()
+}
+
+#[instrument(skip_all, err)]
+pub async fn read_colima_vm(app_handle: &AppHandle) -> Result<ColimaVm, String> {
+    let profile_name = current_colima_profile();
+    let host = read_colima_host(app_handle).await?;
+    let instances = list_colima_instances(app_handle).await?;
+    let instance = instances
+        .iter()
+        .find(|instance| instance.name == profile_name);
+
+    let home_dir = dirs::home_dir().ok_or("Could not determine home directory")?;
+    let colima_home = colima_home(
+        &home_dir,
+        |name| std::env::var(name).ok(),
+        |dir| dir.exists(),
+    );
+    let config = instance
+        .and_then(|_| read_profile_config(&profile_config_path(&colima_home, &profile_name)));
+
+    let profile = colima_profile(&profile_name, instance, config.as_ref(), &host);
+    let warnings = performance_warnings(&profile, &host);
+
+    Ok(ColimaVm {
+        profile,
+        host,
+        warnings,
+    })
+}
+
+async fn is_colima_running(app_handle: &AppHandle, profile: &str) -> Result<bool, String> {
+    Ok(colima_profile_status(app_handle, profile).await? == ColimaProfileStatus::Running)
 }
 
 #[instrument(skip_all, err)]
@@ -94,8 +147,11 @@ async fn install_colima_via_homebrew(app_handle: &AppHandle) -> Result<(), Strin
 }
 
 #[instrument(skip_all, err)]
-pub async fn start_colima_vm(app_handle: &AppHandle, config: ColimaConfig) -> Result<(), String> {
-    debug!("Starting Colima VM with config: {:?}", config);
+pub async fn start_colima_vm(
+    app_handle: &AppHandle,
+    changes: ColimaVmSettingsChanges,
+) -> Result<(), String> {
+    debug!("Starting Colima VM with changes: {:?}", changes);
 
     let task_app_handle = app_handle.clone();
     let vm_handle = tokio::spawn(async move {
@@ -120,7 +176,19 @@ pub async fn start_colima_vm(app_handle: &AppHandle, config: ColimaConfig) -> Re
             .push("[INFO] Checking Colima status".to_string());
         report(&progress);
 
-        if let Ok(true) = check_colima_status(&app_handle).await {
+        let vm = match read_colima_vm(&app_handle).await {
+            Ok(vm) => vm,
+            Err(e) => {
+                progress.step = "VM startup failed".to_string();
+                progress.message = format!("Failed to read the Colima profile: {}", e);
+                progress.percentage = 100;
+                progress.logs.push(format!("[ERROR] {}", e));
+                report(&progress);
+                return Err(e);
+            }
+        };
+
+        if vm.profile.status == ColimaProfileStatus::Running {
             progress.step = "Colima already running".to_string();
             progress.message = "Colima VM is already running".to_string();
             progress.percentage = 100;
@@ -134,10 +202,15 @@ pub async fn start_colima_vm(app_handle: &AppHandle, config: ColimaConfig) -> Re
         progress.step = "Starting VM...".to_string();
         progress.message = "Launching Colima virtual machine".to_string();
         progress.percentage = 40;
-        progress.logs.push("[INFO] Starting Colima VM".to_string());
+        let existing_settings =
+            (vm.profile.status != ColimaProfileStatus::Missing).then_some(&vm.profile.settings);
+        let args = colima_start_args(&vm.profile.name, existing_settings, &changes, &vm.host);
+        progress
+            .logs
+            .push(format!("[INFO] Running: colima {}", args.join(" ")));
         report(&progress);
 
-        if let Err(e) = start_colima_with_config(&app_handle, &config).await {
+        if let Err(e) = start_colima(&app_handle, &args).await {
             progress.step = "VM startup failed".to_string();
             progress.message = format!("Failed to start Colima VM: {}", e);
             progress.percentage = 100;
@@ -220,12 +293,12 @@ async fn wait_for_docker_to_respond(app_handle: &AppHandle) -> Result<(), String
 }
 
 #[instrument(skip_all, err)]
-async fn wait_for_colima_stopped(app_handle: &AppHandle) -> Result<(), String> {
+async fn wait_for_colima_stopped(app_handle: &AppHandle, profile: &str) -> Result<(), String> {
     let mut last_status_check_error: Option<String> = None;
 
     let poll = async {
         loop {
-            match check_colima_status(app_handle).await {
+            match is_colima_running(app_handle, profile).await {
                 Ok(false) => return,
                 Ok(true) => last_status_check_error = None,
                 Err(e) => {
@@ -263,6 +336,7 @@ pub async fn stop_colima_vm(app_handle: &AppHandle) -> Result<(), String> {
     let task_app_handle = app_handle.clone();
     let vm_handle = tokio::spawn(async move {
         let app_handle = task_app_handle;
+        let profile = current_colima_profile();
         let report = |progress: &ColimaEngineStopProgress| {
             emit(&app_handle, "vm-stop-progress", progress);
         };
@@ -283,7 +357,7 @@ pub async fn stop_colima_vm(app_handle: &AppHandle) -> Result<(), String> {
             .push("[INFO] Checking Colima status".to_string());
         report(&progress);
 
-        if !should_stop_vm(&check_colima_status(&app_handle).await) {
+        if !should_stop_vm(&is_colima_running(&app_handle, &profile).await) {
             progress.step = "Colima VM is already stopped".to_string();
             progress.message = "Colima VM was not running, nothing to stop".to_string();
             progress.percentage = 100;
@@ -300,7 +374,7 @@ pub async fn stop_colima_vm(app_handle: &AppHandle) -> Result<(), String> {
         progress.logs.push("[INFO] Stopping Colima VM".to_string());
         report(&progress);
 
-        if let Err(e) = stop_colima(&app_handle).await {
+        if let Err(e) = stop_colima(&app_handle, &profile).await {
             progress.step = "VM stop failed".to_string();
             progress.message = format!("Failed to stop Colima VM: {}", e);
             progress.percentage = 100;
@@ -317,7 +391,7 @@ pub async fn stop_colima_vm(app_handle: &AppHandle) -> Result<(), String> {
             .push("[INFO] Waiting for Colima VM to report as stopped".to_string());
         report(&progress);
 
-        if let Err(e) = wait_for_colima_stopped(&app_handle).await {
+        if let Err(e) = wait_for_colima_stopped(&app_handle, &profile).await {
             progress.step = "VM stop failed".to_string();
             progress.message = e.clone();
             progress.percentage = 100;
