@@ -82,7 +82,7 @@ export function VmResourcesCard({
               }
               disabled={isEngineRunning}
             >
-              <SelectTrigger>
+              <SelectTrigger id="architecture">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
