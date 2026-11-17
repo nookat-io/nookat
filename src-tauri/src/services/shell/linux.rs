@@ -2,7 +2,6 @@ use tauri::AppHandle;
 use tauri_plugin_shell::ShellExt;
 use tracing::{debug, info, instrument, warn};
 
-const CONTAINER_SHELLS: [&str; 2] = ["bash", "sh"];
 const TERMINALS_WITH_EXEC_FLAG: [(&str, &str); 5] = [
     ("gnome-terminal", "--"),
     ("konsole", "-e"),
@@ -33,13 +32,15 @@ async fn try_open_terminal(app: &AppHandle, terminal: &str, args: &[&str]) -> bo
 }
 
 #[instrument(skip_all, err)]
-pub async fn open_container_terminal(app: &AppHandle, container_id: &str) -> Result<(), String> {
-    for shell in CONTAINER_SHELLS {
-        for (terminal, exec_flag) in TERMINALS_WITH_EXEC_FLAG {
-            let args = [exec_flag, "docker", "exec", "-it", container_id, shell];
-            if try_open_terminal(app, terminal, &args).await {
-                return Ok(());
-            }
+pub async fn open_container_terminal(
+    app: &AppHandle,
+    container_id: &str,
+    shell: &str,
+) -> Result<(), String> {
+    for (terminal, exec_flag) in TERMINALS_WITH_EXEC_FLAG {
+        let args = [exec_flag, "docker", "exec", "-it", container_id, shell];
+        if try_open_terminal(app, terminal, &args).await {
+            return Ok(());
         }
     }
 

@@ -1,4 +1,5 @@
 use bollard::container::LogOutput;
+use bollard::exec::{CreateExecOptions, StartExecResults};
 use bollard::models::{ContainerStateStatusEnum, ContainerSummary};
 use bollard::query_parameters::{
     ListContainersOptions, LogsOptions, PruneContainersOptions, RemoveContainerOptions,
@@ -6,9 +7,11 @@ use bollard::query_parameters::{
 };
 use bollard::Docker;
 use futures_util::StreamExt;
+use std::future::Future;
 use tracing::instrument;
 
 const NO_LOGS_MESSAGE: &str = "No logs available for this container";
+const INTERACTIVE_SHELLS: [&str; 2] = ["bash", "sh"];
 
 #[derive(Default, Debug)]
 pub struct ContainersService {}
@@ -164,7 +167,7 @@ impl ContainersService {
     }
 
     #[instrument(skip_all, err)]
-    pub async fn is_container_running(docker: &Docker, id: &str) -> Result<bool, String> {
+    pub async fn running_container_id(docker: &Docker, id: &str) -> Result<String, String> {
         let container = docker
             .inspect_container(id, None)
             .await
@@ -174,7 +177,107 @@ impl ContainersService {
             container.state.as_ref().and_then(|s| s.status),
             Some(ContainerStateStatusEnum::RUNNING)
         );
+        if !is_running {
+            return Err(format!("Container {} is not running", id));
+        }
 
-        Ok(is_running)
+        container
+            .id
+            .ok_or_else(|| format!("Docker returned no ID for container {}", id))
+    }
+
+    #[instrument(skip_all, err)]
+    pub async fn interactive_shell(docker: &Docker, id: &str) -> Result<&'static str, String> {
+        first_shell_that_starts(|shell| Self::exits_cleanly(docker, id, [shell, "-c", "exit 0"]))
+            .await?
+            .ok_or_else(|| "The container has no shell, neither bash nor sh".to_string())
+    }
+
+    #[instrument(skip_all, err)]
+    async fn exits_cleanly(docker: &Docker, id: &str, cmd: [&str; 3]) -> Result<bool, String> {
+        let program = cmd[0];
+        let exec = docker
+            .create_exec(
+                id,
+                CreateExecOptions {
+                    cmd: Some(cmd.to_vec()),
+                    attach_stdout: Some(true),
+                    attach_stderr: Some(true),
+                    ..Default::default()
+                },
+            )
+            .await
+            .map_err(|e| format!("Failed to prepare {} in the container: {}", program, e))?;
+
+        let started = docker
+            .start_exec(&exec.id, None)
+            .await
+            .map_err(|e| format!("Failed to run {} in the container: {}", program, e))?;
+        if let StartExecResults::Attached { mut output, .. } = started {
+            while output.next().await.is_some() {}
+        }
+
+        let finished = docker
+            .inspect_exec(&exec.id)
+            .await
+            .map_err(|e| format!("Failed to read how {} exited: {}", program, e))?;
+
+        Ok(finished.exit_code == Some(0))
+    }
+}
+
+async fn first_shell_that_starts<Starts, Started>(
+    mut starts: Starts,
+) -> Result<Option<&'static str>, String>
+where
+    Starts: FnMut(&'static str) -> Started,
+    Started: Future<Output = Result<bool, String>>,
+{
+    for shell in INTERACTIVE_SHELLS {
+        if starts(shell).await? {
+            return Ok(Some(shell));
+        }
+    }
+
+    Ok(None)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn opens_bash_when_the_container_has_it() {
+        let shell = first_shell_that_starts(|_| async { Ok(true) }).await;
+
+        assert_eq!(shell, Ok(Some("bash")));
+    }
+
+    #[tokio::test]
+    async fn falls_back_to_sh_when_bash_does_not_start() {
+        let shell = first_shell_that_starts(|shell| async move { Ok(shell == "sh") }).await;
+
+        assert_eq!(shell, Ok(Some("sh")));
+    }
+
+    #[tokio::test]
+    async fn finds_no_shell_when_neither_bash_nor_sh_starts() {
+        let shell = first_shell_that_starts(|_| async { Ok(false) }).await;
+
+        assert_eq!(shell, Ok(None));
+    }
+
+    #[tokio::test]
+    async fn reports_an_engine_error_instead_of_trying_the_next_shell() {
+        let mut tried = Vec::new();
+
+        let shell = first_shell_that_starts(|shell| {
+            tried.push(shell);
+            async { Err("The engine stopped answering".to_string()) }
+        })
+        .await;
+
+        assert_eq!(shell, Err("The engine stopped answering".to_string()));
+        assert_eq!(tried, ["bash"]);
     }
 }
