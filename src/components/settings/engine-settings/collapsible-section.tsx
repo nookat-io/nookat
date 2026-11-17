@@ -10,15 +10,21 @@ export const CollapsibleSection = ({
 }: CollapsibleSectionProps) => (
   <Card className="mb-4">
     <CardHeader
-      className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-900/50 transition-colors"
+      className="cursor-pointer hover:bg-accent/50 transition-colors"
       onClick={onToggle}
     >
       <div className="flex items-center justify-between">
         <CardTitle className="text-lg">{title}</CardTitle>
         {isOpen ? (
-          <ChevronDown className="h-5 w-5 text-gray-500" aria-hidden="true" />
+          <ChevronDown
+            className="h-5 w-5 text-muted-foreground"
+            aria-hidden="true"
+          />
         ) : (
-          <ChevronRight className="h-5 w-5 text-gray-500" aria-hidden="true" />
+          <ChevronRight
+            className="h-5 w-5 text-muted-foreground"
+            aria-hidden="true"
+          />
         )}
       </div>
     </CardHeader>

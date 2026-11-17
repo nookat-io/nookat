@@ -46,8 +46,8 @@ export function InstallationProgress({
 
   const getStepColor = () => {
     if (hasError) return 'text-destructive';
-    if (isComplete) return 'text-green-600';
-    return 'text-blue-600';
+    if (isComplete) return 'text-green-600 dark:text-green-400';
+    return 'text-blue-600 dark:text-blue-400';
   };
 
   const logs = progress.logs ?? [];

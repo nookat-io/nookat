@@ -18,29 +18,26 @@ export const StatusIndicator = ({
       case 'loading':
         return {
           icon: Loader2,
-          iconClass: 'animate-spin text-gray-500',
-          bgClass: 'bg-gray-50 dark:bg-gray-900/50',
+          iconClass: 'animate-spin text-muted-foreground',
         };
       case 'available':
         return {
           icon: CheckCircle,
           iconClass: 'text-blue-600 dark:text-blue-400',
-          bgClass: 'bg-gray-50 dark:bg-gray-900/50',
         };
       case 'unavailable':
         return {
           icon: AlertTriangle,
           iconClass: 'text-amber-600 dark:text-amber-400',
-          bgClass: 'bg-gray-50 dark:bg-gray-900/50',
         };
     }
   };
 
-  const { icon: Icon, iconClass, bgClass } = getStatusContent();
+  const { icon: Icon, iconClass } = getStatusContent();
 
   return (
     <div
-      className={`flex items-center justify-between p-4 ${bgClass} rounded-lg ${className}`}
+      className={`flex items-center justify-between p-4 bg-muted/50 rounded-lg ${className}`}
     >
       <div className="flex items-center gap-3">
         <Icon className={`h-5 w-5 ${iconClass}`} />
