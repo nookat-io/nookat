@@ -21,7 +21,7 @@ const RUN_IN_A_TERMINAL_WINDOW: &str = r#"on run argv
     end tell
 end run"#;
 
-const EXEC_PROGRAM_WITH_ARGUMENTS: &str = r#"exec "$0" "$@""#;
+const EXEC_WITHOUT_AN_IMPLICIT_COLIMA_PROFILE: &str = r#"unset COLIMA_PROFILE; exec "$0" "$@""#;
 const SYSCTL: &str = "/usr/sbin/sysctl";
 
 async fn run_in_login_shell<I, S>(
@@ -35,7 +35,7 @@ where
 {
     app.shell()
         .command("zsh")
-        .args(["-l", "-c", EXEC_PROGRAM_WITH_ARGUMENTS, program])
+        .args(["-l", "-c", EXEC_WITHOUT_AN_IMPLICIT_COLIMA_PROFILE, program])
         .args(args)
         .output()
         .await
@@ -338,5 +338,46 @@ mod tests {
 
         assert_eq!(args, ["-e", RUN_IN_A_TERMINAL_WINDOW, command]);
         assert!(!RUN_IN_A_TERMINAL_WINDOW.contains("docker"));
+    }
+
+    fn run_like_a_login_shell_exporting(
+        exported: &[(&str, &str)],
+        program: &str,
+        args: &[&str],
+    ) -> String {
+        let output = Command::new("/bin/zsh")
+            .env_clear()
+            .env("PATH", "/usr/bin:/bin")
+            .envs(exported.iter().copied())
+            .args(["-f", "-c", EXEC_WITHOUT_AN_IMPLICIT_COLIMA_PROFILE, program])
+            .args(args)
+            .output()
+            .unwrap();
+        assert!(output.status.success(), "{:?}", output);
+        String::from_utf8(output.stdout).unwrap()
+    }
+
+    #[test]
+    fn passes_arguments_through_as_data() {
+        let tricky = ["--profile=a b", "$(echo injected)", "'quoted'", "*"];
+
+        let output = run_like_a_login_shell_exporting(
+            &[],
+            "printf",
+            &[["%s\n"].as_slice(), tricky.as_slice()].concat(),
+        );
+
+        assert_eq!(output, format!("{}\n", tricky.join("\n")));
+    }
+
+    #[test]
+    fn hides_a_colima_profile_the_shell_selects_so_colima_list_shows_every_profile() {
+        let output = run_like_a_login_shell_exporting(
+            &[("COLIMA_PROFILE", "work")],
+            "sh",
+            &["-c", "echo \"${COLIMA_PROFILE:-every profile}\""],
+        );
+
+        assert_eq!(output, "every profile\n");
     }
 }
