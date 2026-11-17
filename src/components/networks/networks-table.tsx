@@ -158,7 +158,7 @@ export function NetworksTable({
           <TableCell className="text-muted-foreground">
             {network.driver}
           </TableCell>
-          <TableCell className="text-muted-foreground">
+          <TableCell className="text-muted-foreground whitespace-nowrap">
             {createdDate ? `${formatDistanceToNow(createdDate)} ago` : '-'}
           </TableCell>
           <TableCell className="text-muted-foreground text-xs font-mono">
@@ -173,30 +173,27 @@ export function NetworksTable({
             </Badge>
           </TableCell>
           <TableCell>
-            {!isSystem && (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="sm">
-                    <MoreHorizontal className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem
-                    className="text-destructive"
-                    disabled={
-                      network.containers > 0 ||
-                      deletingNetworks.has(network.name)
-                    }
-                    onClick={() => handleDeleteNetwork(network.name)}
-                  >
-                    <Trash2 className="mr-2 h-4 w-4" />
-                    {deletingNetworks.has(network.name)
-                      ? 'Deleting...'
-                      : 'Delete'}
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            )}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild disabled={isSystem}>
+                <Button variant="ghost" size="sm">
+                  <MoreHorizontal className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem
+                  className="text-destructive"
+                  disabled={
+                    network.containers > 0 || deletingNetworks.has(network.name)
+                  }
+                  onClick={() => handleDeleteNetwork(network.name)}
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  {deletingNetworks.has(network.name)
+                    ? 'Deleting...'
+                    : 'Delete'}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </TableCell>
         </TableRow>
       );
