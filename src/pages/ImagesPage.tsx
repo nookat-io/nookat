@@ -6,8 +6,8 @@ import { useEngineState } from '../hooks/use-engine-state';
 import { useFilter } from '../utils/use-filter';
 import { PageLayout } from '../components/layout/page-layout';
 import { usePageAnalytics } from '../hooks/use-analytics';
-import { Image } from '../components/images/image-types';
 import { useEffect, useMemo, useCallback } from 'react';
+import { ImageFilter, imageFilter } from '../components/images/image-filter';
 
 export default function ImagesPage() {
   usePageAnalytics('images');
@@ -19,7 +19,7 @@ export default function ImagesPage() {
     setFilter,
     searchTerm,
     setSearchTerm,
-  } = usePageState<'all' | 'used' | 'dangling'>('all');
+  } = usePageState<ImageFilter>('all');
 
   const { engineState, isLoading, error, removeImage } = useEngineState();
 
@@ -44,10 +44,7 @@ export default function ImagesPage() {
     }
   }, [images, selected, setSelected]);
 
-  const filteredImages = useFilter<Image>(images, filter, searchTerm, {
-    searchFields: ['repository', 'tag'],
-    filterField: 'in_use',
-  });
+  const filteredImages = useFilter(images, filter, searchTerm, imageFilter);
 
   const handleActionComplete = useCallback(
     (deletedImageId?: string) => {

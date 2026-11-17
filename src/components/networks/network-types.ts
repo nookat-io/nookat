@@ -24,3 +24,8 @@ export interface Network {
   ipam: Ipam;
   labels?: Record<string, string>;
 }
+
+const SYSTEM_NETWORK_NAMES = ['bridge', 'host', 'none'];
+
+export const isSystemNetwork = (network: Pick<Network, 'name'>) =>
+  SYSTEM_NETWORK_NAMES.includes(network.name);

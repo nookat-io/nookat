@@ -1,10 +1,11 @@
 import { Button } from '../ui/button';
+import { ImageFilter } from './image-filter';
 import { Input } from '../ui/input';
 import { Search } from 'lucide-react';
 
 interface ImageControlsProps {
-  filter: 'all' | 'used' | 'dangling';
-  onFilterChange: (filter: 'all' | 'used' | 'dangling') => void;
+  filter: ImageFilter;
+  onFilterChange: (filter: ImageFilter) => void;
   searchTerm: string;
   onSearchChange: (term: string) => void;
 }

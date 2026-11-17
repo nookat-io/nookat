@@ -1,10 +1,11 @@
 import { Input } from '../ui/input';
+import { VolumeFilter } from './volume-filter';
 import { Button } from '../ui/button';
 import { Search } from 'lucide-react';
 
 interface VolumeControlsProps {
-  filter: 'all' | 'used' | 'unused';
-  onFilterChange: (filter: 'all' | 'used' | 'unused') => void;
+  filter: VolumeFilter;
+  onFilterChange: (filter: VolumeFilter) => void;
   searchTerm: string;
   onSearchChange: (search: string) => void;
 }

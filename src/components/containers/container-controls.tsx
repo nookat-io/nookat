@@ -1,10 +1,11 @@
 import { Button } from '../ui/button';
+import { ContainerFilter } from './container-filter';
 import { Input } from '../ui/input';
 import { Search } from 'lucide-react';
 
 interface ContainerControlsProps {
-  filter: 'all' | 'running' | 'stopped';
-  onFilterChange: (filter: 'all' | 'running' | 'stopped') => void;
+  filter: ContainerFilter;
+  onFilterChange: (filter: ContainerFilter) => void;
   searchTerm: string;
   onSearchChange: (term: string) => void;
 }
