@@ -1,61 +1,91 @@
 import * as Sentry from '@sentry/react';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useSyncExternalStore } from 'react';
 import { useConfig } from '../hooks/use-config';
 import { SentryContext } from '../contexts/sentry-context';
 
 const SENTRY_DSN = import.meta.env.VITE_SENTRY_DSN || '';
 
+interface SentryStatus {
+  isInitialized: boolean;
+  error: string | null;
+}
+
+const SENTRY_OFF: SentryStatus = { isInitialized: false, error: null };
+const SENTRY_ON: SentryStatus = { isInitialized: true, error: null };
+
+let sentryStatus = SENTRY_OFF;
+const sentryStatusListeners = new Set<() => void>();
+
+function publishSentryStatus(status: SentryStatus) {
+  sentryStatus = status;
+  sentryStatusListeners.forEach(listener => listener());
+}
+
+function subscribeToSentryStatus(listener: () => void) {
+  sentryStatusListeners.add(listener);
+  return () => {
+    sentryStatusListeners.delete(listener);
+  };
+}
+
+function readSentryStatus() {
+  return sentryStatus;
+}
+
+function initSentry(): SentryStatus {
+  try {
+    Sentry.init({
+      dsn: SENTRY_DSN,
+      dataCollection: {
+        userInfo: false,
+        cookies: false,
+        httpBodies: [],
+      },
+      integrations: [
+        Sentry.replayIntegration({
+          maskAllText: true,
+          blockAllMedia: true,
+        }),
+        Sentry.captureConsoleIntegration({ levels: ['error', 'warn'] }),
+      ],
+      replaysSessionSampleRate: 0.0,
+      replaysOnErrorSampleRate: 1.0,
+    });
+    console.log('Sentry initialized');
+    return SENTRY_ON;
+  } catch (err) {
+    console.error('Failed to initialize Sentry:', err);
+    return {
+      isInitialized: false,
+      error: err instanceof Error ? err.message : 'Failed to initialize Sentry',
+    };
+  }
+}
+
+function applyErrorReportingSetting(errorReportingEnabled: boolean) {
+  if (errorReportingEnabled && SENTRY_DSN) {
+    publishSentryStatus(initSentry());
+  } else {
+    console.log('Sentry is disabled or no DSN provided');
+    publishSentryStatus(SENTRY_OFF);
+  }
+}
+
 export function SentryProvider({ children }: { children: React.ReactNode }) {
   const { config, loading } = useConfig();
-  const [isInitialized, setIsInitialized] = useState(false);
-  const [sentryError, setSentryError] = useState<string | null>(null);
+  const errorReportingEnabled = config?.telemetry?.error_reporting ?? false;
+  const status = useSyncExternalStore(
+    subscribeToSentryStatus,
+    readSentryStatus
+  );
 
   useEffect(() => {
-    if (loading) return;
-
-    const shouldEnableCrashReporting =
-      config?.telemetry?.error_reporting ?? false;
-
-    if (shouldEnableCrashReporting && SENTRY_DSN) {
-      try {
-        Sentry.init({
-          dsn: SENTRY_DSN,
-          dataCollection: {
-            userInfo: false,
-            cookies: false,
-            httpBodies: [],
-          },
-          integrations: [
-            Sentry.replayIntegration({
-              maskAllText: true,
-              blockAllMedia: true,
-            }),
-            Sentry.captureConsoleIntegration({ levels: ['error', 'warn'] }),
-          ],
-          replaysSessionSampleRate: 0.0,
-          replaysOnErrorSampleRate: 1.0,
-        });
-        // eslint-disable-next-line react-hooks/set-state-in-effect -- TECH-005
-        setIsInitialized(true);
-        setSentryError(null);
-        console.log('Sentry initialized');
-      } catch (err) {
-        console.error('Failed to initialize Sentry:', err);
-        setSentryError(
-          err instanceof Error ? err.message : 'Failed to initialize Sentry'
-        );
-        setIsInitialized(false);
-      }
-    } else {
-      console.log('Sentry is disabled or no DSN provided');
-      setIsInitialized(false);
-      setSentryError(null);
+    if (!loading) {
+      applyErrorReportingSetting(errorReportingEnabled);
     }
-  }, [config?.telemetry?.error_reporting, loading]);
+  }, [errorReportingEnabled, loading]);
 
   return (
-    <SentryContext.Provider value={{ isInitialized, error: sentryError }}>
-      {children}
-    </SentryContext.Provider>
+    <SentryContext.Provider value={status}>{children}</SentryContext.Provider>
   );
 }
