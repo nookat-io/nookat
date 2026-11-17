@@ -14,6 +14,8 @@ export { ContainerStatusBadge } from './container-status-badge';
 
 export { ContainerLogsForm } from './container-logs-form';
 
+export { CreateContainerDialog } from './create';
+
 export {
   organizeContainers,
   formatContainerName,
