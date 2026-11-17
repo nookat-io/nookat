@@ -9,7 +9,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 use tauri::Emitter;
-use tokio::sync::Mutex;
+use tokio::sync::{Mutex, MutexGuard};
 use tracing::{debug, error, info, warn};
 
 pub struct EngineStateMonitor {
@@ -80,24 +80,8 @@ impl EngineStateMonitor {
         });
 
         // Emit initial baseline snapshot immediately for <50ms TTFU
-        if let Ok(engine) = state.get_engine().await {
-            if let Some(docker) = &engine.docker {
-                if let Err(e) = Self::check_and_broadcast_state_changes(
-                    docker,
-                    &state,
-                    &last_state,
-                    &app_handle,
-                )
-                .await
-                {
-                    warn!("Initial baseline snapshot error: {}", e);
-                }
-            } else {
-                // Docker is unavailable; emit initial status-only update
-                if let Err(e) = Self::emit_status_only(engine, &last_state, &app_handle).await {
-                    warn!("Initial status-only emit error: {}", e);
-                }
-            }
+        if let Err(e) = Self::publish_if_changed(&state, &last_state, &app_handle).await {
+            warn!("Initial baseline snapshot error: {}", e);
         }
 
         // Main polling loop for periodic state checks
@@ -174,25 +158,10 @@ impl EngineStateMonitor {
                 }
             }
 
-            // Try to get the engine and check for state changes
-            if let Ok(engine) = state.get_engine().await {
-                if let Some(docker) = &engine.docker {
-                    if let Err(e) = Self::check_and_broadcast_state_changes(
-                        docker,
-                        &state,
-                        &last_state,
-                        &app_handle,
-                    )
-                    .await
-                    {
-                        warn!("State change check error: {}", e);
-                    }
-                } else {
-                    // Docker is unavailable; emit status-only update so UI can reflect Unknown/NotRunning
-                    if let Err(e) = Self::emit_status_only(engine, &last_state, &app_handle).await {
-                        warn!("Status-only emit error: {}", e);
-                    }
-                }
+            // Publish any change, including a status-only snapshot while Docker
+            // is unavailable, so the UI can reflect Unknown/NotRunning
+            if let Err(e) = Self::publish_if_changed(&state, &last_state, &app_handle).await {
+                warn!("State change check error: {}", e);
             }
         }
 
@@ -297,10 +266,8 @@ impl EngineStateMonitor {
                     Ok(_event) => {
                         debug!("Docker event received, broadcasting state update");
 
-                        if let Err(e) = Self::check_and_broadcast_state_changes(
-                            docker, state, last_state, app_handle,
-                        )
-                        .await
+                        if let Err(e) =
+                            Self::publish_if_changed(state, last_state, app_handle).await
                         {
                             error!("Failed to broadcast updated state: {}", e);
                         }
@@ -327,11 +294,7 @@ impl EngineStateMonitor {
                 Ok(_event) => {
                     debug!("Docker event received, broadcasting state update");
 
-                    if let Err(e) = Self::check_and_broadcast_state_changes(
-                        docker, state, last_state, app_handle,
-                    )
-                    .await
-                    {
+                    if let Err(e) = Self::publish_if_changed(state, last_state, app_handle).await {
                         error!("Failed to broadcast updated state: {}", e);
                     }
                 }
@@ -351,29 +314,18 @@ impl EngineStateMonitor {
     /// reloaded, gets the current state in the same version sequence as the
     /// pushes. Returns the published snapshot.
     pub async fn refresh(&self) -> Result<EngineState, Box<dyn std::error::Error + Send + Sync>> {
-        let engine = self.state.get_engine().await?;
-
-        // Held from the read through the publish, see `publish`.
-        let mut last_state = self.last_state.lock().await;
-        let current = match &engine.docker {
-            Some(docker) => Self::fetch_current_engine_state(docker, &self.state).await?,
-            None => Self::status_only_state(&engine),
-        };
-
+        let (mut last_state, current) = Self::lock_and_read(&self.state, &self.last_state).await?;
         Ok(Self::publish(&mut last_state, current, &self.app_handle)?.clone())
     }
 
     /// Reads the engine state and publishes it if it changed since the last
     /// published snapshot.
-    async fn check_and_broadcast_state_changes(
-        docker: &Docker,
-        state: &Arc<SharedEngineState>,
-        last_state: &Arc<Mutex<Option<EngineState>>>,
+    async fn publish_if_changed(
+        state: &SharedEngineState,
+        last_state: &Mutex<Option<EngineState>>,
         app_handle: &tauri::AppHandle,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-        // Held from the read through the publish, see `publish`.
-        let mut last_state = last_state.lock().await;
-        let current = Self::fetch_current_engine_state(docker, state).await?;
+        let (mut last_state, current) = Self::lock_and_read(state, last_state).await?;
 
         let changed = last_state
             .as_ref()
@@ -389,30 +341,25 @@ impl EngineStateMonitor {
         Ok(())
     }
 
-    /// Publishes a status-only EngineState when Docker is unavailable, if the
-    /// status changed since the last published snapshot.
-    async fn emit_status_only(
-        engine: Arc<Engine>,
-        last_state: &Arc<Mutex<Option<EngineState>>>,
-        app_handle: &tauri::AppHandle,
-    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-        let mut last_state = last_state.lock().await;
-
-        let changed = last_state
-            .as_ref()
-            .is_none_or(|previous| previous.engine_status != engine.engine_status);
-        if changed {
-            Self::publish(
-                &mut last_state,
-                Self::status_only_state(&engine),
-                app_handle,
-            )?;
-        }
-
-        Ok(())
+    /// Takes the publication lock, then reads the engine and its state.
+    ///
+    /// The engine is read only after the lock is held, and the lock is held
+    /// until the caller publishes or drops the guard, see `publish`.
+    async fn lock_and_read<'a>(
+        state: &SharedEngineState,
+        last_state: &'a Mutex<Option<EngineState>>,
+    ) -> Result<
+        (MutexGuard<'a, Option<EngineState>>, EngineState),
+        Box<dyn std::error::Error + Send + Sync>,
+    > {
+        let last_state = last_state.lock().await;
+        let engine = state.get_engine().await?;
+        let current = Self::read_engine_state(&engine).await?;
+        Ok((last_state, current))
     }
 
-    /// A minimal EngineState that carries only the engine status.
+    /// A minimal EngineState that carries only the engine status, for when
+    /// Docker is unavailable.
     fn status_only_state(engine: &Engine) -> EngineState {
         EngineState {
             containers: HashMap::new(),
@@ -429,11 +376,11 @@ impl EngineStateMonitor {
     /// Stamps `snapshot` with the next version, emits it to the frontend and
     /// records it as the last published snapshot.
     ///
-    /// Callers hold the `last_state` lock from reading the engine state through
-    /// this call. Reads and publishes therefore happen one at a time, in order,
-    /// so a higher version always means a later read. The frontend applies a
-    /// snapshot only if its version is higher than the one it already has,
-    /// which keeps a slow read from replacing a newer snapshot.
+    /// Callers hold the `last_state` lock from reading the engine through this
+    /// call, see `lock_and_read`. Reads and publishes therefore happen one at
+    /// a time, in order, so a higher version always means a later read. The
+    /// frontend applies a snapshot only if its version is higher than the one
+    /// it already has, which keeps a slow read from replacing a newer snapshot.
     fn publish<'a>(
         last_state: &'a mut Option<EngineState>,
         mut snapshot: EngineState,
@@ -470,12 +417,14 @@ impl EngineStateMonitor {
             || old_state.engine_status != new_state.engine_status
     }
 
-    /// Fetch the current engine state from Docker
-    async fn fetch_current_engine_state(
-        docker: &Docker,
-        state: &Arc<SharedEngineState>,
+    /// Reads the state of `engine`: every entity from Docker, or only the
+    /// status when Docker is unavailable.
+    async fn read_engine_state(
+        engine: &Engine,
     ) -> Result<EngineState, Box<dyn std::error::Error + Send + Sync>> {
-        let engine = state.get_engine().await?;
+        let Some(docker) = &engine.docker else {
+            return Ok(Self::status_only_state(engine));
+        };
 
         // Fetch all Docker entities concurrently
         let (containers_result, images_result, volumes_result, networks_result) = tokio::try_join!(
