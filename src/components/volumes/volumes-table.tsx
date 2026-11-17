@@ -17,13 +17,22 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '../ui/dropdown-menu';
-import { Volume } from './volume-types';
+import { Volume, VolumeScope } from './volume-types';
 import { VolumeActionService } from './volume-actions-service';
 import { useState } from 'react';
 import { LoadingSpinner } from '../ui/loading-spinner';
 import { ErrorDisplay } from '../ui/error-display';
 import { SortableTableHeader } from '../ui/sortable-table-header';
 import { useTableSort } from '../../hooks/use-table-sort';
+
+const SCOPE_LABELS: Record<VolumeScope, string> = {
+  [VolumeScope.Empty]: '-',
+  [VolumeScope.Local]: 'Local',
+  [VolumeScope.Global]: 'Global',
+};
+
+const formatScope = (scope?: VolumeScope) =>
+  scope ? SCOPE_LABELS[scope] : '-';
 
 interface VolumesTableProps {
   selectedVolumes: string[];
@@ -77,11 +86,6 @@ export function VolumesTable({
     } finally {
       setIsDeleting(null);
     }
-  };
-
-  const formatScope = (scope?: string) => {
-    if (!scope || scope === 'EMPTY') return '-';
-    return scope === 'LOCAL' ? 'Local' : 'Global';
   };
 
   const totalVolumes = sortedVolumes.length;
