@@ -38,6 +38,7 @@ pub enum EngineStatus {
 pub struct Engine {
     pub engine_status: EngineStatus,
     pub docker: Option<Docker>,
+    pub endpoint: Option<String>,
 }
 
 impl Engine {

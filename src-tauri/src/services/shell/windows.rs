@@ -1,4 +1,6 @@
-use super::{endpoints_with_the_current_context_first, DOCKER_CONTEXT_LIST_FORMAT};
+use super::{
+    docker_exec_args, endpoints_with_the_current_context_first, DOCKER_CONTEXT_LIST_FORMAT,
+};
 use tauri::AppHandle;
 use tauri_plugin_shell::ShellExt;
 use tracing::{debug, instrument};
@@ -6,6 +8,7 @@ use tracing::{debug, instrument};
 #[instrument(skip_all, err)]
 pub async fn open_container_terminal(
     app: &AppHandle,
+    endpoint: &str,
     container_id: &str,
     shell: &str,
 ) -> Result<(), String> {
@@ -14,16 +17,8 @@ pub async fn open_container_terminal(
     let status = app
         .shell()
         .command("cmd")
-        .args([
-            "/C",
-            "start",
-            "",
-            "docker",
-            "exec",
-            "-it",
-            container_id,
-            shell,
-        ])
+        .args(["/C", "start", "", "docker"])
+        .args(docker_exec_args(endpoint, container_id, shell))
         .status()
         .await
         .map_err(|e| format!("Failed to open terminal: {}", e))?;

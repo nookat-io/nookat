@@ -1,4 +1,6 @@
-use super::{endpoints_with_the_current_context_first, DOCKER_CONTEXT_LIST_FORMAT};
+use super::{
+    docker_exec_args, endpoints_with_the_current_context_first, DOCKER_CONTEXT_LIST_FORMAT,
+};
 use tauri::AppHandle;
 use tauri_plugin_shell::ShellExt;
 use tracing::{debug, info, instrument, warn};
@@ -35,11 +37,15 @@ async fn try_open_terminal(app: &AppHandle, terminal: &str, args: &[&str]) -> bo
 #[instrument(skip_all, err)]
 pub async fn open_container_terminal(
     app: &AppHandle,
+    endpoint: &str,
     container_id: &str,
     shell: &str,
 ) -> Result<(), String> {
     for (terminal, exec_flag) in TERMINALS_WITH_EXEC_FLAG {
-        let args = [exec_flag, "docker", "exec", "-it", container_id, shell];
+        let args: Vec<&str> = [exec_flag, "docker"]
+            .into_iter()
+            .chain(docker_exec_args(endpoint, container_id, shell))
+            .collect();
         if try_open_terminal(app, terminal, &args).await {
             return Ok(());
         }
