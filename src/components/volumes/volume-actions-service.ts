@@ -34,18 +34,6 @@ export class VolumeActionService {
     return deleteVolumes('bulk_remove_volumes', { names });
   }
 
-  static async inspectVolume(volumeName: string) {
-    try {
-      const result = await invoke('inspect_volume', { name: volumeName });
-      toast.success('Volume details retrieved');
-      return result;
-    } catch (error) {
-      console.error('Error inspecting volume:', error);
-      toast.error(`Failed to inspect volume: ${errorMessage(error)}`);
-      throw error;
-    }
-  }
-
   static async pruneVolumes() {
     try {
       const { volumes_deleted, space_reclaimed } =
