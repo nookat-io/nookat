@@ -5,8 +5,9 @@ use bollard::models::ContainerSummary;
 use bollard::query_parameters::EventsOptions;
 use bollard::Docker;
 use chrono::Utc;
-use futures_util::StreamExt;
+use futures_util::{Stream, StreamExt};
 use std::collections::HashMap;
+use std::future::Future;
 use std::sync::Arc;
 use std::time::Duration;
 use tauri::Emitter;
@@ -15,6 +16,22 @@ use tokio::task::JoinError;
 use tracing::{debug, error, info, warn};
 
 type MonitorResult<T> = Result<T, Box<dyn std::error::Error + Send + Sync>>;
+
+async fn follow_events_until_the_stream_breaks<T, E, Reaction>(
+    events: impl Stream<Item = Result<T, E>>,
+    mut react: impl FnMut() -> Reaction,
+) -> MonitorResult<()>
+where
+    E: Into<Box<dyn std::error::Error + Send + Sync>>,
+    Reaction: Future<Output = ()>,
+{
+    futures_util::pin_mut!(events);
+    while let Some(event) = events.next().await {
+        event.map_err(Into::into)?;
+        react().await;
+    }
+    Err("The Docker events stream ended".into())
+}
 
 const POLL_INTERVAL: Duration = Duration::from_secs(5);
 const UNPUBLISHED_VERSION: u64 = 0;
@@ -136,6 +153,10 @@ impl EngineStateMonitor {
                         .await
                         {
                             warn!("Docker events monitoring error: {}", e);
+                            if docker.ping().await.is_err() {
+                                warn!("The engine stopped answering, Nookat will connect again");
+                                state.forget_connection().await;
+                            }
                             consecutive_failures += 1;
 
                             if consecutive_failures >= MAX_CONSECUTIVE_FAILURES {
@@ -184,21 +205,15 @@ impl EngineStateMonitor {
         last_published: &Arc<Mutex<Option<EngineState>>>,
         app_handle: &tauri::AppHandle,
     ) -> MonitorResult<()> {
-        let mut events = docker.events(Some(EventsOptions::default()));
+        let events = docker.events(Some(EventsOptions::default()));
 
-        while let Some(event) = events.next().await {
-            if let Err(e) = event {
-                warn!("Error reading Docker event: {}", e);
-                continue;
-            }
-
+        follow_events_until_the_stream_breaks(events, move || async move {
             debug!("Docker event received, broadcasting state update");
             if let Err(e) = Self::publish_if_changed(state, last_published, app_handle).await {
                 error!("Failed to broadcast updated state: {}", e);
             }
-        }
-
-        Ok(())
+        })
+        .await
     }
 
     pub async fn publish_current_state(&self) -> MonitorResult<EngineState> {
@@ -337,10 +352,46 @@ fn keyed_by<T>(items: Vec<T>, key_of: impl Fn(&T) -> String) -> HashMap<String, 
 
 #[cfg(test)]
 mod tests {
-    use super::{containers_by_id, keyed_by, EngineStateMonitor};
+    use super::{
+        containers_by_id, follow_events_until_the_stream_breaks, keyed_by, EngineStateMonitor,
+    };
     use crate::entities::{Container, EngineInfo, EngineState, EngineStatus};
     use bollard::models::{ContainerSummary, ContainerSummaryStateEnum as ContainerState};
     use std::collections::HashMap;
+    use std::time::Duration;
+
+    #[tokio::test]
+    async fn a_failing_events_stream_ends_the_watch_instead_of_spinning() {
+        let endless_errors =
+            futures_util::stream::repeat_with(|| Err::<(), _>("connection refused"));
+        let mut reactions = 0;
+
+        let watch = follow_events_until_the_stream_breaks(endless_errors, || {
+            reactions += 1;
+            async {}
+        });
+        let result = tokio::time::timeout(Duration::from_secs(1), watch).await;
+
+        assert!(result
+            .expect("the watch spins on a failing stream")
+            .is_err());
+        assert_eq!(reactions, 0);
+    }
+
+    #[tokio::test]
+    async fn reacts_to_every_event_and_reports_a_stream_that_ends_as_a_lost_engine() {
+        let events = futures_util::stream::iter([Ok::<_, &str>(()), Ok(())]);
+        let mut reactions = 0;
+
+        let result = follow_events_until_the_stream_breaks(events, || {
+            reactions += 1;
+            async {}
+        })
+        .await;
+
+        assert_eq!(reactions, 2);
+        assert!(result.is_err());
+    }
 
     fn container(id: &str, state: ContainerState) -> Container {
         Container::from(ContainerSummary {

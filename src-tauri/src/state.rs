@@ -42,6 +42,12 @@ impl SharedEngineState {
 
         Ok(new_engine)
     }
+
+    #[instrument(skip_all)]
+    pub async fn forget_connection(&self) {
+        debug!("Forgetting the engine connection, the next request reconnects");
+        *self.engine.lock().await = None;
+    }
 }
 
 fn running(engine: &Option<Arc<Engine>>) -> Option<Arc<Engine>> {
