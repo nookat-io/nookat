@@ -2,10 +2,17 @@ name: '[CI] Checks'
 
 on:
   workflow_dispatch:
+  push:
+    branches: [ main ]
+    paths-ignore:
+      - 'tickets/**'
   pull_request:
     branches: [ main ]
     paths-ignore:
       - 'tasks/**'
+
+permissions:
+  contents: read
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -19,23 +26,11 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
         with:
-          node-version: lts/*
-          cache: 'npm'
-
-      - name: Setup Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+          persist-credentials: false
 
       - name: Install frontend dependencies
-        run: npm ci
-
-      - name: Install rust dependencies
-        run: |
-          cd src-tauri
-          cargo fetch
+        uses: ./.github/actions/install-frontend
 
       - name: Lint frontend
         run: npm run lint
@@ -46,61 +41,49 @@ jobs:
       - name: Unit test frontend
         run: npm test
 
-      - name: Rust format check
-        run: |
-          cd src-tauri
-          cargo fmt -- --check
-
   pre-commit:
     name: Pre-commit Checks
     runs-on: ubuntu-22.04
-    needs:
-      - quick-checks
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
-    - name: Setup Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.11'
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
 
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: lts/*
-        cache: 'npm'
+      - name: Install pre-commit
+        run: pip install pre-commit
 
-    - name: Setup Rust toolchain
-      uses: dtolnay/rust-toolchain@stable
+      - name: Install frontend dependencies
+        uses: ./.github/actions/install-frontend
 
-    - name: Install pre-commit
-      run: |
-        python -m pip install --upgrade pip
-        pip install pre-commit
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+              libwebkit2gtk-4.1-dev \
+              libappindicator3-dev \
+              librsvg2-dev \
+              patchelf
 
-    - name: Install frontend dependencies
-      run: npm ci
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
 
-    - name: Install system dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y \
-            libwebkit2gtk-4.1-dev \
-            libappindicator3-dev \
-            librsvg2-dev \
-            patchelf
+      - name: Restore the Rust build cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> target
+          save-if: ${{ github.event_name != 'pull_request' }}
+          cache-on-failure: true
 
-    - name: Install Rust components
-      run: |
-        rustup component add rustfmt
-        rustup component add clippy
-
-    - name: Install Rust dependencies
-      run: |
-        cd src-tauri
-        cargo fetch
-
-    - name: Run pre-commit on all files
-      run: pre-commit run --all-files
+      - name: Run pre-commit on all files
+        env:
+          SKIP: typescript-check,vitest-related
+        run: pre-commit run --all-files
