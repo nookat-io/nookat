@@ -1,0 +1,30 @@
+name: Install frontend dependencies
+description: Restores node_modules that npm ci installed from the same package.json, lockfile and .npmrc on this runner and Node version, or runs npm ci
+
+runs:
+  using: composite
+  steps:
+    - name: Setup Node.js
+      id: node
+      uses: actions/setup-node@v4
+      with:
+        node-version: lts/*
+
+    - name: Restore node_modules
+      id: restore
+      uses: actions/cache/restore@v4
+      with:
+        path: node_modules
+        key: node-modules-${{ runner.os }}-${{ runner.arch }}-node-${{ steps.node.outputs.node-version }}-${{ hashFiles('package.json', 'package-lock.json', '.npmrc') }}
+
+    - name: Install with npm ci
+      if: steps.restore.outputs.cache-hit != 'true'
+      shell: bash
+      run: npm ci
+
+    - name: Save node_modules
+      if: steps.restore.outputs.cache-hit != 'true' && github.event_name != 'pull_request'
+      uses: actions/cache/save@v4
+      with:
+        path: node_modules
+        key: ${{ steps.restore.outputs.cache-primary-key }}

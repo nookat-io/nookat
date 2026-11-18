@@ -2,6 +2,7 @@ use super::gib_from_bytes;
 use crate::entities::{ColimaArchitecture, ColimaHost};
 use std::collections::HashMap;
 
+#[cfg(target_os = "macos")]
 pub const HOST_SYSCTL_KEYS: [&str; 4] = [
     "hw.ncpu",
     "hw.memsize",

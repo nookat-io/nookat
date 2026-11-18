@@ -32,12 +32,11 @@ repos:
 
   - repo: local
     hooks:
-      - id: npm-run-lint
-        name: Npm Run Lint
-        entry: npm run lint -- --max-warnings=0
+      - id: prettier
+        name: Prettier
+        entry: npx --no-install prettier --check
         language: system
-        files: \.(ts|tsx)$
-        pass_filenames: false
+        files: ^src/.*\.(ts|tsx|js|jsx|json|css|md)$
 
   - repo: local
     hooks:
@@ -59,9 +58,9 @@ repos:
 
   - repo: local
     hooks:
-      - id: cargo-check
-        name: Cargo Check
-        entry: bash -c 'cd src-tauri && cargo check'
+      - id: cargo-clippy
+        name: Cargo Clippy
+        entry: bash -c 'cd src-tauri && cargo clippy --all-targets -- -D warnings'
         language: system
         files: \.(rs|toml)$
         pass_filenames: false
