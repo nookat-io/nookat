@@ -1,6 +1,7 @@
 mod config;
 mod container_creation;
 mod containers;
+mod docker_error;
 pub(crate) mod engine;
 pub mod engine_state_monitor;
 mod images;

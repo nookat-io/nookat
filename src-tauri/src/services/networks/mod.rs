@@ -1,7 +1,7 @@
 mod create_request;
 
+use super::docker_error::docker_message;
 use crate::entities::{Network, NetworkCreateOptions};
-use bollard::errors::Error as DockerError;
 use bollard::models::Network as BollardNetwork;
 use bollard::query_parameters::{ListContainersOptions, ListNetworksOptions};
 use bollard::Docker;
@@ -80,7 +80,7 @@ impl NetworksService {
             format!(
                 "Failed to create network {}: {}",
                 options.name,
-                docker_message(e)
+                docker_message(&e)
             )
         })?;
 
@@ -145,13 +145,6 @@ async fn ensure_name_is_free(docker: &Docker, name: &str) -> Result<(), String> 
         return Err(format!("A network named \"{name}\" already exists"));
     }
     Ok(())
-}
-
-fn docker_message(error: DockerError) -> String {
-    match error {
-        DockerError::DockerResponseServerError { message, .. } => message,
-        other => other.to_string(),
-    }
 }
 
 fn ensure_removable(name: &str) -> Result<(), String> {
