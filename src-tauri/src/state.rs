@@ -1,9 +1,11 @@
 use crate::entities::Engine;
 use crate::services::engine;
 use std::sync::Arc;
-use tauri::AppHandle;
+use tauri::{AppHandle, Emitter};
 use tokio::sync::Mutex;
-use tracing::{debug, instrument};
+use tracing::{debug, instrument, warn};
+
+const ENGINE_CONNECTED_EVENT: &str = "engine-connected";
 
 #[derive(Clone)]
 pub struct SharedEngineState {
@@ -39,8 +41,25 @@ impl SharedEngineState {
 
         debug!("Caching newly created engine instance");
         *cached_engine = Some(new_engine.clone());
+        drop(cached_engine);
+
+        if new_engine.is_running() {
+            self.announce_connection();
+        }
 
         Ok(new_engine)
+    }
+
+    fn announce_connection(&self) {
+        if let Err(e) = self.app_handle.emit(ENGINE_CONNECTED_EVENT, ()) {
+            warn!("Failed to announce the engine connection: {}", e);
+        }
+    }
+
+    #[instrument(skip_all)]
+    pub async fn forget_connection(&self) {
+        debug!("Forgetting the engine connection, the next request reconnects");
+        *self.engine.lock().await = None;
     }
 }
 

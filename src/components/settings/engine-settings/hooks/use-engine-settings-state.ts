@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useEngineStatus } from '../../../../hooks/use-engine-status';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { DockerInfo } from '../../../../types/docker-info';
@@ -89,6 +90,9 @@ export function useEngineSettingsState(): [
   const [error, setError] = useState<string | null>(null);
   const [dockerInfo, setDockerInfo] = useState<DockerInfo | null>(null);
   const [showEngineConfig, setShowEngineConfig] = useState(true);
+  const { status: engineStatus } = useEngineStatus();
+  const engineAnswers =
+    typeof engineStatus === 'object' && 'Running' in engineStatus;
 
   const probeColimaSupport = useCallback(
     () =>
@@ -109,15 +113,14 @@ export function useEngineSettingsState(): [
     await probeColimaSupport();
   };
 
-  const fetchDockerInfo = useCallback(async () => {
-    try {
-      const info = await invoke<DockerInfo>('get_docker_info');
-      setDockerInfo(info);
-    } catch (err) {
-      console.error('Error fetching Docker info:', err);
-      setDockerInfo(null);
-    }
-  }, []);
+  const fetchDockerInfo = useCallback(
+    () =>
+      invoke<DockerInfo>('get_docker_info').then(setDockerInfo, err => {
+        console.error('Error fetching Docker info:', err);
+        setDockerInfo(null);
+      }),
+    []
+  );
 
   useEffect(() => {
     const checkAvailability = async () => {
@@ -143,12 +146,21 @@ export function useEngineSettingsState(): [
           setMethod('binary');
         }
       }
-
-      fetchDockerInfo();
     };
 
     checkAvailability();
-  }, [method, fetchDockerInfo]);
+  }, [method]);
+
+  useEffect(() => {
+    fetchDockerInfo();
+  }, [engineAnswers, fetchDockerInfo]);
+
+  useEffect(() => {
+    const unlisten = listen('engine-connected', () => fetchDockerInfo());
+    return () => {
+      unlisten.then(stop => stop());
+    };
+  }, [fetchDockerInfo]);
 
   useEffect(() => {
     if (
