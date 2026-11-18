@@ -8,6 +8,9 @@ on:
     types: [opened, synchronize, reopened, labeled, unlabeled]
     branches: [ main ]
 
+permissions:
+  contents: read
+
 concurrency:
   group: platform-builds-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
@@ -88,7 +91,7 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
       with:
-        ref: ${{ github.event.pull_request.head.ref }}
+        persist-credentials: false
 
     - name: Install frontend dependencies
       uses: ./.github/actions/install-frontend
