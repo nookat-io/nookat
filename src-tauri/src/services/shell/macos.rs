@@ -4,6 +4,19 @@ use tauri_plugin_shell::process::Output;
 use tauri_plugin_shell::ShellExt;
 use tracing::{debug, instrument};
 
+const RUN_IN_A_TERMINAL_WINDOW: &str = r#"on run argv
+    set shellCommand to item 1 of argv
+    set terminalWasRunning to application "Terminal" is running
+    tell application "Terminal"
+        if terminalWasRunning or (count of windows) is 0 then
+            do script shellCommand
+        else
+            do script shellCommand in window 1
+        end if
+        activate
+    end tell
+end run"#;
+
 async fn run_in_login_shell(
     app: &AppHandle,
     command: &str,
@@ -24,31 +37,34 @@ fn stdout_and_stderr(output: &Output) -> String {
 }
 
 #[instrument(skip_all, err)]
-pub async fn open_container_terminal(app: &AppHandle, container_id: &str) -> Result<(), String> {
-    let shell_commands = ["bash", "sh"];
+pub async fn open_container_terminal(
+    app: &AppHandle,
+    container_id: &str,
+    shell: &str,
+) -> Result<(), String> {
+    let output = app
+        .shell()
+        .command("osascript")
+        .args(osascript_args_running_in_terminal(&format!(
+            "docker exec -it {} {}",
+            container_id, shell
+        )))
+        .output()
+        .await
+        .map_err(|e| format!("Failed to run osascript: {}", e))?;
 
-    for shell in shell_commands.iter() {
-        let status = app
-            .shell()
-            .command("osascript")
-            .args([
-                "-e",
-                &format!(
-                    "tell application \"Terminal\" to do script \"docker exec -it {} {}\"",
-                    container_id, shell
-                ),
-            ])
-            .status()
-            .await;
-
-        if let Ok(status) = status {
-            if status.success() {
-                return Ok(());
-            }
-        }
+    if !output.status.success() {
+        return Err(format!(
+            "Terminal did not open: {}",
+            String::from_utf8_lossy(&output.stderr).trim()
+        ));
     }
 
-    Err("Failed to open terminal on macOS".to_string())
+    Ok(())
+}
+
+fn osascript_args_running_in_terminal(shell_command: &str) -> [&str; 3] {
+    ["-e", RUN_IN_A_TERMINAL_WINDOW, shell_command]
 }
 
 #[instrument(skip_all, err)]
@@ -258,4 +274,40 @@ pub async fn check_docker_responds(app: &AppHandle) -> Result<(), String> {
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::process::Command;
+
+    #[test]
+    fn the_script_that_opens_terminal_compiles() {
+        let compiled =
+            std::env::temp_dir().join(format!("nookat-terminal-{}.scpt", std::process::id()));
+
+        let output = Command::new("osacompile")
+            .arg("-o")
+            .arg(&compiled)
+            .args(["-e", RUN_IN_A_TERMINAL_WINDOW])
+            .output()
+            .expect("osacompile runs");
+        std::fs::remove_file(&compiled).ok();
+
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+    }
+
+    #[test]
+    fn hands_the_command_to_the_script_as_an_argument() {
+        let command = r#"docker exec -it 6989cd895c82 sh"#;
+
+        let args = osascript_args_running_in_terminal(command);
+
+        assert_eq!(args, ["-e", RUN_IN_A_TERMINAL_WINDOW, command]);
+        assert!(!RUN_IN_A_TERMINAL_WINDOW.contains("docker"));
+    }
 }
