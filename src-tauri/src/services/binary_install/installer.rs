@@ -261,7 +261,7 @@ mod tests {
     }
 
     fn sha256_hex(bytes: &[u8]) -> String {
-        format!("{:x}", Sha256::digest(bytes))
+        hex::encode(Sha256::digest(bytes))
     }
 
     async fn serve_releases(colima: &[u8]) -> Releases {

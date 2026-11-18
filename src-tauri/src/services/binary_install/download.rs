@@ -120,7 +120,7 @@ impl Downloader {
 
         file.flush().await.map_err(write_failure)?;
 
-        Ok(format!("{:x}", hasher.finalize()))
+        Ok(hex::encode(hasher.finalize()))
     }
 }
 
@@ -144,8 +144,11 @@ fn is_retryable_status(status: StatusCode) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::services::binary_install::test_fixtures::FileServer;
     use crate::services::binary_install::ArtifactLayout;
     use std::borrow::Cow;
+
+    const ABC_SHA256: &str = "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad";
 
     fn artifact(sha256: &str) -> ReleaseArtifact {
         ReleaseArtifact {
@@ -160,6 +163,29 @@ mod tests {
             },
             check_command: "colima",
         }
+    }
+
+    #[tokio::test]
+    async fn digests_the_download_as_the_lowercase_hex_that_releases_pin() {
+        let server = FileServer::default();
+        server.serve("/colima", b"abc".to_vec());
+        let base_url = server.start().await;
+        let destination = tempfile::tempdir().unwrap();
+        let artifact = ReleaseArtifact {
+            url: Cow::Owned(format!("{base_url}/colima")),
+            ..artifact(ABC_SHA256)
+        };
+
+        let result = Downloader::new()
+            .unwrap()
+            .download_verified(
+                &artifact,
+                &destination.path().join("colima"),
+                &mut |_, _| {},
+            )
+            .await;
+
+        assert_eq!(result, Ok(()));
     }
 
     #[test]

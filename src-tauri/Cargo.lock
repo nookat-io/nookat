@@ -3195,6 +3195,7 @@ dependencies = [
  "dirs 7.0.0",
  "flate2",
  "futures-util",
+ "hex",
  "image",
  "ipnet",
  "reqwest 0.12.28",
