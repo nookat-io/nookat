@@ -3,50 +3,46 @@ import { useConfig } from '../hooks/use-config';
 import { Theme } from '../types/config';
 import { ThemeContext } from '../contexts/theme-context';
 
+export const THEME_FOR_FIRST_PAINT_KEY = 'nookat-theme';
+
+const systemPrefersDark = () =>
+  window.matchMedia('(prefers-color-scheme: dark)');
+
+function applyTheme(theme: Theme) {
+  const resolvedTheme =
+    theme === Theme.System
+      ? systemPrefersDark().matches
+        ? Theme.Dark
+        : Theme.Light
+      : theme;
+
+  for (const element of [document.documentElement, document.body]) {
+    element.classList.remove(Theme.Light, Theme.Dark);
+    element.classList.add(resolvedTheme);
+  }
+}
+
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const { config, loading, error, updateTheme } = useConfig();
   const theme = config?.theme || Theme.System;
 
   useEffect(() => {
-    if (!loading) {
-      const root = document.documentElement;
-      const body = document.body;
-
-      root.classList.remove('light', 'dark');
-      body.classList.remove('light', 'dark');
-
-      if (theme === Theme.System) {
-        const systemTheme = window.matchMedia('(prefers-color-scheme: dark)')
-          .matches
-          ? 'dark'
-          : 'light';
-        root.classList.add(systemTheme);
-        body.classList.add(systemTheme);
-      } else {
-        root.classList.add(theme);
-        body.classList.add(theme);
-      }
+    if (loading) {
+      return;
     }
+
+    applyTheme(theme);
+    localStorage.setItem(THEME_FOR_FIRST_PAINT_KEY, theme);
+
+    if (theme !== Theme.System) {
+      return;
+    }
+
+    const colorScheme = systemPrefersDark();
+    const followSystemTheme = () => applyTheme(Theme.System);
+    colorScheme.addEventListener('change', followSystemTheme);
+    return () => colorScheme.removeEventListener('change', followSystemTheme);
   }, [theme, loading]);
-
-  useEffect(() => {
-    if (theme === Theme.System) {
-      const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-
-      const handleChange = () => {
-        const root = document.documentElement;
-        const body = document.body;
-        root.classList.remove('light', 'dark');
-        body.classList.remove('light', 'dark');
-        const systemTheme = mediaQuery.matches ? 'dark' : 'light';
-        root.classList.add(systemTheme);
-        body.classList.add(systemTheme);
-      };
-
-      mediaQuery.addEventListener('change', handleChange);
-      return () => mediaQuery.removeEventListener('change', handleChange);
-    }
-  }, [theme]);
 
   return (
     <ThemeContext.Provider value={{ theme, loading, error, updateTheme }}>
