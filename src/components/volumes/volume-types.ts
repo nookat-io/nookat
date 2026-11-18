@@ -1,17 +1,14 @@
-// Volume scope enum matching backend
 export enum VolumeScope {
   Empty = '',
   Local = 'local',
   Global = 'global',
 }
 
-// Usage data interface matching backend
 export interface UsageData {
   size: number;
   ref_count: number;
 }
 
-// Volume interface matching backend
 export interface Volume {
   name: string;
   driver: string;
@@ -24,7 +21,6 @@ export interface Volume {
   usage_data?: UsageData;
 }
 
-// Volume prune result matching backend, taken verbatim from the daemon response
 export interface VolumePruneResult {
   volumes_deleted: string[];
   space_reclaimed: number;

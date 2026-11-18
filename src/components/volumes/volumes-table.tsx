@@ -38,7 +38,6 @@ interface VolumesTableProps {
   selectedVolumes: string[];
   onSelectionChange: (_selected: string[]) => void;
   volumes: Volume[];
-  onActionComplete?: () => void;
   isLoading?: boolean;
   error?: string | null;
   onRetry?: () => void;
@@ -48,7 +47,6 @@ export function VolumesTable({
   selectedVolumes,
   onSelectionChange,
   volumes,
-  onActionComplete,
   isLoading = false,
   error = null,
   onRetry,
@@ -80,9 +78,7 @@ export function VolumesTable({
   const handleDeleteVolume = async (volumeName: string) => {
     setIsDeleting(volumeName);
     try {
-      await VolumeActionService.removeVolume(volumeName, {
-        onActionComplete,
-      });
+      await VolumeActionService.removeVolume(volumeName);
     } finally {
       setIsDeleting(null);
     }

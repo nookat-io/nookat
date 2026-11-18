@@ -4,14 +4,12 @@ import { Volume } from './volume-types';
 interface VolumeHeaderProps {
   selectedVolumes: string[];
   volumes: Volume[];
-  onActionComplete: () => void;
   onSelectionChange?: (selected: string[]) => void;
 }
 
 export function VolumeHeader({
   selectedVolumes,
   volumes,
-  onActionComplete,
   onSelectionChange,
 }: VolumeHeaderProps) {
   return (
@@ -28,7 +26,6 @@ export function VolumeHeader({
         <div className="flex items-start">
           <VolumeActions
             selectedVolumes={selectedVolumes}
-            onActionComplete={onActionComplete}
             onSelectionChange={onSelectionChange}
           />
         </div>
