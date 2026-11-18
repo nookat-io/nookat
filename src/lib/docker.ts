@@ -1,9 +1,6 @@
 import { DockerImageSearchResult } from '../types/docker-images';
 import { invoke } from '@tauri-apps/api/core';
 
-/**
- * Search Docker Hub for images
- */
 export async function searchDockerHub(
   query: string
 ): Promise<DockerImageSearchResult> {
@@ -15,9 +12,6 @@ export async function searchDockerHub(
   }
 }
 
-/**
- * Fetch available tags for a Docker image from Docker Hub
- */
 export async function fetchImageTags(imageName: string): Promise<string[]> {
   try {
     return await invoke('fetch_image_tags', { imageName });
