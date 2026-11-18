@@ -16,6 +16,9 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  changes:
+    uses: ./.github/workflows/detect-changes.yml
+
   check-pr-status:
     name: Check PR Status
     runs-on: ubuntu-22.04
@@ -62,8 +65,8 @@ jobs:
   platform-builds:
     name: Platform Builds
     runs-on: ${{ matrix.os }}
-    needs: [check-pr-status]
-    if: needs.check-pr-status.outputs.should_build == 'true'
+    needs: [check-pr-status, changes]
+    if: ${{ !cancelled() && needs.check-pr-status.outputs.should_build == 'true' && needs.changes.outputs.tasks_only != 'true' }}
     strategy:
       fail-fast: false
       matrix:
@@ -132,3 +135,18 @@ jobs:
         echo "✅ Platform build successful for ${{ matrix.os }}"
         echo "Build completed at: $(date)"
         echo "Trigger reason: ${{ needs.check-pr-status.outputs.reason }}"
+
+  platform-builds-not-needed:
+    name: Platform Builds
+    runs-on: ubuntu-22.04
+    needs: [changes]
+    if: needs.changes.outputs.tasks_only == 'true'
+    strategy:
+      matrix:
+        os: [ubuntu-22.04, macos-26, windows-2022]
+
+    steps:
+    - name: Skip the build
+      env:
+        OS: ${{ matrix.os }}
+      run: echo "The pull request changes only tasks/, so $OS needs no platform build"
