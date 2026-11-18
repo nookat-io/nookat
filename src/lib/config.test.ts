@@ -101,7 +101,7 @@ describe('ConfigService', () => {
     expect(backend.count('get_config')).toBe(1);
   });
 
-  it('falls back to defaults with telemetry off when the config cannot be read', async () => {
+  it('falls back to the backend defaults, with telemetry and automatic update checks off, when the config cannot be read', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => {});
     mockBackend({ readConfig: () => Promise.reject(new Error('unreadable')) });
     const service = await freshService();
@@ -113,6 +113,7 @@ describe('ConfigService', () => {
     expect(config).toMatchObject({
       theme: Theme.System,
       telemetry: { send_anonymous_usage_data: false, error_reporting: false },
+      startup: { check_for_updates: false },
     });
     expect(subscriber).toHaveBeenCalledWith(config);
   });
