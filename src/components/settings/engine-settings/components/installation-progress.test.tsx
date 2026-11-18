@@ -50,6 +50,10 @@ describe('EngineActionsCard', () => {
         error="colima stop: exit status 1"
         onStartEngine={() => {}}
         onStopEngine={() => {}}
+        dockerContext={null}
+        isSwitchingDockerContext={false}
+        dockerContextError={null}
+        onSwitchDockerToColima={() => {}}
       />
     );
 

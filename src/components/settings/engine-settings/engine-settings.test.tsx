@@ -1,4 +1,5 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
+import { emit } from '@tauri-apps/api/event';
 import userEvent from '@testing-library/user-event';
 import { mockIPC } from '@tauri-apps/api/mocks';
 import { describe, expect, it, vi } from 'vitest';
@@ -33,23 +34,59 @@ const tunedProfile = (status: string) => ({
   },
 });
 
+const ORBSTACK_CONTEXT = {
+  name: 'orbstack',
+  host: 'unix:///Users/me/.orbstack/run/docker.sock',
+  uses_colima: false,
+};
+
+const BINARY_INSTALL_PLAN = {
+  install_dir: '/Users/me/.nookat/engine',
+  bin_dir: '/Users/me/.nookat/engine/bin',
+  components: [
+    { name: 'Colima', version: '0.10.3' },
+    { name: 'Lima', version: '2.2.1' },
+    { name: 'Docker CLI', version: '29.10.0' },
+  ],
+  download_bytes: 64_315_959,
+  installed_bytes: 130_450_970,
+};
+
 interface Backend {
   profileStatus?: string;
   otherEngineAnswers?: boolean;
+  homebrewAvailable?: boolean;
+  colimaInstalled?: boolean;
+  dockerContext?: typeof ORBSTACK_CONTEXT | null;
 }
 
 function mockBackend({
   profileStatus = 'Stopped',
   otherEngineAnswers = false,
+  homebrewAvailable = true,
+  colimaInstalled = true,
+  dockerContext = null,
 }: Backend = {}) {
   const startRequests: unknown[] = [];
+  const installRequests: unknown[] = [];
+  const contextSwitches: unknown[] = [];
   mockIPC(
     (cmd, args) => {
       switch (cmd) {
         case 'is_colima_supported':
-        case 'check_homebrew_availability':
-        case 'check_colima_availability':
           return true;
+        case 'check_homebrew_availability':
+          return homebrewAvailable;
+        case 'check_colima_availability':
+          return colimaInstalled;
+        case 'get_binary_install_plan':
+          return BINARY_INSTALL_PLAN;
+        case 'install_colima_command':
+          installRequests.push(args);
+          return null;
+        case 'use_colima_docker_context_command':
+          contextSwitches.push(args);
+          return null;
         case 'get_docker_info':
           if (otherEngineAnswers) {
             return { server_version: '28.0.0', ncpu: 12 };
@@ -60,6 +97,7 @@ function mockBackend({
             profile: tunedProfile(profileStatus),
             host: APPLE_SILICON,
             warnings: [],
+            docker_context: dockerContext,
           };
         case 'start_colima_vm_command':
           startRequests.push(args);
@@ -70,7 +108,7 @@ function mockBackend({
     },
     { shouldMockEvents: true }
   );
-  return { startRequests };
+  return { startRequests, installRequests, contextSwitches };
 }
 
 describe('EngineSettings', () => {
@@ -123,5 +161,76 @@ describe('EngineSettings', () => {
       await screen.findByRole('button', { name: 'Start Engine' })
     ).toBeEnabled();
     expect(screen.getByLabelText('CPU Cores')).toHaveValue(8);
+  });
+
+  it('installs the engine binaries on a Mac without Homebrew and offers to start the engine afterwards', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    const user = userEvent.setup();
+    const { installRequests, startRequests } = mockBackend({
+      homebrewAvailable: false,
+      colimaInstalled: false,
+      profileStatus: 'Missing',
+    });
+    render(<EngineSettings />);
+    const install = await screen.findByRole('button', {
+      name: 'Install Colima',
+    });
+    await waitFor(() => expect(install).toBeEnabled());
+
+    await user.click(install);
+    expect(installRequests).toEqual([{ method: 'Binary' }]);
+    await act(() => emit('installation-complete'));
+
+    const prompt = await screen.findByRole('dialog');
+    expect(within(prompt).getByText('Start the engine?')).toBeInTheDocument();
+    await user.click(
+      within(prompt).getByRole('button', { name: 'Start Engine' })
+    );
+
+    expect(startRequests).toEqual([{ changes: {} }]);
+    await waitFor(() =>
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    );
+  });
+
+  it('warns that terminal docker commands reach another engine and switches them to Colima', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    const user = userEvent.setup();
+    const { contextSwitches } = mockBackend({
+      profileStatus: 'Running',
+      dockerContext: ORBSTACK_CONTEXT,
+    });
+    render(<EngineSettings />);
+
+    expect(
+      await screen.findByText(
+        'docker commands in your terminal use another engine'
+      )
+    ).toBeInTheDocument();
+    await user.click(
+      screen.getByRole('button', { name: 'Use Colima for docker commands' })
+    );
+
+    expect(contextSwitches).toHaveLength(1);
+  });
+
+  it('confirms when terminal docker commands already reach Colima', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    mockBackend({
+      profileStatus: 'Running',
+      dockerContext: {
+        name: 'colima',
+        host: 'unix:///Users/me/.colima/default/docker.sock',
+        uses_colima: true,
+      },
+    });
+    render(<EngineSettings />);
+
+    expect(
+      await screen.findByText(/docker commands in your terminal use Colima/)
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Use Colima for docker commands' })
+    ).not.toBeInTheDocument();
   });
 });
