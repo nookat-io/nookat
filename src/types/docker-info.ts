@@ -15,8 +15,7 @@ interface DockerInfoPlugins {
   log?: string[];
 }
 
-export interface DockerInfo {
-  // Core SystemInfo fields
+interface DockerSystemInfo {
   id?: string;
   containers?: number;
   containers_running?: number;
@@ -61,8 +60,9 @@ export interface DockerInfo {
   security_options?: string[];
   product_license?: string;
   warnings?: string[];
+}
 
-  // Version fields
+interface DockerVersionInfo {
   platform?: DockerInfoPlatform;
   components?: DockerInfoComponent[];
   version?: string;
@@ -76,3 +76,5 @@ export interface DockerInfo {
   version_experimental?: boolean;
   build_time?: string;
 }
+
+export type DockerInfo = DockerSystemInfo & DockerVersionInfo;

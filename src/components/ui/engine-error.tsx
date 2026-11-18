@@ -9,10 +9,9 @@ interface Props {
 export default function EngineErrorGate({ children }: Props): React.ReactNode {
   const { status, refetch, isChecking } = useEngineStatus();
 
-  // Check if there's an engine-level error
-  const shouldShowError = !isChecking && status === 'Unknown';
+  const isEngineUnreachable = !isChecking && status === 'Unknown';
 
-  if (shouldShowError) {
+  if (isEngineUnreachable) {
     const message = 'Engine status is unknown';
 
     return (
