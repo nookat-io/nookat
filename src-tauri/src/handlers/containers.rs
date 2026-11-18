@@ -218,10 +218,7 @@ pub async fn open_terminal(
     let engine = state.get_engine().await?;
     let docker = engine.docker.as_ref().ok_or("Docker not found")?;
 
-    // Check if container is running
-    let container_running = ContainersService::is_container_running(docker, &id).await?;
-
-    if !container_running {
+    if !ContainersService::is_container_running(docker, &id).await? {
         return Err(format!("Container {} is not running", id));
     }
 
@@ -248,7 +245,6 @@ pub async fn container_files(
     id: String,
 ) -> Result<(), String> {
     debug!("Opening files for container: {}", id);
-    // TODO: Implement container files functionality
     Err("Container files functionality is not implemented yet".to_string())
 }
 

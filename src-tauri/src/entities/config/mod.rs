@@ -12,7 +12,6 @@ use serde::{Deserialize, Serialize};
 
 pub type AppConfig = AppConfigV2;
 
-// Versioned config enum for backward compatibility
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "version")]
 pub enum VersionedAppConfig {

@@ -63,5 +63,5 @@ pub async fn prune_volumes(
     let engine = state.get_engine().await?;
     let docker = engine.docker.as_ref().ok_or("Docker not found")?;
 
-    VolumesService::prune_volumes(docker).await
+    VolumesService::prune_unused_anonymous_volumes(docker).await
 }

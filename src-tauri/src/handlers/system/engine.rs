@@ -6,7 +6,6 @@ use crate::state::SharedEngineState;
 use tauri::State;
 use tracing::{debug, info, instrument};
 
-/// Get the status of the container engine
 #[tauri::command]
 #[instrument(skip_all, err)]
 pub async fn engine_status(state: State<'_, SharedEngineState>) -> Result<EngineStatus, String> {
@@ -58,12 +57,6 @@ pub async fn check_colima_availability(app: tauri::AppHandle) -> Result<bool, St
     is_colima_available(&app).await
 }
 
-/// Whether this build can install and run Colima at all.
-///
-/// `check_colima_availability` answers "is Colima installed on this machine";
-/// this answers the question that comes before it, so the frontend can leave
-/// the install / start / stop controls out entirely on a platform where they
-/// can never succeed.
 #[tauri::command]
 #[instrument(skip_all)]
 pub fn is_colima_supported() -> bool {

@@ -1,13 +1,13 @@
-use tracing::{debug, instrument};
-
-#[derive(Default, Debug)]
-pub struct VolumesService {}
-
-use crate::entities::{Volume, VolumePruneResult};
+use crate::entities::{UsageData, Volume, VolumePruneResult};
+use bollard::models::ContainerSummary;
 use bollard::query_parameters::{
     ListContainersOptions, ListVolumesOptions, PruneVolumesOptions, RemoveVolumeOptions,
 };
 use bollard::Docker;
+use tracing::{debug, instrument};
+
+#[derive(Default, Debug)]
+pub struct VolumesService {}
 
 impl VolumesService {
     #[instrument(skip_all, err)]
@@ -21,41 +21,27 @@ impl VolumesService {
             .volumes
             .unwrap_or_default();
 
-        // Get all containers to check volume usage
-        let containers_options = ListContainersOptions {
-            all: true, // Include stopped containers
+        let running_and_stopped_containers = ListContainersOptions {
+            all: true,
             ..Default::default()
         };
 
         let containers = docker
-            .list_containers(Some(containers_options))
+            .list_containers(Some(running_and_stopped_containers))
             .await
             .map_err(|e| format!("Failed to list containers: {}", e))?;
 
-        // Convert Bollard volumes to our custom Volume type and determine usage
-        let mut volumes = Vec::new();
-        for bollard_volume in bollard_volumes {
-            let mut volume = Volume::from(bollard_volume);
-
-            // Determine if volume is in use by checking container mounts
-            // Check both running and stopped containers
-            let ref_count = containers
-                .iter()
-                .filter(|container| {
-                    container.mounts.as_ref().is_some_and(|mounts| {
-                        mounts
-                            .iter()
-                            .any(|m| m.name.as_deref() == Some(&volume.name))
-                    })
-                })
-                .count() as i64;
-
-            volume.usage_data = Some(crate::entities::UsageData { size: 0, ref_count });
-
-            volumes.push(volume);
-        }
-
-        Ok(volumes)
+        Ok(bollard_volumes
+            .into_iter()
+            .map(|bollard_volume| {
+                let mut volume = Volume::from(bollard_volume);
+                volume.usage_data = Some(UsageData {
+                    size: 0,
+                    ref_count: count_containers_mounting(&volume.name, &containers),
+                });
+                volume
+            })
+            .collect())
     }
 
     #[instrument(skip_all, err)]
@@ -91,24 +77,14 @@ impl VolumesService {
         Ok(Volume::from(bollard_volume))
     }
 
-    /// Prune volumes using the daemon's own prune endpoint, and nothing else.
-    ///
-    /// Docker deliberately restricts `volume prune` to *anonymous* volumes: named
-    /// volumes are the ones users create to outlive container churn (database data
-    /// directories, caches, uploads), so removing them is never implied by "prune
-    /// unused". The daemon is also the only party that can see every reason a
-    /// volume is protected -- swarm cluster volumes, containers outside the
-    /// current context -- so its answer is authoritative and is not second-guessed
-    /// here. Named volumes are removed only through an explicit selection in the
-    /// UI, which routes to `remove_volume` / `bulk_remove_volumes`.
     #[instrument(skip_all, err)]
-    pub async fn prune_volumes(docker: &Docker) -> Result<VolumePruneResult, String> {
+    pub async fn prune_unused_anonymous_volumes(
+        docker: &Docker,
+    ) -> Result<VolumePruneResult, String> {
         debug!("Pruning unused anonymous volumes");
 
-        let options = PruneVolumesOptions::default();
-
         let result: VolumePruneResult = docker
-            .prune_volumes(Some(options))
+            .prune_volumes(Some(anonymous_volumes_only()))
             .await
             .map_err(|e| format!("Failed to prune volumes: {}", e))?
             .into();
@@ -121,5 +97,61 @@ impl VolumesService {
         );
 
         Ok(result)
+    }
+}
+
+fn count_containers_mounting(volume_name: &str, containers: &[ContainerSummary]) -> i64 {
+    containers
+        .iter()
+        .filter(|container| {
+            container.mounts.as_ref().is_some_and(|mounts| {
+                mounts
+                    .iter()
+                    .any(|mount| mount.name.as_deref() == Some(volume_name))
+            })
+        })
+        .count() as i64
+}
+
+fn anonymous_volumes_only() -> PruneVolumesOptions {
+    PruneVolumesOptions::default()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{anonymous_volumes_only, count_containers_mounting};
+    use bollard::models::{ContainerSummary, MountPoint};
+
+    fn container_mounting(volume_names: &[&str]) -> ContainerSummary {
+        ContainerSummary {
+            mounts: Some(
+                volume_names
+                    .iter()
+                    .map(|name| MountPoint {
+                        name: Some(name.to_string()),
+                        ..Default::default()
+                    })
+                    .collect(),
+            ),
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn prune_never_asks_the_daemon_to_include_named_volumes() {
+        assert!(anonymous_volumes_only().filters.is_none());
+    }
+
+    #[test]
+    fn counts_every_container_that_mounts_the_volume() {
+        let containers = [
+            container_mounting(&["data"]),
+            container_mounting(&["cache", "data"]),
+            container_mounting(&["cache"]),
+            ContainerSummary::default(),
+        ];
+
+        assert_eq!(count_containers_mounting("data", &containers), 2);
+        assert_eq!(count_containers_mounting("logs", &containers), 0);
     }
 }

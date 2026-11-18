@@ -1,10 +1,8 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-/// Summary of the container's network settings
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct ContainerNetworkSettings {
-    /// Summary of network-settings for each network the container is attached to.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub networks: Option<HashMap<String, EndpointSettings>>,
 }
@@ -22,7 +20,6 @@ impl From<bollard::models::ContainerSummaryNetworkSettings> for ContainerNetwork
     }
 }
 
-/// EndpointIPAMConfig represents an endpoint's IPAM configuration.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct EndpointIpamConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -45,7 +42,6 @@ impl From<bollard::models::EndpointIpamConfig> for EndpointIpamConfig {
     }
 }
 
-/// Configuration for a network endpoint.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct EndpointSettings {
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -54,65 +50,39 @@ pub struct EndpointSettings {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub links: Option<Vec<String>>,
 
-    /// MAC address for the endpoint on this network.
-    /// The network driver might ignore this parameter.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub mac_address: Option<String>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub aliases: Option<Vec<String>>,
 
-    /// DriverOpts is a mapping of driver options and values.
-    /// These options are passed directly to the driver and are driver specific.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub driver_opts: Option<HashMap<String, String>>,
 
-    // This property determines which endpoint will provide the default
-    // gateway for a container. The endpoint with the highest priority will
-    // be used. If multiple endpoints have the same priority, endpoints are
-    // lexicographically sorted based on their network name, and the one that
-    // sorts first is picked.
-    // #[serde(skip_serializing_if = "Option::is_none")]
-    // pub gw_priority: Option<f64>,
-    /// Unique ID of the network.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub network_id: Option<String>,
 
-    /// Unique ID for the service endpoint in a Sandbox.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub endpoint_id: Option<String>,
 
-    /// Gateway address for this network.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub gateway: Option<String>,
 
-    /// IPv4 address.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub ip_address: Option<String>,
 
-    /// Mask length of the IPv4 address.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub ip_prefix_len: Option<i64>,
 
-    /// IPv6 gateway address.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub ipv6_gateway: Option<String>,
 
-    /// Global IPv6 address.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub global_ipv6_address: Option<String>,
 
-    /// Mask length of the global IPv6 address.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub global_ipv6_prefix_len: Option<i64>,
 
-    /// List of all DNS names an endpoint has on a specific network.
-    /// This list is based on the container name, network aliases,
-    /// container short ID, and hostname.  These DNS names are non-fully
-    /// qualified but can contain several dots. You can get fully qualified
-    /// DNS names by appending `.<network-name>`. For instance, if container
-    /// name is `my.ctr` and the network is named `testnet`, `DNSNames`
-    /// will contain `my.ctr` and the FQDN will be `my.ctr.testnet`.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub dns_names: Option<Vec<String>>,
 }
@@ -127,7 +97,6 @@ impl From<bollard::models::EndpointSettings> for EndpointSettings {
             mac_address: endpoint_settings.mac_address,
             aliases: endpoint_settings.aliases,
             driver_opts: endpoint_settings.driver_opts,
-            // gw_priority: endpoint_settings.gw_priority,
             network_id: endpoint_settings.network_id,
             endpoint_id: endpoint_settings.endpoint_id,
             gateway: endpoint_settings.gateway,

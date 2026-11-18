@@ -8,7 +8,6 @@ pub async fn get_config() -> Result<AppConfig, String> {
     ConfigService::get_config()
 }
 
-/// Update the theme
 #[tauri::command]
 #[instrument(skip_all, err)]
 pub async fn update_theme(theme: String) -> Result<(), String> {
@@ -24,7 +23,6 @@ pub async fn update_theme(theme: String) -> Result<(), String> {
     ConfigService::save_config(&config)
 }
 
-/// Get the current theme
 #[tauri::command]
 #[instrument(skip_all, err)]
 pub async fn get_theme() -> Result<String, String> {
@@ -32,7 +30,6 @@ pub async fn get_theme() -> Result<String, String> {
     Ok(config.theme.as_str().to_string())
 }
 
-/// Update telemetry settings
 #[tauri::command]
 #[instrument(skip_all, err)]
 pub async fn update_telemetry_settings(settings: TelemetrySettings) -> Result<(), String> {
@@ -42,7 +39,6 @@ pub async fn update_telemetry_settings(settings: TelemetrySettings) -> Result<()
     ConfigService::save_config(&config)
 }
 
-/// Update startup settings
 #[tauri::command]
 #[instrument(skip_all, err)]
 pub async fn update_startup_settings(settings: StartupSettings) -> Result<(), String> {
@@ -51,7 +47,6 @@ pub async fn update_startup_settings(settings: StartupSettings) -> Result<(), St
     ConfigService::save_config(&config)
 }
 
-/// Update language
 #[tauri::command]
 #[instrument(skip_all, err)]
 pub async fn update_language(language: String) -> Result<(), String> {
@@ -66,7 +61,6 @@ pub async fn update_language(language: String) -> Result<(), String> {
     ConfigService::save_config(&config)
 }
 
-/// Get the current language
 #[tauri::command]
 #[instrument(skip_all, err)]
 pub async fn get_language() -> Result<String, String> {
@@ -74,7 +68,6 @@ pub async fn get_language() -> Result<String, String> {
     Ok(config.language.as_str().to_string())
 }
 
-/// Update last update check timestamp
 #[tauri::command]
 #[instrument(skip_all, err)]
 pub async fn update_last_update_check() -> Result<(), String> {
@@ -83,7 +76,6 @@ pub async fn update_last_update_check() -> Result<(), String> {
         .map_err(|e| format!("Failed to update last update check: {}", e))
 }
 
-/// Update sidebar collapsed state
 #[tauri::command]
 #[instrument(skip_all, err)]
 pub async fn update_sidebar_collapsed(sidebar_collapsed: bool) -> Result<(), String> {

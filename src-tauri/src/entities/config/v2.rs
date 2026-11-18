@@ -57,10 +57,8 @@ mod tests {
             },
         };
 
-        // Migrate to V2
         let v2_config: AppConfigV2 = v1_config.into();
 
-        // Verify migration
         assert_eq!(v2_config.theme, Theme::Dark);
         assert_eq!(v2_config.language, Language::Russian);
         assert!(v2_config.telemetry.send_anonymous_usage_data);
@@ -86,10 +84,8 @@ mod tests {
             sidebar_collapsed: false,
         };
 
-        // Serialize to JSON
         let json = serde_json::to_string(&v2_config).unwrap();
 
-        // Deserialize back
         let deserialized: AppConfigV2 = serde_json::from_str(&json).unwrap();
         assert_eq!(deserialized.theme, Theme::Light);
     }
