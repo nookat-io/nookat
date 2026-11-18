@@ -3,6 +3,7 @@ import { Button } from '../../../ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../../../ui/card';
 import { OctagonX, Play, AlertTriangle } from 'lucide-react';
 import {
+  InstallationOperation,
   InstallationStep,
   InstallationProgress as InstallationProgressType,
   ColimaEngineStopProgressType,
@@ -15,6 +16,7 @@ import { Dialog, DialogTrigger } from '../../../ui/dialog';
 interface EngineActionsCardProps {
   isEngineRunning: boolean;
   isInstalling: boolean;
+  installationOperation: InstallationOperation;
   installationStep: InstallationStep;
   installationProgress: InstallationProgressType;
   stopStep: StopStep;
@@ -28,6 +30,7 @@ interface EngineActionsCardProps {
 export function EngineActionsCard({
   isEngineRunning,
   isInstalling,
+  installationOperation,
   installationStep,
   installationProgress,
   stopStep,
@@ -50,6 +53,7 @@ export function EngineActionsCard({
       <CardContent className="space-y-4">
         {installationStep !== 'idle' && (
           <InstallationProgress
+            operation={installationOperation}
             step={installationStep}
             progress={installationProgress}
             error={error}
@@ -59,6 +63,7 @@ export function EngineActionsCard({
 
         {stopStep !== 'idle' && (
           <InstallationProgress
+            operation="stop"
             step={stopStep}
             progress={stopProgress}
             error={error}

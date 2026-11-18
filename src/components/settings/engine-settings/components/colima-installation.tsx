@@ -2,6 +2,7 @@ import { Button } from '../../../ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../../../ui/card';
 import { Settings, Download, Package, Terminal, Info } from 'lucide-react';
 import {
+  InstallationOperation,
   InstallationStep,
   InstallationMethod,
   InstallationProgress as InstallationProgressType,
@@ -14,6 +15,7 @@ interface ColimaInstallationProps {
   method: InstallationMethod;
   onMethodChange: (method: InstallationMethod) => void;
   homebrewAvailable: boolean | null;
+  installationOperation: InstallationOperation;
   installationStep: InstallationStep;
   installationProgress: InstallationProgressType;
   isInstalling: boolean;
@@ -26,6 +28,7 @@ export function ColimaInstallation({
   method,
   onMethodChange,
   homebrewAvailable,
+  installationOperation,
   installationStep,
   installationProgress,
   isInstalling,
@@ -85,6 +88,7 @@ export function ColimaInstallation({
 
       {installationStep !== 'idle' && (
         <InstallationProgress
+          operation={installationOperation}
           step={installationStep}
           progress={installationProgress}
           error={error}

@@ -62,6 +62,7 @@ export function EngineSettings() {
           onStartEngine={actions.handleStartEngine}
           isInstalling={isInstalling}
           isEngineRunning={isEngineRunning}
+          installationOperation={state.installationOperation}
           installationStep={state.installationStep}
           stopStep={state.stopStep}
           installationProgress={state.installationProgress}

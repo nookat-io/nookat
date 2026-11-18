@@ -5,6 +5,7 @@ import { DockerInfo } from '../../../../types/docker-info';
 import { errorMessage } from '../../../../utils/error-message';
 import {
   InstallationMethod,
+  InstallationOperation,
   InstallationStep,
   InstallationProgress,
   ColimaEngineStopProgressType,
@@ -18,6 +19,7 @@ export interface EngineSettingsState {
   colimaSupported: boolean | typeof SUPPORT_UNKNOWN;
   colimaSupportError: string | null;
   method: InstallationMethod;
+  installationOperation: InstallationOperation;
   installationStep: InstallationStep;
   stopStep: StopStep;
   homebrewAvailable: boolean | null;
@@ -55,6 +57,8 @@ export function useEngineSettingsState(): [
     null
   );
   const [method, setMethod] = useState<InstallationMethod>('homebrew');
+  const [installationOperation, setInstallationOperation] =
+    useState<InstallationOperation>('install');
   const [installationStep, setInstallationStep] =
     useState<InstallationStep>('idle');
   const [stopStep, setStopStep] = useState<StopStep>('idle');
@@ -284,6 +288,7 @@ export function useEngineSettingsState(): [
   }, [stopStep, fetchDockerInfo]);
 
   const handleInstall = async () => {
+    setInstallationOperation('install');
     setInstallationStep('installing');
     setError(null);
     setInstallationProgress({
@@ -304,6 +309,7 @@ export function useEngineSettingsState(): [
   };
 
   const handleStartEngine = async () => {
+    setInstallationOperation('start');
     setInstallationStep('starting-vm');
     setError(null);
     setInstallationProgress({
@@ -363,6 +369,7 @@ export function useEngineSettingsState(): [
     colimaSupported,
     colimaSupportError,
     method,
+    installationOperation,
     installationStep,
     stopStep,
     homebrewAvailable,
