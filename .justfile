@@ -80,8 +80,8 @@ upgrade_version version:
     echo "🔄 Upgrading version number to v{{version}}..."
 
     if [ -f package.json ]; then
-        jq '.version = "{{version}}"' package.json > package.json.tmp && mv package.json.tmp package.json
-        echo "✅ Updated version in package.json"
+        npm version "{{version}}" --no-git-tag-version --allow-same-version > /dev/null
+        echo "✅ Updated version in package.json and package-lock.json"
     else
         echo "❌ package.json not found!"
     fi
@@ -95,7 +95,8 @@ upgrade_version version:
 
     if [ -f src-tauri/Cargo.toml ]; then
         sed -i.bak -E "s/^version = \".*\"/version = \"{{version}}\"/" src-tauri/Cargo.toml && rm src-tauri/Cargo.toml.bak
-        echo "✅ Updated version in src-tauri/Cargo.toml"
+        (cd src-tauri && cargo update --workspace --offline --quiet)
+        echo "✅ Updated version in src-tauri/Cargo.toml and src-tauri/Cargo.lock"
     else
         echo "❌ src-tauri/Cargo.toml not found!"
     fi
