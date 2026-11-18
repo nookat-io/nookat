@@ -170,6 +170,37 @@ describe('PullImage', () => {
     ]);
   });
 
+  it('drops the error of a failed pull once another image is chosen', async () => {
+    mockIPC((cmd, args) => {
+      switch (cmd) {
+        case 'search_docker_hub':
+          return { results: [NGINX, searchResult('redis', true)] };
+        case 'fetch_image_tags':
+          return ['latest'];
+        case 'pull_image':
+          return (args as { imageName: string }).imageName === 'nginx'
+            ? Promise.reject('manifest for nginx:latest not found')
+            : null;
+        default:
+          throw new Error(`Unexpected command ${cmd}`);
+      }
+    });
+    const user = await choosePullSource({ image: 'nginx' });
+
+    await user.click(screen.getByRole('button', { name: 'Pull' }));
+    expect(
+      await screen.findByText('manifest for nginx:latest not found')
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Clear' }));
+    await user.type(screen.getByLabelText('Image Name'), 'redis');
+    await user.click(await screen.findByText('redis', { selector: 'span' }));
+
+    expect(
+      screen.queryByText('manifest for nginx:latest not found')
+    ).toBeNull();
+  });
+
   it('pulls an official Docker Hub image without any notice', async () => {
     const pulls = mockDockerHub([NGINX]);
     const user = await choosePullSource({ image: 'nginx' });
