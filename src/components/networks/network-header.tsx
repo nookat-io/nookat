@@ -4,14 +4,12 @@ import { NetworkActions } from './network-actions';
 interface NetworkHeaderProps {
   selectedNetworks: string[];
   networks: Network[];
-  onActionComplete: () => void;
   onSelectionChange: (selected: string[]) => void;
 }
 
 export function NetworkHeader({
   selectedNetworks,
   networks,
-  onActionComplete,
   onSelectionChange,
 }: NetworkHeaderProps) {
   const totalNetworks = networks.length;
@@ -29,7 +27,6 @@ export function NetworkHeader({
         <div className="flex items-start">
           <NetworkActions
             selectedNetworks={selectedNetworks}
-            onActionComplete={onActionComplete}
             onSelectionChange={onSelectionChange}
           />
         </div>

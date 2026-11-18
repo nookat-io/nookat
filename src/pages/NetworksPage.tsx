@@ -25,7 +25,6 @@ export default function NetworksPage() {
 
   const { engineState, isLoading, error } = useEngineState();
 
-  // Convert networks from Record to array for compatibility
   const networks = engineState ? Object.values(engineState.networks) : [];
 
   const filteredNetworks = useFilter(
@@ -41,7 +40,6 @@ export default function NetworksPage() {
         <NetworkHeader
           selectedNetworks={selected}
           networks={networks}
-          onActionComplete={() => {}}
           onSelectionChange={setSelected}
         />
       }
@@ -58,7 +56,6 @@ export default function NetworksPage() {
           selectedNetworks={selected}
           onSelectionChange={setSelected}
           networks={filteredNetworks}
-          onActionComplete={() => {}}
           isLoading={isLoading}
           error={error}
           onRetry={() => window.location.reload()}

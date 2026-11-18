@@ -32,7 +32,6 @@ interface NetworksTableProps {
   selectedNetworks: string[];
   onSelectionChange: (_selected: string[]) => void;
   networks: Network[];
-  onActionComplete?: () => void;
   isLoading?: boolean;
   error?: string | null;
   onRetry?: () => void;
@@ -42,7 +41,6 @@ export function NetworksTable({
   selectedNetworks,
   onSelectionChange,
   networks,
-  onActionComplete,
   isLoading = false,
   error = null,
   onRetry,
@@ -83,7 +81,6 @@ export function NetworksTable({
     try {
       await removeNetwork(networkName);
       toast.success(`Successfully deleted network "${networkName}"`);
-      onActionComplete?.();
     } catch (error) {
       console.error('Failed to delete network:', error);
       const errorMessage =
