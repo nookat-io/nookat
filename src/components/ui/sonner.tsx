@@ -1,5 +1,3 @@
-'use client';
-
 import { useThemeContext } from '../../hooks/use-theme-context';
 import { Toaster as Sonner } from 'sonner';
 

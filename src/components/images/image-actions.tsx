@@ -1,5 +1,3 @@
-'use client';
-
 import { useState } from 'react';
 import { PullImage } from './pull/pull-image-modal';
 import { PruneResult } from './image-types';
