@@ -184,7 +184,7 @@ export function GeneralSettings() {
               onValueChange={handleLanguageChange}
               disabled={saving}
             >
-              <SelectTrigger>
+              <SelectTrigger id="language-select">
                 <SelectValue placeholder="Select a language" />
               </SelectTrigger>
               <SelectContent>

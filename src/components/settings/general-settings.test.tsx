@@ -77,6 +77,14 @@ describe('GeneralSettings', () => {
     }
   );
 
+  it('labels the language picker so it is announced and focusable by its label', async () => {
+    await renderGeneralSettings();
+
+    expect(
+      await screen.findByRole('combobox', { name: 'Interface Language' })
+    ).toHaveTextContent('English');
+  });
+
   it('saves only the toggled telemetry switch and keeps the other as it was', async () => {
     const user = userEvent.setup();
     const { telemetryUpdates } = await renderGeneralSettings();
