@@ -1,5 +1,5 @@
-use crate::entities::Container;
-use crate::services::{shell, ContainersService};
+use crate::entities::{Container, CreateContainerError, CreateContainerSpec, CreatedContainer};
+use crate::services::{shell, ContainerCreationService, ContainersService};
 use crate::state::SharedEngineState;
 use tauri::State;
 use tracing::{debug, instrument};
@@ -16,6 +16,20 @@ pub async fn list_containers(
     let containers = ContainersService::get_containers(docker).await?;
 
     Ok(containers.into_iter().map(|c| c.into()).collect())
+}
+
+#[tauri::command]
+#[instrument(skip_all, err)]
+pub async fn create_container(
+    state: State<'_, SharedEngineState>,
+    spec: CreateContainerSpec,
+    start: bool,
+) -> Result<CreatedContainer, CreateContainerError> {
+    debug!("Creating container from image: {}", spec.image);
+
+    let engine = state.get_engine().await?;
+    let docker = engine.docker.as_ref().ok_or("Docker not found")?;
+    ContainerCreationService::create(docker, &spec, start).await
 }
 
 #[tauri::command]
