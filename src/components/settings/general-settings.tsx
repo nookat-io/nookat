@@ -23,10 +23,15 @@ import {
 } from '../ui/select';
 import { useConfig } from '../../hooks/use-config';
 import { useUpdater } from '../../hooks/use-updater';
-import { Language } from '../../types/config';
+import { Language, TelemetrySettings } from '../../types/config';
 import { Download, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 import { errorMessage } from '../../utils/error-message';
+
+const TELEMETRY_SETTING_NAMES: Record<keyof TelemetrySettings, string> = {
+  send_anonymous_usage_data: 'Anonymous usage statistics',
+  error_reporting: 'Crash reporting',
+};
 
 export function GeneralSettings() {
   const {
@@ -56,31 +61,17 @@ export function GeneralSettings() {
   const languageOptions = [{ value: Language.English, label: 'English' }];
 
   const handleTelemetryChange = async (
-    sendAnonymousUsageData: boolean,
-    errorReporting: boolean
+    key: keyof TelemetrySettings,
+    value: boolean
   ) => {
     if (!config) return;
 
     setSaving(true);
     try {
-      await updateTelemetrySettings({
-        send_anonymous_usage_data: sendAnonymousUsageData,
-        error_reporting: errorReporting,
-      });
+      await updateTelemetrySettings({ ...config.telemetry, [key]: value });
 
-      const changes = [];
-      if (
-        sendAnonymousUsageData !== config.telemetry.send_anonymous_usage_data
-      ) {
-        changes.push(sendAnonymousUsageData ? 'enabled' : 'disabled');
-      }
-      if (errorReporting !== config.telemetry.error_reporting) {
-        changes.push(errorReporting ? 'enabled' : 'disabled');
-      }
-
-      if (changes.length > 0) {
-        toast.success(`Telemetry settings updated: ${changes.join(', ')}`);
-      }
+      const action = value ? 'enabled' : 'disabled';
+      toast.success(`${TELEMETRY_SETTING_NAMES[key]} ${action}`);
     } catch (error) {
       console.error('Failed to update telemetry settings:', error);
       toast.error(errorMessage(error, 'Failed to update telemetry settings'));
@@ -231,7 +222,7 @@ export function GeneralSettings() {
               id="send-usage-stats"
               checked={config.telemetry.send_anonymous_usage_data}
               onCheckedChange={checked =>
-                handleTelemetryChange(checked, config.telemetry.error_reporting)
+                handleTelemetryChange('send_anonymous_usage_data', checked)
               }
               disabled={saving}
             />
@@ -247,10 +238,7 @@ export function GeneralSettings() {
               id="crash-reporting"
               checked={config.telemetry.error_reporting}
               onCheckedChange={checked =>
-                handleTelemetryChange(
-                  config.telemetry.send_anonymous_usage_data,
-                  checked
-                )
+                handleTelemetryChange('error_reporting', checked)
               }
               disabled={saving}
             />
