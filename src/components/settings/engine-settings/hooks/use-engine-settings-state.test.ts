@@ -180,6 +180,26 @@ describe('useEngineSettingsState', () => {
     );
   });
 
+  it('reloads the engine info when Nookat connects to another engine that is already running', async () => {
+    let operatingSystem = 'Ubuntu 24.04.4 LTS';
+    mockBackend({
+      dockerInfo: async () => ({ operating_system: operatingSystem }),
+    });
+    const { state } = renderEngineSettings();
+    await waitFor(() =>
+      expect(state().dockerInfo).toEqual({
+        operating_system: 'Ubuntu 24.04.4 LTS',
+      })
+    );
+
+    operatingSystem = 'OrbStack';
+    await act(() => emit('engine-connected'));
+
+    await waitFor(() =>
+      expect(state().dockerInfo).toEqual({ operating_system: 'OrbStack' })
+    );
+  });
+
   it('does not reload the engine info on every status poll while the engine keeps running', async () => {
     const backend = mockBackend();
     const { state, rerender } = renderEngineSettings();

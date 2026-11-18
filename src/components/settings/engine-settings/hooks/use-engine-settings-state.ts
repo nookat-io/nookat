@@ -156,6 +156,13 @@ export function useEngineSettingsState(): [
   }, [engineAnswers, fetchDockerInfo]);
 
   useEffect(() => {
+    const unlisten = listen('engine-connected', () => fetchDockerInfo());
+    return () => {
+      unlisten.then(stop => stop());
+    };
+  }, [fetchDockerInfo]);
+
+  useEffect(() => {
     if (
       installationStep === 'installing' ||
       installationStep === 'starting-vm'
