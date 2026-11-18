@@ -9,11 +9,12 @@ import {
 } from '../types/config';
 
 export function useConfig() {
-  const [config, setConfig] = useState<AppConfig | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
   const configService = ConfigService.getInstance();
+  const [config, setConfig] = useState<AppConfig | null>(() =>
+    configService.getConfig()
+  );
+  const [loading, setLoading] = useState(config === null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const unsubscribe = configService.subscribe(newConfig => {
