@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useTransition } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -83,32 +83,26 @@ export function ContainerLogsForm({
   onClose,
 }: ContainerLogsFormProps) {
   const [logs, setLogs] = useState<string[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, startLoadingLogs] = useTransition();
   const [searchTerm, setSearchTerm] = useState('');
 
-  const fetchLogs = useCallback(async () => {
+  const fetchLogs = useCallback(() => {
     if (!containerId) return;
 
-    setIsLoading(true);
-    try {
-      const response = await invoke('container_logs', { id: containerId });
-      if (response && Array.isArray(response)) {
-        setLogs(response);
-      } else {
+    startLoadingLogs(async () => {
+      try {
+        const response = await invoke('container_logs', { id: containerId });
+        setLogs(Array.isArray(response) ? response : []);
+      } catch (error) {
+        console.error('Failed to fetch logs:', error);
+        toast.error('Failed to fetch logs');
         setLogs([]);
       }
-    } catch (error) {
-      console.error('Failed to fetch logs:', error);
-      toast.error('Failed to fetch logs');
-      setLogs([]);
-    } finally {
-      setIsLoading(false);
-    }
+    });
   }, [containerId]);
 
   useEffect(() => {
     if (isOpen) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- TECH-005
       fetchLogs();
     }
   }, [isOpen, fetchLogs]);
@@ -149,7 +143,6 @@ export function ContainerLogsForm({
         </DialogHeader>
 
         <div className="flex-1 flex flex-col gap-4">
-          {/* Controls */}
           <div className="flex items-center gap-4">
             <SearchInput value={searchTerm} onChange={setSearchTerm} />
 
@@ -166,7 +159,6 @@ export function ContainerLogsForm({
             </ActionButton>
           </div>
 
-          {/* Logs Display */}
           <div className="flex-1 border rounded-md bg-muted/50 overflow-hidden">
             <div className="p-4 max-h-96 overflow-y-auto">
               {filteredLogs.length === 0 ? (
