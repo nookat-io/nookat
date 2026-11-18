@@ -27,7 +27,7 @@ use tauri::{
     tray::TrayIconBuilder,
     App, AppHandle, Manager, RunEvent, Window, WindowEvent,
 };
-use tracing::instrument;
+use tracing::{info, instrument};
 
 const MAIN_WINDOW_LABEL: &str = "main";
 
@@ -57,15 +57,28 @@ fn closes_to_tray() -> bool {
     ConfigService::get_config().is_ok_and(|config| config.startup.minimize_to_tray)
 }
 
+fn shut_down() {
+    info!("Shutting down, flushing crash reports");
+    flush_sentry();
+}
+
 #[cfg(target_os = "macos")]
 fn on_run_event(app: &AppHandle, event: RunEvent) {
-    if let RunEvent::Reopen { .. } = event {
-        let _ = show_main_window(app);
+    match event {
+        RunEvent::Reopen { .. } => {
+            let _ = show_main_window(app);
+        }
+        RunEvent::Exit => shut_down(),
+        _ => {}
     }
 }
 
 #[cfg(not(target_os = "macos"))]
-fn on_run_event(_app: &AppHandle, _event: RunEvent) {}
+fn on_run_event(_app: &AppHandle, event: RunEvent) {
+    if let RunEvent::Exit = event {
+        shut_down();
+    }
+}
 
 #[instrument(skip_all)]
 fn build_tray(app: &mut App) -> Result<(), String> {
@@ -182,7 +195,4 @@ pub fn run() {
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
         .run(on_run_event);
-
-    // Flush Sentry events before shutdown
-    flush_sentry();
 }
