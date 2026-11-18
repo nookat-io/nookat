@@ -1,4 +1,4 @@
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Button } from '../../ui/button';
 import {
   Dialog,
@@ -24,11 +24,20 @@ import {
   useTagSuggestions,
 } from '../common/hooks';
 import { errorMessage } from '../../../utils/error-message';
+import {
+  LookalikeCheck,
+  checkImageReference,
+  needsConfirmation,
+} from '../../../lib/image-source';
+import {
+  DEFAULT_PROGRESS_STATE,
+  pullReference,
+  trimPullData,
+} from '../common/utils';
+import { PullFormData } from '../common/types';
+import { ImageSourceConfirmDialog } from '../common/image-source-warnings';
 
 const SUCCESS_MESSAGE_VISIBLE_MS = 2000;
-
-const pullableImageName = (image: DockerHubImage) =>
-  image.is_official ? `library/${image.name}` : image.name;
 
 const hasSpaceOrTab = (value: string) =>
   value.includes(' ') || value.includes('\t');
@@ -53,6 +62,17 @@ export function PullImage() {
   const { showFeedback, resetFeedback } = useSelectionFeedback();
   const { tagSuggestions, isLoadingTags, tagError, fetchTags, clearTags } =
     useTagSuggestions();
+  const [pullToConfirm, setPullToConfirm] = useState<{
+    request: PullFormData;
+    source: LookalikeCheck;
+  } | null>(null);
+  const [attemptedReference, setAttemptedReference] = useState<string | null>(
+    null
+  );
+  const progressOfChosenImage =
+    progress.isRunning || attemptedReference === pullReference(pullData)
+      ? progress
+      : DEFAULT_PROGRESS_STATE;
 
   const resetPullForm = useCallback(() => {
     resetForms();
@@ -69,7 +89,7 @@ export function PullImage() {
 
   useEffect(() => {
     if (searchState.selectedImageDetails) {
-      const imageName = pullableImageName(searchState.selectedImageDetails);
+      const imageName = searchState.selectedImageDetails.name;
 
       updatePullData({
         imageName,
@@ -120,7 +140,7 @@ export function PullImage() {
     selectImage(image);
 
     updatePullData({
-      imageName: pullableImageName(image),
+      imageName: image.name,
       tag: '',
       registry: registryState.showCustomRegistry
         ? registryState.customRegistry
@@ -128,31 +148,39 @@ export function PullImage() {
     });
   };
 
-  const handlePull = async () => {
-    const imageName = pullData.imageName.trim();
-    if (!imageName) {
+  const handlePull = () => {
+    const request = trimPullData(pullData);
+    setAttemptedReference(pullReference(request));
+    if (!request.imageName) {
       setError('Image name is required');
       return;
     }
 
-    if (hasSpaceOrTab(imageName)) {
+    if (hasSpaceOrTab(request.imageName)) {
       setError('Image name cannot contain spaces or tabs');
       return;
     }
 
-    if (hasSpaceOrTab(pullData.registry.trim())) {
+    if (hasSpaceOrTab(request.registry)) {
       setError('Registry cannot contain spaces or tabs');
       return;
     }
 
+    const source = checkImageReference(pullReference(request));
+    if (needsConfirmation(source)) {
+      setPullToConfirm({ request, source });
+      return;
+    }
+
+    pullImage(request);
+  };
+
+  const pullImage = async ({ imageName, tag, registry }: PullFormData) => {
+    setPullToConfirm(null);
     setRunning('Pulling image...');
 
     try {
-      await invoke('pull_image', {
-        imageName: pullData.imageName,
-        tag: pullData.tag,
-        registry: pullData.registry,
-      });
+      await invoke('pull_image', { imageName, tag, registry });
       setSuccess('Image pulled successfully!');
     } catch (error) {
       console.error('Pull image error:', error);
@@ -206,7 +234,15 @@ export function PullImage() {
           searchInputRef={searchInputRef}
         />
 
-        <ProgressDisplay progress={progress} />
+        <ProgressDisplay progress={progressOfChosenImage} />
+
+        {pullToConfirm && (
+          <ImageSourceConfirmDialog
+            check={pullToConfirm.source}
+            onCancel={() => setPullToConfirm(null)}
+            onConfirm={() => pullImage(pullToConfirm.request)}
+          />
+        )}
 
         <DialogFooter>
           <Button
