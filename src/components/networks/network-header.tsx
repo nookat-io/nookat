@@ -27,6 +27,7 @@ export function NetworkHeader({
         <div className="flex items-start">
           <NetworkActions
             selectedNetworks={selectedNetworks}
+            networkNames={networks.map(network => network.name)}
             onSelectionChange={onSelectionChange}
           />
         </div>

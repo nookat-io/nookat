@@ -18,7 +18,7 @@ import {
 } from '../ui/dropdown-menu';
 import { formatDistanceToNow } from 'date-fns';
 import { Network, isSystemNetwork } from './network-types';
-import { removeNetwork } from './network-actions-utils';
+import { removeNetwork } from './network-actions-service';
 import { toast } from 'sonner';
 import { useState } from 'react';
 import { LoadingSpinner } from '../ui/loading-spinner';

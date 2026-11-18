@@ -1,17 +1,20 @@
 import { Button } from '../ui/button';
 import { Trash2 } from 'lucide-react';
-import { bulkRemoveNetworks } from './network-actions-utils';
+import { bulkRemoveNetworks } from './network-actions-service';
 import { toast } from 'sonner';
 import { useState } from 'react';
 import { errorMessage } from '../../utils/error-message';
+import { NetworkCreateDialog } from './network-create-dialog';
 
 interface NetworkActionsProps {
   selectedNetworks: string[];
+  networkNames: readonly string[];
   onSelectionChange?: (selected: string[]) => void;
 }
 
 export function NetworkActions({
   selectedNetworks,
+  networkNames,
   onSelectionChange,
 }: NetworkActionsProps) {
   const [isDeleting, setIsDeleting] = useState(false);
@@ -35,7 +38,8 @@ export function NetworkActions({
   };
 
   return (
-    <div className="flex items-center space-x-2">
+    <div className="flex items-center gap-2">
+      <NetworkCreateDialog existingNetworkNames={networkNames} />
       {selectedNetworks.length > 0 && (
         <Button
           variant="outline"

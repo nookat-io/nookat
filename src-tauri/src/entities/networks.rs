@@ -28,6 +28,54 @@ pub struct IpamConfig {
     pub gateway: Option<String>,
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum NetworkDriver {
+    Bridge,
+    Macvlan,
+    Ipvlan,
+}
+
+impl NetworkDriver {
+    pub fn name(self) -> &'static str {
+        match self {
+            NetworkDriver::Bridge => "bridge",
+            NetworkDriver::Macvlan => "macvlan",
+            NetworkDriver::Ipvlan => "ipvlan",
+        }
+    }
+
+    pub fn attaches_to_a_parent_interface(self) -> bool {
+        matches!(self, NetworkDriver::Macvlan | NetworkDriver::Ipvlan)
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Default, PartialEq, Eq)]
+pub struct IpAddressing {
+    pub enabled: bool,
+    pub subnet: Option<String>,
+    pub gateway: Option<String>,
+    pub ip_range: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+pub struct NetworkLabel {
+    pub key: String,
+    pub value: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+pub struct NetworkCreateOptions {
+    pub name: String,
+    pub driver: NetworkDriver,
+    pub parent_interface: Option<String>,
+    pub internal: bool,
+    pub attachable: bool,
+    pub ipv4: IpAddressing,
+    pub ipv6: IpAddressing,
+    pub labels: Vec<NetworkLabel>,
+}
+
 impl Network {
     pub fn from_summary(network: bollard::models::Network, attached_container_count: i64) -> Self {
         let ipam_config = network.ipam.as_ref().and_then(|ipam| {
