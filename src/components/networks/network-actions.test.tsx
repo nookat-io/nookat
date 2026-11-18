@@ -59,7 +59,12 @@ describe('network deletion errors', () => {
   it('shows the reason the backend gives when deleting the selected networks fails', async () => {
     const user = userEvent.setup();
     mockNetworkRemovalFailing('Cannot remove system network: bridge');
-    render(<NetworkActions selectedNetworks={['bridge', 'backend']} />);
+    render(
+      <NetworkActions
+        selectedNetworks={['bridge', 'backend']}
+        networkNames={['bridge', 'backend']}
+      />
+    );
 
     await user.click(screen.getByRole('button', { name: 'Delete Selected' }));
 

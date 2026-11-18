@@ -1,5 +1,19 @@
 import { invoke } from '@tauri-apps/api/core';
 import { errorMessage } from '../../utils/error-message';
+import { NetworkCreateOptions } from './network-types';
+
+export async function createNetwork(
+  options: NetworkCreateOptions
+): Promise<void> {
+  try {
+    await invoke('create_network', { options });
+  } catch (error) {
+    console.error('Error creating network:', error);
+    throw new Error(errorMessage(error, 'Failed to create network'), {
+      cause: error,
+    });
+  }
+}
 
 export async function removeNetwork(name: string): Promise<void> {
   try {
