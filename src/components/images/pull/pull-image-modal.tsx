@@ -35,9 +35,6 @@ import { ImageSourceConfirmDialog } from '../common/image-source-warnings';
 
 const SUCCESS_MESSAGE_VISIBLE_MS = 2000;
 
-const pullableImageName = (image: DockerHubImage) =>
-  image.is_official ? `library/${image.name}` : image.name;
-
 const hasSpaceOrTab = (value: string) =>
   value.includes(' ') || value.includes('\t');
 
@@ -81,7 +78,7 @@ export function PullImage() {
 
   useEffect(() => {
     if (searchState.selectedImageDetails) {
-      const imageName = pullableImageName(searchState.selectedImageDetails);
+      const imageName = searchState.selectedImageDetails.name;
 
       updatePullData({
         imageName,
@@ -132,7 +129,7 @@ export function PullImage() {
     selectImage(image);
 
     updatePullData({
-      imageName: pullableImageName(image),
+      imageName: image.name,
       tag: '',
       registry: registryState.showCustomRegistry
         ? registryState.customRegistry

@@ -87,7 +87,7 @@ describe('PullImage', () => {
     await user.click(screen.getByRole('button', { name: 'Pull anyway' }));
 
     expect(pulls).toEqual([
-      { imageName: 'library/nginx', tag: 'latest', registry: 'ghrc.io' },
+      { imageName: 'nginx', tag: 'latest', registry: 'ghrc.io' },
     ]);
     expect(lookalikeConfirmation('Pull from ghrc.io?')).not.toBeInTheDocument();
   });
@@ -124,7 +124,7 @@ describe('PullImage', () => {
     await user.click(screen.getByRole('button', { name: 'Pull anyway' }));
 
     expect(pulls).toEqual([
-      { imageName: 'library/nginx', tag: 'latest', registry: 'ghrc.io' },
+      { imageName: 'nginx', tag: 'latest', registry: 'ghrc.io' },
     ]);
   });
 
@@ -163,7 +163,7 @@ describe('PullImage', () => {
     expect(screen.queryByRole('button', { name: 'Pull anyway' })).toBeNull();
     expect(pulls).toEqual([
       {
-        imageName: 'library/nginx',
+        imageName: 'nginx',
         tag: 'latest',
         registry: 'registry.mycompany.com',
       },
@@ -180,7 +180,7 @@ describe('PullImage', () => {
 
     expect(screen.queryByRole('button', { name: 'Pull anyway' })).toBeNull();
     expect(pulls).toEqual([
-      { imageName: 'library/nginx', tag: 'latest', registry: 'docker.io' },
+      { imageName: 'nginx', tag: 'latest', registry: 'docker.io' },
     ]);
   });
 });
