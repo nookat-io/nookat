@@ -13,10 +13,6 @@ export interface ProgressState {
   success: boolean;
 }
 
-export interface ErrorWithMessage {
-  message: string;
-}
-
 export interface DockerHubSearchState {
   searchQuery: string;
   searchResults: DockerHubImage[];

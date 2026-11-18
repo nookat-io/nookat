@@ -155,4 +155,18 @@ describe('useUpdater', () => {
     expect(toast.error).toHaveBeenCalledWith('offline');
     expect(result.current.error).toBe('offline');
   });
+
+  it('shows the reason the updater plugin gives, which arrives as a plain string rather than an Error', async () => {
+    updater.check.mockRejectedValueOnce(
+      'Could not fetch a valid release JSON from the remote'
+    );
+    const { result } = renderUpdater(false);
+
+    await act(async () => result.current.checkForUpdates());
+
+    await waitFor(() => expect(result.current.isChecking).toBe(false));
+    expect(toast.error).toHaveBeenCalledWith(
+      'Could not fetch a valid release JSON from the remote'
+    );
+  });
 });

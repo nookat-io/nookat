@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { DockerInfo } from '../../../../types/docker-info';
+import { errorMessage } from '../../../../utils/error-message';
 import {
   InstallationMethod,
   InstallationStep,
@@ -90,7 +91,7 @@ export function useEngineSettingsState(): [
       invoke<boolean>('is_colima_supported').then(setColimaSupported, err => {
         console.error('Error checking Colima platform support:', err);
         setColimaSupported(SUPPORT_UNKNOWN);
-        setColimaSupportError(err instanceof Error ? err.message : String(err));
+        setColimaSupportError(errorMessage(err));
       }),
     []
   );
@@ -297,7 +298,7 @@ export function useEngineSettingsState(): [
       await invoke('install_colima_command', { method: methodEnum });
     } catch (error) {
       console.error('Installation failed:', error);
-      setError(error instanceof Error ? error.message : String(error));
+      setError(errorMessage(error));
       setInstallationStep('error');
     }
   };
@@ -316,7 +317,7 @@ export function useEngineSettingsState(): [
       await invoke('start_colima_vm_command', { config });
     } catch (error) {
       console.error('Engine startup failed:', error);
-      setError(error instanceof Error ? error.message : String(error));
+      setError(errorMessage(error));
       setInstallationStep('error');
     }
   };
@@ -335,7 +336,7 @@ export function useEngineSettingsState(): [
       await invoke('stop_colima_vm_command');
     } catch (error) {
       console.error('Engine stop failed:', error);
-      setError(error instanceof Error ? error.message : String(error));
+      setError(errorMessage(error));
       setStopStep('error');
     }
   };

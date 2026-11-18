@@ -1,5 +1,6 @@
 import { invoke } from '@tauri-apps/api/core';
 import { toast } from 'sonner';
+import { errorMessage } from '../../utils/error-message';
 
 type ContainerAction =
   | 'start'
@@ -39,7 +40,7 @@ async function runContainerAction(
     return true;
   } catch (error) {
     console.error(`Failed to ${action} ${containers}:`, error);
-    toast.error(`Failed to ${action} ${containers}: ${error}`);
+    toast.error(`Failed to ${action} ${containers}: ${errorMessage(error)}`);
     return false;
   }
 }
@@ -103,7 +104,7 @@ export class ContainerActionService {
       toast.success('Terminal opened');
     } catch (error) {
       console.error('Error opening terminal:', error);
-      toast.error(`Failed to open terminal: ${error}`);
+      toast.error(`Failed to open terminal: ${errorMessage(error)}`);
     }
   }
 
@@ -113,7 +114,7 @@ export class ContainerActionService {
       toast.success('Pruned stopped containers');
     } catch (error) {
       console.error('Error pruning containers:', error);
-      toast.error(`Failed to prune containers: ${error}`);
+      toast.error(`Failed to prune containers: ${errorMessage(error)}`);
     }
   }
 }

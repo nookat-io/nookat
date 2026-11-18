@@ -3,6 +3,7 @@ import { Trash2 } from 'lucide-react';
 import { bulkRemoveNetworks } from './network-actions-utils';
 import { toast } from 'sonner';
 import { useState } from 'react';
+import { errorMessage } from '../../utils/error-message';
 
 interface NetworkActionsProps {
   selectedNetworks: string[];
@@ -27,9 +28,7 @@ export function NetworkActions({
       onSelectionChange?.([]);
     } catch (error) {
       console.error('Failed to delete networks:', error);
-      const errorMessage =
-        error instanceof Error ? error.message : 'Failed to delete networks';
-      toast.error(errorMessage);
+      toast.error(errorMessage(error, 'Failed to delete networks'));
     } finally {
       setIsDeleting(false);
     }

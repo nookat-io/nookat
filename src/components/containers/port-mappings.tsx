@@ -1,6 +1,7 @@
 import { invoke } from '@tauri-apps/api/core';
 import { toast } from 'sonner';
 import { Port } from './container-types';
+import { errorMessage } from '../../utils/error-message';
 
 interface PortMappingsProps {
   ports: Port[];
@@ -69,7 +70,7 @@ async function openPublishedPort(port: Port) {
     await invoke('open_url', { url });
   } catch (error) {
     console.error('Failed to open port URL:', error);
-    toast.error(`Failed to open ${url}: ${error}`);
+    toast.error(`Failed to open ${url}: ${errorMessage(error)}`);
   }
 }
 

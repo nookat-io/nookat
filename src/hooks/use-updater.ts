@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect, useTransition } from 'react';
 import { check, Update, DownloadEvent } from '@tauri-apps/plugin-updater';
 import { toast } from 'sonner';
 import { AppConfig } from '../types/config';
+import { errorMessage } from '../utils/error-message';
 
 export interface UpdateInfo {
   version: string;
@@ -69,11 +70,10 @@ export const useUpdater = (
           await recordLastCheck();
         } catch (err) {
           console.error('Failed to check for updates:', err);
-          const errorMessage =
-            err instanceof Error ? err.message : 'Failed to check for updates';
-          startCheck(() => setError(errorMessage));
+          const message = errorMessage(err, 'Failed to check for updates');
+          startCheck(() => setError(message));
           if (announce === 'every-outcome') {
-            toast.error(errorMessage);
+            toast.error(message);
           }
         }
       }),
@@ -144,10 +144,9 @@ export const useUpdater = (
       );
     } catch (err) {
       console.error('Failed to install update:', err);
-      const errorMessage =
-        err instanceof Error ? err.message : 'Failed to install update';
-      setError(errorMessage);
-      toast.error(errorMessage);
+      const message = errorMessage(err, 'Failed to install update');
+      setError(message);
+      toast.error(message);
       setIsDownloading(false);
       setIsInstalling(false);
       setProgress(null);

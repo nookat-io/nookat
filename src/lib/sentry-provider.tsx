@@ -2,6 +2,7 @@ import * as Sentry from '@sentry/react';
 import React, { useEffect, useSyncExternalStore } from 'react';
 import { useConfig } from '../hooks/use-config';
 import { SentryContext } from '../contexts/sentry-context';
+import { errorMessage } from '../utils/error-message';
 
 const SENTRY_DSN = import.meta.env.VITE_SENTRY_DSN || '';
 
@@ -57,7 +58,7 @@ function initSentry(): SentryStatus {
     console.error('Failed to initialize Sentry:', err);
     return {
       isInitialized: false,
-      error: err instanceof Error ? err.message : 'Failed to initialize Sentry',
+      error: errorMessage(err, 'Failed to initialize Sentry'),
     };
   }
 }
