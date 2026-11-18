@@ -1,9 +1,12 @@
-use super::{endpoints_with_the_current_context_first, DOCKER_CONTEXT_LIST_FORMAT};
+use super::{
+    docker_exec_args, endpoints_with_the_current_context_first, DOCKER_CONTEXT_LIST_FORMAT,
+};
 use crate::entities::{ColimaHost, ColimaProfileStatus};
 use crate::services::binary_install::{bin_dir, engine_prefix};
 use crate::services::colima::{
     parse_colima_list, parse_host_sysctl, ColimaInstance, HOST_SYSCTL_KEYS,
 };
+use std::borrow::Cow;
 use std::ffi::OsStr;
 use std::path::PathBuf;
 use tauri::AppHandle;
@@ -63,16 +66,21 @@ where
 #[instrument(skip_all, err)]
 pub async fn open_container_terminal(
     app: &AppHandle,
+    endpoint: &str,
     container_id: &str,
     shell: &str,
 ) -> Result<(), String> {
+    let docker = docker_program();
+    let command = typed_for_a_shell(std::iter::once(docker.as_str()).chain(docker_exec_args(
+        endpoint,
+        container_id,
+        shell,
+    )));
+
     let output = app
         .shell()
         .command("osascript")
-        .args(osascript_args_running_in_terminal(&format!(
-            "docker exec -it {} {}",
-            container_id, shell
-        )))
+        .args(osascript_args_running_in_terminal(&command))
         .output()
         .await
         .map_err(|e| format!("Failed to run osascript: {}", e))?;
@@ -89,6 +97,35 @@ pub async fn open_container_terminal(
 
 fn osascript_args_running_in_terminal(shell_command: &str) -> [&str; 3] {
     ["-e", RUN_IN_A_TERMINAL_WINDOW, shell_command]
+}
+
+fn docker_program() -> String {
+    engine_bin_dir()
+        .map(|engine_bin| engine_bin.join("docker"))
+        .filter(|docker| docker.is_file())
+        .map(|docker| docker.to_string_lossy().into_owned())
+        .unwrap_or_else(|| "docker".to_string())
+}
+
+fn typed_for_a_shell<'a>(words: impl IntoIterator<Item = &'a str>) -> String {
+    words
+        .into_iter()
+        .map(quoted_where_a_shell_would_change_it)
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
+fn quoted_where_a_shell_would_change_it(word: &str) -> Cow<'_, str> {
+    let reads_literally = !word.is_empty()
+        && word
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || "@+:,./_-".contains(c));
+
+    if reads_literally {
+        Cow::Borrowed(word)
+    } else {
+        Cow::Owned(format!("'{}'", word.replace('\'', r"'\''")))
+    }
 }
 
 #[instrument(skip_all, err)]
@@ -352,6 +389,49 @@ mod tests {
             "{}",
             String::from_utf8_lossy(&output.stderr)
         );
+    }
+
+    #[test]
+    fn types_an_ordinary_docker_command_as_a_person_would() {
+        let command = typed_for_a_shell([
+            "/Users/me/.nookat/engine/bin/docker",
+            "--host",
+            "unix:///Users/me/.colima/default/docker.sock",
+            "exec",
+            "-it",
+            "1838a7db9b42",
+            "sh",
+        ]);
+
+        assert_eq!(
+            command,
+            "/Users/me/.nookat/engine/bin/docker --host unix:///Users/me/.colima/default/docker.sock exec -it 1838a7db9b42 sh"
+        );
+    }
+
+    #[test]
+    fn quotes_what_a_shell_would_split_or_expand_so_each_word_arrives_unchanged() {
+        let words = [
+            "/Users/Jane Doe/.nookat/engine/bin/docker",
+            "unix:///Users/o'brien/.colima/docker.sock",
+            "$HOME",
+            "*",
+            "=docker",
+            "",
+        ];
+
+        let output = Command::new("/bin/zsh")
+            .env_clear()
+            .args([
+                "-f",
+                "-c",
+                &format!("printf '[%s]\\n' {}", typed_for_a_shell(words)),
+            ])
+            .output()
+            .unwrap();
+
+        let expected: String = words.iter().map(|word| format!("[{}]\n", word)).collect();
+        assert_eq!(String::from_utf8(output.stdout).unwrap(), expected);
     }
 
     #[test]

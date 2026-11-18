@@ -44,7 +44,7 @@ pub fn should_stop_vm(status: &Result<bool, String>) -> bool {
 }
 
 #[instrument(skip_all, err)]
-async fn connect_to_docker(app: &AppHandle) -> Result<Docker, String> {
+async fn connect_to_docker(app: &AppHandle) -> Result<(Docker, String), String> {
     let context_endpoints = get_docker_context_endpoints(app).await.unwrap_or_else(|e| {
         debug!("The Docker contexts are not readable: {}", e);
         Vec::new()
@@ -55,7 +55,7 @@ async fn connect_to_docker(app: &AppHandle) -> Result<Docker, String> {
         match connect_to(&endpoint).await {
             Ok(docker) => {
                 debug!("Connected to Docker at {}", endpoint);
-                return Ok(docker);
+                return Ok((docker, endpoint));
             }
             Err(e) => debug!("Docker at {} is not reachable: {}", endpoint, e),
         }
@@ -113,20 +113,23 @@ pub async fn create_engine(app: &AppHandle) -> Result<Engine, String> {
         return Ok(Engine {
             engine_status: EngineStatus::Unknown,
             docker: None,
+            endpoint: None,
         });
     }
 
-    if let Ok(docker) = connect_to_docker(app).await {
+    if let Ok((docker, endpoint)) = connect_to_docker(app).await {
         debug!("Docker command is available, creating an engine instance with running status");
         return Ok(Engine {
             engine_status: EngineStatus::Running(EngineInfo::Docker),
             docker: Some(docker),
+            endpoint: Some(endpoint),
         });
     }
 
     Ok(Engine {
         engine_status: EngineStatus::Unknown,
         docker: None,
+        endpoint: None,
     })
 }
 

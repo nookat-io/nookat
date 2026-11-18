@@ -18,6 +18,14 @@ pub use linux::*;
 
 pub const DOCKER_CONTEXT_LIST_FORMAT: &str = "{{.Current}}\t{{.DockerEndpoint}}";
 
+pub fn docker_exec_args<'a>(
+    endpoint: &'a str,
+    container_id: &'a str,
+    shell: &'a str,
+) -> [&'a str; 6] {
+    ["--host", endpoint, "exec", "-it", container_id, shell]
+}
+
 pub fn endpoints_with_the_current_context_first(context_list: &str) -> Vec<String> {
     let (current, others): (Vec<_>, Vec<_>) = context_list
         .lines()
@@ -36,6 +44,23 @@ pub fn endpoints_with_the_current_context_first(context_list: &str) -> Vec<Strin
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn opens_the_shell_on_the_engine_nookat_shows_rather_than_the_current_context() {
+        let args = docker_exec_args("tcp://127.0.0.1:23750", "1838a7db9b42", "sh");
+
+        assert_eq!(
+            args,
+            [
+                "--host",
+                "tcp://127.0.0.1:23750",
+                "exec",
+                "-it",
+                "1838a7db9b42",
+                "sh"
+            ]
+        );
+    }
 
     #[test]
     fn tries_the_current_context_before_the_others_like_the_docker_cli() {
