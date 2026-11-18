@@ -20,6 +20,8 @@ import {
 } from '../types';
 
 const SUPPORT_UNKNOWN = null;
+const ENGINE_VALIDATION_MS = 2000;
+const STOP_RESULT_SHOWN_MS = 2000;
 
 function withSettingChange<K extends EditableColimaVmSetting>(
   changes: ColimaVmSettingsChanges,
@@ -299,19 +301,6 @@ export function useEngineSettingsState(): [
               '[INFO] Engine startup completed successfully',
             ],
           }));
-
-          setTimeout(() => {
-            setInstallationStep('complete');
-            fetchDockerInfo().catch(() => {});
-            refreshColimaVmAfterStart();
-            setInstallationProgress(prev => ({
-              ...prev,
-              step: 'Engine Ready!',
-              message: 'Colima engine is ready to use',
-              percentage: 100,
-              logs: [...prev.logs, '[INFO] Engine started successfully'],
-            }));
-          }, 2000);
         });
         unlistenPromises.push(unlistenVMComplete);
 
@@ -329,6 +318,27 @@ export function useEngineSettingsState(): [
         });
       };
     }
+  }, [installationStep]);
+
+  useEffect(() => {
+    if (installationStep !== 'validating') {
+      return;
+    }
+
+    const engineReady = setTimeout(() => {
+      setInstallationStep('complete');
+      fetchDockerInfo().catch(() => {});
+      refreshColimaVmAfterStart();
+      setInstallationProgress(prev => ({
+        ...prev,
+        step: 'Engine Ready!',
+        message: 'Colima engine is ready to use',
+        percentage: 100,
+        logs: [...prev.logs, '[INFO] Engine started successfully'],
+      }));
+    }, ENGINE_VALIDATION_MS);
+
+    return () => clearTimeout(engineReady);
   }, [installationStep, fetchDockerInfo, refreshColimaVmAfterStart]);
 
   useEffect(() => {
@@ -346,11 +356,6 @@ export function useEngineSettingsState(): [
         setStopProgress(
           prev => progressReportedByBackend ?? { ...prev, percentage: 100 }
         );
-        setTimeout(() => {
-          fetchDockerInfo().catch(() => {});
-          fetchColimaVm();
-          setStopStep('idle');
-        }, 2000);
       }),
       listen<string>('vm-stop-error', event => {
         setError(event.payload);
@@ -363,6 +368,20 @@ export function useEngineSettingsState(): [
         unlisten.then(cleanup => cleanup());
       });
     };
+  }, [stopStep]);
+
+  useEffect(() => {
+    if (stopStep !== 'complete') {
+      return;
+    }
+
+    const backToIdle = setTimeout(() => {
+      fetchDockerInfo().catch(() => {});
+      fetchColimaVm();
+      setStopStep('idle');
+    }, STOP_RESULT_SHOWN_MS);
+
+    return () => clearTimeout(backToIdle);
   }, [stopStep, fetchDockerInfo, fetchColimaVm]);
 
   const handleInstall = async () => {

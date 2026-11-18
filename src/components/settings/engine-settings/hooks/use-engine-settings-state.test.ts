@@ -1,7 +1,7 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { emit } from '@tauri-apps/api/event';
 import { mockIPC } from '@tauri-apps/api/mocks';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { EngineStatus } from '../../../../types/engine-status';
 import {
   BinaryInstallPlan,
@@ -24,6 +24,10 @@ vi.mock('../../../../hooks/use-engine-status', () => ({
 
 beforeEach(() => {
   engine.status = RUNNING;
+});
+
+afterEach(() => {
+  vi.useRealTimers();
 });
 
 const stoppedProfile = (cpus = 8): ColimaVm => ({
@@ -122,13 +126,21 @@ function mockBackend({
 }
 
 function renderEngineSettings() {
-  const { result, rerender } = renderHook(() => useEngineSettingsState());
+  const { result, rerender, unmount } = renderHook(() =>
+    useEngineSettingsState()
+  );
   return {
     state: () => result.current[0],
     actions: () => result.current[1],
     rerender,
+    unmount,
   };
 }
+
+const engineLoads = (backend: ReturnType<typeof mockBackend>) => ({
+  dockerInfo: backend.count('get_docker_info'),
+  colimaVm: backend.count('get_colima_vm'),
+});
 
 const flushPromises = () => new Promise(resolve => setTimeout(resolve, 0));
 
@@ -434,6 +446,81 @@ describe('useEngineSettingsState', () => {
     );
     expect(state().changes).toEqual({});
     expect(backend.count('get_colima_vm')).toBe(2);
+  });
+
+  it('shows the engine as ready two seconds after it started, with fresh engine info', async () => {
+    const backend = mockBackend();
+    const { state, actions } = renderEngineSettings();
+    await waitFor(() => expect(state().colimaVm).not.toBeNull());
+    await act(() => actions().handleStartEngine());
+    await act(flushPromises);
+    vi.useFakeTimers();
+    await act(() => emit('vm-startup-complete'));
+    const loadsWhileValidating = engineLoads(backend);
+
+    await act(() => vi.advanceTimersByTimeAsync(1999));
+    expect(state().installationStep).toBe('validating');
+    await act(() => vi.advanceTimersByTimeAsync(1));
+
+    expect(state().installationStep).toBe('complete');
+    expect(state().installationProgress.percentage).toBe(100);
+    expect(engineLoads(backend)).toEqual({
+      dockerInfo: loadsWhileValidating.dockerInfo + 1,
+      colimaVm: loadsWhileValidating.colimaVm + 1,
+    });
+  });
+
+  it('goes back to idle two seconds after a stop, with fresh engine info', async () => {
+    const backend = mockBackend();
+    const { state, actions } = renderEngineSettings();
+    await waitFor(() => expect(state().colimaVm).not.toBeNull());
+    await act(() => actions().handleStopEngine());
+    await act(flushPromises);
+    vi.useFakeTimers();
+    await act(() => emit('vm-stop-complete', null));
+    const loadsAfterStop = engineLoads(backend);
+
+    await act(() => vi.advanceTimersByTimeAsync(1999));
+    expect(state().stopStep).toBe('complete');
+    await act(() => vi.advanceTimersByTimeAsync(1));
+
+    expect(state().stopStep).toBe('idle');
+    expect(engineLoads(backend)).toEqual({
+      dockerInfo: loadsAfterStop.dockerInfo + 1,
+      colimaVm: loadsAfterStop.colimaVm + 1,
+    });
+  });
+
+  it('leaves the engine alone once Settings close while a start is being validated', async () => {
+    const backend = mockBackend();
+    const { state, actions, unmount } = renderEngineSettings();
+    await waitFor(() => expect(state().colimaVm).not.toBeNull());
+    await act(() => actions().handleStartEngine());
+    await act(flushPromises);
+    vi.useFakeTimers();
+    await act(() => emit('vm-startup-complete'));
+    const loadsWhileOpen = engineLoads(backend);
+
+    unmount();
+    await vi.advanceTimersByTimeAsync(2000);
+
+    expect(engineLoads(backend)).toEqual(loadsWhileOpen);
+  });
+
+  it('leaves the engine alone once Settings close right after a stop', async () => {
+    const backend = mockBackend();
+    const { state, actions, unmount } = renderEngineSettings();
+    await waitFor(() => expect(state().colimaVm).not.toBeNull());
+    await act(() => actions().handleStopEngine());
+    await act(flushPromises);
+    vi.useFakeTimers();
+    await act(() => emit('vm-stop-complete', null));
+    const loadsWhileOpen = engineLoads(backend);
+
+    unmount();
+    await vi.advanceTimersByTimeAsync(2000);
+
+    expect(engineLoads(backend)).toEqual(loadsWhileOpen);
   });
 
   it('describes the binary installation while Colima is not installed', async () => {
