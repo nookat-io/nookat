@@ -20,16 +20,16 @@ export class ContainerActionService {
       const countText = count === 1 ? '' : `${count} `;
 
       let message = '';
-      if (action.includes('start')) {
+      if (action.includes('restart')) {
+        message = `Restarted ${countText}${containerText}`;
+      } else if (action.includes('start')) {
         message = `Started ${countText}${containerText}`;
       } else if (action.includes('stop')) {
         message = `Stopped ${countText}${containerText}`;
-      } else if (action.includes('pause')) {
-        message = `Paused ${countText}${containerText}`;
       } else if (action.includes('unpause')) {
         message = `Resumed ${countText}${containerText}`;
-      } else if (action.includes('restart')) {
-        message = `Restarted ${countText}${containerText}`;
+      } else if (action.includes('pause')) {
+        message = `Paused ${countText}${containerText}`;
       } else if (action.includes('remove') || action.includes('delete')) {
         message = `Removed ${countText}${containerText}`;
       }
@@ -52,16 +52,16 @@ export class ContainerActionService {
       const countText = count === 1 ? '' : `${count} `;
 
       let actionName = 'perform action on';
-      if (action.includes('start')) {
+      if (action.includes('restart')) {
+        actionName = 'restart';
+      } else if (action.includes('start')) {
         actionName = 'start';
       } else if (action.includes('stop')) {
         actionName = 'stop';
-      } else if (action.includes('pause')) {
-        actionName = 'pause';
       } else if (action.includes('unpause')) {
         actionName = 'resume';
-      } else if (action.includes('restart')) {
-        actionName = 'restart';
+      } else if (action.includes('pause')) {
+        actionName = 'pause';
       } else if (action.includes('remove') || action.includes('delete')) {
         actionName = 'remove';
       }
