@@ -26,7 +26,7 @@ import { ErrorDisplay } from '../ui/error-display';
 import { SortableTableHeader } from '../ui/sortable-table-header';
 import { useTableSort } from '../../hooks/use-table-sort';
 import { useState } from 'react';
-import { invoke } from '@tauri-apps/api/core';
+import { ImageActionService } from './image-actions-service';
 import {
   Dialog,
   DialogContent,
@@ -92,20 +92,17 @@ export function ImagesTable({
     setDeletingImageId(imageToDelete.id);
     setDeleteDialogOpen(false);
 
-    try {
-      await invoke('delete_image', { imageId: imageToDelete.id });
-
+    const deletedIds = await ImageActionService.deleteImages([
+      imageToDelete.id,
+    ]);
+    if (deletedIds.length > 0) {
       if (selectedImages.includes(imageToDelete.id)) {
         onSelectionChange(selectedImages.filter(id => id !== imageToDelete.id));
       }
-      onImagesDeleted?.([imageToDelete.id]);
-    } catch (error) {
-      console.error('Error deleting image:', error);
-      alert(`Failed to delete image: ${error}`);
-    } finally {
-      setDeletingImageId(null);
-      setImageToDelete(null);
+      onImagesDeleted?.(deletedIds);
     }
+    setDeletingImageId(null);
+    setImageToDelete(null);
   };
 
   const renderTableBody = () => {

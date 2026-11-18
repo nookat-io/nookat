@@ -2,8 +2,8 @@
 
 import { useState } from 'react';
 import { PullImage } from './pull/pull-image-modal';
-import { invoke } from '@tauri-apps/api/core';
 import { PruneResult } from './image-types';
+import { ImageActionService } from './image-actions-service';
 import { PruneConfirmDialog } from './dialogs/PruneConfirmDialog';
 import { DeleteConfirmDialog } from './dialogs/DeleteConfirmDialog';
 import { PruneResultsDialog } from './dialogs/PruneResultsDialog';
@@ -28,16 +28,12 @@ export function ImageActions({
 
   const handlePrune = async () => {
     setIsPruning(true);
-    try {
-      const result = await invoke<PruneResult>('prune_images');
+    const result = await ImageActionService.pruneImages();
+    setIsPruning(false);
+    setConfirmPruneDialogOpen(false);
+    if (result) {
       setPruneResult(result);
-      setConfirmPruneDialogOpen(false);
       setPruneDialogOpen(true);
-    } catch (error) {
-      console.error('Error pruning images:', error);
-      alert('Failed to prune images: ' + error);
-    } finally {
-      setIsPruning(false);
     }
   };
 
@@ -45,32 +41,12 @@ export function ImageActions({
     setIsDeleting(true);
     setConfirmDeleteDialogOpen(false);
 
-    try {
-      const results = await Promise.allSettled(
-        selectedImages.map(imageId => invoke('delete_image', { imageId }))
-      );
-
-      const deletedIds = selectedImages.filter(
-        (_, index) => results[index].status === 'fulfilled'
-      );
-      const failures = results.flatMap((result, index) =>
-        result.status === 'rejected'
-          ? [{ imageId: selectedImages[index], error: result.reason }]
-          : []
-      );
-
-      onImagesDeleted?.(deletedIds);
-      onSelectionChange?.(failures.map(failure => failure.imageId));
-
-      if (failures.length > 0) {
-        console.error('Failed to delete some images:', failures);
-        alert(
-          `Failed to delete ${failures.length} of ${selectedImages.length} images. Check console for details.`
-        );
-      }
-    } finally {
-      setIsDeleting(false);
-    }
+    const deletedIds = await ImageActionService.deleteImages(selectedImages);
+    onImagesDeleted?.(deletedIds);
+    onSelectionChange?.(
+      selectedImages.filter(imageId => !deletedIds.includes(imageId))
+    );
+    setIsDeleting(false);
   };
 
   return (
