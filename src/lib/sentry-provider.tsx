@@ -33,6 +33,23 @@ function readSentryStatus() {
   return sentryStatus;
 }
 
+const createIntegrations = () => [
+  Sentry.replayIntegration({
+    maskAllText: true,
+    blockAllMedia: true,
+  }),
+  Sentry.captureConsoleIntegration({ levels: ['error', 'warn'] }),
+];
+
+let integrationsCreatedOncePerPage: ReturnType<
+  typeof createIntegrations
+> | null = null;
+
+function integrationsForInit() {
+  integrationsCreatedOncePerPage ??= createIntegrations();
+  return integrationsCreatedOncePerPage;
+}
+
 function initSentry(): SentryStatus {
   try {
     Sentry.init({
@@ -42,13 +59,7 @@ function initSentry(): SentryStatus {
         cookies: false,
         httpBodies: [],
       },
-      integrations: [
-        Sentry.replayIntegration({
-          maskAllText: true,
-          blockAllMedia: true,
-        }),
-        Sentry.captureConsoleIntegration({ levels: ['error', 'warn'] }),
-      ],
+      integrations: integrationsForInit(),
       replaysSessionSampleRate: 0.0,
       replaysOnErrorSampleRate: 1.0,
     });
@@ -65,11 +76,16 @@ function initSentry(): SentryStatus {
 
 function applyErrorReportingSetting(errorReportingEnabled: boolean) {
   if (errorReportingEnabled && SENTRY_DSN) {
-    publishSentryStatus(initSentry());
-  } else {
-    console.log('Sentry is disabled or no DSN provided');
-    publishSentryStatus(SENTRY_OFF);
+    if (!sentryStatus.isInitialized) {
+      publishSentryStatus(initSentry());
+    }
+    return;
   }
+  if (sentryStatus.isInitialized) {
+    Sentry.close().catch(err => console.error('Failed to close Sentry:', err));
+  }
+  console.log('Sentry is disabled or no DSN provided');
+  publishSentryStatus(SENTRY_OFF);
 }
 
 export function SentryProvider({ children }: { children: React.ReactNode }) {
