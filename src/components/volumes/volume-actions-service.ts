@@ -20,6 +20,17 @@ export class VolumeActionService {
     return actionMap[action] || 'processed';
   }
 
+  private static getActionVerb(action: string): string {
+    const verbMap: Record<string, string> = {
+      remove_volume: 'delete',
+      bulk_remove_volumes: 'delete',
+      inspect_volume: 'inspect',
+      prune_volumes: 'prune',
+    };
+
+    return verbMap[action] || 'process';
+  }
+
   private static getVolumeText(count: number): string {
     return count === 1 ? 'volume' : 'volumes';
   }
@@ -57,13 +68,13 @@ export class VolumeActionService {
       console.error(`Error executing ${action}:`, error);
 
       const count = Array.isArray(params.names) ? params.names.length : 1;
-      const actionDisplayName = this.getActionDisplayName(action);
+      const actionVerb = this.getActionVerb(action);
       const countText = this.getCountText(count);
       const volumeText = this.getVolumeText(count);
 
       const errorMessage =
         error instanceof Error ? error.message : String(error);
-      const failureMessage = `Failed to ${actionDisplayName} ${countText}${volumeText}: ${errorMessage}`;
+      const failureMessage = `Failed to ${actionVerb} ${countText}${volumeText}: ${errorMessage}`;
       toast.error(failureMessage);
 
       // Refresh even on error to ensure UI is in sync
