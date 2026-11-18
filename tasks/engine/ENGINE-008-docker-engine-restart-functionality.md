@@ -1,114 +1,29 @@
-# [ENGINE-008] Implement Docker Engine restart functionality
+# [ENGINE-008] Restart the engine
 
-## Overview
+- **Status:** Partially done
+- **Related:** ENGINE-004, ENGINE-005
 
-Implement Docker Engine restart capabilities to allow users to restart the Docker daemon when needed, with proper safety checks and status monitoring.
+## Problem
 
-## Description
+When the engine misbehaves, or after a config change that applies only on start, users want a single Restart action.
+Today they have to stop the engine, wait, and start it again.
 
-Users currently need to manually restart Docker Engine through system commands when issues arise. We need to implement safe Docker Engine restart functionality that can restart the Docker daemon with proper validation, safety checks, and status monitoring to ensure a smooth restart process.
+## Current state
 
-## Technical Requirements
+- Settings has Start Engine and Stop Engine buttons with a confirm dialog in `src/components/settings/engine-settings/components/engine-actions-card.tsx`.
+- They call the `start_colima_vm_command` and `stop_colima_vm_command` commands, backed by `start_colima_vm` and `stop_colima_vm` in `src-tauri/src/services/engine/macos.rs`.
+- Both stream their progress as `vm-startup-progress`, `vm-startup-complete`, `vm-startup-error` and `vm-stop-progress` events.
+- There is no restart action.
+- Only macOS manages the engine; `src-tauri/src/services/engine/unmanaged_colima.rs` returns an error for these commands on other platforms.
 
-### Frontend
+## Scope
 
-- Implement Docker Engine restart interface
-- Create restart progress tracking and feedback
-- Add restart safety checks and confirmations
-- Implement restart status monitoring
-- Create restart troubleshooting and recovery
-- Add restart history and logging
-
-### Backend
-
-- Implement safe Docker Engine restart mechanisms
-- Create restart safety checks and validation
-- Add restart progress monitoring and reporting
-- Implement restart verification and testing
-- Create restart rollback and recovery mechanisms
-- Add restart analytics and error reporting
-
-### Data Flow
-
-1. User initiates Docker Engine restart
-2. Safety checks validate restart conditions
-3. Docker daemon is safely stopped
-4. Docker daemon is restarted with monitoring
-5. Restart is verified and tested
-6. User receives confirmation and status
-
-## Acceptance Criteria
-
-### Functional Requirements
-
-- [ ] Safe Docker Engine restart functionality
-- [ ] Restart safety checks and validations
-- [ ] Restart progress tracking and feedback
-- [ ] Restart verification and testing
-- [ ] Restart troubleshooting and recovery
-- [ ] Restart history and logging
-- [ ] Restart rollback mechanisms
-
-### Non-Functional Requirements
-
-- [ ] Restart completes within 30 seconds
-- [ ] Restart doesn't impact running containers unnecessarily
-- [ ] Restart verification completes within 10 seconds
-- [ ] Restart rollback works reliably
-- [ ] Restart monitoring uses minimal system resources
-
-### User Experience
-
-- [ ] Clear restart progress and feedback
-- [ ] Helpful restart guidance and safety warnings
-- [ ] Seamless restart experience
-- [ ] Professional restart interface
-- [ ] Clear post-restart status and next steps
-
-## Technical Implementation
-
-### Backend Implementation
-
-```rust
-// Safe Docker Engine restart
-// Safety checks and validation
-// Progress monitoring
-// Verification and testing
-// Rollback and recovery
-```
-
-### Frontend Implementation
-
-```typescript
-// Restart interface
-// Progress tracking
-// Safety checks and confirmations
-// Status monitoring
-// Troubleshooting support
-```
-
-## Dependencies
-
-- Docker Engine restart utilities
-- Safety check and validation framework
-- Progress monitoring system
-- Verification and testing tools
-- Rollback and recovery utilities
-
-## Definition of Done
-
-- [ ] Safe Docker Engine restart implemented
-- [ ] Restart safety checks functional
-- [ ] Restart progress tracking working
-- [ ] Restart verification and testing
-- [ ] Restart troubleshooting available
-- [ ] Restart rollback mechanisms
-- [ ] Tests written for restart system
-- [ ] Documentation updated
+- A Restart Engine action next to Start and Stop, with a confirm dialog that says running containers will stop.
+- A backend restart that stops the Colima VM and starts it again with the profile's current settings, reusing the existing progress events so the UI shows one continuous progress view.
+- Offer the restart wherever a setting needs a VM restart to apply (ENGINE-004, ENGINE-005, VM resource changes).
+- Disable the action while a start or stop is already running.
 
 ## Notes
 
-- Consider implementing scheduled restart capabilities
-- Ensure restart doesn't interfere with critical operations
-- Test restart with various Docker configurations
-- Monitor restart success rates and optimize
+- `colima restart` exists, but stopping and starting through the existing service code keeps the progress reporting and the start arguments from `src-tauri/src/services/colima/start_args.rs` in one place.
+- Open question: should Restart also exist for unmanaged engines, for example by restarting the Docker service on Linux, or stay macOS only?

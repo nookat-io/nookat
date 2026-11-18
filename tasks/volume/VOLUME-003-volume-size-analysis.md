@@ -1,114 +1,26 @@
-# [VOLUME-003] Create volume size analysis
+# [VOLUME-003] Show volume sizes
 
-## Overview
+- **Status:** Not started
+- **Related:** VOLUME-001, VOLUME-004
 
-Implement comprehensive volume size analysis that provides detailed insights into volume usage, space allocation, and storage optimization recommendations.
+## Problem
 
-## Description
+Users cannot see how much disk each volume uses, so they cannot tell which volumes to clean up when the disk or the Colima VM fills up.
 
-Users need to analyze volume sizes and understand storage usage patterns in their Docker environments. We need to implement volume size analysis that provides detailed insights, usage patterns, and storage optimization recommendations.
+## Current state
 
-## Technical Requirements
+- `VolumesService::get_volumes` in `src-tauri/src/services/volumes.rs` sets `size: 0` for every volume and fills only `ref_count`.
+- The frontend type in `src/components/volumes/volume-types.ts` carries `size`, but `src/components/volumes/volumes-table.tsx` has no size column.
 
-### Frontend
+## Scope
 
-- Implement volume size analysis interface
-- Create volume usage visualization and reporting
-- Add storage space allocation analysis
-- Implement size trend analysis and forecasting
-- Create storage optimization recommendations
-- Add volume size comparison and benchmarking
-
-### Backend
-
-- Implement volume size analysis logic
-- Create volume usage data collection
-- Add storage space allocation analysis
-- Implement size trend analysis and forecasting
-- Create storage optimization recommendations
-- Add volume size analytics and reporting
-
-### Data Flow
-
-1. Volume size data is collected and analyzed
-2. Usage patterns are identified and categorized
-3. Storage space allocation is calculated
-4. Size trends are analyzed and forecasted
-5. Optimization recommendations are generated
-6. Size analysis results are reported and visualized
-
-## Acceptance Criteria
-
-### Functional Requirements
-
-- [ ] Volume size analysis interface
-- [ ] Volume usage visualization and reporting
-- [ ] Storage space allocation analysis
-- [ ] Size trend analysis and forecasting
-- [ ] Storage optimization recommendations
-- [ ] Volume size comparison and benchmarking
-- [ ] Support for multiple volume types
-
-### Non-Functional Requirements
-
-- [ ] Size analysis interface loads within 2 seconds
-- [ ] Usage analysis completes within 3 seconds
-- [ ] Trend analysis responds within 1 second
-- [ ] Size analysis works with large volumes
-- [ ] Volume size analysis works across all platforms
-
-### User Experience
-
-- [ ] Intuitive volume size analysis interface
-- [ ] Clear usage visualization and reporting
-- [ ] Helpful storage optimization recommendations
-- [ ] Professional size analysis workflow
-- [ ] Seamless volume size analysis process
-
-## Technical Implementation
-
-### Backend Implementation
-
-```rust
-// Volume size analysis logic
-// Volume usage data collection
-// Storage space allocation analysis
-// Size trend analysis and forecasting
-// Storage optimization recommendations
-```
-
-### Frontend Implementation
-
-```typescript
-// Volume size analysis interface
-// Volume usage visualization and reporting
-// Storage space allocation analysis
-// Size trend analysis and forecasting
-// Storage optimization recommendations
-```
-
-## Dependencies
-
-- Volume size analysis library
-- Usage data collection framework
-- Storage allocation analysis utilities
-- Trend analysis and forecasting tools
-- Optimization recommendation framework
-
-## Definition of Done
-
-- [ ] Volume size analysis implemented
-- [ ] Volume usage visualization working
-- [ ] Storage space allocation analysis functional
-- [ ] Size trend analysis and forecasting operational
-- [ ] Storage optimization recommendations
-- [ ] Support for multiple volume types
-- [ ] Tests written for volume size analysis
-- [ ] Documentation updated
+- Read volume sizes from Docker's disk usage endpoint (`/system/df`, bollard's `df`).
+- Show a Size column in the Volumes table, formatted with the existing byte formatting, and allow sorting by it.
+- Show the total size of all volumes and of unused volumes, so users see what Prune Unused would free.
+- Show a placeholder instead of `0 B` when the size is not known, for example for drivers that do not report it.
 
 ## Notes
 
-- Consider implementing automated size monitoring
-- Ensure analysis works with various volume types
-- Test analysis with large data volumes
-- Monitor size analysis performance and optimize
+- The disk usage endpoint walks every volume and can take seconds on large setups.
+  Fetch it on demand or on a slow interval, not on every engine state update from `src-tauri/src/services/engine_state_monitor.rs`.
+- Size trends, forecasting and optimization advice from the original ticket are left out; the size column is the useful core.

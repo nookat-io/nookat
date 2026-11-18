@@ -1,113 +1,31 @@
-# [TECH-002] Add integration testing framework
+# [TECH-002] Test the backend against a real Docker daemon
 
-## Overview
+- **Status:** Partially done
+- **Related:** TECH-001, TECH-003
 
-Implement integration testing framework to test component interactions, API integrations, and end-to-end workflows.
+## Problem
 
-## Description
+Nothing tests the services against a real Docker engine.
+A bollard upgrade or a daemon behaving differently from what the code expects (for example the volume prune bug in #170) only shows up in manual testing.
 
-Users need reliable integration between components and services. We need to implement integration testing framework to provide comprehensive testing of component interactions, API integrations, and end-to-end workflows.
+## Current state
 
-## Technical Requirements
+- 15 frontend test files render components with Tauri IPC mocked through `mockIPC` from `@tauri-apps/api/mocks`, for example `src/components/containers/create/create-container-dialog.test.tsx`.
+  They test the frontend and the command contract, not the backend.
+- Rust tests in `src-tauri/src` are unit tests that don't need an engine.
+  The one integration-style fixture is a local HTTP server that fakes GitHub releases for the binary installer (`src-tauri/src/services/binary_install/test_fixtures.rs`).
+- No test talks to a Docker daemon, and there is no `src-tauri/tests/` directory.
 
-### Frontend
+## Scope
 
-- Implement integration testing framework for React
-- Create API integration testing
-- Add component interaction testing
-- Implement end-to-end workflow testing
-- Create integration test reporting
-- Add integration test automation
-
-### Backend
-
-- Implement integration testing framework for Rust
-- Create API integration testing
-- Add service interaction testing
-- Implement end-to-end workflow testing
-- Create integration test reporting
-- Add integration test automation
-
-### Data Flow
-
-1. Integration tests are written and configured
-2. Component and service interactions are tested
-3. API integrations are validated
-4. End-to-end workflows are tested
-5. Integration test results are reported
-6. Integration test automation is executed
-
-## Acceptance Criteria
-
-### Functional Requirements
-
-- [ ] Integration testing framework for React
-- [ ] Integration testing framework for Rust
-- [ ] API integration testing
-- [ ] Component and service interaction testing
-- [ ] End-to-end workflow testing
-- [ ] Integration test reporting
-- [ ] Support for comprehensive integration testing
-
-### Non-Functional Requirements
-
-- [ ] Integration tests execute within 2 minutes
-- [ ] Integration test reports generate within 30 seconds
-- [ ] Integration test automation responds within 3 minutes
-- [ ] Integration testing works across all platforms
-- [ ] System handles integration test failures gracefully
-
-### User Experience
-
-- [ ] Intuitive integration testing framework
-- [ ] Clear API integration testing
-- [ ] Helpful component and service interaction testing
-- [ ] Professional end-to-end workflow testing
-- [ ] Seamless integration test automation workflow
-
-## Technical Implementation
-
-### Backend Implementation
-
-```rust
-// Integration testing framework for Rust
-// API integration testing
-// Service interaction testing
-// End-to-end workflow testing
-// Integration test reporting
-```
-
-### Frontend Implementation
-
-```typescript
-// Integration testing framework for React
-// API integration testing
-// Component interaction testing
-// End-to-end workflow testing
-// Integration test reporting
-```
-
-## Dependencies
-
-- Integration testing frameworks
-- API testing utilities
-- End-to-end testing tools
-- Integration test reporting system
-- Integration test automation framework
-
-## Definition of Done
-
-- [ ] Integration testing framework implemented
-- [ ] API integration testing working
-- [ ] Component and service interaction testing functional
-- [ ] End-to-end workflow testing operational
-- [ ] Support for comprehensive integration testing
-- [ ] Tests written for integration testing framework
-- [ ] Documentation updated
+- Add integration tests for `ContainersService`, `ImagesService`, `VolumesService` and `NetworksService` that run against a real engine through bollard.
+  Cover create, start, stop, remove, prune, network creation and the engine state snapshot that `src-tauri/src/services/engine_state_monitor.rs` builds.
+- Run them in a CI job on `ubuntu` runners, which have Docker preinstalled.
+- Keep them out of the default `cargo test` run (an `#[ignore]` attribute or a feature flag), so local runs without Docker still pass.
+- Give every test its own labelled resources and clean them up even when the test fails.
 
 ## Notes
 
-- Consider implementing automated integration test generation
-- Ensure integration testing works with various integration scenarios
-- Test integration testing with different API configurations
-- Monitor integration testing performance and optimize
+- Use small, pinned images such as `alpine` or `busybox` to keep the job fast.
+- Colima itself (the macOS engine flow) can't run on Linux runners; testing it needs a macOS runner with virtualization and is out of scope here.
+- Whole user flows through the UI belong to TECH-003.

@@ -1,114 +1,27 @@
-# [ORCHESTRATION-003] Create service dependency visualization
+# [ORCHESTRATION-003] Show how the services of a Compose project depend on each other
 
-## Overview
+- **Status:** Not started
+- **Related:** ORCHESTRATION-001, NETWORK-007
 
-Implement service dependency visualization that displays the relationships and dependencies between containers and services in a visual, interactive format.
+## Problem
 
-## Description
+In a Compose project with several services it is hard to see which service waits for which, and why one fails to start when another is down.
+A picture of the dependencies makes the start order and the impact of a failing service obvious.
 
-Users need to understand the relationships and dependencies between containers and services in their applications. We need to implement a service dependency visualization system that displays these relationships in an interactive, visual format with real-time updates.
+## Current state
 
-## Technical Requirements
+- Nothing visualizes services or their dependencies.
+- Containers are grouped by Compose project on the Containers page (`src/components/containers/container-utils.ts`), but services and their `depends_on` relations are never read.
 
-### Frontend
+## Scope
 
-- Implement service dependency visualization interface
-- Create interactive dependency graph display
-- Add dependency relationship management
-- Implement real-time dependency updates
-- Create dependency analysis and insights
-- Add dependency export and reporting
-
-### Backend
-
-- Implement service dependency analysis
-- Create dependency graph generation
-- Add dependency relationship tracking
-- Implement dependency change detection
-- Create dependency analytics and reporting
-- Add dependency storage and retrieval
-
-### Data Flow
-
-1. Service dependencies are analyzed and mapped
-2. Dependency graph is generated and visualized
-3. Real-time dependency changes are detected
-4. Dependency relationships are updated
-5. Dependency insights and analytics are generated
-6. Users can interact with and export dependency data
-
-## Acceptance Criteria
-
-### Functional Requirements
-
-- [ ] Service dependency visualization interface
-- [ ] Interactive dependency graph display
-- [ ] Dependency relationship management
-- [ ] Real-time dependency updates
-- [ ] Dependency analysis and insights
-- [ ] Dependency export and reporting
-- [ ] Dependency change detection
-
-### Non-Functional Requirements
-
-- [ ] Dependency graph loads within 2 seconds
-- [ ] Real-time updates occur within 500ms
-- [ ] Interactive graph responds within 200ms
-- [ ] Dependency analysis completes within 1 second
-- [ ] Visualization works with complex dependency structures
-
-### User Experience
-
-- [ ] Intuitive dependency visualization interface
-- [ ] Clear dependency relationship display
-- [ ] Helpful interactive features
-- [ ] Professional visualization appearance
-- [ ] Seamless dependency monitoring
-
-## Technical Implementation
-
-### Backend Implementation
-
-```rust
-// Service dependency analysis
-// Dependency graph generation
-// Relationship tracking
-// Change detection
-// Analytics and reporting
-```
-
-### Frontend Implementation
-
-```typescript
-// Service dependency visualization interface
-// Interactive dependency graph
-// Relationship management
-// Real-time updates
-// Analysis and insights
-```
-
-## Dependencies
-
-- Graph visualization library
-- Dependency analysis framework
-- Real-time update utilities
-- Analytics and reporting tools
-- Interactive graph framework
-
-## Definition of Done
-
-- [ ] Service dependency visualization implemented
-- [ ] Interactive dependency graph working
-- [ ] Dependency relationship management functional
-- [ ] Real-time dependency updates operational
-- [ ] Dependency analysis and insights
-- [ ] Dependency export and reporting
-- [ ] Tests written for dependency visualization
-- [ ] Documentation updated
+- A dependency graph per Compose project, with one node per service and an edge for each `depends_on` relation.
+- Color each node by the state of its containers, kept current from the pushed engine state.
+- Mark the condition of each edge (`service_started`, `service_healthy`, `service_completed_successfully`).
+- Select a node to show its containers and their actions.
 
 ## Notes
 
-- Consider implementing dependency graph customization
-- Ensure visualization works with large dependency trees
-- Test visualization with various dependency patterns
-- Monitor visualization performance and optimize
+- `depends_on` is not in container labels, so the graph needs the compose file, which comes with the project view in ORCHESTRATION-001.
+- Which containers can reach each other over shared networks is a different graph, tracked in NETWORK-007; the two views could share a graph component.
+- No graph or chart library is installed yet.

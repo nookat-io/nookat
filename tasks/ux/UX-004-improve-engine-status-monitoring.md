@@ -1,113 +1,29 @@
-# [UX-004] Improve engine status monitoring
+# [UX-004] Explain why the engine is unreachable
 
-## Overview
+- **Status:** Partially done
+- **Related:** TRAY-002, MONITOR-003
 
-Improve Docker Engine status monitoring to provide real-time status updates, health checks, and detailed engine diagnostics.
+## Problem
 
-## Description
+When Nookat cannot reach the engine, it only says "Engine status is unknown".
+Users cannot tell whether Docker is missing, the VM is stopped, the socket is not accessible or the CLI points at another context, so they do not know what to do next.
 
-Users need better monitoring of Docker Engine status to ensure reliable container operations. We need to improve engine status monitoring to provide real-time status updates, health checks, and detailed engine diagnostics.
+## Current state
 
-## Technical Requirements
+- The header shows a colored status dot and label (`src/components/layout/header.tsx`).
+- `src/lib/engine-provider.tsx` polls the engine status every second and receives the pushed engine state, and the backend emits `engine-connected` when a connection is made (`src-tauri/src/state.rs`).
+- `src/components/ui/engine-error.tsx` blocks every page except Settings with a retry button while the status is `Unknown`.
+- Settings shows engine details and warns when the Docker CLI context does not use Colima (`src/components/settings/engine-settings/components/docker-context-notice.tsx`).
+- `create_engine` in `src-tauri/src/services/engine/mod.rs` returns `EngineStatus::Unknown` for every failure, and the reason is only logged at debug level.
 
-### Frontend
+## Scope
 
-- Implement improved engine status monitoring interface
-- Create real-time engine status display
-- Add engine health checks and diagnostics
-- Implement engine status alerts and notifications
-- Create engine status history and tracking
-- Add engine status configuration and management
-
-### Backend
-
-- Implement improved engine status monitoring logic
-- Create real-time engine status checking
-- Add engine health checks and diagnostics
-- Implement engine status alerts and notifications
-- Create engine status analytics and reporting
-- Add engine status configuration management
-
-### Data Flow
-
-1. Engine status is monitored in real-time
-2. Engine health checks are performed
-3. Engine diagnostics are collected and analyzed
-4. Engine status alerts are triggered
-5. Engine status history is tracked
-6. Engine status configuration is managed
-
-## Acceptance Criteria
-
-### Functional Requirements
-
-- [ ] Improved engine status monitoring interface
-- [ ] Real-time engine status display
-- [ ] Engine health checks and diagnostics
-- [ ] Engine status alerts and notifications
-- [ ] Engine status history and tracking
-- [ ] Engine status configuration and management
-- [ ] Support for comprehensive engine monitoring
-
-### Non-Functional Requirements
-
-- [ ] Engine status monitoring responds within 1 second
-- [ ] Real-time status updates within 500ms
-- [ ] Engine health checks complete within 2 seconds
-- [ ] Improved engine status monitoring works across all platforms
-- [ ] System handles engine status failures gracefully
-
-### User Experience
-
-- [ ] Intuitive improved engine status monitoring interface
-- [ ] Clear real-time engine status display
-- [ ] Helpful engine health checks and diagnostics
-- [ ] Professional engine status alerts and notifications
-- [ ] Seamless engine status monitoring workflow
-
-## Technical Implementation
-
-### Backend Implementation
-
-```rust
-// Improved engine status monitoring logic
-// Real-time engine status checking
-// Engine health checks and diagnostics
-// Engine status alerts and notifications
-// Engine status analytics and reporting
-```
-
-### Frontend Implementation
-
-```typescript
-// Improved engine status monitoring interface
-// Real-time engine status display
-// Engine health checks and diagnostics
-// Engine status alerts and notifications
-// Engine status history and tracking
-```
-
-## Dependencies
-
-- Docker Engine API for status monitoring
-- Engine health check framework
-- Engine status alert system
-- Engine status analytics tools
-- Engine status configuration management system
-
-## Definition of Done
-
-- [ ] Improved engine status monitoring implemented
-- [ ] Real-time engine status display working
-- [ ] Engine health checks and diagnostics functional
-- [ ] Engine status alerts and notifications operational
-- [ ] Support for comprehensive engine monitoring
-- [ ] Tests written for improved engine status monitoring
-- [ ] Documentation updated
+- Keep the reason the connection failed: no Docker CLI, no socket or endpoint found, connection refused, permission denied, VM stopped, or a Docker context that points elsewhere.
+- Show that reason in the engine error screen and in the header tooltip, with one next step for each, such as starting the VM or switching the context in Settings.
+- Show when the engine was last reachable and when the status last changed.
 
 ## Notes
 
-- Consider implementing automated engine recovery
-- Ensure improved engine status monitoring works with various engine configurations
-- Test improved engine status monitoring with different engine states
-- Monitor improved engine status monitoring performance and optimize
+- Desktop notifications for engine status changes belong to TRAY-002.
+- Container-level health and diagnostics are MONITOR-003.
+- Open question: whether a short history of status changes is worth keeping beyond the last change.

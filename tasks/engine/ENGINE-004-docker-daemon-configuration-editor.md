@@ -1,114 +1,31 @@
-# [ENGINE-004] Create Docker daemon configuration editor (daemon.json)
+# [ENGINE-004] Edit the Docker daemon config of the Colima VM
 
-## Overview
+- **Status:** Not started
+- **Related:** ENGINE-005, ENGINE-008
 
-Implement a comprehensive Docker daemon configuration editor that allows users to view, edit, and manage Docker daemon settings through a user-friendly interface.
+## Problem
 
-## Description
+Users who need daemon settings such as registry mirrors, insecure registries, log drivers or default address pools have to edit Docker's daemon config by hand.
+With the Colima engine that Nookat manages, the daemon runs inside the VM, so a host `daemon.json` has no effect.
+Colima takes the daemon config from the `docker:` section of the profile's `colima.yaml` and applies it when the VM starts.
 
-Users currently need to manually edit Docker daemon configuration files (daemon.json) with text editors. We need to implement a visual configuration editor that provides a safe, user-friendly way to view and modify Docker daemon settings with validation, syntax checking, and backup capabilities.
+## Current state
 
-## Technical Requirements
+- Nothing edits the daemon config.
+- The app reads `colima.yaml` read-only: `profile_config_path` and `parse_profile_config` in `src-tauri/src/services/colima/profile.rs` load CPU, memory, disk, VM type, Rosetta and inotify settings only.
+- Changes to the VM are passed as `colima start` flags (`src-tauri/src/services/colima/start_args.rs`, `ColimaVmSettingsChanges` in `src-tauri/src/entities/engine/colima.rs`), never written to `colima.yaml`.
+- Engine management is macOS only; other platforms use `src-tauri/src/services/engine/unmanaged_colima.rs`, which returns an error for every Colima command.
 
-### Frontend
+## Scope
 
-- Implement Docker daemon configuration editor interface
-- Create configuration validation and syntax checking
-- Add configuration backup and restore functionality
-- Implement configuration change preview and diff
-- Create configuration templates and presets
-- Add configuration documentation and help
-
-### Backend
-
-- Implement Docker daemon configuration file management
-- Create configuration validation and parsing
-- Add configuration backup and versioning
-- Implement configuration change application
-- Create configuration syntax checking and validation
-- Add configuration monitoring and health checks
-
-### Data Flow
-
-1. User opens Docker daemon configuration editor
-2. Current configuration is loaded and parsed
-3. User makes changes through visual interface
-4. Changes are validated and syntax checked
-5. Configuration is backed up before applying
-6. New configuration is applied and verified
-
-## Acceptance Criteria
-
-### Functional Requirements
-
-- [ ] Visual Docker daemon configuration editor
-- [ ] Configuration validation and syntax checking
-- [ ] Configuration backup and restore functionality
-- [ ] Configuration change preview and diff
-- [ ] Configuration templates and presets
-- [ ] Configuration documentation and help
-- [ ] Configuration change application and verification
-
-### Non-Functional Requirements
-
-- [ ] Configuration editor loads within 1 second
-- [ ] Configuration validation completes within 100ms
-- [ ] Configuration backup/restore works reliably
-- [ ] Configuration changes apply within 5 seconds
-- [ ] Configuration editor supports large configuration files
-
-### User Experience
-
-- [ ] Intuitive configuration editor interface
-- [ ] Clear configuration validation feedback
-- [ ] Helpful configuration documentation
-- [ ] Safe configuration change process
-- [ ] Professional configuration management
-
-## Technical Implementation
-
-### Backend Implementation
-
-```rust
-// Docker daemon configuration management
-// Configuration validation and parsing
-// Backup and versioning
-// Change application
-// Syntax checking
-```
-
-### Frontend Implementation
-
-```typescript
-// Configuration editor interface
-// Validation and syntax checking
-// Backup and restore
-// Change preview and diff
-// Templates and presets
-```
-
-## Dependencies
-
-- Docker daemon configuration parser
-- Configuration validation framework
-- Backup and versioning system
-- Syntax checking utilities
-- Configuration template library
-
-## Definition of Done
-
-- [ ] Docker daemon configuration editor implemented
-- [ ] Configuration validation and syntax checking
-- [ ] Configuration backup and restore
-- [ ] Configuration change preview and diff
-- [ ] Configuration templates and presets
-- [ ] Configuration documentation and help
-- [ ] Tests written for configuration editor
-- [ ] Documentation updated
+- Read the `docker:` section of the active profile's `colima.yaml` and show it in Settings.
+- Offer form fields for the common keys (registry mirrors, insecure registries, default log driver and its options, default address pools) plus a raw JSON editor for the rest.
+- Validate the result as JSON before saving.
+- Write the change back to `colima.yaml` without dropping the user's other keys or comments, and keep a backup of the previous file.
+- Tell the user that the change applies on the next VM start, and offer to restart the engine (ENGINE-008).
 
 ## Notes
 
-- Consider implementing configuration validation rules
-- Ensure configuration changes don't break Docker daemon
-- Test configuration editor with various daemon.json formats
-- Monitor configuration change success rates
+- Open question: is writing `colima.yaml` safe while the VM runs, or should the editor require the VM to be stopped?
+- Preserving comments may need a different YAML library than `serde_yaml_ng`, which drops them.
+- For engines Nookat does not manage (Docker Engine on Linux, other Docker contexts), the editor should say it cannot change their config rather than edit a file that has no effect.

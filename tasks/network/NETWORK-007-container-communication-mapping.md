@@ -1,114 +1,31 @@
-# [NETWORK-007] Create container-to-container communication mapping
+# [NETWORK-007] Add a network detail view and a container connection map
 
-## Overview
+- **Status:** Not started
+- **Related:** ORCHESTRATION-003, CONTAINER-007, NETWORK-005
 
-Implement container-to-container communication mapping that visualizes and tracks communication patterns between containers in Docker networks.
+## Problem
 
-## Description
+Users cannot see which containers are attached to a network, with which addresses, or which containers can reach each other.
+That makes it hard to understand a multi-container setup or why two services cannot talk.
 
-Users need to understand and monitor communication patterns between containers in their Docker networks. We need to implement container communication mapping that provides visualization of container interactions, communication flow analysis, and network topology mapping.
+## Current state
 
-## Technical Requirements
+- `src/components/networks/networks-table.tsx` lists name, driver, created, subnet, gateway and system columns.
+- The attached container count (`containers` in `src-tauri/src/entities/networks.rs`) is only used to disable Delete; it is not shown.
+- Each container carries its endpoints in `network_settings` (`src-tauri/src/entities/containers/network.rs`), with IP addresses, aliases, gateway and MAC address.
+- There is no detail view for a network.
 
-### Frontend
+## Scope
 
-- Implement container communication mapping interface
-- Create communication flow visualization
-- Add container interaction tracking
-- Implement network topology mapping
-- Create communication pattern analysis
-- Add communication filtering and search
-
-### Backend
-
-- Implement container communication monitoring
-- Create communication flow analysis
-- Add container interaction tracking
-- Implement network topology generation
-- Create communication pattern recognition
-- Add communication analytics and reporting
-
-### Data Flow
-
-1. Container communication data is collected
-2. Communication flows are analyzed and mapped
-3. Container interactions are tracked and visualized
-4. Network topology is generated and displayed
-5. Communication patterns are identified
-6. Communication analytics are reported
-
-## Acceptance Criteria
-
-### Functional Requirements
-
-- [ ] Container communication mapping interface
-- [ ] Communication flow visualization
-- [ ] Container interaction tracking
-- [ ] Network topology mapping
-- [ ] Communication pattern analysis
-- [ ] Communication filtering and search
-- [ ] Support for multiple network topologies
-
-### Non-Functional Requirements
-
-- [ ] Communication mapping loads within 2 seconds
-- [ ] Flow visualization updates within 1 second
-- [ ] Topology generation completes within 3 seconds
-- [ ] Communication mapping works with large container sets
-- [ ] Container communication mapping works across all platforms
-
-### User Experience
-
-- [ ] Intuitive container communication mapping interface
-- [ ] Clear communication flow visualization
-- [ ] Helpful container interaction tracking
-- [ ] Professional network topology mapping
-- [ ] Seamless communication analysis workflow
-
-## Technical Implementation
-
-### Backend Implementation
-
-```rust
-// Container communication monitoring
-// Communication flow analysis
-// Container interaction tracking
-// Network topology generation
-// Communication pattern recognition
-```
-
-### Frontend Implementation
-
-```typescript
-// Container communication mapping interface
-// Communication flow visualization
-// Container interaction tracking
-// Network topology mapping
-// Communication pattern analysis
-```
-
-## Dependencies
-
-- Container communication monitoring library
-- Communication flow analysis framework
-- Network topology generation utilities
-- Communication pattern recognition tools
-- Visualization and mapping framework
-
-## Definition of Done
-
-- [ ] Container communication mapping implemented
-- [ ] Communication flow visualization working
-- [ ] Container interaction tracking functional
-- [ ] Network topology mapping operational
-- [ ] Communication pattern analysis
-- [ ] Support for multiple network topologies
-- [ ] Tests written for container communication mapping
-- [ ] Documentation updated
+- Add a network detail view, opened from the networks table, that lists the attached containers with their IPv4 and IPv6 addresses, aliases and MAC addresses.
+- Show the network's driver, scope, IPAM config, options and labels in the same view.
+- Show the attached container count as a column in the networks table.
+- Add a map view that draws containers and networks as nodes and attachments as edges, built from the containers' `network_settings` in the engine state.
+- Highlight which containers can reach each other because they share a network.
 
 ## Notes
 
-- Consider implementing communication alerting
-- Ensure mapping works with various network configurations
-- Test mapping with complex communication patterns
-- Monitor communication mapping performance and optimize
+- The detail view and the count column are the first step and are useful on their own.
+- Showing real traffic flows between containers would need packet capture inside the engine VM; that is out of scope.
+- Compose `depends_on` relations belong to ORCHESTRATION-003; the two views may share the same graph component.
+- Connecting and disconnecting a container from the detail view belongs to CONTAINER-007.

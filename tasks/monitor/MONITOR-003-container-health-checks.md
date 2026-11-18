@@ -1,114 +1,37 @@
-# [MONITOR-003] Add container health checks
+# [MONITOR-003] Show container health and explain failures
 
-## Overview
+- **Status:** Not started
+- **Merged from:** DEBUG-005, DEBUG-008, DEBUG-009
+- **Related:** MONITOR-004, UX-004
 
-Implement comprehensive container health checks that monitor container status, application health, and provide automated health assessment with alerts and reporting.
+## Problem
 
-## Description
+Users cannot tell from Nookat whether a container's health check passes, and when a container exits or restarts they get no hint why.
+DEBUG-005 (health diagnostics), DEBUG-008 (automated problem detection) and DEBUG-009 (recovery recommendations) all describe this, so they are one task.
 
-Users need to monitor container health and application status to ensure containers are running properly. We need to implement health checks that monitor container status, application responsiveness, and provide automated health assessment with detailed reporting.
+## Current state
 
-## Technical Requirements
+Nothing in `src/` or `src-tauri/src/` reads container health.
+The backend sends the Docker `status` string, which includes "(healthy)" or "(unhealthy)", as `status` in `src-tauri/src/entities/containers/container.rs`.
+`src/components/containers/container-status-badge.tsx` renders only the `state`, so the health part is never shown.
+The creation wizard in `src/components/containers/create/` has no health check option.
 
-### Frontend
+## Scope
 
-- Implement container health check interface
-- Create health status indicators and alerts
-- Add health check configuration and management
-- Implement health check history and reporting
-- Create health check customization options
-- Add health check help and documentation
-
-### Backend
-
-- Implement container health check execution
-- Create health check configuration management
-- Add health check result processing
-- Implement health check alerting system
-- Create health check history and storage
-- Add health check analytics and reporting
-
-### Data Flow
-
-1. Health checks are configured for containers
-2. Health checks are executed at scheduled intervals
-3. Health check results are processed and analyzed
-4. Health status is updated and displayed
-5. Alerts are triggered for failed health checks
-6. Health check history is stored and reported
-
-## Acceptance Criteria
-
-### Functional Requirements
-
-- [ ] Container health check interface
-- [ ] Health status indicators and alerts
-- [ ] Health check configuration and management
-- [ ] Health check history and reporting
-- [ ] Health check customization options
-- [ ] Health check alerting system
-- [ ] Health check help and documentation
-
-### Non-Functional Requirements
-
-- [ ] Health checks execute within 5 seconds
-- [ ] Health status updates within 1 second
-- [ ] Health check configuration saves within 200ms
-- [ ] Health check history loads within 2 seconds
-- [ ] Health checks work across all supported platforms
-
-### User Experience
-
-- [ ] Intuitive health check interface
-- [ ] Clear health status indicators
-- [ ] Helpful health check configuration
-- [ ] Professional health check appearance
-- [ ] Seamless health monitoring
-
-## Technical Implementation
-
-### Backend Implementation
-
-```rust
-// Container health check execution
-// Health check configuration management
-// Result processing and analysis
-// Alerting system
-// History and storage
-```
-
-### Frontend Implementation
-
-```typescript
-// Container health check interface
-// Health status indicators
-// Configuration and management
-// History and reporting
-// Customization options
-```
-
-## Dependencies
-
-- Container health check library
-- Health check configuration framework
-- Result processing utilities
-- Alerting and notification system
-- History and storage framework
-
-## Definition of Done
-
-- [ ] Container health checks implemented
-- [ ] Health status indicators working
-- [ ] Health check configuration functional
-- [ ] Health check history and reporting
-- [ ] Health check alerting system
-- [ ] Health check customization options
-- [ ] Tests written for container health checks
-- [ ] Documentation updated
+- Add the health status (starting, healthy, unhealthy, none) to the container entity, read from the container's `State.Health` or parsed from the status string.
+- Show the health next to the state badge in the containers table.
+- Show the last health check results (exit code, output, time) in a container detail view.
+- Add an optional health check step to the creation wizard: command, interval, timeout, retries and start period.
+- Explain common failures in plain words with a suggested action:
+  - Exit code 137 or `OOMKilled`: the container ran out of memory; suggest a higher memory limit.
+  - Exit code 127: the command was not found; suggest checking the image's entrypoint and command.
+  - Exit code 126: the command is not executable.
+  - A port that is already in use when starting: name the port and the container that holds it.
+  - A restart loop: show the restart count and point to the logs from MONITOR-004.
 
 ## Notes
 
-- Consider implementing custom health check scripts
-- Ensure health checks work with various container types
-- Test health checks with different failure scenarios
-- Monitor health check performance and optimize
+- Reading `State.Health` needs a container inspect per container; the list API only carries the status string, so parsing it keeps the engine state update cheap.
+- Health changes do not change the container count or state, so the engine state monitor has to treat them as a change for the badge to update.
+- Explanations should come from fixed rules over exit codes and Docker errors, not from a generic "problem detection" engine.
+- Desktop notifications for an unhealthy container belong to TRAY-002.

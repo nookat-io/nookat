@@ -1,114 +1,30 @@
-# [SECURITY-004] Create security best practices recommendations
+# [SECURITY-004] Flag risky container settings
 
-## Overview
+- **Status:** Not started
+- **Merged from:** SECURITY-005
+- **Related:** SECURITY-001, SECURITY-002, SECURITY-006
 
-Implement comprehensive security best practices recommendations that provide guidance, automated checks, and compliance reporting for Docker image security.
+## Problem
 
-## Description
+Containers often run with settings that widen the attack surface, such as root, privileged mode or a mounted Docker socket.
+Users get no warning about these, neither while creating a container nor for containers already running.
 
-Users need guidance on Docker security best practices to ensure secure image creation and deployment. We need to implement a security best practices system that provides recommendations, automated compliance checking, and security guidance.
+## Current state
 
-## Technical Requirements
+Nothing checks container settings.
+The creation wizard (`src/components/containers/create/`) builds a `CreateContainerSpec` (`src-tauri/src/entities/containers/create.rs`) that cannot set privileged mode or capabilities.
+It does allow bind mounts of any host path, host networking, no resource limits and the `latest` tag.
+Containers created outside Nookat can have any setting, and there is no container inspect command in `src-tauri/src/lib.rs` to read them.
 
-### Frontend
+## Scope
 
-- Implement security best practices interface
-- Create recommendations and guidance display
-- Add automated compliance checking
-- Implement security score and reporting
-- Create security improvement suggestions
-- Add security education and documentation
-
-### Backend
-
-- Implement security best practices engine
-- Create automated compliance checking
-- Add security recommendation generation
-- Implement security scoring and analytics
-- Create security education content
-- Add security compliance reporting
-
-### Data Flow
-
-1. User selects image or configuration for security review
-2. Security best practices are checked automatically
-3. Compliance status is determined and scored
-4. Recommendations and improvements are generated
-5. Security guidance is provided
-6. Compliance reports are generated
-
-## Acceptance Criteria
-
-### Functional Requirements
-
-- [ ] Security best practices interface
-- [ ] Recommendations and guidance display
-- [ ] Automated compliance checking
-- [ ] Security score and reporting
-- [ ] Security improvement suggestions
-- [ ] Security education and documentation
-- [ ] Compliance reporting and tracking
-
-### Non-Functional Requirements
-
-- [ ] Security checks complete within 2 seconds
-- [ ] Compliance scoring responds within 1 second
-- [ ] Recommendations load within 500ms
-- [ ] Security system works with various configurations
-- [ ] Security best practices work across all platforms
-
-### User Experience
-
-- [ ] Intuitive security best practices interface
-- [ ] Clear recommendations and guidance
-- [ ] Helpful security improvement suggestions
-- [ ] Professional security reporting
-- [ ] Seamless security compliance workflow
-
-## Technical Implementation
-
-### Backend Implementation
-
-```rust
-// Security best practices engine
-// Automated compliance checking
-// Recommendation generation
-// Security scoring and analytics
-// Education content management
-```
-
-### Frontend Implementation
-
-```typescript
-// Security best practices interface
-// Recommendations and guidance
-// Compliance checking and scoring
-// Improvement suggestions
-// Education and documentation
-```
-
-## Dependencies
-
-- Security best practices library
-- Compliance checking framework
-- Recommendation generation utilities
-- Security scoring system
-- Education content management framework
-
-## Definition of Done
-
-- [ ] Security best practices recommendations implemented
-- [ ] Automated compliance checking working
-- [ ] Security scoring and reporting functional
-- [ ] Security improvement suggestions operational
-- [ ] Security education and documentation
-- [ ] Compliance reporting and tracking
-- [ ] Tests written for security best practices
-- [ ] Documentation updated
+- Check a container's config for: running as root, privileged mode, added capabilities, host network or PID namespace, a mounted Docker socket, writable bind mounts of sensitive host paths, no memory or CPU limit, an image pinned to `latest` or to no tag, and ports published on all interfaces.
+- Show the findings on the review step of the creation wizard (`src/components/containers/create/steps/review-step.tsx`) before the container is created.
+- Show the findings for existing containers, for example as a warning marker on the row with the list in a detail view, which is the configuration half of SECURITY-005.
+- Explain each finding in a sentence with the risk and how to fix it.
 
 ## Notes
 
-- Consider implementing security compliance templates
-- Ensure security system works with various configurations
-- Test security system with different compliance scenarios
-- Monitor security system performance and optimize
+- Existing containers need a container inspect command first.
+- Image-level checks such as a missing `USER` come from the inspect data in SECURITY-002.
+- Open question: whether users can dismiss a finding for a given container.

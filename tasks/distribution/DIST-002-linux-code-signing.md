@@ -1,180 +1,140 @@
----
-name: Feature request
-about: Implement Linux code signing for application security and trust
-title: '[DIST-002] Implement Linux code signing'
-labels: 'distribution, security, linux'
-assignees: ''
----
+# [DIST-002] Sign the Linux packages
 
-**Is your feature request related to a problem? Please describe.**
-Linux users need secure and trusted applications that meet distribution security requirements. Currently, our application lacks proper code signing for Linux, which can prevent installation on secure systems, trigger package manager warnings, and reduce user trust. Many Linux distributions and security tools require signed packages for installation.
+- **Status:** Not started
+- **Related:** DIST-001, DIST-006, DIST-008
 
-**Describe the solution you'd like**
-Implement comprehensive Linux code signing with explicit workflows for each target format:
+## Problem
 
-## Package Format Signing Workflows
+Linux users need packages that meet distribution security requirements.
+The Linux packages are not signed, which can prevent installation on hardened systems, trigger package manager warnings, and reduce user trust.
+Many distributions and security tools require signed packages.
 
-### .deb Package Signing (Ubuntu/Debian)
+## Current state
 
-**Build Process:**
+`.github/workflows/build-linux.yaml` builds with `tauri-apps/tauri-action` for `x86_64` and `aarch64`, and `src-tauri/tauri.conf.json` sets `bundle.targets` to `all`.
+Each release therefore ships an AppImage, a `.deb` and an `.rpm` per architecture, none of them GPG signed.
+The only signatures are the Tauri updater's minisign `.sig` files, which package managers do not check.
+There is no apt or yum repository.
+Nothing outside the code blocks this, since a GPG key costs nothing.
 
-1. `dpkg-buildpackage` → generates .deb and .changes files
-2. `debsign -k <GPG_KEY_ID> *.changes` → signs .changes file with GPG
-3. `dpkg-sig --sign builder -k <GPG_KEY_ID> *.deb` → signs .deb package
+## Scope
 
-**Artifacts:**
+Sign every Linux format in CI after Tauri builds it.
 
-- Signed `.changes` file (contains package metadata and GPG signature)
-- Signed `.deb` package with embedded GPG signature
-- `Release` file signed with GPG for apt repository metadata
+### .deb packages (Ubuntu, Debian)
 
-**Repository Integration:**
+1. Tauri builds the `.deb`.
+2. `dpkg-sig --sign builder -k <GPG_KEY_ID> *.deb` signs the package.
+3. When a `.changes` file is produced, `debsign -k <GPG_KEY_ID> *.changes` signs it.
 
-- `reprepro` or `aptly` to manage signed repository
-- GPG-signed `Release` file in `.dists/<suite>/Release`
-- `Release.gpg` detached signature file
-- `InRelease` file with inline GPG signature
+Artifacts:
 
-**Tools:** `dpkg-sig`, `debsign`, `reprepro`/`aptly`, `gpg`
+- Signed `.deb` package with an embedded GPG signature.
+- Signed `.changes` file with the package metadata, when one is produced.
+- GPG-signed `Release` file for the apt repository metadata.
 
-### .rpm Package Signing (Red Hat/Fedora/CentOS)
+Repository:
 
-**Build Process:**
+- `reprepro` or `aptly` manages the signed repository.
+- GPG-signed `Release` file in `dists/<suite>/Release`, a `Release.gpg` detached signature, and an `InRelease` file with an inline signature.
 
-1. `rpmbuild -ba nookat.spec` → generates .rpm package
-2. `rpm --addsign -D "_gpg_name <GPG_KEY_ID>" *.rpm` → signs .rpm with GPG
-3. `createrepo_c .` → generates repository metadata
-4. `gpg --detach-sign --armor repodata/repomd.xml` → signs repodata
+Tools: `dpkg-sig`, `debsign`, `reprepro` or `aptly`, `gpg`.
 
-**Artifacts:**
+### .rpm packages (Red Hat, Fedora, CentOS)
 
-- Signed `.rpm` package with embedded GPG signature
-- `repomd.xml` with GPG signature (`repomd.xml.asc`)
-- Repository metadata in `repodata/` directory
+1. Tauri builds the `.rpm`.
+2. `rpm --addsign -D "_gpg_name <GPG_KEY_ID>" *.rpm` signs the package.
+3. `createrepo_c .` generates the repository metadata.
+4. `gpg --detach-sign --armor repodata/repomd.xml` signs the metadata.
 
-**Repository Integration:**
+Artifacts:
 
-- GPG-signed `repomd.xml` for yum/dnf repository metadata
-- Repository configuration with GPG key import instructions
-- Support for both GPG and RPM-specific signing keys
+- Signed `.rpm` package with an embedded GPG signature.
+- `repomd.xml` with its signature `repomd.xml.asc`.
+- Repository metadata in `repodata/`.
 
-**Tools:** `rpm`, `rpm-sign`, `createrepo_c`, `gpg`
+Repository:
 
-### AppImage Signing (Universal Linux)
+- GPG-signed `repomd.xml` for yum and dnf.
+- Repository configuration with instructions for importing the GPG key.
+- Support for both GPG and RPM-specific signing keys.
 
-**Build Process:**
+Tools: `rpm`, `rpm-sign`, `createrepo_c`, `gpg`.
 
-1. `appimagetool <appdir> nookat.AppImage` → generates AppImage
-2. `gpg --detach-sign --armor nookat.AppImage` → creates detached signature
-3. `zsyncmake nookat.AppImage` → generates zsync file for updates
+### AppImage (any distribution)
 
-**Artifacts:**
+1. Tauri builds the AppImage.
+2. `gpg --detach-sign --armor nookat.AppImage` creates a detached signature.
+3. `zsyncmake nookat.AppImage` generates a zsync file for delta updates.
 
-- `nookat.AppImage` (unsigned binary)
-- `nookat.AppImage.sig` (GPG detached signature)
-- `nookat.AppImage.zsync` (for delta updates)
-- Optional: `nookat.AppImage.zsync.sig` (signed zsync file)
+Artifacts:
 
-**Update Integration:**
+- `nookat.AppImage`.
+- `nookat.AppImage.asc`, the GPG detached signature.
+  It cannot be named `.sig`, because the updater's minisign signature already uses that name.
+- `nookat.AppImage.zsync`, and optionally a signed `nookat.AppImage.zsync.asc`.
 
-- AppImageUpdate integration for automatic updates
-- Zsync support for delta updates
-- GPG signature verification before update installation
+Updates:
 
-**Tools:** `appimagetool`, `gpg`, `zsyncmake`, `AppImageUpdate`
+- AppImageUpdate integration with zsync delta updates.
+- GPG signature verification before an update is installed.
 
-## Repository Signing
+Tools: `gpg`, `zsyncmake`, `AppImageUpdate`.
 
-### APT Repository Signing
+### Repository signing
 
-- GPG-signed `Release` files in each distribution suite
-- `Release.gpg` detached signatures
-- `InRelease` files with inline signatures
-- Repository key distribution via `apt-key` or `sources.list` integration
+- apt: GPG-signed `Release` files in each suite, `Release.gpg` detached signatures, `InRelease` inline signatures, and key distribution through a keyring file referenced from `sources.list`.
+- yum and dnf: GPG-signed `repomd.xml`, repository GPG key configuration, and package signature checks during installation.
 
-### YUM/DNF Repository Signing
+### Key management
 
-- GPG-signed `repomd.xml` files
-- Repository GPG key configuration
-- Package signature verification during installation
+- Store the private key in a secret store, for example a hardware security module, a cloud KMS (AWS KMS, Azure Key Vault, Google Cloud KMS) or HashiCorp Vault, or sign offline on an air-gapped machine.
+- Generate keys with proper entropy, and define rotation, backup and escrow procedures.
+- Publish a revocation certificate and keep the public key on key servers.
 
-## Certificate and Key Management
+### CI integration
 
-### Secure Key Storage
-
-- **HSM Integration**: Hardware Security Modules for key protection
-- **Cloud KMS**: AWS KMS, Azure Key Vault, or Google Cloud KMS
-- **HashiCorp Vault**: Centralized secret management with key rotation
-- **Air-gapped Signing**: Offline signing for maximum security
-
-### Key Lifecycle Management
-
-- Key generation with proper entropy sources
-- Key rotation policies and automated rotation
-- Key escrow and backup procedures
-- Revocation list management (CRL/OCSP)
-
-## CI/CD Integration
-
-### Ephemeral Key Management
+Fetch the key only for the signing step and delete it afterwards:
 
 ```bash
-# Fetch signing keys from secure storage
 vault kv get -field=private_key secret/signing/gpg-key > /tmp/signing.key
 gpg --import /tmp/signing.key
 
-# Sign packages
-debsign -k <KEY_ID> *.changes
+dpkg-sig --sign builder -k <KEY_ID> *.deb
 rpm --addsign -D "_gpg_name <KEY_ID>" *.rpm
 gpg --detach-sign --armor *.AppImage
 
-# Clean up ephemeral keys
 rm -f /tmp/signing.key
-gpg --delete-secret-keys <KEY_ID>
+gpg --batch --yes --delete-secret-keys <KEY_ID>
 ```
 
-### Signature Verification in CI
+Verify the signatures as a release gate:
 
 ```bash
-# Verify .deb signatures
 dpkg-sig --verify *.deb
-debsig-verify *.deb
-
-# Verify .rpm signatures
 rpm --checksig *.rpm
-
-# Verify AppImage signatures
-gpg --verify *.AppImage.sig *.AppImage
+gpg --verify *.AppImage.asc *.AppImage
 ```
 
-### Build Pipeline Automation
+- Sign automatically after a successful build.
+- Fail the release when a signature is missing or invalid.
+- Publish the repositories with signed metadata.
 
-- Automated signing after successful builds
-- Signature verification as part of quality gates
-- Repository publishing with signed metadata
-- Integration with existing GitHub Actions/CI workflows
+### In the app
 
-## Frontend Integration
+- Show the signing status, the GPG key fingerprint and the verification result.
+- Link to the public key on key servers so users can check it.
 
-- Display signing status and key information in application
-- Show GPG key fingerprints and verification status
-- Provide links to public key servers for key verification
-- Integration with system package manager verification status
+## Notes
 
-**Describe alternatives you've considered**
-
-- Manual signing process: Too error-prone and doesn't scale with automated builds
-- No signing: Not viable as it prevents installation on secure systems and reduces trust
-- Third-party signing services: Could work but adds external dependency
-- Self-signed certificates: Limited trust value, better than no signing but not ideal
-- Distribution-specific signing: Too complex to maintain multiple signing processes
-
-**Additional context**
-
-- This is part of a broader code signing initiative across all platforms
-- macOS code signing is already implemented
-- Windows code signing will be handled in [DIST-011](./DIST-011-windows-code-signing.md)
-- Linux code signing is important for enterprise Linux environments and secure distributions
-- Consider integration with package managers like apt, yum, dnf, and snap
-- Must comply with Linux distribution security requirements and best practices
-- GPG key management and distribution is crucial for user trust
+- Alternatives considered:
+  - Manual signing is too error-prone and doesn't scale with automated builds.
+  - Not signing is not viable, because it blocks installation on hardened systems and reduces trust.
+  - Third-party signing services could work but add an external dependency.
+  - Self-signed keys give limited trust, better than nothing but not ideal.
+  - A separate signing process per distribution would be too complex to maintain.
+- This is part of the code signing work across all platforms: Windows is DIST-001 and macOS is DIST-008.
+- macOS releases are only ad-hoc signed since dfe9427, so no platform has a trusted signature yet.
+- Linux signing matters for enterprise Linux environments and hardened distributions.
+- Coordinate with Snap packaging (DIST-006), since the Snap Store signs snaps itself.
+- Must comply with distribution security requirements, and GPG key management and distribution are crucial for user trust.

@@ -1,114 +1,35 @@
-# [MONITOR-004] Implement log aggregation and filtering
+# [MONITOR-004] Follow, tail and combine container logs
 
-## Overview
+- **Status:** Partially done
+- **Merged from:** DEBUG-007, PERF-006 (the logs part)
+- **Related:** MONITOR-003, ORCHESTRATION-001
 
-Implement comprehensive log aggregation and filtering system that collects, processes, and displays container logs with advanced filtering, search, and analysis capabilities.
+## Problem
 
-## Description
+Debugging a container usually means watching its logs live, jumping to the latest lines, and finding errors quickly.
+The current logs dialog reads the whole log once, so long logs are slow and new lines need a manual refresh.
+DEBUG-007 (error log analysis) and the logs part of PERF-006 (load logs lazily) are folded in here.
 
-Users need to aggregate and filter container logs to monitor application behavior and troubleshoot issues. We need to implement a log aggregation system that collects logs from multiple containers, provides advanced filtering and search capabilities, and offers real-time log analysis.
+## Current state
 
-## Technical Requirements
+- The `container_logs` command in `src-tauri/src/handlers/containers.rs` calls `ContainersService::get_container_logs` in `src-tauri/src/services/containers.rs`.
+- It reads the whole log stream to the end into one list of lines, mixing stdout and stderr, without timestamps.
+- `src/components/containers/container-logs-form.tsx` shows the lines in a dialog with a text search, copy, download and a manual refresh.
+- Logs are fetched only when the dialog opens.
 
-### Frontend
+## Scope
 
-- Implement log aggregation interface
-- Create log filtering and search capabilities
-- Add real-time log streaming
-- Implement log analysis and visualization
-- Create log export and reporting
-- Add log configuration and management
-
-### Backend
-
-- Implement log collection and aggregation
-- Create log filtering and processing
-- Add log search and indexing
-- Implement log storage and retrieval
-- Create log analytics and reporting
-- Add log configuration management
-
-### Data Flow
-
-1. Container logs are collected and aggregated
-2. Logs are processed and indexed for search
-3. Log filtering and search queries are executed
-4. Filtered logs are displayed in real-time
-5. Log analytics and insights are generated
-6. Users can export and report on logs
-
-## Acceptance Criteria
-
-### Functional Requirements
-
-- [ ] Log aggregation interface
-- [ ] Log filtering and search capabilities
-- [ ] Real-time log streaming
-- [ ] Log analysis and visualization
-- [ ] Log export and reporting
-- [ ] Log configuration and management
-- [ ] Log search and indexing
-
-### Non-Functional Requirements
-
-- [ ] Log aggregation processes logs within 1 second
-- [ ] Log search completes within 500ms
-- [ ] Real-time streaming updates within 200ms
-- [ ] Log storage supports large volumes
-- [ ] Log system works across all supported platforms
-
-### User Experience
-
-- [ ] Intuitive log aggregation interface
-- [ ] Clear log filtering and search
-- [ ] Helpful log analysis features
-- [ ] Professional log display
-- [ ] Seamless log monitoring
-
-## Technical Implementation
-
-### Backend Implementation
-
-```rust
-// Log collection and aggregation
-// Log filtering and processing
-// Search and indexing
-// Storage and retrieval
-// Analytics and reporting
-```
-
-### Frontend Implementation
-
-```typescript
-// Log aggregation interface
-// Filtering and search
-// Real-time streaming
-// Analysis and visualization
-// Export and reporting
-```
-
-## Dependencies
-
-- Log aggregation library
-- Search and indexing framework
-- Real-time streaming utilities
-- Analytics and visualization tools
-- Storage and retrieval system
-
-## Definition of Done
-
-- [ ] Log aggregation and filtering implemented
-- [ ] Log search and indexing working
-- [ ] Real-time log streaming functional
-- [ ] Log analysis and visualization
-- [ ] Log export and reporting
-- [ ] Log configuration management
-- [ ] Tests written for log aggregation
-- [ ] Documentation updated
+- Fetch only the last N lines by default through the `tail` option, with a way to load more or set a `since` time.
+- Add a follow mode that streams new lines on a Tauri event while the dialog is open and stops when it closes.
+- Keep timestamps from the `timestamps` option and show them as a toggleable column.
+- Keep stdout and stderr apart, show stderr lines differently, and allow filtering by stream.
+- Highlight lines that look like errors or warnings and allow filtering to them.
+- Add a combined view for a Compose project that interleaves its containers' logs by time, labelled by container.
+- Keep the scroll position pinned to the bottom while following, unless the user scrolls up.
 
 ## Notes
 
-- Consider implementing log retention policies
-- Ensure log system handles high-volume data
-- Test log system with various log formats
-- Monitor log system performance and optimize
+- The follow stream is a long-lived connection; the backend must cancel it when the dialog closes or the container is removed.
+- Error highlighting is a simple pattern match on common level words, not log parsing or analysis.
+- Large outputs need a virtualized list; PERF-003 covers list rendering.
+- Compose projects are grouped by the `com.docker.compose.project` label today, which ORCHESTRATION-001 builds on.

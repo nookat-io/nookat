@@ -1,35 +1,41 @@
----
-name: Feature request
-about: Implement macOS App Store packaging and submission
-title: '[DIST-004] App Store packaging and submission (macOS)'
-labels: 'distribution, packaging, macos, app-store'
-assignees: ''
----
+# [DIST-004] Package and submit to the Mac App Store
 
-**Is your feature request related to a problem? Please describe.**
-Nookat should be discoverable and installable via the Mac App Store. Without App Store distribution, users face manual installs, reduced trust, and lack automatic updates and license/compliance workflows.
+- **Status:** Blocked
+- **Blocked by:** an Apple Developer Program membership, which has expired (see dfe9427)
+- **Related:** DIST-008, LPAGE-001
 
-**Describe the solution you'd like**
-Implement end-to-end macOS App Store packaging and submission, including:
+## Problem
 
-- **Store profile & certificates**: Configure App Store Connect, Bundle ID, provisioning profiles, and signing certificates
-- **Entitlements & sandboxing**: Define and validate required entitlements and sandbox capabilities for Tauri app
-- **Info.plist & metadata**: Generate localized metadata (name, description, keywords, screenshots, privacy details)
-- **Build & sign**: Produce MAS-compatible build, sign with correct identities, and notarize if applicable
-- **Submission automation**: Integrate with App Store Connect API or `xcrun altool`/`notarytool` equivalents for uploads
-- **Review readiness**: Pre-submission validation, privacy manifests, and compliance checks
-- **Release management**: Track TestFlight/internal testing, phased release, and version rollouts
-- **Status visibility**: Surface build/submission status in CI logs and internal dashboard
+Nookat should be discoverable and installable through the Mac App Store.
+Without it, users face manual installs and reduced trust, and miss the Store's automatic updates and licensing.
 
-**Describe alternatives you've considered**
+## Current state
 
-- DMG/ZIP distribution outside the App Store: simpler, but lacks App Store reach and trust
-- Third-party stores: limited user reach compared to the Mac App Store
-- App Store-only distribution: reduces flexibility for enterprise/offline users; we should support both
+There is no Mac App Store configuration, provisioning profile, entitlements file or submission step.
+Releases are ad-hoc signed and not notarized since dfe9427 (see DIST-008).
 
-**Additional context**
+## Scope
 
-- Align with code signing already implemented for macOS
-- Ensure entitlements align with Tauri capabilities and required APIs
-- Decide on App Store Connect automation tooling (Fastlane vs direct API)
-- Plan for ongoing metadata updates and localized screenshots in CI
+- **Store profile and certificates:** configure App Store Connect, the bundle ID, provisioning profiles and signing certificates.
+- **Entitlements and sandboxing:** define and validate the entitlements and sandbox capabilities the Tauri app needs.
+- **Info.plist and metadata:** generate localized metadata (name, description, keywords, screenshots, privacy details).
+- **Build and sign:** produce a Mac App Store build and sign it with the right identities.
+- **Submission automation:** upload through the App Store Connect API or `xcrun altool` / `notarytool` equivalents.
+- **Review readiness:** pre-submission validation, privacy manifests and compliance checks.
+- **Release management:** TestFlight or internal testing, phased release and version rollouts.
+- **Status visibility:** report build and submission status in the CI logs.
+
+## Notes
+
+- Open question: is a Mac App Store build viable at all?
+  Answer this before paying for any setup work.
+  The App Store requires the sandbox, which likely conflicts with how Nookat works:
+  - It runs `docker`, `brew` and `colima` through the shell allowlist in `src-tauri/capabilities/default.json`.
+  - It installs Colima, Lima and the Docker CLI into `~/.nookat/engine` (`src-tauri/src/services/binary_install/`).
+- Signing and notarization for direct downloads come first in DIST-008, and share the same membership.
+- Decide on the App Store Connect automation tooling (Fastlane or the API directly).
+- Plan for ongoing metadata updates and localized screenshots in CI.
+- Alternatives considered:
+  - DMG or ZIP outside the App Store is simpler but lacks the Store's reach and trust.
+  - Third-party stores reach far fewer users.
+  - Store-only distribution would shut out enterprise and offline users, so both channels should exist.

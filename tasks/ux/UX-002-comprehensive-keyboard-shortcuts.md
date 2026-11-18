@@ -1,114 +1,34 @@
-# [UX-002] Add comprehensive keyboard shortcuts
+# [UX-002] Add keyboard shortcuts
 
-## Overview
+- **Status:** Not started
+- **Related:** UX-003
 
-Implement comprehensive keyboard shortcuts that provide efficient navigation, quick actions, and productivity enhancements for power users.
+## Problem
 
-## Description
+Every action in Nookat needs the mouse.
+People who manage containers all day expect to switch pages, search and act on selected rows from the keyboard.
 
-Users need keyboard shortcuts to improve productivity and efficiency when using the application. We need to implement comprehensive keyboard shortcuts that provide quick access to common actions, navigation, and productivity features.
+## Current state
 
-## Technical Requirements
+There are no app-wide shortcuts.
+The only key handlers are local to two inputs: `src/components/images/common/docker-hub-search.tsx` and `src/components/images/common/tag-selector.tsx`.
+The Radix primitives in `src/components/ui/` bring their built-in keys, such as Escape to close a dialog and arrow keys in menus.
+`src-tauri/src/lib.rs` builds only the tray menu, so there is no app menu where shortcuts could show.
 
-### Frontend
+## Scope
 
-- Implement keyboard shortcuts system
-- Create shortcuts configuration and management
-- Add shortcuts help and documentation
-- Implement shortcuts customization
-- Create shortcuts conflict resolution
-- Add shortcuts visual indicators
-
-### Backend
-
-- Implement keyboard shortcuts logic
-- Create shortcuts configuration management
-- Add shortcuts validation and testing
-- Implement shortcuts conflict detection
-- Create shortcuts analytics and reporting
-- Add shortcuts storage and retrieval
-
-### Data Flow
-
-1. User presses keyboard shortcut
-2. Shortcut is detected and validated
-3. Action is executed and processed
-4. Shortcut feedback is provided
-5. Shortcut usage is tracked
-6. Shortcut configuration is managed
-
-## Acceptance Criteria
-
-### Functional Requirements
-
-- [ ] Keyboard shortcuts system
-- [ ] Shortcuts configuration and management
-- [ ] Shortcuts help and documentation
-- [ ] Shortcuts customization
-- [ ] Shortcuts conflict resolution
-- [ ] Shortcuts visual indicators
-- [ ] Support for multiple shortcut types
-
-### Non-Functional Requirements
-
-- [ ] Keyboard shortcuts respond within 50ms
-- [ ] Shortcuts configuration saves within 200ms
-- [ ] Shortcuts help loads within 500ms
-- [ ] Keyboard shortcuts work across all platforms
-- [ ] Shortcuts system handles all key combinations
-
-### User Experience
-
-- [ ] Intuitive keyboard shortcuts system
-- [ ] Clear shortcuts configuration and management
-- [ ] Helpful shortcuts help and documentation
-- [ ] Professional shortcuts customization
-- [ ] Seamless keyboard shortcuts workflow
-
-## Technical Implementation
-
-### Backend Implementation
-
-```rust
-// Keyboard shortcuts logic
-// Shortcuts configuration management
-// Shortcuts validation and testing
-// Shortcuts conflict detection
-// Shortcuts analytics and reporting
-```
-
-### Frontend Implementation
-
-```typescript
-// Keyboard shortcuts system
-// Shortcuts configuration and management
-// Shortcuts help and documentation
-// Shortcuts customization
-// Shortcuts conflict resolution
-```
-
-## Dependencies
-
-- Keyboard shortcuts library
-- Shortcuts configuration framework
-- Conflict detection utilities
-- Shortcuts validation tools
-- Shortcuts analytics and reporting framework
-
-## Definition of Done
-
-- [ ] Comprehensive keyboard shortcuts implemented
-- [ ] Shortcuts configuration and management working
-- [ ] Shortcuts help and documentation functional
-- [ ] Shortcuts customization operational
-- [ ] Shortcuts conflict resolution
-- [ ] Support for multiple shortcut types
-- [ ] Tests written for keyboard shortcuts
-- [ ] Documentation updated
+- Switch between Containers, Images, Networks, Volumes and Settings from the keyboard, for example with Cmd/Ctrl+1 to 5 and Cmd/Ctrl+, for Settings.
+- Focus the search field of the current page.
+- Refresh the current list.
+- Select all rows and delete the selected rows, with the usual confirmation.
+- Open the create flows: new container, pull image and create network.
+- Show a help sheet that lists every shortcut.
+- List the shortcuts in an app menu with accelerators, so they are discoverable on macOS.
+- Show the platform's modifier key (Cmd on macOS, Ctrl elsewhere) in labels.
 
 ## Notes
 
-- Consider implementing shortcuts presets
-- Ensure shortcuts work with various keyboard layouts
-- Test shortcuts with different key combinations
-- Monitor keyboard shortcuts performance and optimize
+- Shortcuts must not fire while the user types in an input.
+- Open question: whether users can remap shortcuts, which the original task asked for.
+  Start with a fixed set.
+- System-wide shortcuts that work while Nookat is in the background are out of scope.

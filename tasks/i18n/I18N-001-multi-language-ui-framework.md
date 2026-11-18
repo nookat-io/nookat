@@ -1,114 +1,31 @@
-# [I18N-001] Implement multi-language UI framework
+# [I18N-001] Translate the UI
 
-## Overview
+- **Status:** Partially done
+- **Related:** I18N-002, I18N-003
 
-Implement a comprehensive multi-language UI framework that supports internationalization and localization for multiple languages with dynamic language switching.
+## Problem
 
-## Description
+Nookat is English only.
+Users who prefer another language cannot switch, even though Settings already has a language picker.
 
-Users need to use the application in their preferred language. We need to implement a multi-language UI framework that provides internationalization support, dynamic language switching, and comprehensive localization capabilities.
+## Current state
 
-## Technical Requirements
+- The config stores a language: `Language` with English (`en`) and Russian (`ru`) in `src-tauri/src/entities/config/i18n.rs` and `src/types/config.ts`.
+- `get_language` and `update_language` are registered in `src-tauri/src/lib.rs`.
+- The picker in `src/components/settings/general-settings.tsx` offers English only.
+- After a change it says to restart the app, but nothing applies the saved language to the UI, before or after a restart.
+- No i18n library is in `package.json`, and every UI string is hardcoded in the components.
 
-### Frontend
+## Scope
 
-- Implement multi-language UI framework
-- Create language selection interface
-- Add dynamic language switching
-- Implement translation management system
-- Create locale-specific formatting
-- Add language detection and fallback
-
-### Backend
-
-- Implement internationalization framework
-- Create translation management system
-- Add locale-specific data handling
-- Implement language detection logic
-- Create translation validation and testing
-- Add language configuration management
-
-### Data Flow
-
-1. User selects or system detects preferred language
-2. Language configuration is loaded and applied
-3. UI components are translated and updated
-4. Locale-specific formatting is applied
-5. Language switching is handled dynamically
-6. Translation fallbacks are managed
-
-## Acceptance Criteria
-
-### Functional Requirements
-
-- [ ] Multi-language UI framework
-- [ ] Language selection interface
-- [ ] Dynamic language switching
-- [ ] Translation management system
-- [ ] Locale-specific formatting
-- [ ] Language detection and fallback
-- [ ] Support for multiple languages
-
-### Non-Functional Requirements
-
-- [ ] Language switching completes within 1 second
-- [ ] Translation loading responds within 500ms
-- [ ] UI updates occur within 200ms
-- [ ] Multi-language framework works across all platforms
-- [ ] Language detection works automatically
-
-### User Experience
-
-- [ ] Intuitive language selection interface
-- [ ] Seamless language switching
-- [ ] Consistent translation quality
-- [ ] Professional multi-language experience
-- [ ] Smooth language transition workflow
-
-## Technical Implementation
-
-### Backend Implementation
-
-```rust
-// Internationalization framework
-// Translation management system
-// Locale-specific data handling
-// Language detection logic
-// Translation validation and testing
-```
-
-### Frontend Implementation
-
-```typescript
-// Multi-language UI framework
-// Language selection interface
-// Dynamic language switching
-// Translation management system
-// Locale-specific formatting
-```
-
-## Dependencies
-
-- Internationalization library
-- Translation management framework
-- Locale-specific formatting utilities
-- Language detection tools
-- Translation validation framework
-
-## Definition of Done
-
-- [ ] Multi-language UI framework implemented
-- [ ] Language selection interface working
-- [ ] Dynamic language switching functional
-- [ ] Translation management system operational
-- [ ] Locale-specific formatting
-- [ ] Support for multiple languages
-- [ ] Tests written for multi-language framework
-- [ ] Documentation updated
+- Pick an i18n library and load translations based on the saved language.
+- Move the UI strings into translation files, page by page.
+- Switch the language without a restart, and remove the restart message.
+- Add Russian, the second language the config already knows, and offer it in the picker once it is complete.
+- Fail a check when a key exists in English but is missing in another language.
 
 ## Notes
 
-- Consider implementing translation memory
-- Ensure framework works with various UI components
-- Test framework with different language scripts
-- Monitor multi-language performance and optimize
+- Open question: which library (for example i18next with react-i18next, or Lingui).
+- Error messages from the backend are I18N-002, and date, number and size formats are I18N-003.
+- Strings in the tray menu are built in Rust (`src-tauri/src/lib.rs`) and need their own translation path.

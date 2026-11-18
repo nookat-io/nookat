@@ -1,110 +1,29 @@
-# [PERF-003] Implement memory optimization for large container datasets
+# [PERF-003] Render large lists efficiently
 
-## Overview
+- **Status:** Not started
+- **Merged from:** PERF-007
+- **Related:** PERF-008
 
-Optimize memory usage when handling large numbers of containers (1000+) to prevent performance degradation and ensure smooth application operation.
+## Problem
 
-## Description
+With thousands of containers or images, every table mounts a DOM row for every item.
+Each engine state update then re-renders those tables, so scrolling and filtering get slow and memory use grows with the list.
 
-The current implementation loads all container data into memory simultaneously, which becomes problematic with large datasets. We need to implement virtual scrolling, data virtualization, and memory-efficient data structures to handle thousands of containers without impacting performance or user experience.
+## Current state
 
-## Technical Requirements
+`src/components/containers/containers-table.tsx`, `src/components/images/images-table.tsx`, `src/components/volumes/volumes-table.tsx` and `src/components/networks/networks-table.tsx` map every item to a table row.
+No virtualization library is in `package.json`.
+The backend pushes the whole `EngineState` on every `engine_state_update`, and `src/lib/engine-provider.tsx` keeps it as the single source of truth for all pages.
 
-### Frontend
+## Scope
 
-- Implement virtual scrolling for container lists
-- Add data virtualization for large datasets
-- Create memory-efficient data structures
-- Implement lazy loading for container details
-- Add memory usage monitoring and cleanup
-
-### Backend
-
-- Optimize data structures for memory efficiency
-- Implement pagination for large result sets
-- Add memory monitoring and garbage collection
-- Create efficient data serialization
-- Implement data compression for large datasets
-
-### Data Flow
-
-1. Backend receives request for container data
-2. Data is paginated and compressed before transmission
-3. Frontend receives only visible data plus buffer
-4. Virtual scrolling renders only visible containers
-5. Memory is cleaned up for off-screen items
-
-## Acceptance Criteria
-
-### Functional Requirements
-
-- [ ] Application handles 1000+ containers without performance degradation
-- [ ] Virtual scrolling works smoothly for large container lists
-- [ ] Memory usage remains stable regardless of container count
-- [ ] Container details load on-demand only when needed
-- [ ] Search and filtering work efficiently on large datasets
-- [ ] Bulk operations remain responsive with large datasets
-
-### Non-Functional Requirements
-
-- [ ] Memory usage increase < 20MB per 1000 containers
-- [ ] Initial load time < 2 seconds for 1000 containers
-- [ ] Scroll performance maintained at 60fps
-- [ ] Memory cleanup occurs automatically
-- [ ] No memory leaks during extended use
-
-### User Experience
-
-- [ ] Smooth scrolling through large container lists
-- [ ] No UI freezing when loading large datasets
-- [ ] Responsive search and filtering
-- [ ] Clear loading indicators for large operations
-- [ ] Consistent performance regardless of dataset size
-
-## Technical Implementation
-
-### Backend Implementation
-
-```rust
-// Memory-efficient data structures
-// Pagination system
-// Data compression
-// Memory monitoring
-// Garbage collection
-```
-
-### Frontend Implementation
-
-```typescript
-// Virtual scrolling component
-// Data virtualization
-// Memory monitoring
-// Lazy loading
-// Cleanup mechanisms
-```
-
-## Dependencies
-
-- Virtual scrolling library for React
-- Memory monitoring tools
-- Data compression libraries
-- Pagination framework
-- Performance profiling tools
-
-## Definition of Done
-
-- [ ] Virtual scrolling implemented for container lists
-- [ ] Memory usage optimized for 1000+ containers
-- [ ] Performance benchmarks met for large datasets
-- [ ] Memory monitoring and cleanup working
-- [ ] Search and filtering remain efficient
-- [ ] No memory leaks detected
-- [ ] Tests written for large dataset scenarios
-- [ ] Documentation updated
+- Virtualize table rows so only the visible rows mount, for example with `@tanstack/react-virtual`.
+- Keep sorting, filters, search, selection and the Compose group rows (`src/components/containers/container-group-row.tsx`) working with virtualized rows.
+- Avoid re-rendering rows whose item did not change when a new snapshot arrives, with stable keys, memoized rows and derived lists computed once per snapshot.
+- Measure before and after with generated data of 1000+ containers and 1000+ images.
 
 ## Notes
 
-- Test with various container configurations and sizes
-- Monitor memory usage patterns during development
-- Consider implementing data prefetching for better UX
-- Ensure compatibility with existing container operations
+- PERF-007 asked for server-side pagination.
+  Docker list APIs have no paging and the app receives full snapshots, so virtualization replaces it.
+- The backend side of scale, such as event debouncing and smaller snapshots, is PERF-008.

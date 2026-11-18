@@ -1,114 +1,38 @@
-# [UX-003] Implement accessibility improvements
+# [UX-003] Fix accessibility gaps
 
-## Overview
+- **Status:** Partially done
+- **Related:** UX-002
 
-Implement comprehensive accessibility improvements that ensure the application is usable by people with disabilities, including screen reader support, keyboard navigation, and visual accessibility features.
+## Problem
 
-## Description
+Screen reader and keyboard users hit controls with no name and table features that only work with a mouse.
 
-Users with disabilities need to access and use the application effectively. We need to implement accessibility improvements that provide screen reader support, keyboard navigation, high contrast modes, and other accessibility features for inclusive user experience.
+## Current state
 
-## Technical Requirements
+What works:
 
-### Frontend
+- The primitives in `src/components/ui/` are built on Radix, which handles focus and keyboard use in dialogs, menus and selects.
+- The container creation wizard ties labels and errors to its fields through `src/components/containers/create/field-aria.ts`.
+- `src/components/ui/engine-error.tsx` announces an unreachable engine with `role="alert"`.
 
-- Implement screen reader support and ARIA labels
-- Create keyboard navigation system
-- Add high contrast mode and visual accessibility
-- Implement focus management and indicators
-- Create accessibility settings and preferences
-- Add accessibility testing and validation
+Gaps:
 
-### Backend
+- The row checkboxes in `src/components/containers/container-row.tsx` and in the images, volumes and networks tables have no accessible name.
+- The row action menu button in `src/components/containers/container-row-actions.tsx` shows only an icon and has no label.
+- `src/components/ui/sortable-table-header.tsx` sorts on a click on the header cell only: the header is not focusable, is not a button, and sets no `aria-sort`.
+- Nothing respects `prefers-reduced-motion`.
+- `eslint.config.js` loads only the react-hooks and react-refresh plugins, so there is no accessibility lint, and no test checks accessibility.
 
-- Implement accessibility framework and logic
-- Create accessibility configuration management
-- Add accessibility testing and validation
-- Implement accessibility analytics and reporting
-- Create accessibility compliance checking
-- Add accessibility settings storage and retrieval
+## Scope
 
-### Data Flow
-
-1. User enables accessibility features
-2. Accessibility settings are applied
-3. UI components are updated for accessibility
-4. Screen reader and keyboard navigation work
-5. Accessibility compliance is validated
-6. Accessibility usage is tracked and reported
-
-## Acceptance Criteria
-
-### Functional Requirements
-
-- [ ] Screen reader support and ARIA labels
-- [ ] Keyboard navigation system
-- [ ] High contrast mode and visual accessibility
-- [ ] Focus management and indicators
-- [ ] Accessibility settings and preferences
-- [ ] Accessibility testing and validation
-- [ ] Support for multiple accessibility standards
-
-### Non-Functional Requirements
-
-- [ ] Accessibility features respond within 100ms
-- [ ] Screen reader compatibility works properly
-- [ ] Keyboard navigation is fully functional
-- [ ] Accessibility improvements work across all platforms
-- [ ] Accessibility compliance meets WCAG standards
-
-### User Experience
-
-- [ ] Intuitive accessibility features
-- [ ] Clear accessibility settings and preferences
-- [ ] Helpful accessibility testing and validation
-- [ ] Professional accessibility experience
-- [ ] Seamless accessibility workflow
-
-## Technical Implementation
-
-### Backend Implementation
-
-```rust
-// Accessibility framework and logic
-// Accessibility configuration management
-// Accessibility testing and validation
-// Accessibility analytics and reporting
-// Accessibility compliance checking
-```
-
-### Frontend Implementation
-
-```typescript
-// Screen reader support and ARIA labels
-// Keyboard navigation system
-// High contrast mode and visual accessibility
-// Focus management and indicators
-// Accessibility settings and preferences
-```
-
-## Dependencies
-
-- Accessibility framework library
-- Screen reader compatibility tools
-- Keyboard navigation framework
-- Accessibility testing utilities
-- Accessibility compliance checking tools
-
-## Definition of Done
-
-- [ ] Accessibility improvements implemented
-- [ ] Screen reader support and ARIA labels working
-- [ ] Keyboard navigation system functional
-- [ ] High contrast mode and visual accessibility operational
-- [ ] Focus management and indicators
-- [ ] Support for multiple accessibility standards
-- [ ] Tests written for accessibility improvements
-- [ ] Documentation updated
+- Give every checkbox and icon-only button an accessible name.
+- Make sortable headers buttons that work from the keyboard and expose the sort direction with `aria-sort`.
+- Respect `prefers-reduced-motion` for spinners and transitions.
+- Check color contrast of status colors and badges in light and dark themes.
+- Add `eslint-plugin-jsx-a11y` to the lint setup and fix what it reports.
+- Add automated accessibility checks to the component tests, for example with axe.
+- Walk the main flows with VoiceOver: browse lists, create a container, pull an image, change settings.
 
 ## Notes
 
-- Consider implementing automated accessibility testing
-- Ensure accessibility works with various assistive technologies
-- Test accessibility with different user scenarios
-- Monitor accessibility performance and optimize
+- Open question: whether a dedicated high contrast theme is needed, as the original task suggested, or whether contrast fixes in the existing themes are enough.

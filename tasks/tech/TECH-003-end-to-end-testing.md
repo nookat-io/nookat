@@ -1,113 +1,30 @@
-# [TECH-003] Implement end-to-end testing
+# [TECH-003] Test whole user flows end to end
 
-## Overview
+- **Status:** Not started
+- **Related:** TECH-001, TECH-002
 
-Implement end-to-end testing to validate complete user workflows and application functionality from start to finish.
+## Problem
 
-## Description
+No automated test runs the app the way a user does.
+Regressions in flows that cross the frontend, the Tauri commands and the engine, such as creating a container with the wizard or installing Colima, are only caught by hand.
 
-Users need confidence that complete workflows function correctly. We need to implement end-to-end testing to provide comprehensive validation of user workflows and application functionality.
+## Current state
 
-## Technical Requirements
+Nothing on `main` runs the app end to end.
+An earlier attempt, f8262ee on the unmerged `unit_tests` branch, added Playwright specs (`e2e/containers.spec.ts`, `e2e/navigation.spec.ts`, `e2e/visual.spec.ts`) and a `playwright.config.ts`.
+It predates the Vitest suite and was never merged.
 
-### Frontend
+## Scope
 
-- Implement end-to-end testing framework
-- Create user workflow testing
-- Add complete application flow testing
-- Implement cross-platform E2E testing
-- Create E2E test reporting and analytics
-- Add E2E test automation and CI integration
-
-### Backend
-
-- Implement end-to-end testing logic
-- Create workflow validation and testing
-- Add complete application flow validation
-- Implement cross-platform E2E testing
-- Create E2E test reporting and analytics
-- Add E2E test automation integration
-
-### Data Flow
-
-1. End-to-end tests are written and configured
-2. Complete user workflows are tested
-3. Application flows are validated
-4. Cross-platform testing is performed
-5. E2E test results are reported
-6. E2E test automation is executed
-
-## Acceptance Criteria
-
-### Functional Requirements
-
-- [ ] End-to-end testing framework
-- [ ] User workflow testing
-- [ ] Complete application flow testing
-- [ ] Cross-platform E2E testing
-- [ ] E2E test reporting and analytics
-- [ ] E2E test automation and CI integration
-- [ ] Support for comprehensive E2E testing
-
-### Non-Functional Requirements
-
-- [ ] E2E tests execute within 5 minutes
-- [ ] E2E test reports generate within 1 minute
-- [ ] E2E test automation responds within 10 minutes
-- [ ] End-to-end testing works across all platforms
-- [ ] System handles E2E test failures gracefully
-
-### User Experience
-
-- [ ] Intuitive end-to-end testing framework
-- [ ] Clear user workflow testing
-- [ ] Helpful complete application flow testing
-- [ ] Professional cross-platform E2E testing
-- [ ] Seamless E2E test automation workflow
-
-## Technical Implementation
-
-### Backend Implementation
-
-```rust
-// End-to-end testing logic
-// Workflow validation and testing
-// Complete application flow validation
-// Cross-platform E2E testing
-// E2E test reporting and analytics
-```
-
-### Frontend Implementation
-
-```typescript
-// End-to-end testing framework
-// User workflow testing
-// Complete application flow testing
-// Cross-platform E2E testing
-// E2E test reporting and analytics
-```
-
-## Dependencies
-
-- End-to-end testing frameworks (Playwright, Selenium)
-- Cross-platform testing tools
-- E2E test reporting system
-- E2E test automation framework
-- CI/CD integration for E2E testing
-
-## Definition of Done
-
-- [ ] End-to-end testing framework implemented
-- [ ] User workflow testing working
-- [ ] Complete application flow testing functional
-- [ ] Cross-platform E2E testing operational
-- [ ] Support for comprehensive E2E testing
-- [ ] Tests written for end-to-end testing framework
-- [ ] Documentation updated
+- Choose the approach:
+  - WebDriver through `tauri-driver` drives the real app with the real backend, but only on Linux and Windows.
+  - Playwright against the Vite dev server with IPC mocked drives the real UI on every platform, but not the backend.
+- Cover the main flows first: create a container with the wizard, start, stop and remove it, pull an image, create a network, and the engine error gate.
+- Run the suite in CI on pull requests, on Linux with Docker available.
+- Keep screenshots and traces of failed runs as CI artifacts.
 
 ## Notes
 
-- Consider implementing automated E2E test generation
-- Ensure end-to-end testing works with various user scenarios
-- Test end-to-end testing with different platform configurations
-- Monitor end-to-end testing performance and optimize
+- `tauri-driver` does not support macOS, the main platform, so macOS-only flows such as the Colima install and VM start can't be covered this way.
+- Reuse what still fits from f8262ee instead of starting over.
+- Depends on TECH-002 for a CI job that already has a Docker engine.

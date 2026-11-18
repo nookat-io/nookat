@@ -1,33 +1,37 @@
----
-name: Feature request
-about: Implement Microsoft Store packaging and submission for Windows
-title: '[DIST-005] Microsoft Store packaging and submission (Windows)'
-labels: 'distribution, packaging, windows, microsoft-store'
-assignees: ''
----
+# [DIST-005] Package and submit to the Microsoft Store
 
-**Is your feature request related to a problem? Please describe.**
-We need first-class Microsoft Store distribution so users can discover, install, and update Nookat from the Store. Without Store presence, installation is manual, trust is lower, and updates are harder to manage.
+- **Status:** Not started
+- **Related:** DIST-001, LPAGE-001, #56
 
-**Describe the solution you'd like**
-Deliver end-to-end Microsoft Store packaging and submission:
+## Problem
 
-- **Packaging format**: Build MSIX (preferred) with correct capabilities and declarations
-- **Appx manifest**: Define identity, visual assets, capabilities, and required declarations
-- **Store onboarding**: Configure Partner Center app, reserved name, and product IDs
-- **Submission automation**: Use Partner Center APIs or tooling to create drafts, upload packages, and submit
-- **Compliance checks**: Age ratings, privacy policy, CRT dependencies, and capability reviews
-- **Release management**: Support flighting, staged rollouts, and version/channel strategy
-- **Status visibility**: Expose submission/build status via CI logs and internal dashboard
+Users should be able to discover, install and update Nookat from the Microsoft Store.
+Without a Store presence, installation is manual, trust is lower, and updates are harder to manage.
 
-**Describe alternatives you've considered**
+## Current state
 
-- Sideloaded MSIX/installer only: easier initially, but lacks Store discoverability and trust
-- Winget distribution only: useful, but Store provides broader reach and auto-updates
-- Store-only distribution: limits enterprise/offline users; we should support both
+`.github/workflows/build-windows.yaml` produces only the default `tauri-apps/tauri-action` output, an NSIS installer and an MSI.
+There is no MSIX package, app manifest or Partner Center setup.
 
-**Additional context**
+## Scope
 
-- Ensure Windows code signing is in place for Store acceptance
-- Decide on CI tooling for Partner Center submission and asset uploads
-- Plan for localized Store listings, screenshots, and ongoing metadata updates
+- **Packaging format:** build an MSIX (preferred) with the right capabilities and declarations.
+- **App manifest:** define the identity, visual assets, capabilities and required declarations.
+- **Store onboarding:** configure the Partner Center app, the reserved name and the product IDs.
+- **Submission automation:** create drafts, upload packages and submit through the Partner Center APIs or tooling.
+- **Compliance checks:** age ratings, privacy policy, runtime dependencies and capability reviews.
+- **Release management:** flighting, staged rollouts and a version and channel strategy.
+- **Status visibility:** report submission and build status in the CI logs.
+
+## Notes
+
+- Needs a Partner Center account.
+- Needs Windows code signing (DIST-001) for Store acceptance.
+- Running containers on Windows is still open: the bundled Windows engine (#56) is on hold.
+  The Store listing is less useful until Nookat can provide or find an engine on Windows.
+- Decide on the CI tooling for Partner Center submission and asset uploads.
+- Plan for localized Store listings, screenshots and ongoing metadata updates.
+- Alternatives considered:
+  - Sideloaded MSIX or installer only is easier at first but lacks the Store's discoverability and trust.
+  - winget only is useful, but the Store gives broader reach and automatic updates.
+  - Store-only distribution would shut out enterprise and offline users, so both channels should exist.

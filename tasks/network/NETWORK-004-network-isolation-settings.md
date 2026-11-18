@@ -1,114 +1,32 @@
-# [NETWORK-004] Implement network isolation settings
+# [NETWORK-004] Add inter-container isolation and a subnet overlap check to network creation
 
-## Overview
+- **Status:** Partially done
+- **Merged from:** NETWORK-003
+- **Related:** NETWORK-007
 
-Implement network isolation settings that allow users to configure network security, access controls, and isolation policies for Docker networks.
+## Problem
 
-## Description
+The Create Network dialog covers the common settings, but two gaps remain.
+Users cannot stop containers on the same bridge network from talking to each other.
+A subnet that overlaps an existing network is only rejected by Docker after submitting, with Docker's raw error.
 
-Users need to configure network isolation and security settings for their Docker networks. We need to implement network isolation settings that provide security policies, access controls, and network segmentation capabilities.
+## Current state
 
-## Technical Requirements
+- `src/components/networks/network-create-dialog.tsx` creates networks with a driver, IPv4 and IPv6 addressing, labels, and the Internal and Attachable toggles.
+- `src-tauri/src/services/networks/create_request.rs` validates names, subnets, gateways and IP ranges, including that the gateway and range sit inside the subnet.
+- It does not compare a new subnet with the subnets of existing networks.
+- There is no option for `com.docker.network.bridge.enable_icc`.
 
-### Frontend
+## Scope
 
-- Implement network isolation settings interface
-- Create security policy configuration
-- Add access control management
-- Implement network segmentation settings
-- Create isolation policy templates
-- Add isolation testing and validation
-
-### Backend
-
-- Implement network isolation logic
-- Create security policy management
-- Add access control enforcement
-- Implement network segmentation
-- Create isolation policy validation
-- Add isolation analytics and reporting
-
-### Data Flow
-
-1. User configures network isolation settings
-2. Security policies are defined and validated
-3. Access controls are configured and enforced
-4. Network segmentation is applied
-5. Isolation policies are tested and verified
-6. Network isolation results are reported
-
-## Acceptance Criteria
-
-### Functional Requirements
-
-- [ ] Network isolation settings interface
-- [ ] Security policy configuration
-- [ ] Access control management
-- [ ] Network segmentation settings
-- [ ] Isolation policy templates
-- [ ] Isolation testing and validation
-- [ ] Support for multiple isolation levels
-
-### Non-Functional Requirements
-
-- [ ] Isolation settings interface loads within 1 second
-- [ ] Policy configuration saves within 500ms
-- [ ] Access control validation completes within 1 second
-- [ ] Isolation testing responds within 2 seconds
-- [ ] Network isolation works across all platforms
-
-### User Experience
-
-- [ ] Intuitive network isolation settings interface
-- [ ] Clear security policy configuration
-- [ ] Helpful access control management
-- [ ] Professional network isolation workflow
-- [ ] Seamless isolation policy setup
-
-## Technical Implementation
-
-### Backend Implementation
-
-```rust
-// Network isolation logic
-// Security policy management
-// Access control enforcement
-// Network segmentation
-// Isolation policy validation
-```
-
-### Frontend Implementation
-
-```typescript
-// Network isolation settings interface
-// Security policy configuration
-// Access control management
-// Network segmentation settings
-// Isolation testing and validation
-```
-
-## Dependencies
-
-- Network isolation library
-- Security policy framework
-- Access control management system
-- Network segmentation utilities
-- Policy validation framework
-
-## Definition of Done
-
-- [ ] Network isolation settings implemented
-- [ ] Security policy configuration working
-- [ ] Access control management functional
-- [ ] Network segmentation settings operational
-- [ ] Isolation policy templates
-- [ ] Support for multiple isolation levels
-- [ ] Tests written for network isolation settings
-- [ ] Documentation updated
+- Add an "Isolate containers" toggle for the bridge driver that sets `com.docker.network.bridge.enable_icc` to `false`.
+- Explain in the toggle's description that containers on the network can still reach the outside unless the network is also Internal.
+- Before creating the network, check the requested IPv4 and IPv6 subnets against the subnets of existing networks in the engine state.
+- Show an overlap as a field error that names the conflicting network.
+- Cover both checks with unit tests in `src-tauri/src/services/networks/create_request.rs` and next to `src/components/networks/network-create-form.ts`.
 
 ## Notes
 
-- Consider implementing isolation policy presets
-- Ensure isolation works with various network types
-- Test isolation with different security scenarios
-- Monitor isolation performance and optimize
+- The original task also asked for security policies and access control rules between containers.
+  Docker has no API for per-container network policies, so that part is dropped; isolation is limited to Internal and the ICC option.
+- Docker's default address pools can still assign an overlapping subnet when the user leaves the subnet empty; this task only checks subnets the user types.

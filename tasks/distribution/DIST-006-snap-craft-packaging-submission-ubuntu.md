@@ -1,34 +1,34 @@
----
-name: Feature request
-about: Implement Snapcraft packaging and submission for Ubuntu
-title: '[DIST-006] Snapcraft packaging and submission (Ubuntu)'
-labels: 'distribution, packaging, linux, snapcraft'
-assignees: ''
----
+# [DIST-006] Package and submit to the Snap Store
 
-**Is your feature request related to a problem? Please describe.**
+- **Status:** Not started
+- **Related:** DIST-002, DIST-007, LPAGE-001
 
-We want Nookat to be discoverable and installable from the Snap Store
+## Problem
 
-**Describe the solution you'd like**
+Nookat should be discoverable and installable from the Snap Store, which gives it strong discovery on Ubuntu.
 
-Provide a complete Snapcraft pipeline and store submission:
+## Current state
 
-- **snapcraft.yaml**: Define base, confinement (strict/classic), plugs/slots, entry points, and hooks
-- **Builds**: Produce stable builds in CI for `amd64`/`arm64` as needed
-- **Store automation**: Authenticate CI with Snap Store, push revisions, and release to channels
-- **Channels**: Support stable/beta/candidate/edge tracks aligning with our release strategy
-- **Permissions**: Justify and document required interfaces and confinement
-- **Status visibility**: Show build/release status in CI and internal dashboard
+There is no `snapcraft.yaml` and no Snap Store step.
+Linux releases ship an AppImage, a `.deb` and an `.rpm` from `.github/workflows/build-linux.yaml`.
 
-**Describe alternatives you've considered**
+## Scope
 
-- AppImage or Flatpak: viable alternatives, but Snap Store provides strong discovery on Ubuntu
-- Deb/RPM only: good for specific distros, but Snap is broader for Ubuntu users
-- Manual tarballs: simplest, but poor update and trust story
+- **snapcraft.yaml:** define the base, the confinement (strict or classic), plugs and slots, entry points and hooks.
+- **Builds:** produce stable builds in CI for `amd64` and `arm64`.
+- **Store automation:** authenticate CI with the Snap Store, push revisions and release them to channels.
+- **Channels:** support stable, candidate, beta and edge tracks that match the release strategy (DIST-007).
+- **Permissions:** justify and document the interfaces and confinement the app needs.
+- **Status visibility:** report build and release status in the CI logs.
 
-**Additional context**
+## Notes
 
-- Coordinate with Linux code signing and packaging strategy
-- Decide on confinement mode based on required capabilities
-- Plan ownership, listing copy, and screenshots for the Snap Store page
+- Choose the confinement from the capabilities Nookat needs.
+  It talks to a Docker socket and may run `docker` and `colima`, which strict confinement restricts.
+- GitHub issue #55 is titled "[DIST-006]" but covers a different scope, a bundled Colima distribution for Linux, not Snapcraft.
+- Coordinate with Linux signing (DIST-002) and the overall packaging strategy.
+- Plan ownership, listing copy and screenshots for the Snap Store page.
+- Alternatives considered:
+  - AppImage or Flatpak are viable, but the Snap Store gives stronger discovery on Ubuntu.
+  - deb and rpm only serve specific distributions, while Snap reaches Ubuntu users more broadly.
+  - Plain tarballs are simplest but have a poor update and trust story.

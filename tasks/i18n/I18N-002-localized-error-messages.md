@@ -1,114 +1,25 @@
-# [I18N-002] Add localized error messages
+# [I18N-002] Translate error messages
 
-## Overview
+- **Status:** Not started
+- **Related:** I18N-001, UX-004
 
-Implement localized error messages that provide user-friendly, translated error messages and notifications in the user's preferred language.
+## Problem
 
-## Description
+Even with a translated UI, errors would still reach users in English, because the backend builds them as finished sentences.
 
-Users need to understand error messages in their preferred language. We need to implement localized error messages that provide clear, translated error descriptions and helpful guidance in multiple languages.
+## Current state
 
-## Technical Requirements
+- Backend commands return errors as `String`, built with `format!` in the services and handlers, for example in `src-tauri/src/handlers/containers.rs`.
+- Engine errors pass through `docker_message` in `src-tauri/src/services/docker_error.rs`, which returns the engine's own English text.
+- The frontend shows those strings as they are, mostly in toasts through `errorMessage` calls.
 
-### Frontend
+## Scope
 
-- Implement localized error message system
-- Create error message translation interface
-- Add error message formatting and display
-- Implement error message categorization
-- Create error message help and guidance
-- Add error message history and tracking
-
-### Backend
-
-- Implement error message localization logic
-- Create error message translation system
-- Add error message categorization and mapping
-- Implement error message formatting
-- Create error message analytics and reporting
-- Add error message configuration management
-
-### Data Flow
-
-1. Error occurs in the application
-2. Error is categorized and localized
-3. Translated error message is generated
-4. Error message is formatted and displayed
-5. Error guidance is provided to user
-6. Error message is logged and tracked
-
-## Acceptance Criteria
-
-### Functional Requirements
-
-- [ ] Localized error message system
-- [ ] Error message translation interface
-- [ ] Error message formatting and display
-- [ ] Error message categorization
-- [ ] Error message help and guidance
-- [ ] Error message history and tracking
-- [ ] Support for multiple error types
-
-### Non-Functional Requirements
-
-- [ ] Error message localization responds within 100ms
-- [ ] Error message display updates within 200ms
-- [ ] Error message translation loads within 500ms
-- [ ] Localized error messages work across all platforms
-- [ ] Error message system handles all error types
-
-### User Experience
-
-- [ ] Intuitive localized error message system
-- [ ] Clear error message formatting and display
-- [ ] Helpful error message guidance
-- [ ] Professional error message experience
-- [ ] Seamless error message localization workflow
-
-## Technical Implementation
-
-### Backend Implementation
-
-```rust
-// Error message localization logic
-// Error message translation system
-// Error message categorization and mapping
-// Error message formatting
-// Error message analytics and reporting
-```
-
-### Frontend Implementation
-
-```typescript
-// Localized error message system
-// Error message translation interface
-// Error message formatting and display
-// Error message categorization
-// Error message help and guidance
-```
-
-## Dependencies
-
-- Error message localization library
-- Translation management framework
-- Error categorization utilities
-- Message formatting tools
-- Error analytics and reporting framework
-
-## Definition of Done
-
-- [ ] Localized error messages implemented
-- [ ] Error message translation interface working
-- [ ] Error message formatting and display functional
-- [ ] Error message categorization operational
-- [ ] Error message help and guidance
-- [ ] Support for multiple error types
-- [ ] Tests written for localized error messages
-- [ ] Documentation updated
+- Give backend errors a stable code and parameters, for example `container.start_failed` with the container name, instead of a finished sentence.
+- Translate those codes in the frontend with the I18N-001 setup.
+- Keep the engine's original message as a detail under the translated text, since it cannot be translated.
 
 ## Notes
 
-- Consider implementing error message templates
-- Ensure localization works with various error types
-- Test localization with different language scripts
-- Monitor error message localization performance and optimize
+- Depends on I18N-001.
+- Changing the error type touches every command, so it can be done area by area.

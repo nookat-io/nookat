@@ -1,114 +1,32 @@
-# [VOLUME-001] Implement volume backup and restore functionality
+# [VOLUME-001] Back up, restore and migrate volumes
 
-## Overview
+- **Status:** Not started
+- **Merged from:** VOLUME-002
+- **Related:** VOLUME-003, DEBUG-002
 
-Implement comprehensive volume backup and restore functionality that allows users to backup Docker volumes, restore them, and manage backup versions with scheduling and automation.
+## Problem
 
-## Description
+Volumes hold the data that matters, such as databases, uploads and caches, and Docker offers no built-in backup.
+Users who want a copy of a volume, or want to move one to another machine or engine, have to run a throwaway container with `tar` by hand.
 
-Users need to backup and restore Docker volumes to protect their data and enable disaster recovery. We need to implement volume backup and restore functionality that provides automated backups, version management, and reliable restore capabilities.
+## Current state
 
-## Technical Requirements
+- Nothing backs up, restores or moves volumes.
+- The Volumes page (`src/components/volumes/volumes-table.tsx`) lists, filters, removes and prunes volumes.
+- `inspect_volume` is registered in `src-tauri/src/lib.rs` but nothing in the frontend calls it.
 
-### Frontend
+## Scope
 
-- Implement volume backup and restore interface
-- Create backup scheduling and automation
-- Add backup version management and history
-- Implement restore wizard and validation
-- Create backup monitoring and status tracking
-- Add backup configuration and settings
-
-### Backend
-
-- Implement volume backup and restore logic
-- Create backup scheduling and automation
-- Add backup version management
-- Implement restore validation and testing
-- Create backup monitoring and analytics
-- Add backup configuration management
-
-### Data Flow
-
-1. User configures volume backup settings
-2. Backup is scheduled and executed automatically
-3. Backup versions are managed and stored
-4. Restore process is validated and tested
-5. Backup status is monitored and reported
-6. Backup analytics and history are maintained
-
-## Acceptance Criteria
-
-### Functional Requirements
-
-- [ ] Volume backup and restore interface
-- [ ] Backup scheduling and automation
-- [ ] Backup version management and history
-- [ ] Restore wizard and validation
-- [ ] Backup monitoring and status tracking
-- [ ] Backup configuration and settings
-- [ ] Support for multiple backup formats
-
-### Non-Functional Requirements
-
-- [ ] Backup interface loads within 1 second
-- [ ] Backup scheduling responds within 500ms
-- [ ] Restore validation completes within 2 seconds
-- [ ] Backup operations work with large volumes
-- [ ] Volume backup and restore works across all platforms
-
-### User Experience
-
-- [ ] Intuitive volume backup and restore interface
-- [ ] Clear backup scheduling and automation
-- [ ] Helpful restore wizard and validation
-- [ ] Professional backup management workflow
-- [ ] Seamless backup and restore process
-
-## Technical Implementation
-
-### Backend Implementation
-
-```rust
-// Volume backup and restore logic
-// Backup scheduling and automation
-// Backup version management
-// Restore validation and testing
-// Backup monitoring and analytics
-```
-
-### Frontend Implementation
-
-```typescript
-// Volume backup and restore interface
-// Backup scheduling and automation
-// Backup version management and history
-// Restore wizard and validation
-// Backup monitoring and status tracking
-```
-
-## Dependencies
-
-- Volume backup and restore library
-- Backup scheduling framework
-- Version management utilities
-- Restore validation framework
-- Backup monitoring and analytics tools
-
-## Definition of Done
-
-- [ ] Volume backup and restore functionality implemented
-- [ ] Backup scheduling and automation working
-- [ ] Backup version management functional
-- [ ] Restore wizard and validation operational
-- [ ] Backup monitoring and status tracking
-- [ ] Support for multiple backup formats
-- [ ] Tests written for volume backup and restore
-- [ ] Documentation updated
+- Back up a volume to a `.tar.gz` file the user picks on the host, with streamed progress.
+- Restore a backup into a new volume or, after a confirmation, into an existing empty volume.
+- Migrate a volume to another engine or Docker context by backing it up from one and restoring it into the other.
+- Warn before backing up a volume that a running container writes to, since the copy may be inconsistent, and offer to stop those containers first.
+- Store the source volume's name, labels and driver in the archive so a restore recreates them.
 
 ## Notes
 
-- Consider implementing incremental backup support
-- Ensure backup works with various volume types
-- Test backup and restore with large data volumes
-- Monitor backup performance and optimize
+- The usual approach is a short-lived helper container that mounts the volume and streams a tar archive through the Docker API, so it works the same with Colima and other engines.
+  The helper image must be small and pinned, and pulling it needs network access on first use.
+- Scheduled backups and keeping several versions of a backup were part of the original tickets.
+  Open question: are they wanted, given that Nookat has no background service of its own when the app is closed?
+- Migrating between storage drivers other than `local` is out of scope until someone needs it.

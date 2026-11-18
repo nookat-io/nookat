@@ -1,113 +1,27 @@
-# [LPAGE-001] Update Landing Page, include appstore,msstore,snapstore icons and links
+# [LPAGE-001] Add app store badges to the landing page
 
-## Overview
+- **Status:** Blocked
+- **Blocked by:** no store listings exist yet (DIST-003, DIST-004, DIST-005, DIST-006)
 
-Update the landing page to include app store icons and links for macOS App Store, Microsoft Store, and Ubuntu Snap Store to provide easy access to download Nookat from official app stores.
+## Problem
 
-## Description
+Users who prefer an app store or a package manager can't find Nookat in one from the landing page.
+Badges and links for the Mac App Store, the Microsoft Store, the Snap Store and Homebrew would give them an official, self-updating install path.
 
-Users need easy access to download Nookat from official app stores. We need to update the landing page to include app store icons and links for macOS App Store, Microsoft Store, and Ubuntu Snap Store to provide convenient download options.
+## Current state
 
-## Technical Requirements
+The landing page lives in the separate `nookat-io/nookat-io.github.io` repository.
+Its download links point only at GitHub releases, through `LATEST_RELEASE_URL` in that repository's `src/lib/github.ts`.
+Nookat has no store listing or Homebrew cask yet.
 
-### Frontend
+## Scope
 
-- Implement app store icons and links on landing page
-- Create responsive app store download section
-- Add app store badges and branding
-- Implement app store link tracking and analytics
-- Create app store download optimization
-- Add app store configuration and management
-
-### Backend
-
-- Implement app store link management logic
-- Create app store analytics and tracking
-- Add app store download optimization
-- Implement app store configuration management
-- Create app store analytics and reporting
-- Add app store link validation and monitoring
-
-### Data Flow
-
-1. Landing page loads with app store section
-2. App store icons and links are displayed
-3. User clicks on app store link
-4. App store link is tracked and analyzed
-5. User is redirected to appropriate app store
-6. App store download analytics are collected
-
-## Acceptance Criteria
-
-### Functional Requirements
-
-- [ ] App store icons and links on landing page
-- [ ] Responsive app store download section
-- [ ] App store badges and branding
-- [ ] App store link tracking and analytics
-- [ ] App store download optimization
-- [ ] App store configuration and management
-- [ ] Support for macOS App Store, Microsoft Store, and Snap Store
-
-### Non-Functional Requirements
-
-- [ ] Landing page loads within 3 seconds
-- [ ] App store links respond within 1 second
-- [ ] App store icons display correctly across devices
-- [ ] App store links work across all platforms
-- [ ] System handles app store link failures gracefully
-
-### User Experience
-
-- [ ] Intuitive app store icons and links
-- [ ] Clear responsive app store download section
-- [ ] Helpful app store badges and branding
-- [ ] Professional app store link tracking and analytics
-- [ ] Seamless app store download workflow
-
-## Technical Implementation
-
-### Backend Implementation
-
-```rust
-// App store link management logic
-// App store analytics and tracking
-// App store download optimization
-// App store configuration management
-// App store analytics and reporting
-```
-
-### Frontend Implementation
-
-```typescript
-// App store icons and links on landing page
-// Responsive app store download section
-// App store badges and branding
-// App store link tracking and analytics
-// App store download optimization
-```
-
-## Dependencies
-
-- App store branding and assets
-- App store link management system
-- App store analytics framework
-- App store configuration management
-- App store link validation tools
-
-## Definition of Done
-
-- [ ] App store icons and links implemented on landing page
-- [ ] Responsive app store download section working
-- [ ] App store badges and branding functional
-- [ ] App store link tracking and analytics operational
-- [ ] Support for macOS App Store, Microsoft Store, and Snap Store
-- [ ] Tests written for landing page app store integration
-- [ ] Documentation updated
+- Add a download section with the official badge of each store where Nookat is listed, linking to its listing.
+- Show the `brew install --cask nookat` command once the cask exists.
+- Keep the GitHub release download as the default for each platform.
+- Follow each store's badge and branding guidelines, and keep the section responsive.
 
 ## Notes
 
-- Consider implementing app store download optimization
-- Ensure app store links work with various app store configurations
-- Test app store links with different platform scenarios
-- Monitor app store link performance and optimize
+- Add each badge as its listing goes live, rather than waiting for all of them.
+- This change happens in the landing page repository, not in this one.

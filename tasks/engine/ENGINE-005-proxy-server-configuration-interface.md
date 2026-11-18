@@ -1,114 +1,32 @@
-# [ENGINE-005] Add proxy server configuration interface
+# [ENGINE-005] Configure a proxy for the engine
 
-## Overview
+- **Status:** Not started
+- **Related:** ENGINE-004, ENGINE-008
 
-Implement a user-friendly proxy server configuration interface that allows users to configure Docker Engine proxy settings for network connectivity in corporate environments.
+## Problem
 
-## Description
+Users on corporate networks need an HTTP proxy so the engine can pull images and reach registries.
+Today they have to configure it by hand inside the Colima VM or in Docker's daemon config.
 
-Users in corporate environments often need to configure proxy settings for Docker Engine to access external registries and resources. Currently, this requires manual configuration. We need to implement a visual proxy configuration interface that simplifies proxy setup and management.
+## Current state
 
-## Technical Requirements
+- Settings has a Proxy tab (`src/pages/SettingsPage.tsx`) that renders `src/components/settings/proxy-settings.tsx`.
+- That component is a placeholder: HTTP proxy, HTTPS proxy, no proxy and authentication fields are all disabled, both cards carry a "Not available right now" badge, and the values live only in local React state.
+- There is no backend command and no config field for a proxy.
 
-### Frontend
+## Scope
 
-- Implement proxy server configuration interface
-- Create proxy settings validation and testing
-- Add proxy configuration templates and presets
-- Implement proxy connection testing
-- Create proxy configuration backup and restore
-- Add proxy configuration documentation and help
-
-### Backend
-
-- Implement proxy server configuration management
-- Create proxy connection testing and validation
-- Add proxy configuration parsing and validation
-- Implement proxy configuration application
-- Create proxy configuration monitoring
-- Add proxy configuration analytics and reporting
-
-### Data Flow
-
-1. User opens proxy server configuration interface
-2. Current proxy settings are loaded and displayed
-3. User configures proxy settings through interface
-4. Proxy settings are validated and tested
-5. Configuration is applied to Docker Engine
-6. Proxy connection is verified and monitored
-
-## Acceptance Criteria
-
-### Functional Requirements
-
-- [ ] Visual proxy server configuration interface
-- [ ] Proxy settings validation and testing
-- [ ] Proxy configuration templates and presets
-- [ ] Proxy connection testing and verification
-- [ ] Proxy configuration backup and restore
-- [ ] Proxy configuration documentation and help
-- [ ] Proxy configuration monitoring and health checks
-
-### Non-Functional Requirements
-
-- [ ] Proxy configuration interface loads within 500ms
-- [ ] Proxy connection testing completes within 5 seconds
-- [ ] Proxy configuration validation works reliably
-- [ ] Proxy settings apply within 10 seconds
-- [ ] Proxy configuration supports various proxy types
-
-### User Experience
-
-- [ ] Intuitive proxy configuration interface
-- [ ] Clear proxy connection testing feedback
-- [ ] Helpful proxy configuration guidance
-- [ ] Safe proxy configuration process
-- [ ] Professional proxy management
-
-## Technical Implementation
-
-### Backend Implementation
-
-```rust
-// Proxy server configuration management
-// Proxy connection testing
-// Configuration validation
-// Configuration application
-// Monitoring and health checks
-```
-
-### Frontend Implementation
-
-```typescript
-// Proxy configuration interface
-// Settings validation and testing
-// Templates and presets
-// Connection testing
-// Documentation and help
-```
-
-## Dependencies
-
-- Proxy server configuration library
-- Connection testing framework
-- Configuration validation utilities
-- Monitoring and health check tools
-- Proxy configuration templates
-
-## Definition of Done
-
-- [ ] Proxy server configuration interface implemented
-- [ ] Proxy settings validation and testing
-- [ ] Proxy configuration templates and presets
-- [ ] Proxy connection testing and verification
-- [ ] Proxy configuration backup and restore
-- [ ] Proxy configuration documentation and help
-- [ ] Tests written for proxy configuration
-- [ ] Documentation updated
+- Store the proxy settings (HTTP, HTTPS, no proxy list, optional username and password) in the app config.
+  That needs a new config version next to `src-tauri/src/entities/config/v2.rs`, with a migration from V2.
+- Apply them to the managed Colima engine:
+  - the Docker daemon's `proxies` setting (`http-proxy`, `https-proxy`, `no-proxy`) in the `docker:` section of the profile's `colima.yaml`;
+  - the VM environment (`env:` in `colima.yaml`), so pulls made inside the VM also use the proxy.
+- Tell the user the change applies on the next VM start and offer a restart (ENGINE-008).
+- Keep the password out of `~/.nookat/config.json` in plain text (see the credential storage question in ENGINE-006).
+- Until this ships, hide the Proxy tab instead of showing disabled controls.
 
 ## Notes
 
-- Consider implementing automatic proxy detection
-- Ensure proxy configuration works with various proxy types
-- Test proxy configuration with different network environments
-- Monitor proxy connection success rates
+- Verify how Colima handles proxies before building: whether it forwards the host's `HTTP_PROXY` variables on start, and whether `env:` and `docker: proxies` in `colima.yaml` are both needed.
+- This shares the `colima.yaml` writing code with ENGINE-004 and should land after or with it.
+- For engines Nookat does not manage, the tab can only explain where to set the proxy.

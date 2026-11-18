@@ -1,114 +1,31 @@
-# [MONITOR-002] Create performance metrics dashboard
+# [MONITOR-002] Add a resource overview dashboard
 
-## Overview
+- **Status:** Not started
+- **Related:** MONITOR-001, VOLUME-003
 
-Implement a comprehensive performance metrics dashboard that provides an overview of container performance, system health, and key performance indicators with customizable widgets and real-time updates.
+## Problem
 
-## Description
+Users want one place that shows how loaded the engine is and which containers use the most resources.
+Today they have to inspect containers one by one, and there is nothing to inspect yet.
 
-Users need a centralized dashboard to monitor container performance, system health, and key metrics at a glance. We need to implement a customizable dashboard with performance widgets, real-time updates, and comprehensive metrics display.
+## Current state
 
-## Technical Requirements
+There is no dashboard page; the routes in `src/App.tsx` are Containers, Images, Networks, Volumes and Settings.
+`src/components/settings/engine-settings/engine-status-section.tsx` shows fixed Docker info such as total CPU cores and memory, not live usage.
+`src/components/settings/engine-settings/components/vm-resources-card.tsx` shows the Colima VM's configured CPUs, memory and disk.
+No backend code reads disk usage from the Docker `system df` API.
 
-### Frontend
+## Scope
 
-- Implement performance metrics dashboard
-- Create customizable dashboard widgets
-- Add real-time metrics display
-- Implement dashboard layout management
-- Create performance alerts and notifications
-- Add dashboard export and sharing
-
-### Backend
-
-- Implement performance metrics collection
-- Create metrics aggregation and processing
-- Add dashboard configuration management
-- Implement performance alerting system
-- Create metrics storage and retrieval
-- Add dashboard analytics and reporting
-
-### Data Flow
-
-1. Performance metrics are collected from containers
-2. Metrics are aggregated and processed for dashboard
-3. Dashboard widgets are updated with real-time data
-4. Performance alerts are triggered based on thresholds
-5. Dashboard configuration is saved and restored
-6. Users can customize and share dashboard layouts
-
-## Acceptance Criteria
-
-### Functional Requirements
-
-- [ ] Performance metrics dashboard
-- [ ] Customizable dashboard widgets
-- [ ] Real-time metrics display
-- [ ] Dashboard layout management
-- [ ] Performance alerts and notifications
-- [ ] Dashboard export and sharing
-- [ ] Dashboard configuration persistence
-
-### Non-Functional Requirements
-
-- [ ] Dashboard loads within 2 seconds
-- [ ] Widget updates within 1 second
-- [ ] Dashboard customization saves within 500ms
-- [ ] Dashboard works with multiple containers
-- [ ] Dashboard works across all supported platforms
-
-### User Experience
-
-- [ ] Intuitive dashboard interface
-- [ ] Clear metrics visualization
-- [ ] Helpful customization options
-- [ ] Professional dashboard appearance
-- [ ] Seamless real-time updates
-
-## Technical Implementation
-
-### Backend Implementation
-
-```rust
-// Performance metrics collection
-// Metrics aggregation and processing
-// Dashboard configuration management
-// Alerting system
-// Storage and retrieval
-```
-
-### Frontend Implementation
-
-```typescript
-// Performance metrics dashboard
-// Customizable widgets
-// Real-time metrics display
-// Layout management
-// Export and sharing
-```
-
-## Dependencies
-
-- Performance metrics collection library
-- Dashboard widget framework
-- Real-time data processing utilities
-- Configuration management system
-- Alerting and notification framework
-
-## Definition of Done
-
-- [ ] Performance metrics dashboard implemented
-- [ ] Customizable dashboard widgets working
-- [ ] Real-time metrics display functional
-- [ ] Dashboard layout management operational
-- [ ] Performance alerts and notifications
-- [ ] Dashboard export and sharing
-- [ ] Tests written for performance dashboard
-- [ ] Documentation updated
+- Add an overview page with engine-wide CPU and memory use against the engine's capacity.
+- List the top containers by CPU and by memory, linking to their stats view from MONITOR-001.
+- Show disk usage split into images, containers, volumes and build cache from the `system df` API.
+- Show counts of running, paused and stopped containers from the existing engine state.
+- Add the page to the sidebar and wrap it in `EngineErrorGate` like the other entity pages.
 
 ## Notes
 
-- Consider implementing dashboard templates
-- Ensure dashboard works with large datasets
-- Test dashboard with various performance scenarios
-- Monitor dashboard performance and optimize
+- Depends on MONITOR-001 for live per-container numbers.
+- The `system df` call can be slow on engines with many images; fetch it on demand or on a slow interval, not on every engine state update.
+- The same `system df` data can fill volume sizes for VOLUME-003.
+- Open question: whether to show the Colima VM's own CPU and memory use, which the Docker API does not report.

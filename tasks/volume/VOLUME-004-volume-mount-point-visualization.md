@@ -1,114 +1,29 @@
-# [VOLUME-004] Implement volume mount point visualization
+# [VOLUME-004] Show which containers use a volume
 
-## Overview
+- **Status:** Not started
+- **Related:** VOLUME-003, CONTAINER-007
 
-Implement volume mount point visualization that displays how volumes are mounted to containers, their relationships, and mount point configurations.
+## Problem
 
-## Description
+Users cannot see which containers mount a volume, or where inside each container it is mounted.
+Without that they cannot tell whether a volume is safe to remove, or why a container sees certain data.
 
-Users need to visualize volume mount points and understand how volumes are connected to containers. We need to implement volume mount point visualization that provides clear mapping of volume-to-container relationships and mount point configurations.
+## Current state
 
-## Technical Requirements
+- The Volumes table (`src/components/volumes/volumes-table.tsx`) shows each volume's host mountpoint path.
+- The In Use and Unused filters (`src/components/volumes/volume-filter.ts`) rely on `ref_count`, which `count_containers_mounting` in `src-tauri/src/services/volumes.rs` computes by scanning container mounts.
+  Only the count is kept, not which containers matched.
+- `mounts` is typed on containers in `src/components/containers/container-types.ts`, but no component shows a container's mounts.
 
-### Frontend
+## Scope
 
-- Implement volume mount point visualization interface
-- Create mount point relationship mapping
-- Add mount point configuration display
-- Implement mount point status monitoring
-- Create mount point filtering and search
-- Add mount point help and documentation
-
-### Backend
-
-- Implement volume mount point analysis
-- Create mount point relationship mapping
-- Add mount point configuration analysis
-- Implement mount point status monitoring
-- Create mount point analytics and reporting
-- Add mount point data collection and storage
-
-### Data Flow
-
-1. Volume mount point data is collected
-2. Mount point relationships are mapped and analyzed
-3. Mount point configurations are displayed
-4. Mount point status is monitored
-5. Mount point relationships are visualized
-6. Mount point analytics are generated
-
-## Acceptance Criteria
-
-### Functional Requirements
-
-- [ ] Volume mount point visualization interface
-- [ ] Mount point relationship mapping
-- [ ] Mount point configuration display
-- [ ] Mount point status monitoring
-- [ ] Mount point filtering and search
-- [ ] Mount point help and documentation
-- [ ] Support for multiple mount point types
-
-### Non-Functional Requirements
-
-- [ ] Mount point visualization loads within 2 seconds
-- [ ] Relationship mapping completes within 1 second
-- [ ] Status monitoring updates within 500ms
-- [ ] Mount point visualization works with complex setups
-- [ ] Volume mount point visualization works across all platforms
-
-### User Experience
-
-- [ ] Intuitive volume mount point visualization interface
-- [ ] Clear mount point relationship mapping
-- [ ] Helpful mount point configuration display
-- [ ] Professional mount point visualization
-- [ ] Seamless mount point analysis workflow
-
-## Technical Implementation
-
-### Backend Implementation
-
-```rust
-// Volume mount point analysis
-// Mount point relationship mapping
-// Mount point configuration analysis
-// Mount point status monitoring
-// Mount point analytics and reporting
-```
-
-### Frontend Implementation
-
-```typescript
-// Volume mount point visualization interface
-// Mount point relationship mapping
-// Mount point configuration display
-// Mount point status monitoring
-// Mount point filtering and search
-```
-
-## Dependencies
-
-- Volume mount point analysis library
-- Relationship mapping framework
-- Configuration analysis utilities
-- Status monitoring tools
-- Visualization and reporting framework
-
-## Definition of Done
-
-- [ ] Volume mount point visualization implemented
-- [ ] Mount point relationship mapping working
-- [ ] Mount point configuration display functional
-- [ ] Mount point status monitoring operational
-- [ ] Mount point filtering and search
-- [ ] Support for multiple mount point types
-- [ ] Tests written for volume mount point visualization
-- [ ] Documentation updated
+- Keep the names of the containers that mount each volume, not only the count, when building the volume list.
+- In the Volumes table, show the containers that use a volume, with the path each one mounts it at and whether it is read-only.
+- Link each container to its row on the Containers page.
+- Show a container's mounts (volumes, bind mounts and tmpfs) in the container details from CONTAINER-007.
+- When removing a volume that is in use, list the containers that block the removal.
 
 ## Notes
 
-- Consider implementing mount point validation
-- Ensure visualization works with various mount configurations
-- Test visualization with complex volume setups
-- Monitor mount point visualization performance and optimize
+- The container list that `get_volumes` already fetches has every mount, so this needs no extra Docker calls.
+- A graph view of volumes and containers was part of the original ticket; a list is enough to start.
