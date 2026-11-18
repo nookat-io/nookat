@@ -1,15 +1,11 @@
 import { AlertTriangle, Info } from 'lucide-react';
 import { ConfirmDialog } from '../../common/ConfirmDialog';
 import { Dialog } from '../../ui/dialog';
-import { ImageSourceCheck } from '../../../lib/image-source';
-
-type LookalikeCheck = Extract<
+import {
   ImageSourceCheck,
-  { kind: 'lookalike-registry' | 'lookalike-image' }
->;
-
-const isLookalike = (check: ImageSourceCheck): check is LookalikeCheck =>
-  check.kind === 'lookalike-registry' || check.kind === 'lookalike-image';
+  LookalikeCheck,
+  needsConfirmation,
+} from '../../../lib/image-source';
 
 function lookalikeSummary(check: LookalikeCheck) {
   return check.kind === 'lookalike-registry'
@@ -24,7 +20,7 @@ function confirmationTitle(check: LookalikeCheck) {
 }
 
 export function ImageSourceNote({ check }: { check: ImageSourceCheck }) {
-  if (isLookalike(check)) {
+  if (needsConfirmation(check)) {
     return (
       <p className="flex items-start gap-2 text-sm text-destructive">
         <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
@@ -49,7 +45,7 @@ export function ImageSourceNote({ check }: { check: ImageSourceCheck }) {
 }
 
 interface ImageSourceConfirmDialogProps {
-  check: ImageSourceCheck | null;
+  check: LookalikeCheck;
   onCancel: () => void;
   onConfirm: () => void;
 }
@@ -59,26 +55,22 @@ export function ImageSourceConfirmDialog({
   onCancel,
   onConfirm,
 }: ImageSourceConfirmDialogProps) {
-  const lookalike = check && isLookalike(check) ? check : null;
-
   return (
     <Dialog
-      open={lookalike !== null}
+      open
       onOpenChange={open => {
         if (!open) {
           onCancel();
         }
       }}
     >
-      {lookalike && (
-        <ConfirmDialog
-          title={confirmationTitle(lookalike)}
-          description={`${lookalikeSummary(lookalike)} Lookalike names are a common way to spread malicious images, so check the spelling before you pull.`}
-          confirmText="Pull anyway"
-          onCancel={onCancel}
-          onConfirm={onConfirm}
-        />
-      )}
+      <ConfirmDialog
+        title={confirmationTitle(check)}
+        description={`${lookalikeSummary(check)} Lookalike names are a common way to spread malicious images, so check the spelling before you pull.`}
+        confirmText="Pull anyway"
+        onCancel={onCancel}
+        onConfirm={onConfirm}
+      />
     </Dialog>
   );
 }

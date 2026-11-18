@@ -3,6 +3,7 @@ export {
   checkRegistry,
   needsConfirmation,
   type ImageSourceCheck,
+  type LookalikeCheck,
   type RegistryCheck,
 } from './check-image-source';
 export {
