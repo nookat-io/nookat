@@ -8,10 +8,28 @@ import {
   Language,
 } from '../types/config';
 
+const fallbackConfig = (): AppConfig => ({
+  theme: Theme.System,
+  language: Language.English,
+  telemetry: {
+    send_anonymous_usage_data: false,
+    error_reporting: false,
+  },
+  startup: {
+    start_on_system_startup: false,
+    minimize_to_tray: true,
+    check_for_updates: true,
+    auto_update_settings: false,
+  },
+  sidebar_collapsed: false,
+});
+
+const setOsAutostart = (enabled: boolean) => (enabled ? enable() : disable());
+
 export class ConfigService {
   private static instance: ConfigService;
   private config: AppConfig | null = null;
-  private isLoading = false;
+  private pendingLoad: Promise<AppConfig> | null = null;
   private subscribers: Set<(config: AppConfig | null) => void> = new Set();
 
   private constructor() {}
@@ -45,64 +63,32 @@ export class ConfigService {
     });
   }
 
-  /**
-   * Load configuration from backend
-   */
   async loadConfig(): Promise<AppConfig> {
-    if (this.config && !this.isLoading) {
-      return this.config;
-    }
-
-    if (this.isLoading) {
-      while (this.isLoading) {
-        await new Promise(resolve => setTimeout(resolve, 100));
-      }
-      if (this.config) {
-        return this.config;
-      }
-      // If still null after waiting, something went wrong
-      throw new Error('Failed to load configuration');
-    }
-
-    this.isLoading = true;
-    try {
-      this.config = await invoke<AppConfig>('get_config');
-      this.notifySubscribers();
-
-      // Sync autostart status after loading config
-      setTimeout(() => {
-        this.syncAutostartStatus().catch(error => {
-          console.warn('Failed to sync autostart status on load:', error);
-        });
-      }, 100); // Small delay to ensure UI is ready
-    } catch (error) {
-      console.error('ConfigService: Failed to load config:', error);
-
-      this.config = {
-        theme: Theme.System,
-        language: Language.English,
-        telemetry: {
-          send_anonymous_usage_data: false,
-          error_reporting: false,
-        },
-        startup: {
-          start_on_system_startup: false,
-          minimize_to_tray: true,
-          check_for_updates: true,
-          auto_update_settings: false,
-        },
-        sidebar_collapsed: false,
-      };
-      this.notifySubscribers();
-    } finally {
-      this.isLoading = false;
-    }
-
     if (this.config) {
       return this.config;
-    } else {
-      throw new Error('Failed to load configuration');
     }
+    this.pendingLoad ??= this.readConfig();
+    return this.pendingLoad;
+  }
+
+  private async readConfig(): Promise<AppConfig> {
+    try {
+      const config = await invoke<AppConfig>('get_config');
+      this.finishLoading(config);
+      this.syncAutostartStatus();
+      return config;
+    } catch (error) {
+      console.error('ConfigService: Failed to load config:', error);
+      const fallback = fallbackConfig();
+      this.finishLoading(fallback);
+      return fallback;
+    }
+  }
+
+  private finishLoading(config: AppConfig) {
+    this.config = config;
+    this.pendingLoad = null;
+    this.notifySubscribers();
   }
 
   getConfig(): AppConfig | null {
@@ -141,23 +127,15 @@ export class ConfigService {
 
   async updateStartupSettings(settings: StartupSettings): Promise<void> {
     try {
-      // Get current settings to check if autostart changed
-      const currentConfig = this.config;
       const autostartChanged =
-        currentConfig &&
-        currentConfig.startup.start_on_system_startup !==
+        this.config !== null &&
+        this.config.startup.start_on_system_startup !==
           settings.start_on_system_startup;
 
-      // Update the config first
       await invoke('update_startup_settings', { settings });
 
-      // Handle autostart functionality if it changed
       if (autostartChanged) {
-        if (settings.start_on_system_startup) {
-          await enable();
-        } else {
-          await disable();
-        }
+        await setOsAutostart(settings.start_on_system_startup);
       }
 
       await this.refreshConfig();
@@ -173,9 +151,8 @@ export class ConfigService {
         sidebarCollapsed: sidebar_collapsed,
       });
 
-      // Update local config immediately to avoid unnecessary refresh
       if (this.config) {
-        this.config.sidebar_collapsed = sidebar_collapsed;
+        this.config = { ...this.config, sidebar_collapsed };
         this.notifySubscribers();
       }
     } catch (error) {
@@ -209,28 +186,25 @@ export class ConfigService {
     return this.loadConfig();
   }
 
-  // Sync config with actual autostart status
   async syncAutostartStatus(): Promise<void> {
     try {
-      const actualAutostartEnabled = await isEnabled();
+      const osAutostartEnabled = await isEnabled();
       const currentConfig = this.config;
 
       if (
         currentConfig &&
-        currentConfig.startup.start_on_system_startup !== actualAutostartEnabled
+        currentConfig.startup.start_on_system_startup !== osAutostartEnabled
       ) {
-        // Update config to match actual autostart status
-        const updatedSettings = {
-          ...currentConfig.startup,
-          start_on_system_startup: actualAutostartEnabled,
-        };
-
-        await invoke('update_startup_settings', { settings: updatedSettings });
+        await invoke('update_startup_settings', {
+          settings: {
+            ...currentConfig.startup,
+            start_on_system_startup: osAutostartEnabled,
+          },
+        });
         await this.refreshConfig();
       }
     } catch (error) {
       console.warn('Failed to sync autostart status:', error);
-      // Don't throw - this is a sync operation, not critical
     }
   }
 }

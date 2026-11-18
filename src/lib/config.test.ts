@@ -97,7 +97,6 @@ describe('ConfigService', () => {
     finishRead(savedConfig());
 
     await expect(first).resolves.toEqual(savedConfig());
-    await vi.advanceTimersByTimeAsync(100);
     await expect(second).resolves.toEqual(savedConfig());
     expect(backend.count('get_config')).toBe(1);
   });
