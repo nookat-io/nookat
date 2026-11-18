@@ -3,44 +3,35 @@ use tauri_plugin_shell::ShellExt;
 use tracing::{debug, instrument};
 
 #[instrument(skip_all, err)]
-pub async fn open_container_terminal(app: &AppHandle, container_id: &str) -> Result<(), String> {
-    debug!("Opening terminal for container: {}", container_id);
-    let shell_commands = ["bash", "sh"];
+pub async fn open_container_terminal(
+    app: &AppHandle,
+    container_id: &str,
+    shell: &str,
+) -> Result<(), String> {
+    debug!("Opening {} in container: {}", shell, container_id);
 
-    for shell in shell_commands.iter() {
-        debug!("Trying shell: {}", shell);
-        let status = app
-            .shell()
-            .command("cmd")
-            .args([
-                "/C",
-                "start",
-                "",
-                "docker",
-                "exec",
-                "-it",
-                container_id,
-                shell,
-            ])
-            .status()
-            .await;
+    let status = app
+        .shell()
+        .command("cmd")
+        .args([
+            "/C",
+            "start",
+            "",
+            "docker",
+            "exec",
+            "-it",
+            container_id,
+            shell,
+        ])
+        .status()
+        .await
+        .map_err(|e| format!("Failed to open terminal: {}", e))?;
 
-        match status {
-            Ok(status) if status.success() => {
-                debug!("Terminal opened successfully");
-                return Ok(());
-            }
-            Ok(status) => {
-                debug!("Terminal failed to open: {:?}", status);
-            }
-            Err(e) => {
-                debug!("Failed to open terminal: {}", e);
-                return Err(format!("Failed to open terminal: {}", e));
-            }
-        }
+    if !status.success() {
+        return Err(format!("The terminal did not start: {:?}", status));
     }
 
-    Err("Failed to open terminal on Windows".to_string())
+    Ok(())
 }
 
 #[instrument(skip_all, err)]
