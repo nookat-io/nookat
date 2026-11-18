@@ -1,5 +1,5 @@
 name: Install frontend dependencies
-description: Restores node_modules for this runner, Node version and lockfile, or installs them with npm ci
+description: Restores node_modules that npm ci installed from the same package.json and lockfile on this runner and Node version, or runs npm ci
 
 runs:
   using: composite
@@ -15,7 +15,7 @@ runs:
       uses: actions/cache/restore@v4
       with:
         path: node_modules
-        key: node-modules-${{ runner.os }}-${{ runner.arch }}-node-${{ steps.node.outputs.node-version }}-${{ hashFiles('package-lock.json') }}
+        key: node-modules-${{ runner.os }}-${{ runner.arch }}-node-${{ steps.node.outputs.node-version }}-${{ hashFiles('package.json', 'package-lock.json') }}
 
     - name: Install with npm ci
       if: steps.restore.outputs.cache-hit != 'true'
