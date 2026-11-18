@@ -3,7 +3,6 @@ use crate::entities::{
 };
 use std::collections::HashSet;
 use std::net::IpAddr;
-use std::path::Path;
 
 const MIN_CPUS: f64 = 0.01;
 const MAX_CPUS: f64 = 1024.0;
@@ -60,6 +59,15 @@ fn is_env_key(value: &str) -> bool {
 
 fn is_container_path(value: &str) -> bool {
     value.starts_with('/')
+}
+
+fn is_absolute_host_path(value: &str) -> bool {
+    let mut chars = value.chars();
+    let starts_with_a_windows_drive = matches!(
+        (chars.next(), chars.next(), chars.next()),
+        (Some(drive), Some(':'), Some('\\' | '/')) if drive.is_ascii_alphabetic()
+    );
+    value.starts_with('/') || value.starts_with(r"\\") || starts_with_a_windows_drive
 }
 
 fn image_problems(image: &str) -> Vec<String> {
@@ -200,7 +208,7 @@ fn mount_problems(mounts: &[StorageMount]) -> Vec<String> {
                     mount.source
                 ));
             }
-            StorageMountKind::Bind if !Path::new(&mount.source).is_absolute() => {
+            StorageMountKind::Bind if !is_absolute_host_path(&mount.source) => {
                 problems.push(format!(
                     "Mount {number}: the host path \"{}\" must be an absolute path",
                     mount.source
@@ -500,6 +508,35 @@ mod tests {
                 problems(&published),
                 vec![format!(
                     "Port mappings cannot be used with the {network} network"
+                )]
+            );
+        }
+    }
+
+    #[test]
+    fn bind_mounts_take_host_paths_of_unix_and_windows_engines_from_any_client() {
+        let bind_from = |source: &str| CreateContainerSpec {
+            mounts: vec![mount(StorageMountKind::Bind, source, "/site")],
+            ..spec()
+        };
+
+        for engine_path in [
+            "/var/run/docker.sock",
+            r"C:\Users\me\site",
+            "D:/data",
+            r"\\server\share\site",
+        ] {
+            assert_eq!(
+                problems(&bind_from(engine_path)),
+                Vec::<String>::new(),
+                "{engine_path}"
+            );
+        }
+        for relative_path in ["site", "~/site", "C:site"] {
+            assert_eq!(
+                problems(&bind_from(relative_path)),
+                vec![format!(
+                    "Mount 1: the host path \"{relative_path}\" must be an absolute path"
                 )]
             );
         }
