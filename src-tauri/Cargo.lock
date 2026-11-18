@@ -3188,7 +3188,7 @@ dependencies = [
 
 [[package]]
 name = "nookat"
-version = "0.1.8"
+version = "0.1.9"
 dependencies = [
  "bollard",
  "chrono",
