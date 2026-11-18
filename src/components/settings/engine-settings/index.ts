@@ -11,7 +11,6 @@ export { EngineConfiguration } from './components/engine-configuration';
 export { ResourceInput } from './components/resource-input';
 export { MethodCard } from './components/method-card';
 export { InfoBanner } from './components/info-banner';
-export { StatusIndicator } from './components/status-indicator';
 export { CapacityBar } from './components/capacity-bar';
 export { InfoItem } from './components/info-item';
 export { SectionHeader } from './components/section-header';

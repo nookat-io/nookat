@@ -38,8 +38,7 @@ export function InstallationProgress({
     step === 'installing' ||
     step === 'starting-vm' ||
     step === 'validating' ||
-    step === 'stopping-vm' ||
-    step === 'stopping';
+    step === 'stopping-vm';
   const isComplete = step === 'complete';
   const hasError = step === 'error';
 

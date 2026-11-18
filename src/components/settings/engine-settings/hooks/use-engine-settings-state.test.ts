@@ -152,6 +152,38 @@ describe('useEngineSettingsState', () => {
     expect(state().stopProgress).toEqual(alreadyStopped);
   });
 
+  it('shows each stop step the backend reports while the engine stops', async () => {
+    mockBackend();
+    const { state, actions } = renderEngineSettings();
+    await waitFor(() => expect(state().dockerInfo).not.toBeNull());
+    const stoppingVm: ColimaEngineStopProgressType = {
+      step: 'Stopping Colima VM...',
+      message: 'Shutting down the virtual machine',
+      percentage: 50,
+      logs: ['[INFO] colima stop'],
+    };
+
+    await act(() => actions().handleStopEngine());
+    await act(flushPromises);
+    await act(() => emit('vm-stop-progress', stoppingVm));
+
+    expect(state().stopStep).toBe('stopping-vm');
+    expect(state().stopProgress).toEqual(stoppingVm);
+  });
+
+  it('reports the reason when the engine fails to stop', async () => {
+    mockBackend();
+    const { state, actions } = renderEngineSettings();
+    await waitFor(() => expect(state().dockerInfo).not.toBeNull());
+
+    await act(() => actions().handleStopEngine());
+    await act(flushPromises);
+    await act(() => emit('vm-stop-error', 'colima stop: exit status 1'));
+
+    expect(state().stopStep).toBe('error');
+    expect(state().error).toBe('colima stop: exit status 1');
+  });
+
   it('remembers that the engine start failed, not the installation, so the failure is titled after the start', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => {});
     mockBackend({
