@@ -10,9 +10,7 @@ use tauri_plugin_opener::OpenerExt;
 use tokio::sync::Mutex;
 use tracing::instrument;
 
-lazy_static::lazy_static! {
-    static ref ENGINE_STATE_MONITOR: Arc<Mutex<Option<Arc<EngineStateMonitor>>>> = Arc::new(Mutex::new(None));
-}
+static ENGINE_STATE_MONITOR: Mutex<Option<Arc<EngineStateMonitor>>> = Mutex::const_new(None);
 
 #[tauri::command]
 #[instrument(skip_all, err)]
