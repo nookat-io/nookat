@@ -1,6 +1,7 @@
 mod request;
 mod validation;
 
+use super::docker_error::docker_message;
 use crate::entities::{CreateContainerError, CreateContainerSpec, CreatedContainer};
 use bollard::errors::Error as DockerError;
 use bollard::query_parameters::RemoveContainerOptions;
@@ -67,13 +68,6 @@ impl ContainerCreationService {
             message: docker_message(start_error),
             removed,
         }
-    }
-}
-
-fn docker_message(error: &DockerError) -> String {
-    match error {
-        DockerError::DockerResponseServerError { message, .. } => message.clone(),
-        other => other.to_string(),
     }
 }
 
