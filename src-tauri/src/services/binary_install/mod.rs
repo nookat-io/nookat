@@ -7,15 +7,14 @@ mod releases;
 mod test_fixtures;
 mod unpack;
 
+#[cfg(target_os = "macos")]
+pub use self::{plan::*, progress::*};
 pub use download::*;
 pub use installer::*;
-pub use plan::*;
-pub use progress::*;
 pub use releases::*;
 pub use unpack::*;
 
-use std::path::{Path, PathBuf};
-
-pub fn engine_prefix(home: &Path) -> PathBuf {
+#[cfg(target_os = "macos")]
+pub fn engine_prefix(home: &std::path::Path) -> std::path::PathBuf {
     home.join(".nookat").join("engine")
 }

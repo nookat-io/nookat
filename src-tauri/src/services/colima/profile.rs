@@ -6,6 +6,7 @@ use crate::entities::{
 use serde::Deserialize;
 use std::path::{Path, PathBuf};
 
+#[cfg(target_os = "macos")]
 pub const PROFILE_ENV_VAR: &str = "COLIMA_PROFILE";
 const DEFAULT_PROFILE: &str = "default";
 const PROFILE_CONFIG_FILE: &str = "colima.yaml";

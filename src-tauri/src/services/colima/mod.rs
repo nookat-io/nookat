@@ -7,12 +7,9 @@ mod start_args;
 mod warnings;
 
 pub use defaults::*;
-pub use docker_context::*;
-pub use host::*;
-pub use profile::*;
-pub use readiness::*;
-pub use start_args::*;
-pub use warnings::*;
+
+#[cfg(target_os = "macos")]
+pub use self::{docker_context::*, host::*, profile::*, readiness::*, start_args::*, warnings::*};
 
 const BYTES_PER_GIB: f64 = (1u64 << 30) as f64;
 
