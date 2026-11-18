@@ -1,5 +1,4 @@
 repos:
-  # Frontend (React/TypeScript) hooks
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0
     hooks:
@@ -13,7 +12,6 @@ repos:
       - id: check-docstring-first
       - id: check-json
 
-  # ESLint for TypeScript/React, from the toolchain locked in package-lock.json
   - repo: local
     hooks:
       - id: eslint
@@ -23,7 +21,6 @@ repos:
         files: \.(js|ts|tsx)$
         types: [file]
 
-  # TypeScript type checking
   - repo: local
     hooks:
       - id: typescript-check
@@ -33,7 +30,6 @@ repos:
         files: \.(ts|tsx)$
         pass_filenames: false
 
-  # Linting frontend
   - repo: local
     hooks:
       - id: npm-run-lint
@@ -43,8 +39,6 @@ repos:
         files: \.(ts|tsx)$
         pass_filenames: false
 
-  # Frontend unit tests that cover the files being checked: the test files
-  # themselves and every test that imports a changed file, directly or not.
   - repo: local
     hooks:
       - id: vitest-related
@@ -54,7 +48,6 @@ repos:
         files: \.(ts|tsx)$
         require_serial: true
 
-  # Cargo fmt for Rust
   - repo: local
     hooks:
       - id: cargo-fmt
@@ -64,7 +57,6 @@ repos:
         files: \.(rs|toml)$
         pass_filenames: false
 
-  # Cargo check for Rust
   - repo: local
     hooks:
       - id: cargo-check
@@ -74,7 +66,6 @@ repos:
         files: \.(rs|toml)$
         pass_filenames: false
 
-  # Cargo test for Rust
   - repo: local
     hooks:
       - id: cargo-test

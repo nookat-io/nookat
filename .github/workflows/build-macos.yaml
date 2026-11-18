@@ -1,17 +1,5 @@
 name: Build macOS
 
-# NOTE: This build is NOT signed with an Apple Developer ID and NOT notarized.
-# The bundle is ad-hoc signed instead (APPLE_SIGNING_IDENTITY: '-'), which is the
-# minimum macOS requires to launch a universal binary on Apple Silicon. Users will
-# still see a Gatekeeper "unidentified developer" warning on first launch and have
-# to allow the app explicitly (see the macOS section in README.md).
-#
-# To restore proper signing + notarization once an Apple Developer Program
-# membership is available, re-add the APPLE_CERTIFICATE / APPLE_CERTIFICATE_PASSWORD
-# / KEYCHAIN_PASSWORD / APPLE_ID / APPLE_ID_PASSWORD / APPLE_TEAM_ID secrets and
-# the keychain import step, and drop the ad-hoc APPLE_SIGNING_IDENTITY from both
-# tauri-action steps below.
-
 on:
   workflow_call:
     inputs:
@@ -71,24 +59,10 @@ jobs:
             exit 1
           fi
 
-      # The build and the release upload are deliberately two separate
-      # tauri-action invocations. tauri-action creates the release and uploads
-      # assets inside the same step that builds, so a single invocation would
-      # publish the DMG before anything had a chance to check it. Splitting them
-      # lets the signature check gate the upload: a bundle that fails
-      # verification never reaches the draft release. tauri-action skips all
-      # uploads when neither tagName nor releaseId is set.
-      #
-      # tauri-action always builds, so the publish step re-runs `tauri build`.
-      # Cargo is incremental within the job, so nothing is recompiled and the
-      # cost is one extra bundling pass. There is no supported way to hand
-      # tauri-action a set of already-built artifacts, and generating latest.json
-      # by hand instead would duplicate logic the Linux and Windows jobs share.
-      - name: Build
+      - name: Build without uploading
         id: build
         uses: tauri-apps/tauri-action@v0
         env:
-          # Ad-hoc signature. No Apple Developer ID, no notarization.
           APPLE_SIGNING_IDENTITY: '-'
           VITE_APTABASE_APP_KEY: ${{ secrets.VITE_APTABASE_APP_KEY }}
           VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
@@ -120,7 +94,7 @@ jobs:
 
           echo "Ad-hoc signature verified. The app is intentionally not notarized."
 
-      - name: Publish draft release
+      - name: Publish the verified bundle to the draft release
         uses: tauri-apps/tauri-action@v0
         env:
           APPLE_SIGNING_IDENTITY: '-'
