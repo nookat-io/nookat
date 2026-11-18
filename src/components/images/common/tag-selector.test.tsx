@@ -130,6 +130,31 @@ describe('TagSelector', () => {
     expect(optionNames()).toEqual([]);
   });
 
+  it('closes the list as soon as focus leaves the tag', async () => {
+    const user = userEvent.setup();
+    render(<PullFormTag />);
+    await user.click(tagInput());
+    expect(optionNames()).not.toEqual([]);
+
+    await user.tab();
+
+    expect(optionNames()).toEqual([]);
+  });
+
+  it('keeps focus on the tag while a suggestion is pressed', async () => {
+    const user = userEvent.setup();
+    render(<PullFormTag />);
+    await user.click(tagInput());
+
+    await user.pointer({
+      keys: '[MouseLeft>]',
+      target: screen.getByRole('option', { name: 'lts' }),
+    });
+
+    expect(tagInput()).toHaveFocus();
+    expect(optionNames()).toEqual(TAGS);
+  });
+
   it('picks a suggestion with the mouse', async () => {
     const user = userEvent.setup();
     render(<PullFormTag />);

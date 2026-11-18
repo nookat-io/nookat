@@ -20,7 +20,6 @@ interface Highlight {
 
 const NO_SUGGESTIONS: string[] = [];
 const NO_HIGHLIGHT: Highlight = { within: NO_SUGGESTIONS, index: -1 };
-const SUGGESTION_CLICK_WINDOW_MS = 150;
 
 function suggestionsMatching(suggestions: string[], typed: string) {
   if (!typed.trim()) {
@@ -74,9 +73,7 @@ export function TagSelector({
     }
   };
 
-  const handleInputBlur = () => {
-    setTimeout(closeDropdown, SUGGESTION_CLICK_WINDOW_MS);
-  };
+  const keepFocusOnTheInput = (e: React.MouseEvent) => e.preventDefault();
 
   const selectTag = (selectedTag: string) => {
     onTagChange(selectedTag);
@@ -143,7 +140,7 @@ export function TagSelector({
           value={tag}
           onChange={handleInputChange}
           onFocus={handleInputFocus}
-          onBlur={handleInputBlur}
+          onBlur={closeDropdown}
           onKeyDown={handleKeyDown}
           disabled={disabled}
           autoComplete="off"
@@ -167,6 +164,7 @@ export function TagSelector({
         {isDropdownOpen && filteredSuggestions.length > 0 && (
           <div
             role="listbox"
+            onMouseDown={keepFocusOnTheInput}
             className="absolute z-50 w-full mt-1 bg-popover border border-border rounded-md shadow-lg max-h-60 overflow-auto"
           >
             {filteredSuggestions.map((suggestion, index) => (
