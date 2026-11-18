@@ -240,16 +240,6 @@ pub async fn container_logs(
 
 #[tauri::command]
 #[instrument(skip_all, err)]
-pub async fn container_files(
-    _state: State<'_, SharedEngineState>,
-    id: String,
-) -> Result<(), String> {
-    debug!("Opening files for container: {}", id);
-    Err("Container files functionality is not implemented yet".to_string())
-}
-
-#[tauri::command]
-#[instrument(skip_all, err)]
 pub async fn remove_container(
     state: State<'_, SharedEngineState>,
     id: String,
