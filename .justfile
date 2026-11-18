@@ -77,27 +77,23 @@ pre_commit:
 
 upgrade_version version:
     #!/usr/bin/env bash
+    set -euo pipefail
     echo "🔄 Upgrading version number to v{{version}}..."
 
-    if [ -f package.json ]; then
-        npm version "{{version}}" --no-git-tag-version --allow-same-version > /dev/null
-        echo "✅ Updated version in package.json and package-lock.json"
-    else
-        echo "❌ package.json not found!"
+    npm version "{{version}}" --no-git-tag-version --allow-same-version > /dev/null
+    if ! jq -e '.version == "{{version}}" and .packages[""].version == "{{version}}"' package-lock.json > /dev/null; then
+        echo "❌ npm version did not record {{version}} in package-lock.json"
+        exit 1
     fi
+    echo "✅ Updated version in package.json and package-lock.json"
 
-    if [ -f src-tauri/tauri.conf.json ]; then
-        jq '.version = "{{version}}"' src-tauri/tauri.conf.json > src-tauri/tauri.conf.json.tmp && mv src-tauri/tauri.conf.json.tmp src-tauri/tauri.conf.json
-        echo "✅ Updated version in src-tauri/tauri.conf.json"
-    else
-        echo "❌ src-tauri/tauri.conf.json not found!"
-    fi
+    jq '.version = "{{version}}"' src-tauri/tauri.conf.json > src-tauri/tauri.conf.json.tmp
+    mv src-tauri/tauri.conf.json.tmp src-tauri/tauri.conf.json
+    echo "✅ Updated version in src-tauri/tauri.conf.json"
 
-    if [ -f src-tauri/Cargo.toml ]; then
-        sed -i.bak -E "s/^version = \".*\"/version = \"{{version}}\"/" src-tauri/Cargo.toml && rm src-tauri/Cargo.toml.bak
-        (cd src-tauri && cargo update --workspace --offline --quiet)
-        echo "✅ Updated version in src-tauri/Cargo.toml and src-tauri/Cargo.lock"
-    else
-        echo "❌ src-tauri/Cargo.toml not found!"
-    fi
+    sed -i.bak -E "s/^version = \".*\"/version = \"{{version}}\"/" src-tauri/Cargo.toml
+    rm src-tauri/Cargo.toml.bak
+    (cd src-tauri && cargo update --workspace --offline --quiet)
+    echo "✅ Updated version in src-tauri/Cargo.toml and src-tauri/Cargo.lock"
+
     echo "🎉 Version upgrade complete!"
