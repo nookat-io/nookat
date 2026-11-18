@@ -1,7 +1,10 @@
 import { Button } from '../../../ui/button';
 import { Info, AlertTriangle, RefreshCw } from 'lucide-react';
 import {
-  ColimaConfig,
+  BinaryInstallPlan,
+  ChangeColimaVmSetting,
+  ColimaVm,
+  ColimaVmSettingsChanges,
   InstallationOperation,
   InstallationStep,
   InstallationMethod,
@@ -13,17 +16,19 @@ import { InfoBanner } from './info-banner';
 import { ColimaInstallation } from './colima-installation';
 import { VmResourcesCard } from './vm-resources-card';
 import { EngineActionsCard } from './engine-actions-card';
-import { DockerInfo } from '../../../../types/docker-info';
+import { StartEnginePrompt } from './start-engine-prompt';
 import { LoadingSpinner } from '../../../ui/loading-spinner';
 
 interface EngineConfigurationProps {
-  dockerInfo: DockerInfo | null;
   colimaSupported: boolean | null;
   colimaSupportError: string | null;
   onRetrySupportCheck: () => void;
   colimaAvailable: boolean | null;
-  config: ColimaConfig;
-  onConfigChange: (config: ColimaConfig) => void;
+  colimaVm: ColimaVm | null;
+  colimaVmError: string | null;
+  onRetryColimaVm: () => void;
+  changes: ColimaVmSettingsChanges;
+  onChangeSetting: ChangeColimaVmSetting;
   onStartEngine: () => void;
   isInstalling: boolean;
   isEngineRunning: boolean;
@@ -37,18 +42,28 @@ interface EngineConfigurationProps {
   method: InstallationMethod;
   onMethodChange: (method: InstallationMethod) => void;
   homebrewAvailable: boolean | null;
+  binaryInstallPlan: BinaryInstallPlan | null;
+  binaryInstallPlanError: string | null;
   onInstall: () => void;
   onStopEngine: () => void;
+  startPromptOpen: boolean;
+  onStartFromPrompt: () => void;
+  onDismissStartPrompt: () => void;
+  isSwitchingDockerContext: boolean;
+  dockerContextError: string | null;
+  onSwitchDockerToColima: () => void;
 }
 
 export function EngineConfiguration({
-  dockerInfo,
   colimaSupported,
   colimaSupportError,
   onRetrySupportCheck,
   colimaAvailable,
-  config,
-  onConfigChange,
+  colimaVm,
+  colimaVmError,
+  onRetryColimaVm,
+  changes,
+  onChangeSetting,
   onStartEngine,
   isInstalling,
   isEngineRunning,
@@ -62,8 +77,16 @@ export function EngineConfiguration({
   method,
   onMethodChange,
   homebrewAvailable,
+  binaryInstallPlan,
+  binaryInstallPlanError,
   onInstall,
   onStopEngine,
+  startPromptOpen,
+  onStartFromPrompt,
+  onDismissStartPrompt,
+  isSwitchingDockerContext,
+  dockerContextError,
+  onSwitchDockerToColima,
 }: EngineConfigurationProps) {
   if (colimaSupported === false) {
     return (
@@ -106,6 +129,8 @@ export function EngineConfiguration({
         method={method}
         onMethodChange={onMethodChange}
         homebrewAvailable={homebrewAvailable}
+        binaryInstallPlan={binaryInstallPlan}
+        binaryInstallPlanError={binaryInstallPlanError}
         installationOperation={installationOperation}
         installationStep={installationStep}
         installationProgress={installationProgress}
@@ -117,13 +142,42 @@ export function EngineConfiguration({
     );
   }
 
+  if (colimaVmError) {
+    return (
+      <div className="space-y-3">
+        <InfoBanner
+          icon={AlertTriangle}
+          title="Could not read the Colima profile"
+          message={colimaVmError}
+          variant="error"
+        />
+        <Button onClick={onRetryColimaVm} variant="outline" size="sm">
+          <RefreshCw className="h-4 w-4 mr-2" />
+          Retry
+        </Button>
+      </div>
+    );
+  }
+
+  if (!colimaVm) {
+    return (
+      <LoadingSpinner
+        message="Reading the Colima profile..."
+        className="py-8"
+      />
+    );
+  }
+
+  const isStopping = stopStep === 'stopping-vm';
+
   return (
     <div className="space-y-6">
       <VmResourcesCard
-        dockerInfo={dockerInfo}
-        config={config}
-        onConfigChange={onConfigChange}
+        vm={colimaVm}
+        changes={changes}
+        onChangeSetting={onChangeSetting}
         isEngineRunning={isEngineRunning}
+        isBusy={isInstalling || isStopping}
       />
       <EngineActionsCard
         isEngineRunning={isEngineRunning}
@@ -137,6 +191,15 @@ export function EngineConfiguration({
         onRetry={onRetry}
         onStartEngine={onStartEngine}
         onStopEngine={onStopEngine}
+        dockerContext={colimaVm.docker_context}
+        isSwitchingDockerContext={isSwitchingDockerContext}
+        dockerContextError={dockerContextError}
+        onSwitchDockerToColima={onSwitchDockerToColima}
+      />
+      <StartEnginePrompt
+        open={startPromptOpen && !isEngineRunning}
+        onStart={onStartFromPrompt}
+        onDismiss={onDismissStartPrompt}
       />
     </div>
   );

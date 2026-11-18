@@ -231,11 +231,12 @@ pub async fn open_terminal(
 
     let engine = state.get_engine().await?;
     let docker = engine.docker.as_ref().ok_or("Docker not found")?;
+    let endpoint = engine.endpoint.as_deref().ok_or("Docker not found")?;
 
     let container_id = ContainersService::running_container_id(docker, &id).await?;
     let container_shell = ContainersService::interactive_shell(docker, &container_id).await?;
 
-    shell::open_container_terminal(&app, &container_id, container_shell).await
+    shell::open_container_terminal(&app, endpoint, &container_id, container_shell).await
 }
 
 #[tauri::command]

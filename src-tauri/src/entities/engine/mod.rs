@@ -1,6 +1,10 @@
+mod binary_install;
+mod colima;
 mod docker_info;
 use bollard::Docker;
 
+pub use self::binary_install::*;
+pub use self::colima::*;
 pub use self::docker_info::*;
 
 use serde::{Deserialize, Serialize};
@@ -34,6 +38,7 @@ pub enum EngineStatus {
 pub struct Engine {
     pub engine_status: EngineStatus,
     pub docker: Option<Docker>,
+    pub endpoint: Option<String>,
 }
 
 impl Engine {
@@ -48,8 +53,8 @@ pub enum InstallationMethod {
     Binary,
 }
 
-#[cfg(target_os = "macos")]
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[cfg(any(target_os = "macos", test))]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct InstallationProgress {
     pub step: String,
     pub message: String,
@@ -64,23 +69,4 @@ pub struct ColimaEngineStopProgress {
     pub message: String,
     pub percentage: u8,
     pub logs: Vec<String>,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct ColimaConfig {
-    pub cpu: u8,
-    pub memory: u16,
-    pub disk: u16,
-    pub architecture: String,
-}
-
-impl Default for ColimaConfig {
-    fn default() -> Self {
-        Self {
-            cpu: 4,
-            memory: 8,
-            disk: 60,
-            architecture: "host".to_string(),
-        }
-    }
 }
