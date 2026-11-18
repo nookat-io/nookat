@@ -35,7 +35,7 @@ jobs:
             exit 0
           fi
 
-          changed_files=$(git diff --name-only --no-renames HEAD^1 HEAD)
+          changed_files=$(git -c core.quotePath=false diff --name-only --no-renames HEAD^1 HEAD)
           echo "Files the pull request changes:"
           echo "$changed_files"
 
