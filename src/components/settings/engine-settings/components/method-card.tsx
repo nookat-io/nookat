@@ -26,14 +26,14 @@ export const MethodCard = ({
 }: MethodCardProps) => {
   const getCardStyles = () => {
     if (isDisabled) {
-      return 'border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-800 opacity-60 cursor-not-allowed';
+      return 'border-border bg-muted opacity-60 cursor-not-allowed';
     }
 
     if (isSelected) {
       return 'border-blue-500 bg-blue-50 dark:bg-blue-950/20 cursor-pointer';
     }
 
-    return 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 cursor-pointer';
+    return 'border-border hover:border-muted-foreground/40 cursor-pointer';
   };
 
   return (
@@ -53,7 +53,7 @@ export const MethodCard = ({
 
       {isChecking && (
         <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
-          <div className="h-3 w-3 animate-spin rounded-full border border-gray-300 border-t-transparent" />
+          <div className="h-3 w-3 animate-spin rounded-full border border-muted-foreground border-t-transparent" />
           Checking availability...
         </div>
       )}

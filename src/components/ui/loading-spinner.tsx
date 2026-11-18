@@ -18,7 +18,7 @@ export function LoadingSpinner({
   return (
     <div className={`flex flex-col items-center justify-center ${className}`}>
       <div
-        className={`animate-spin rounded-full border-2 border-gray-300 border-t-primary ${sizeClasses[size]} mb-2`}
+        className={`animate-spin rounded-full border-2 border-border border-t-primary ${sizeClasses[size]} mb-2`}
       />
       {message && <p className="text-muted-foreground text-sm">{message}</p>}
     </div>

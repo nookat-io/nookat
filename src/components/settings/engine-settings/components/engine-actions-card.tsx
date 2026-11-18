@@ -85,8 +85,8 @@ export function EngineActionsCard({
         )}
 
         {isEngineRunning && (
-          <div className="p-3 bg-green-50 border border-green-200 rounded-md">
-            <p className="text-sm text-green-800 font-medium">
+          <div className="p-3 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-md">
+            <p className="text-sm text-green-800 dark:text-green-200 font-medium">
               ✓ Engine is running and ready to use
             </p>
           </div>
@@ -96,7 +96,8 @@ export function EngineActionsCard({
           <Dialog open={isStopDialogOpen} onOpenChange={setIsStopDialogOpen}>
             <DialogTrigger asChild>
               <Button
-                className="w-full text-white hover:text-white bg-destructive hover:bg-destructive/90"
+                variant="destructive"
+                className="w-full"
                 size="lg"
                 onClick={() => setIsStopDialogOpen(true)}
                 disabled={isStopping}

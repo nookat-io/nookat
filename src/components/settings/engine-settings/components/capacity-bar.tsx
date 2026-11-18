@@ -21,9 +21,9 @@ export const CapacityBar = ({
         <span>{label}</span>
         <span className="font-medium">{value}</span>
       </div>
-      <div className="h-2 bg-gray-100 dark:bg-gray-800 rounded-full">
+      <div className="h-2 bg-muted rounded-full">
         <div
-          className="h-2 bg-gray-300 dark:bg-gray-600 rounded-full transition-all duration-300"
+          className="h-2 bg-muted-foreground/40 rounded-full transition-all duration-300"
           style={{ width: `${Math.min(percentage, 100)}%` }}
         />
       </div>
