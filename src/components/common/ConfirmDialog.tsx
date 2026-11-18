@@ -32,7 +32,7 @@ export function ConfirmDialog({
       <DialogHeader>
         <DialogTitle>{title}</DialogTitle>
         {description ? (
-          <DialogDescription>
+          <DialogDescription asChild>
             <div className="pt-6 space-y-3 text-muted-foreground leading-relaxed">
               {description}
             </div>
