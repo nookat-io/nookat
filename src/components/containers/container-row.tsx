@@ -12,7 +12,6 @@ interface ContainerRowProps {
   isNested?: boolean;
   isSelected: boolean;
   onSelectionChange: (containerId: string, checked: boolean) => void;
-  onActionComplete?: () => void;
   onOpenLogs: (container: Container) => void;
 }
 
@@ -21,7 +20,6 @@ export function ContainerRow({
   isNested = false,
   isSelected,
   onSelectionChange,
-  onActionComplete,
   onOpenLogs,
 }: ContainerRowProps) {
   return (
@@ -67,11 +65,7 @@ export function ContainerRow({
         )}
       </TableCell>
       <TableCell className="text-left">
-        <ContainerRowActions
-          container={container}
-          onActionComplete={onActionComplete}
-          onOpenLogs={onOpenLogs}
-        />
+        <ContainerRowActions container={container} onOpenLogs={onOpenLogs} />
       </TableCell>
     </TableRow>
   );

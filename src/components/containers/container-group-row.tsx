@@ -13,7 +13,6 @@ interface ContainerGroupRowProps {
   selectedContainers: string[];
   onToggleGroup: (projectName: string) => void;
   onSelectionChange: (containerId: string, checked: boolean) => void;
-  onActionComplete?: () => void;
   onOpenLogs: (container: Container) => void;
 }
 
@@ -24,7 +23,6 @@ export function ContainerGroupRow({
   selectedContainers,
   onToggleGroup,
   onSelectionChange,
-  onActionComplete,
   onOpenLogs,
 }: ContainerGroupRowProps) {
   const hasRunningContainers = containers.some(
@@ -86,12 +84,10 @@ export function ContainerGroupRow({
             containerIds={groupContainerIds}
             hasRunningContainers={hasRunningContainers}
             allStopped={allStopped}
-            onActionComplete={onActionComplete}
           />
         </TableCell>
       </TableRow>
 
-      {/* Render nested containers when expanded */}
       {isExpanded &&
         containers.map(container => (
           <ContainerRow
@@ -100,7 +96,6 @@ export function ContainerGroupRow({
             isNested={true}
             isSelected={selectedContainers.includes(container.id)}
             onSelectionChange={onSelectionChange}
-            onActionComplete={onActionComplete}
             onOpenLogs={onOpenLogs}
           />
         ))}

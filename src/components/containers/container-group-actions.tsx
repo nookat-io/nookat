@@ -12,23 +12,13 @@ interface ContainerGroupActionsProps {
   containerIds: string[];
   hasRunningContainers: boolean;
   allStopped: boolean;
-  onActionComplete?: () => void;
 }
 
 export function ContainerGroupActions({
   containerIds,
   hasRunningContainers,
   allStopped,
-  onActionComplete,
 }: ContainerGroupActionsProps) {
-  const handleAction = async (action: () => Promise<void>) => {
-    try {
-      await action();
-    } catch {
-      // Error handling is done in the service
-    }
-  };
-
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -37,15 +27,10 @@ export function ContainerGroupActions({
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
-        {/* Start action for stopped groups */}
         {allStopped && (
           <DropdownMenuItem
             onClick={() =>
-              handleAction(() =>
-                ContainerActionService.bulkStartContainers(containerIds, {
-                  onActionComplete,
-                })
-              )
+              ContainerActionService.bulkStartContainers(containerIds)
             }
           >
             <Play className="mr-2 h-4 w-4" />
@@ -53,15 +38,10 @@ export function ContainerGroupActions({
           </DropdownMenuItem>
         )}
 
-        {/* Stop action for groups with running containers */}
         {hasRunningContainers && (
           <DropdownMenuItem
             onClick={() =>
-              handleAction(() =>
-                ContainerActionService.bulkStopContainers(containerIds, {
-                  onActionComplete,
-                })
-              )
+              ContainerActionService.bulkStopContainers(containerIds)
             }
           >
             <Square className="mr-2 h-4 w-4" />
@@ -69,16 +49,12 @@ export function ContainerGroupActions({
           </DropdownMenuItem>
         )}
 
-        {/* Delete action for all groups */}
         <DropdownMenuItem
           className="text-destructive"
           onClick={() =>
-            handleAction(() =>
-              ContainerActionService.bulkDeleteContainers(
-                containerIds,
-                hasRunningContainers,
-                { onActionComplete }
-              )
+            ContainerActionService.bulkDeleteContainers(
+              containerIds,
+              hasRunningContainers
             )
           }
         >
