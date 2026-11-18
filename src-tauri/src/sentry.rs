@@ -44,3 +44,51 @@ pub fn flush_sentry() {
         client.flush(Some(FLUSH_TIMEOUT));
     }
 }
+
+pub fn stop_error_reporting() {
+    if let Some(client) = Hub::current().client() {
+        client.close(Some(FLUSH_TIMEOUT));
+        info!("Error reporting turned off in the settings, crash reporting stopped");
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use sentry::test::TestTransport;
+    use sentry::Level;
+    use std::sync::Arc;
+
+    fn hub_reporting_to(transport: &Arc<TestTransport>) -> Arc<Hub> {
+        let mut options = ClientOptions::default();
+        options.dsn = Some("https://public@sentry.invalid/1".parse().unwrap());
+        options.transport = Some(Arc::new(transport.clone()));
+        Arc::new(Hub::new(
+            Some(Arc::new(options.into())),
+            Arc::new(Default::default()),
+        ))
+    }
+
+    #[test]
+    fn test_errors_are_reported_while_reporting_is_on() {
+        let transport = TestTransport::new();
+
+        Hub::run(hub_reporting_to(&transport), || {
+            sentry::capture_message("while reporting is on", Level::Error);
+        });
+
+        assert_eq!(transport.fetch_and_clear_events().len(), 1);
+    }
+
+    #[test]
+    fn test_no_errors_are_reported_after_reporting_is_turned_off() {
+        let transport = TestTransport::new();
+
+        Hub::run(hub_reporting_to(&transport), || {
+            stop_error_reporting();
+            sentry::capture_message("after reporting was turned off", Level::Error);
+        });
+
+        assert!(transport.fetch_and_clear_events().is_empty());
+    }
+}

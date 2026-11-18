@@ -1,4 +1,5 @@
 use crate::entities::{AppConfig, Language, StartupSettings, TelemetrySettings, Theme};
+use crate::sentry::stop_error_reporting;
 use crate::services::{ConfigService, UpdaterService};
 use tracing::{debug, instrument};
 
@@ -34,9 +35,15 @@ pub async fn get_theme() -> Result<String, String> {
 #[instrument(skip_all, err)]
 pub async fn update_telemetry_settings(settings: TelemetrySettings) -> Result<(), String> {
     debug!("Updating telemetry settings: {:?}", settings);
+    let error_reporting = settings.error_reporting;
     ConfigService::update_config(|config| {
         config.telemetry = settings;
-    })
+    })?;
+
+    if !error_reporting {
+        stop_error_reporting();
+    }
+    Ok(())
 }
 
 #[tauri::command]
