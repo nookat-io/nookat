@@ -35,79 +35,37 @@ export function useConfig() {
   }, [configService, config]);
 
   const updateTheme = useCallback(
-    async (theme: Theme) => {
-      try {
-        setError(null);
-        await configService.updateTheme(theme);
-      } catch (err) {
-        setError(errorMessage(err, 'Failed to update theme'));
-        throw err;
-      }
-    },
+    (theme: Theme) => configService.updateTheme(theme),
     [configService]
   );
 
   const updateLanguage = useCallback(
-    async (language: Language) => {
-      try {
-        setError(null);
-        await configService.updateLanguage(language);
-      } catch (err) {
-        setError(errorMessage(err, 'Failed to update language'));
-        throw err;
-      }
-    },
+    (language: Language) => configService.updateLanguage(language),
     [configService]
   );
 
   const updateTelemetrySettings = useCallback(
-    async (settings: TelemetrySettings) => {
-      try {
-        setError(null);
-        await configService.updateTelemetrySettings(settings);
-      } catch (err) {
-        setError(errorMessage(err, 'Failed to update telemetry settings'));
-        throw err;
-      }
-    },
+    (settings: TelemetrySettings) =>
+      configService.updateTelemetrySettings(settings),
     [configService]
   );
 
   const updateStartupSettings = useCallback(
-    async (settings: StartupSettings) => {
-      try {
-        setError(null);
-        await configService.updateStartupSettings(settings);
-      } catch (err) {
-        setError(errorMessage(err, 'Failed to update startup settings'));
-        throw err;
-      }
-    },
+    (settings: StartupSettings) =>
+      configService.updateStartupSettings(settings),
     [configService]
   );
 
   const updateSidebarCollapsed = useCallback(
-    async (sidebar_collapsed: boolean) => {
-      try {
-        setError(null);
-        await configService.updateSidebarCollapsed(sidebar_collapsed);
-      } catch (err) {
-        setError(errorMessage(err, 'Failed to update sidebar collapsed state'));
-        throw err;
-      }
-    },
+    (sidebarCollapsed: boolean) =>
+      configService.updateSidebarCollapsed(sidebarCollapsed),
     [configService]
   );
 
-  const updateLastUpdateCheck = useCallback(async () => {
-    try {
-      setError(null);
-      await configService.updateLastUpdateCheck();
-    } catch (err) {
-      setError(errorMessage(err, 'Failed to update last update check'));
-      throw err;
-    }
-  }, [configService]);
+  const updateLastUpdateCheck = useCallback(
+    () => configService.updateLastUpdateCheck(),
+    [configService]
+  );
 
   const reload = useCallback(async () => {
     try {

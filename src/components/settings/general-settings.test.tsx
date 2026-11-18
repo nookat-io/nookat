@@ -29,14 +29,17 @@ const savedConfig: AppConfig = {
   sidebar_collapsed: false,
 };
 
-async function renderGeneralSettings() {
+async function renderGeneralSettings({
+  saveTelemetry = async () => null,
+}: { saveTelemetry?: () => Promise<null> } = {}) {
   let config = savedConfig;
   const telemetryUpdates: TelemetrySettings[] = [];
-  mockIPC((cmd, args) => {
+  mockIPC(async (cmd, args) => {
     switch (cmd) {
       case 'get_config':
         return config;
       case 'update_telemetry_settings': {
+        await saveTelemetry();
         const { settings } = args as { settings: TelemetrySettings };
         telemetryUpdates.push(settings);
         config = { ...config, telemetry: settings };
@@ -96,5 +99,34 @@ describe('GeneralSettings', () => {
     expect(telemetryUpdates).toEqual([
       { send_anonymous_usage_data: false, error_reporting: false },
     ]);
+  });
+
+  it('keeps the settings on screen and explains why when a setting cannot be saved', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    const user = userEvent.setup();
+    await renderGeneralSettings({
+      saveTelemetry: () =>
+        Promise.reject(
+          'Failed to save config: Permission denied (os error 13)'
+        ),
+    });
+    const crashReporting = await screen.findByRole('switch', {
+      name: 'Crash reporting',
+    });
+
+    await user.click(crashReporting);
+
+    expect(toast.error).toHaveBeenCalledWith(
+      'Failed to save config: Permission denied (os error 13)'
+    );
+    expect(
+      screen.queryByText(/Failed to load settings/)
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole('switch', { name: 'Crash reporting' })
+    ).toBeChecked();
+    expect(
+      screen.getByRole('switch', { name: 'Crash reporting' })
+    ).toBeEnabled();
   });
 });
