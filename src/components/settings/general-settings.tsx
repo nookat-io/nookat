@@ -50,13 +50,9 @@ export function GeneralSettings() {
   } = useUpdater(config || undefined, updateLastUpdateCheck);
   const [saving, setSaving] = useState(false);
 
-  // Get current app version from environment
   const currentVersion = import.meta.env.VITE_APP_VERSION || 'unknown';
 
-  const languageOptions = [
-    { value: Language.English, label: 'English' },
-    // { value: Language.Russian, label: 'Русский' },
-  ];
+  const languageOptions = [{ value: Language.English, label: 'English' }];
 
   const handleTelemetryChange = async (
     sendAnonymousUsageData: boolean,
@@ -71,7 +67,6 @@ export function GeneralSettings() {
         error_reporting: errorReporting,
       });
 
-      // Show success toast
       const changes = [];
       if (
         sendAnonymousUsageData !== config.telemetry.send_anonymous_usage_data
@@ -108,7 +103,6 @@ export function GeneralSettings() {
       };
       await updateStartupSettings(updatedSettings);
 
-      // Show success toast with descriptive message
       const settingNames: Record<string, string> = {
         start_on_system_startup: 'Start on system boot',
         minimize_to_tray: 'Close to tray',
@@ -136,7 +130,6 @@ export function GeneralSettings() {
     try {
       await updateLanguage(language as Language);
 
-      // Show success toast
       const languageLabel =
         languageOptions.find(opt => opt.value === language)?.label || language;
       toast.success(
@@ -378,7 +371,6 @@ export function GeneralSettings() {
                   <Badge variant="default">{currentUpdate.version}</Badge>
                 </div>
               )}
-              {/* Show download progress */}
               {isDownloading && progress && (
                 <div className="mt-2 space-y-2">
                   <div className="flex justify-between text-xs text-muted-foreground">
@@ -394,7 +386,6 @@ export function GeneralSettings() {
                   </div>
                 </div>
               )}
-              {/* Show installing state */}
               {isInstalling && (
                 <div className="mt-2 text-xs text-muted-foreground">
                   Installing update...

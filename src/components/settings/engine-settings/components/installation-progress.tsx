@@ -68,7 +68,6 @@ export function InstallationProgress({
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        {/* Progress bar */}
         {isActive && (
           <div className="space-y-2">
             <Progress value={progress.percentage} className="h-2" />
@@ -76,7 +75,6 @@ export function InstallationProgress({
           </div>
         )}
 
-        {/* Error state */}
         {hasError && (
           <div className="space-y-3">
             <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-md">
@@ -98,7 +96,6 @@ export function InstallationProgress({
           </div>
         )}
 
-        {/* Logs */}
         {logs.length > 0 && (
           <div className="space-y-2">
             <h4 className="text-sm font-medium text-muted-foreground">Logs</h4>
