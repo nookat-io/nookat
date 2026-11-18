@@ -70,6 +70,9 @@ pub fn parse_colima_list(output: &str) -> Result<Vec<ColimaInstance>, String> {
 #[derive(Deserialize, Debug, Default, Clone, PartialEq)]
 #[serde(default, rename_all = "camelCase")]
 pub struct ColimaProfileConfig {
+    pub cpu: Option<u32>,
+    pub memory: Option<f64>,
+    pub disk: Option<u32>,
     pub vm_type: Option<String>,
     pub rosetta: bool,
     pub mount_inotify: bool,
@@ -95,14 +98,29 @@ pub fn colima_profile(
 
     let config = config.cloned().unwrap_or_default();
     let architecture = architecture_from_lima(&instance.arch).unwrap_or(host.architecture);
+    let status = instance.status.unwrap_or(ColimaProfileStatus::Unknown);
+
+    let vm_memory_gib = gib_from_bytes(instance.memory);
+    let vm_disk_gib = gib_from_bytes(instance.disk).round() as u32;
+    let (cpus, memory_gib, disk_gib) = if status == ColimaProfileStatus::Running {
+        (instance.cpus, vm_memory_gib, vm_disk_gib)
+    } else {
+        (
+            config.cpu.unwrap_or(instance.cpus),
+            config.memory.unwrap_or(vm_memory_gib),
+            config
+                .disk
+                .map_or(vm_disk_gib, |disk| disk.max(vm_disk_gib)),
+        )
+    };
 
     ColimaProfile {
         name: name.to_string(),
-        status: instance.status.unwrap_or(ColimaProfileStatus::Unknown),
+        status,
         settings: ColimaVmSettings {
-            cpus: instance.cpus,
-            memory_gib: gib_from_bytes(instance.memory),
-            disk_gib: gib_from_bytes(instance.disk).round() as u32,
+            cpus,
+            memory_gib,
+            disk_gib,
             architecture,
             vm_type: configured_vm_type(config.vm_type.as_deref(), architecture, host),
             rosetta: config.rosetta,
@@ -293,6 +311,9 @@ mod tests {
         assert_eq!(
             parse_profile_config(PROFILE_CONFIG),
             Ok(ColimaProfileConfig {
+                cpu: Some(8),
+                memory: Some(8.0),
+                disk: Some(100),
                 vm_type: Some("vz".to_string()),
                 rosetta: true,
                 mount_inotify: true,
@@ -303,7 +324,7 @@ mod tests {
     #[test]
     fn a_profile_config_without_the_keys_uses_colima_defaults() {
         assert_eq!(
-            parse_profile_config("cpu: 2\n"),
+            parse_profile_config("runtime: docker\n"),
             Ok(ColimaProfileConfig::default())
         );
     }
@@ -321,8 +342,7 @@ mod tests {
         let instance = &parse_colima_list(STOPPED_DEFAULT_PROFILE).unwrap()[0];
         let config = ColimaProfileConfig {
             vm_type: Some("vz".to_string()),
-            rosetta: false,
-            mount_inotify: false,
+            ..ColimaProfileConfig::default()
         };
 
         let profile = colima_profile("default", Some(instance), Some(&config), &APPLE_SILICON);
@@ -343,6 +363,54 @@ mod tests {
                 },
             }
         );
+    }
+
+    fn resources(profile: &ColimaProfile) -> (u32, f64, u32) {
+        let settings = &profile.settings;
+        (settings.cpus, settings.memory_gib, settings.disk_gib)
+    }
+
+    #[test]
+    fn a_stopped_profile_shows_the_resources_its_next_start_takes_from_colima_yaml() {
+        let instance = &parse_colima_list(STOPPED_DEFAULT_PROFILE).unwrap()[0];
+        let config = ColimaProfileConfig {
+            cpu: Some(4),
+            memory: Some(6.5),
+            disk: Some(60),
+            ..ColimaProfileConfig::default()
+        };
+
+        let profile = colima_profile("default", Some(instance), Some(&config), &APPLE_SILICON);
+
+        assert_eq!(resources(&profile), (4, 6.5, 60));
+    }
+
+    #[test]
+    fn a_running_profile_shows_the_resources_its_vm_runs_with() {
+        let instance = &parse_colima_list(RUNNING_TUNED_PROFILE).unwrap()[0];
+        let config = ColimaProfileConfig {
+            cpu: Some(4),
+            memory: Some(6.0),
+            disk: Some(200),
+            ..ColimaProfileConfig::default()
+        };
+
+        let profile = colima_profile("work", Some(instance), Some(&config), &APPLE_SILICON);
+
+        assert_eq!(resources(&profile), (8, 8.0, 100));
+    }
+
+    #[test]
+    fn a_stopped_profile_never_shows_a_smaller_disk_than_its_vm_has_since_disks_only_grow() {
+        let instance = &parse_colima_list(STOPPED_DEFAULT_PROFILE).unwrap()[0];
+        let config = ColimaProfileConfig {
+            disk: Some(5),
+            ..ColimaProfileConfig::default()
+        };
+
+        let profile = colima_profile("default", Some(instance), Some(&config), &APPLE_SILICON);
+
+        assert_eq!(resources(&profile), (2, 2.0, 10));
     }
 
     #[test]
