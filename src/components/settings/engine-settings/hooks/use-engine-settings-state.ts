@@ -436,10 +436,15 @@ export function useEngineSettingsState(): [
     setIsSwitchingDockerContext(true);
     setDockerContextError(null);
     return invoke('use_colima_docker_context_command')
-      .then(fetchColimaVm, err => {
-        console.error('Error switching the Docker context to Colima:', err);
-        setDockerContextError(errorMessage(err));
-      })
+      .then(
+        async () => {
+          await Promise.all([fetchColimaVm(), fetchDockerInfo()]);
+        },
+        err => {
+          console.error('Error switching the Docker context to Colima:', err);
+          setDockerContextError(errorMessage(err));
+        }
+      )
       .finally(() => setIsSwitchingDockerContext(false));
   };
 

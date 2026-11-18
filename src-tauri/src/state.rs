@@ -2,7 +2,7 @@ use crate::entities::Engine;
 use crate::services::engine;
 use std::sync::Arc;
 use tauri::{AppHandle, Emitter};
-use tokio::sync::Mutex;
+use tokio::sync::{futures::Notified, Mutex, Notify};
 use tracing::{debug, instrument, warn};
 
 const ENGINE_CONNECTED_EVENT: &str = "engine-connected";
@@ -10,6 +10,7 @@ const ENGINE_CONNECTED_EVENT: &str = "engine-connected";
 #[derive(Clone)]
 pub struct SharedEngineState {
     engine: Arc<Mutex<Option<Arc<Engine>>>>,
+    connection_forgotten: Arc<Notify>,
     app_handle: Arc<AppHandle>,
 }
 
@@ -17,6 +18,7 @@ impl SharedEngineState {
     pub fn new(app_handle: AppHandle) -> Self {
         Self {
             engine: Arc::new(Mutex::new(None)),
+            connection_forgotten: Arc::new(Notify::new()),
             app_handle: Arc::new(app_handle),
         }
     }
@@ -60,6 +62,11 @@ impl SharedEngineState {
     pub async fn forget_connection(&self) {
         debug!("Forgetting the engine connection, the next request reconnects");
         *self.engine.lock().await = None;
+        self.connection_forgotten.notify_waiters();
+    }
+
+    pub fn connection_forgotten(&self) -> Notified<'_> {
+        self.connection_forgotten.notified()
     }
 }
 

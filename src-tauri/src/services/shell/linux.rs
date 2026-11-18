@@ -1,3 +1,4 @@
+use super::{endpoints_with_the_current_context_first, DOCKER_CONTEXT_LIST_FORMAT};
 use tauri::AppHandle;
 use tauri_plugin_shell::ShellExt;
 use tracing::{debug, info, instrument, warn};
@@ -98,7 +99,7 @@ pub async fn get_docker_context_endpoints(app: &AppHandle) -> Result<Vec<String>
     let context_output = app
         .shell()
         .command("docker")
-        .args(["context", "ls", "--format", "{{.DockerEndpoint}}"])
+        .args(["context", "ls", "--format", DOCKER_CONTEXT_LIST_FORMAT])
         .output()
         .await
         .map_err(|e| format!("Failed to get Docker contexts: {}", e))?;
@@ -108,12 +109,7 @@ pub async fn get_docker_context_endpoints(app: &AppHandle) -> Result<Vec<String>
         return Err(format!("Failed to list Docker contexts: {}", error));
     }
 
-    let output_str = String::from_utf8_lossy(&context_output.stdout)
-        .trim()
-        .to_string();
-    Ok(output_str
-        .lines()
-        .map(|s| s.to_string())
-        .filter(|s| !s.is_empty())
-        .collect())
+    Ok(endpoints_with_the_current_context_first(
+        &String::from_utf8_lossy(&context_output.stdout),
+    ))
 }

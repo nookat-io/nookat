@@ -1,3 +1,4 @@
+use super::{endpoints_with_the_current_context_first, DOCKER_CONTEXT_LIST_FORMAT};
 use crate::entities::{ColimaHost, ColimaProfileStatus};
 use crate::services::binary_install::{bin_dir, engine_prefix};
 use crate::services::colima::{
@@ -198,7 +199,7 @@ pub async fn get_docker_context_endpoints(app: &AppHandle) -> Result<Vec<String>
     let context_output = run_in_login_shell(
         app,
         "docker",
-        ["context", "ls", "--format", "{{.DockerEndpoint}}"],
+        ["context", "ls", "--format", DOCKER_CONTEXT_LIST_FORMAT],
     )
     .await
     .map_err(|e| format!("Failed to get Docker contexts: {}", e))?;
@@ -207,14 +208,9 @@ pub async fn get_docker_context_endpoints(app: &AppHandle) -> Result<Vec<String>
         return Err("Failed to list Docker contexts".to_string());
     }
 
-    let output_str = String::from_utf8_lossy(&context_output.stdout)
-        .trim()
-        .to_string();
-    Ok(output_str
-        .lines()
-        .map(|s| s.to_string())
-        .filter(|s| !s.is_empty())
-        .collect())
+    Ok(endpoints_with_the_current_context_first(
+        &String::from_utf8_lossy(&context_output.stdout),
+    ))
 }
 
 #[instrument(skip_all, err)]
