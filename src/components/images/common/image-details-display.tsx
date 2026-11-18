@@ -3,7 +3,7 @@ import { DockerHubImage } from '../../../types/docker-images';
 import { checkImageReference } from '../../../lib/image-source';
 import { formatNumber, pullReference } from './utils';
 import { PullFormData } from './types';
-import { ImageSourceNote } from './image-source-warnings';
+import { ImageSourceNote } from '../../common/image-source-warnings';
 
 interface ImageDetailsDisplayProps {
   image: DockerHubImage;
