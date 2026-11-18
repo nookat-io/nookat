@@ -1,77 +1,73 @@
-import { Label } from '../../../ui/label';
 import { Button } from '../../../ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '../../../ui/card';
+import { Info, AlertTriangle, RefreshCw } from 'lucide-react';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '../../../ui/select';
-import {
-  OctagonX,
-  Play,
-  Settings,
-  Download,
-  Package,
-  Terminal,
-  Info,
-  AlertTriangle,
-  RefreshCw,
-} from 'lucide-react';
-import {
-  ColimaConfig,
+  BinaryInstallPlan,
+  ChangeColimaVmSetting,
+  ColimaVm,
+  ColimaVmSettingsChanges,
+  InstallationOperation,
   InstallationStep,
   InstallationMethod,
   InstallationProgress as InstallationProgressType,
   ColimaEngineStopProgressType,
   StopStep,
 } from '../types';
-import { ResourceInput } from './resource-input';
-import { InstallationProgress } from './installation-progress';
-import { MethodCard, InfoBanner } from './index';
-import { DockerInfo } from '../../../../types/docker-info';
+import { InfoBanner } from './info-banner';
+import { ColimaInstallation } from './colima-installation';
+import { VmResourcesCard } from './vm-resources-card';
+import { EngineActionsCard } from './engine-actions-card';
+import { StartEnginePrompt } from './start-engine-prompt';
 import { LoadingSpinner } from '../../../ui/loading-spinner';
-import { ConfirmDialog } from '../../../common/ConfirmDialog';
-import { Dialog, DialogTrigger } from '../../../ui/dialog';
-import { useState } from 'react';
 
 interface EngineConfigurationProps {
-  dockerInfo: DockerInfo | null;
   colimaSupported: boolean | null;
   colimaSupportError: string | null;
   onRetrySupportCheck: () => void;
   colimaAvailable: boolean | null;
-  config: ColimaConfig;
-  onConfigChange: (config: ColimaConfig) => void;
+  colimaVm: ColimaVm | null;
+  colimaVmError: string | null;
+  onRetryColimaVm: () => void;
+  changes: ColimaVmSettingsChanges;
+  onChangeSetting: ChangeColimaVmSetting;
   onStartEngine: () => void;
   isInstalling: boolean;
   isEngineRunning: boolean;
+  installationOperation: InstallationOperation;
   installationStep: InstallationStep;
   stopStep: StopStep;
   installationProgress: InstallationProgressType;
   stopProgress: ColimaEngineStopProgressType;
   error: string | null;
   onRetry?: () => void;
-  // Installation props
   method: InstallationMethod;
   onMethodChange: (method: InstallationMethod) => void;
   homebrewAvailable: boolean | null;
+  binaryInstallPlan: BinaryInstallPlan | null;
+  binaryInstallPlanError: string | null;
   onInstall: () => void;
   onStopEngine: () => void;
+  startPromptOpen: boolean;
+  onStartFromPrompt: () => void;
+  onDismissStartPrompt: () => void;
+  isSwitchingDockerContext: boolean;
+  dockerContextError: string | null;
+  onSwitchDockerToColima: () => void;
 }
 
 export function EngineConfiguration({
-  dockerInfo,
   colimaSupported,
   colimaSupportError,
   onRetrySupportCheck,
   colimaAvailable,
-  config,
-  onConfigChange,
+  colimaVm,
+  colimaVmError,
+  onRetryColimaVm,
+  changes,
+  onChangeSetting,
   onStartEngine,
   isInstalling,
   isEngineRunning,
+  installationOperation,
   installationStep,
   stopStep,
   installationProgress,
@@ -81,18 +77,17 @@ export function EngineConfiguration({
   method,
   onMethodChange,
   homebrewAvailable,
+  binaryInstallPlan,
+  binaryInstallPlanError,
   onInstall,
   onStopEngine,
+  startPromptOpen,
+  onStartFromPrompt,
+  onDismissStartPrompt,
+  isSwitchingDockerContext,
+  dockerContextError,
+  onSwitchDockerToColima,
 }: EngineConfigurationProps) {
-  const showInstallationProgress = installationStep !== 'idle';
-  const showStopProgress = stopStep !== 'idle';
-  const isStopping = stopStep === 'stopping-vm' || stopStep === 'stopping';
-  const [isStopDialogOpen, setIsStopDialogOpen] = useState(false);
-
-  // Colima only runs on macOS. Everywhere else Nookat attaches to a daemon
-  // something else started, so there is nothing here to install, start or
-  // stop - and offering those controls would offer actions the backend can
-  // only refuse.
   if (colimaSupported === false) {
     return (
       <InfoBanner
@@ -103,10 +98,6 @@ export function EngineConfiguration({
     );
   }
 
-  // The platform probe failed, so whether Colima applies here is unknown.
-  // Guessing either way is worse than saying so: guessing "supported" offers
-  // controls that may not work, guessing "unsupported" hides the only way to
-  // start an engine on macOS.
   if (colimaSupportError) {
     return (
       <div className="space-y-3">
@@ -124,267 +115,92 @@ export function EngineConfiguration({
     );
   }
 
-  // Nothing is known about the engine yet. Rendering the configuration form
-  // now only makes it flash on screen before the install card replaces it.
-  if (colimaSupported === null || colimaAvailable === null) {
+  const isEngineSetupUnknown =
+    colimaSupported === null || colimaAvailable === null;
+  if (isEngineSetupUnknown) {
     return (
       <LoadingSpinner message="Checking engine setup..." className="py-8" />
     );
   }
 
-  // Show installation section if Colima is not available
-  if (colimaAvailable === false) {
+  if (!colimaAvailable) {
     return (
-      <div className="space-y-6">
-        {/* Installation Methods */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Settings className="h-5 w-5" />
-              Install Colima
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <MethodCard
-                icon={Package}
-                title="Install via Homebrew"
-                description="Recommended for most users"
-                details="Uses Homebrew package manager for installation and updates"
-                isSelected={method === 'homebrew'}
-                isDisabled={homebrewAvailable === false}
-                isChecking={homebrewAvailable === null}
-                warning={
-                  homebrewAvailable === false
-                    ? 'Install Homebrew first or use Binary installation method'
-                    : undefined
-                }
-                onClick={() => onMethodChange('homebrew')}
-              />
+      <ColimaInstallation
+        method={method}
+        onMethodChange={onMethodChange}
+        homebrewAvailable={homebrewAvailable}
+        binaryInstallPlan={binaryInstallPlan}
+        binaryInstallPlanError={binaryInstallPlanError}
+        installationOperation={installationOperation}
+        installationStep={installationStep}
+        installationProgress={installationProgress}
+        isInstalling={isInstalling}
+        error={error}
+        onRetry={onRetry}
+        onInstall={onInstall}
+      />
+    );
+  }
 
-              <MethodCard
-                icon={Terminal}
-                title="Binary Installation"
-                description="Direct download and install"
-                details="Download and install binaries directly. Not available yet."
-                isSelected={method === 'binary'}
-                onClick={() => onMethodChange('binary')}
-                isDisabled={true}
-              />
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Installation Info */}
+  if (colimaVmError) {
+    return (
+      <div className="space-y-3">
         <InfoBanner
-          icon={Info}
-          title="What will be installed"
-          message="- Colima - Lightweight Docker-compatible runtime and its dependencies"
-          variant="info"
+          icon={AlertTriangle}
+          title="Could not read the Colima profile"
+          message={colimaVmError}
+          variant="error"
         />
-
-        {/* Installation Progress */}
-        {showInstallationProgress && (
-          <InstallationProgress
-            step={installationStep}
-            progress={installationProgress}
-            error={error}
-            onRetry={onRetry}
-          />
-        )}
-
-        {/* Install Button */}
-        <Button
-          onClick={onInstall}
-          className="w-full"
-          size="lg"
-          disabled={
-            isInstalling ||
-            (homebrewAvailable === false && method === 'homebrew') ||
-            method === 'binary'
-          }
-        >
-          <Download className="h-4 w-4 mr-2" />
-          {isInstalling ? 'Installing...' : 'Install Colima'}
+        <Button onClick={onRetryColimaVm} variant="outline" size="sm">
+          <RefreshCw className="h-4 w-4 mr-2" />
+          Retry
         </Button>
       </div>
     );
   }
 
-  // Show engine configuration if Colima is available
+  if (!colimaVm) {
+    return (
+      <LoadingSpinner
+        message="Reading the Colima profile..."
+        className="py-8"
+      />
+    );
+  }
+
+  const isStopping = stopStep === 'stopping-vm';
+
   return (
     <div className="space-y-6">
-      {/* VM Resource Configuration */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Settings className="h-5 w-5" />
-            VM Resources
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <ResourceInput
-              id="cpu"
-              label="CPU Cores"
-              value={dockerInfo?.ncpu ?? config.cpu}
-              min={1}
-              max={16}
-              onChange={value => onConfigChange({ ...config, cpu: value })}
-              disabled={isEngineRunning}
-            />
-
-            <ResourceInput
-              id="memory"
-              label="Memory (GB)"
-              value={
-                dockerInfo?.mem_total
-                  ? Math.round(dockerInfo.mem_total / 1024 / 1024 / 1024)
-                  : config.memory
-              }
-              min={2}
-              max={32}
-              onChange={value => onConfigChange({ ...config, memory: value })}
-              disabled={isEngineRunning}
-            />
-
-            <ResourceInput
-              id="disk"
-              label="Disk (GB)"
-              value={config.disk}
-              min={20}
-              max={200}
-              onChange={value => onConfigChange({ ...config, disk: value })}
-              disabled={isEngineRunning}
-            />
-
-            <div className="space-y-2">
-              <Label htmlFor="architecture">Architecture</Label>
-              <Select
-                value={
-                  dockerInfo?.architecture?.toLowerCase() ?? config.architecture
-                }
-                onValueChange={value =>
-                  onConfigChange({ ...config, architecture: value })
-                }
-                disabled={isEngineRunning}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="x86_64">x86_64</SelectItem>
-                  <SelectItem value="aarch64">ARM64</SelectItem>
-                  <SelectItem value="host">Host</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Engine Actions */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            Engine Actions
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {/* Installation Progress */}
-          {showInstallationProgress && (
-            <InstallationProgress
-              step={installationStep}
-              progress={installationProgress}
-              error={error}
-              onRetry={onRetry}
-            />
-          )}
-
-          {/* Stop Progress */}
-          {showStopProgress && (
-            <InstallationProgress
-              step={stopStep}
-              progress={stopProgress}
-              error={error}
-              onRetry={onRetry}
-            />
-          )}
-
-          {colimaAvailable === true && !isEngineRunning && (
-            <div className="space-y-3">
-              <p className="text-sm text-muted-foreground">
-                Colima is installed but the engine is not running. Start the
-                engine to begin using Docker.
-              </p>
-              <Button
-                onClick={onStartEngine}
-                disabled={isInstalling || isStopping}
-                className="w-full"
-                size="lg"
-              >
-                <Play className="h-4 w-4 mr-2" />
-                Start Engine
-              </Button>
-            </div>
-          )}
-
-          {isEngineRunning && (
-            <div className="p-3 bg-green-50 border border-green-200 rounded-md">
-              <p className="text-sm text-green-800 font-medium">
-                ✓ Engine is running and ready to use
-              </p>
-            </div>
-          )}
-
-          {isEngineRunning && (
-            <Dialog open={isStopDialogOpen} onOpenChange={setIsStopDialogOpen}>
-              <DialogTrigger asChild>
-                <Button
-                  className="w-full text-white hover:text-white bg-destructive hover:bg-destructive/90"
-                  size="lg"
-                  onClick={() => setIsStopDialogOpen(true)}
-                  disabled={isStopping}
-                >
-                  <OctagonX className="h-4 w-4 mr-2" />
-                  {isStopping ? 'Stopping...' : 'Stop Engine'}
-                </Button>
-              </DialogTrigger>
-              <ConfirmDialog
-                title="Stop Engine"
-                description={
-                  <div className="space-y-3">
-                    <div className="text-sm text-muted-foreground">
-                      This will stop the Docker engine and all running
-                      containers will be stopped.
-                    </div>
-                    <div className="rounded-md border border-amber-300/50 bg-amber-50 dark:bg-amber-950/30 text-amber-900 dark:text-amber-200 p-3 flex items-start gap-3">
-                      <AlertTriangle className="h-4 w-4 mt-0.5" />
-                      <div className="text-sm leading-relaxed">
-                        <p>
-                          Stopping the engine will halt all Docker operations
-                          and containers.
-                        </p>
-                        <p className="mt-1">
-                          Are you sure you want to continue?
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                }
-                showCancel
-                confirmText={isStopping ? 'Stopping...' : 'Stop Engine'}
-                onConfirm={() => {
-                  onStopEngine();
-                  setIsStopDialogOpen(false);
-                }}
-                onCancel={() => setIsStopDialogOpen(false)}
-                confirmDisabled={isStopping}
-              />
-            </Dialog>
-          )}
-        </CardContent>
-      </Card>
+      <VmResourcesCard
+        vm={colimaVm}
+        changes={changes}
+        onChangeSetting={onChangeSetting}
+        isEngineRunning={isEngineRunning}
+        isBusy={isInstalling || isStopping}
+      />
+      <EngineActionsCard
+        isEngineRunning={isEngineRunning}
+        isInstalling={isInstalling}
+        installationOperation={installationOperation}
+        installationStep={installationStep}
+        installationProgress={installationProgress}
+        stopStep={stopStep}
+        stopProgress={stopProgress}
+        error={error}
+        onRetry={onRetry}
+        onStartEngine={onStartEngine}
+        onStopEngine={onStopEngine}
+        dockerContext={colimaVm.docker_context}
+        isSwitchingDockerContext={isSwitchingDockerContext}
+        dockerContextError={dockerContextError}
+        onSwitchDockerToColima={onSwitchDockerToColima}
+      />
+      <StartEnginePrompt
+        open={startPromptOpen && !isEngineRunning}
+        onStart={onStartFromPrompt}
+        onDismiss={onDismissStartPrompt}
+      />
     </div>
   );
 }

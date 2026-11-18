@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Button } from '../../ui/button';
 import {
   Dialog,
@@ -23,13 +23,26 @@ import {
   useSelectionFeedback,
   useTagSuggestions,
 } from '../common/hooks';
-import { extractErrorMessage } from '../common/utils';
+import { errorMessage } from '../../../utils/error-message';
+import {
+  LookalikeCheck,
+  checkImageReference,
+  needsConfirmation,
+} from '../../../lib/image-source';
+import {
+  DEFAULT_PROGRESS_STATE,
+  pullReference,
+  trimPullData,
+} from '../common/utils';
+import { PullFormData } from '../common/types';
+import { ImageSourceConfirmDialog } from '../../common/image-source-warnings';
 
-interface PullImageProps {
-  onSuccess?: () => void;
-}
+const SUCCESS_MESSAGE_VISIBLE_MS = 2000;
 
-export function PullImage({ onSuccess }: PullImageProps) {
+const hasSpaceOrTab = (value: string) =>
+  value.includes(' ') || value.includes('\t');
+
+export function PullImage() {
   const { isOpen, openModal, closeModal } = useModalState();
   const { pullData, resetForms, updatePullData } = useFormData();
   const { progress, resetProgress, setRunning, setSuccess, setError } =
@@ -49,13 +62,34 @@ export function PullImage({ onSuccess }: PullImageProps) {
   const { showFeedback, resetFeedback } = useSelectionFeedback();
   const { tagSuggestions, isLoadingTags, tagError, fetchTags, clearTags } =
     useTagSuggestions();
+  const [pullToConfirm, setPullToConfirm] = useState<{
+    request: PullFormData;
+    source: LookalikeCheck;
+  } | null>(null);
+  const [attemptedReference, setAttemptedReference] = useState<string | null>(
+    null
+  );
+  const progressOfChosenImage =
+    progress.isRunning || attemptedReference === pullReference(pullData)
+      ? progress
+      : DEFAULT_PROGRESS_STATE;
 
-  // Sync form data when selected image details change
+  const resetPullForm = useCallback(() => {
+    resetForms();
+    resetProgress();
+    resetRegistry();
+    resetSearch();
+    resetFeedback();
+  }, [resetForms, resetProgress, resetRegistry, resetSearch, resetFeedback]);
+
+  const closeAndResetPullForm = useCallback(() => {
+    closeModal();
+    resetPullForm();
+  }, [closeModal, resetPullForm]);
+
   useEffect(() => {
     if (searchState.selectedImageDetails) {
-      const imageName = searchState.selectedImageDetails.is_official
-        ? `library/${searchState.selectedImageDetails.name}`
-        : searchState.selectedImageDetails.name;
+      const imageName = searchState.selectedImageDetails.name;
 
       updatePullData({
         imageName,
@@ -66,11 +100,8 @@ export function PullImage({ onSuccess }: PullImageProps) {
       });
 
       showFeedback(`Selected: ${imageName}`);
-
-      // Fetch available tags for the selected image
       fetchTags(imageName);
     } else {
-      // Clear tags when no image is selected
       clearTags();
     }
   }, [
@@ -82,14 +113,16 @@ export function PullImage({ onSuccess }: PullImageProps) {
     clearTags,
   ]);
 
-  // Focus search input when modal opens
   useEffect(() => {
-    if (isOpen && searchInputRef.current) {
-      setTimeout(() => {
-        searchInputRef.current?.focus();
-      }, 100);
+    if (!progress.success) {
+      return;
     }
-  }, [isOpen, searchInputRef]);
+    const closeTimer = setTimeout(
+      closeAndResetPullForm,
+      SUCCESS_MESSAGE_VISIBLE_MS
+    );
+    return () => clearTimeout(closeTimer);
+  }, [progress.success, closeAndResetPullForm]);
 
   const handleRegistryChange = (value: string) => {
     updateRegistry(value);
@@ -106,10 +139,8 @@ export function PullImage({ onSuccess }: PullImageProps) {
   const handleImageSelect = (image: DockerHubImage) => {
     selectImage(image);
 
-    const imageName = image.is_official ? `library/${image.name}` : image.name;
-
     updatePullData({
-      imageName,
+      imageName: image.name,
       tag: '',
       registry: registryState.showCustomRegistry
         ? registryState.customRegistry
@@ -117,69 +148,57 @@ export function PullImage({ onSuccess }: PullImageProps) {
     });
   };
 
-  const handlePull = async () => {
-    if (!pullData.imageName.trim()) {
+  const handlePull = () => {
+    const request = trimPullData(pullData);
+    setAttemptedReference(pullReference(request));
+    if (!request.imageName) {
       setError('Image name is required');
       return;
     }
 
-    // Validate image name format
-    const imageName = pullData.imageName.trim();
-    if (imageName.includes(' ') || imageName.includes('\t')) {
+    if (hasSpaceOrTab(request.imageName)) {
       setError('Image name cannot contain spaces or tabs');
       return;
     }
 
-    // Validate registry format
-    const registry = pullData.registry.trim();
-    if (registry.includes(' ') || registry.includes('\t')) {
+    if (hasSpaceOrTab(request.registry)) {
       setError('Registry cannot contain spaces or tabs');
       return;
     }
 
+    const source = checkImageReference(pullReference(request));
+    if (needsConfirmation(source)) {
+      setPullToConfirm({ request, source });
+      return;
+    }
+
+    pullImage(request);
+  };
+
+  const pullImage = async ({ imageName, tag, registry }: PullFormData) => {
+    setPullToConfirm(null);
     setRunning('Pulling image...');
 
     try {
-      await invoke('pull_image', {
-        imageName: pullData.imageName,
-        tag: pullData.tag,
-        registry: pullData.registry,
-      });
-
+      await invoke('pull_image', { imageName, tag, registry });
       setSuccess('Image pulled successfully!');
-
-      // Reset form and close modal after success
-      setTimeout(() => {
-        closeModal();
-        resetProgress();
-        resetForms();
-        resetRegistry();
-        resetSearch();
-        resetFeedback();
-        onSuccess?.();
-      }, 2000);
     } catch (error) {
       console.error('Pull image error:', error);
-      setError(extractErrorMessage(error));
+      setError(errorMessage(error));
     }
   };
 
   const handleOpenChange = (open: boolean) => {
-    if (!open && !progress.isRunning) {
-      closeModal();
-      resetProgress();
-      resetForms();
-      resetRegistry();
-      resetSearch();
-      resetFeedback();
-    } else if (open) {
-      // Ensure form is reset when opening
-      resetForms();
-      resetProgress();
-      resetRegistry();
-      resetSearch();
-      resetFeedback();
+    if (open) {
+      resetPullForm();
+    } else if (!progress.isRunning) {
+      closeAndResetPullForm();
     }
+  };
+
+  const focusSearchInput = (event: Event) => {
+    event.preventDefault();
+    searchInputRef.current?.focus();
   };
 
   return (
@@ -190,7 +209,7 @@ export function PullImage({ onSuccess }: PullImageProps) {
           Pull Image
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-2xl" onOpenAutoFocus={focusSearchInput}>
         <DialogHeader>
           <DialogTitle>Pull Image from Registry</DialogTitle>
           <DialogDescription>Pull an image from a registry</DialogDescription>
@@ -215,8 +234,15 @@ export function PullImage({ onSuccess }: PullImageProps) {
           searchInputRef={searchInputRef}
         />
 
-        {/* Progress and Status Display */}
-        <ProgressDisplay progress={progress} />
+        <ProgressDisplay progress={progressOfChosenImage} />
+
+        {pullToConfirm && (
+          <ImageSourceConfirmDialog
+            check={pullToConfirm.source}
+            onCancel={() => setPullToConfirm(null)}
+            onConfirm={() => pullImage(pullToConfirm.request)}
+          />
+        )}
 
         <DialogFooter>
           <Button
@@ -235,7 +261,7 @@ export function PullImage({ onSuccess }: PullImageProps) {
           >
             {progress.isRunning ? (
               <>
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary-foreground mr-2"></div>
                 Pulling...
               </>
             ) : (

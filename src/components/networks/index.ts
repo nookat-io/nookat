@@ -1,15 +1,20 @@
-// Main network components
 export { NetworkHeader } from './network-header';
 export { NetworkControls } from './network-controls';
 
-// Table components
 export { NetworksTable } from './networks-table';
 
-// Action components
 export { NetworkActions } from './network-actions';
+export { NetworkCreateDialog } from './network-create-dialog';
 
-// Utility functions
-export { removeNetwork, bulkRemoveNetworks } from './network-actions-utils';
+export {
+  createNetwork,
+  removeNetwork,
+  bulkRemoveNetworks,
+} from './network-actions-service';
 
-// Types
-export { type Network, type Ipam, type IpamConfig } from './network-types';
+export {
+  type Network,
+  type Ipam,
+  type IpamConfig,
+  type NetworkCreateOptions,
+} from './network-types';

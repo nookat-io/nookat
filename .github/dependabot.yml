@@ -1,13 +1,3 @@
-# To get started with Dependabot version updates, you'll need to specify which
-# package ecosystems to update and where the package manifests are located.
-# Please see the documentation for all configuration options:
-# https://docs.github.com/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
-
-# Every update goes into one of two groups per ecosystem: minor and patch
-# updates, and major updates. Major updates usually need a migration and stay
-# open the longest. As separate PRs they used up `open-pull-requests-limit`
-# and kept the minor and patch group from being opened at all.
-
 version: 2
 updates:
   - package-ecosystem: "npm"

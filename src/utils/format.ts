@@ -1,32 +1,18 @@
-/**
- * Formats bytes into a human-readable string with appropriate units
- * @param bytes - The number of bytes to format
- * @returns A formatted string with units (e.g., "1.5 MB")
- */
-export function formatBytes(bytes: number): string {
-  // Input validation for negative numbers
-  if (bytes < 0) {
-    return 'Invalid size';
-  }
+const BYTES_PER_KILOBYTE = 1024;
+const BYTE_UNITS = ['B', 'KB', 'MB', 'GB', 'TB'];
 
-  // Input validation for non-finite values (NaN, Infinity, -Infinity)
-  if (!Number.isFinite(bytes)) {
+export function formatBytes(bytes: number): string {
+  if (bytes < 0 || !Number.isFinite(bytes)) {
     return 'Invalid size';
   }
 
   if (bytes === 0) return '0 B';
 
-  const k = 1024;
-  const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-
-  // Ensure index doesn't exceed array bounds
-  const maxIndex = sizes.length - 1;
-  const safeIndex = Math.min(i, maxIndex);
-
-  return (
-    parseFloat((bytes / Math.pow(k, safeIndex)).toFixed(1)) +
-    ' ' +
-    sizes[safeIndex]
+  const unitIndex = Math.min(
+    Math.floor(Math.log(bytes) / Math.log(BYTES_PER_KILOBYTE)),
+    BYTE_UNITS.length - 1
   );
+  const value = bytes / BYTES_PER_KILOBYTE ** unitIndex;
+
+  return `${parseFloat(value.toFixed(1))} ${BYTE_UNITS[unitIndex]}`;
 }

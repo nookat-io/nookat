@@ -1,7 +1,5 @@
-'use client';
-
 import { ReactNode } from 'react';
-import { Button } from '../ui/button';
+import { Button, ButtonProps } from '../ui/button';
 import {
   DialogContent,
   DialogDescription,
@@ -15,6 +13,8 @@ interface ConfirmDialogProps {
   description?: ReactNode;
   showCancel?: boolean;
   confirmText?: string;
+  confirmVariant?: ButtonProps['variant'];
+  cancelText?: string;
   onConfirm: () => void;
   onCancel?: () => void;
   confirmDisabled?: boolean;
@@ -25,6 +25,8 @@ export function ConfirmDialog({
   description,
   showCancel = true,
   confirmText = 'Confirm',
+  confirmVariant = 'destructive',
+  cancelText = 'Cancel',
   onConfirm,
   onCancel,
   confirmDisabled = false,
@@ -34,7 +36,7 @@ export function ConfirmDialog({
       <DialogHeader>
         <DialogTitle>{title}</DialogTitle>
         {description ? (
-          <DialogDescription>
+          <DialogDescription asChild>
             <div className="pt-6 space-y-3 text-muted-foreground leading-relaxed">
               {description}
             </div>
@@ -44,11 +46,11 @@ export function ConfirmDialog({
       <DialogFooter className="pt-6">
         {showCancel && (
           <Button variant="outline" onClick={onCancel}>
-            Cancel
+            {cancelText}
           </Button>
         )}
         <Button
-          variant="destructive"
+          variant={confirmVariant}
           onClick={onConfirm}
           disabled={confirmDisabled}
         >

@@ -4,13 +4,21 @@ import { Progress } from '../../../ui/progress';
 import { Badge } from '../../../ui/badge';
 import { AlertCircle, CheckCircle, Loader2, RefreshCw } from 'lucide-react';
 import {
+  EngineOperation,
   InstallationProgress as ProgressType,
   InstallationStep,
   StopStep,
   ColimaEngineStopProgressType,
 } from '../types';
 
+const FAILURE_TITLES: Record<EngineOperation, string> = {
+  install: 'Installation failed',
+  start: 'Engine start failed',
+  stop: 'Engine stop failed',
+};
+
 interface InstallationProgressProps {
+  operation: EngineOperation;
   step: InstallationStep | StopStep;
   progress: ProgressType | ColimaEngineStopProgressType;
   error: string | null;
@@ -19,6 +27,7 @@ interface InstallationProgressProps {
 }
 
 export function InstallationProgress({
+  operation,
   step,
   progress,
   error,
@@ -29,10 +38,9 @@ export function InstallationProgress({
     step === 'installing' ||
     step === 'starting-vm' ||
     step === 'validating' ||
-    step === 'stopping-vm' ||
-    step === 'stopping';
+    step === 'stopping-vm';
   const isComplete = step === 'complete';
-  const hasError = step === 'error' || error;
+  const hasError = step === 'error';
 
   if (!isActive && !isComplete && !hasError) {
     return null;
@@ -46,8 +54,8 @@ export function InstallationProgress({
 
   const getStepColor = () => {
     if (hasError) return 'text-destructive';
-    if (isComplete) return 'text-green-600';
-    return 'text-blue-600';
+    if (isComplete) return 'text-green-600 dark:text-green-400';
+    return 'text-blue-600 dark:text-blue-400';
   };
 
   const logs = progress.logs ?? [];
@@ -68,7 +76,6 @@ export function InstallationProgress({
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        {/* Progress bar */}
         {isActive && (
           <div className="space-y-2">
             <Progress value={progress.percentage} className="h-2" />
@@ -76,14 +83,11 @@ export function InstallationProgress({
           </div>
         )}
 
-        {/* Error state */}
         {hasError && (
           <div className="space-y-3">
             <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-md">
               <p className="text-sm text-destructive font-medium">
-                {step === 'stopping-vm' || step === 'stopping'
-                  ? 'Stop operation failed'
-                  : 'Installation failed'}
+                {FAILURE_TITLES[operation]}
               </p>
               <p className="text-sm text-muted-foreground mt-1">
                 {error || 'An unexpected error occurred'}
@@ -98,7 +102,6 @@ export function InstallationProgress({
           </div>
         )}
 
-        {/* Logs */}
         {logs.length > 0 && (
           <div className="space-y-2">
             <h4 className="text-sm font-medium text-muted-foreground">Logs</h4>

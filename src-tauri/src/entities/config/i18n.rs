@@ -10,7 +10,6 @@ pub enum Language {
 }
 
 impl Language {
-    #[allow(unused)]
     pub fn as_str(&self) -> &'static str {
         match self {
             Language::English => "en",

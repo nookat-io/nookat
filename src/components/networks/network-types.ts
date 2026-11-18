@@ -1,16 +1,13 @@
-// IPAM config interface matching backend
 export interface IpamConfig {
   subnet?: string;
   gateway?: string;
 }
 
-// IPAM interface matching backend
 export interface Ipam {
   driver?: string;
   config?: IpamConfig[];
 }
 
-// Network interface matching backend
 export interface Network {
   id: string;
   name: string;
@@ -23,6 +20,31 @@ export interface Network {
   internal: boolean;
   ipam: Ipam;
   labels?: Record<string, string>;
+}
+
+export type NetworkDriver = 'bridge' | 'macvlan' | 'ipvlan';
+
+export interface IpAddressing {
+  enabled: boolean;
+  subnet?: string;
+  gateway?: string;
+  ip_range?: string;
+}
+
+export interface NetworkLabel {
+  key: string;
+  value: string;
+}
+
+export interface NetworkCreateOptions {
+  name: string;
+  driver: NetworkDriver;
+  parent_interface?: string;
+  internal: boolean;
+  attachable: boolean;
+  ipv4: IpAddressing;
+  ipv6: IpAddressing;
+  labels: NetworkLabel[];
 }
 
 const SYSTEM_NETWORK_NAMES = ['bridge', 'host', 'none'];

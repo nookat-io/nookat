@@ -1,3 +1,5 @@
+import { IsoDateString } from './iso-date-string';
+
 export enum Theme {
   Light = 'light',
   Dark = 'dark',
@@ -18,7 +20,7 @@ export interface StartupSettings {
   start_on_system_startup: boolean;
   minimize_to_tray: boolean;
   check_for_updates: boolean;
-  last_update_check?: string; // ISO date string
+  last_update_check?: IsoDateString;
   auto_update_settings: boolean;
 }
 

@@ -1,12 +1,14 @@
 use crate::entities::EngineStatus;
-use crate::entities::{ColimaConfig, InstallationMethod};
-use crate::services::engine::{install_colima, start_colima_vm, stop_colima_vm, COLIMA_MANAGED};
+use crate::entities::{BinaryInstallPlan, ColimaVm, ColimaVmSettingsChanges, InstallationMethod};
+use crate::services::engine::{
+    binary_install_plan, install_colima, read_colima_vm, start_colima_vm, stop_colima_vm,
+    use_colima_docker_context, COLIMA_MANAGED,
+};
 use crate::services::shell::{is_colima_available, is_homebrew_available};
 use crate::state::SharedEngineState;
 use tauri::State;
 use tracing::{debug, info, instrument};
 
-/// Get the status of the container engine
 #[tauri::command]
 #[instrument(skip_all, err)]
 pub async fn engine_status(state: State<'_, SharedEngineState>) -> Result<EngineStatus, String> {
@@ -36,19 +38,53 @@ pub async fn install_colima_command(
 
 #[tauri::command]
 #[instrument(skip_all, err)]
-pub async fn start_colima_vm_command(
-    app: tauri::AppHandle,
-    config: ColimaConfig,
-) -> Result<(), String> {
-    info!("Starting Colima VM with config: {:?}", config);
-    start_colima_vm(&app, config).await
+pub async fn get_binary_install_plan(app: tauri::AppHandle) -> Result<BinaryInstallPlan, String> {
+    debug!("Describing the binary installation");
+    binary_install_plan(&app).await
 }
 
 #[tauri::command]
 #[instrument(skip_all, err)]
-pub async fn stop_colima_vm_command(app: tauri::AppHandle) -> Result<(), String> {
+pub async fn use_colima_docker_context_command(
+    app: tauri::AppHandle,
+    state: State<'_, SharedEngineState>,
+) -> Result<(), String> {
+    info!("Switching the Docker CLI to the Colima context");
+    let switched = use_colima_docker_context(&app).await;
+    state.forget_connection().await;
+    switched
+}
+
+#[tauri::command]
+#[instrument(skip_all, err)]
+pub async fn get_colima_vm(app: tauri::AppHandle) -> Result<ColimaVm, String> {
+    debug!("Reading the Colima VM profile");
+    read_colima_vm(&app).await
+}
+
+#[tauri::command]
+#[instrument(skip_all, err)]
+pub async fn start_colima_vm_command(
+    app: tauri::AppHandle,
+    state: State<'_, SharedEngineState>,
+    changes: ColimaVmSettingsChanges,
+) -> Result<(), String> {
+    info!("Starting Colima VM with changes: {:?}", changes);
+    let started = start_colima_vm(&app, changes).await;
+    state.forget_connection().await;
+    started
+}
+
+#[tauri::command]
+#[instrument(skip_all, err)]
+pub async fn stop_colima_vm_command(
+    app: tauri::AppHandle,
+    state: State<'_, SharedEngineState>,
+) -> Result<(), String> {
     info!("Stopping Colima VM");
-    stop_colima_vm(&app).await
+    let stopped = stop_colima_vm(&app).await;
+    state.forget_connection().await;
+    stopped
 }
 
 #[tauri::command]
@@ -58,12 +94,6 @@ pub async fn check_colima_availability(app: tauri::AppHandle) -> Result<bool, St
     is_colima_available(&app).await
 }
 
-/// Whether this build can install and run Colima at all.
-///
-/// `check_colima_availability` answers "is Colima installed on this machine";
-/// this answers the question that comes before it, so the frontend can leave
-/// the install / start / stop controls out entirely on a platform where they
-/// can never succeed.
 #[tauri::command]
 #[instrument(skip_all)]
 pub fn is_colima_supported() -> bool {

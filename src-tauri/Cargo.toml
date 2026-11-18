@@ -5,12 +5,7 @@ description = "Nookat is a tool for managing Docker containers"
 authors = ["Nookat.io Developers"]
 edition = "2021"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [lib]
-# The `_lib` suffix may seem redundant but it is necessary
-# to make the lib name unique and wouldn't conflict with the bin name.
-# This seems to be only an issue on Windows, see https://github.com/rust-lang/cargo/issues/8519
 name = "nookat_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
@@ -19,26 +14,25 @@ tauri-build = { version = "2", features = [] }
 
 [dependencies]
 tokio = { version = "1.49.0", features = ["full"] }
-tokio-util = { version = "0.7", features = ["io"] }
 
 tauri = { version = "2", features = [ "tray-icon", "macos-private-api"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+serde_yaml_ng = "0.10"
 
 bollard = { version = "0.21", features = ["pipe"] }
+ipnet = "2"
 dirs = "7"
 image = "0.25"
 futures-util = "0.3"
 chrono = { version = "0.4", features = ["serde"] }
-uuid = { version = "1.19", features = ["v4"] }
-lazy_static = "1.4"
 
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
-sha2 = "0.11"
-tempfile = "3.24"
-flate2 = "1.1"
+sha2 = "0.10"
+flate2 = "1"
 tar = "0.4"
-async-trait = "0.1"
+tempfile = "3.24"
+rustix = { version = "1", features = ["fs"] }
 
 sentry = { version = "0.49", features = ["panic", "tracing"] }
 sentry-tracing = "0.49"
@@ -52,3 +46,6 @@ tauri-plugin-shell = "2"
 tauri-plugin-autostart = "2"
 tauri-plugin-updater = "2"
 tauri-plugin-opener = "2.5"
+
+[dev-dependencies]
+sentry = { version = "0.49", features = ["test"] }

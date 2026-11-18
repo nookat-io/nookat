@@ -1,5 +1,5 @@
-use crate::entities::Container;
-use crate::services::{shell, ContainersService};
+use crate::entities::{Container, CreateContainerError, CreateContainerSpec, CreatedContainer};
+use crate::services::{shell, ContainerCreationService, ContainersService};
 use crate::state::SharedEngineState;
 use tauri::State;
 use tracing::{debug, instrument};
@@ -16,6 +16,20 @@ pub async fn list_containers(
     let containers = ContainersService::get_containers(docker).await?;
 
     Ok(containers.into_iter().map(|c| c.into()).collect())
+}
+
+#[tauri::command]
+#[instrument(skip_all, err)]
+pub async fn create_container(
+    state: State<'_, SharedEngineState>,
+    spec: CreateContainerSpec,
+    start: bool,
+) -> Result<CreatedContainer, CreateContainerError> {
+    debug!("Creating container from image: {}", spec.image);
+
+    let engine = state.get_engine().await?;
+    let docker = engine.docker.as_ref().ok_or("Docker not found")?;
+    ContainerCreationService::create(docker, &spec, start).await
 }
 
 #[tauri::command]
@@ -217,15 +231,12 @@ pub async fn open_terminal(
 
     let engine = state.get_engine().await?;
     let docker = engine.docker.as_ref().ok_or("Docker not found")?;
+    let endpoint = engine.endpoint.as_deref().ok_or("Docker not found")?;
 
-    // Check if container is running
-    let container_running = ContainersService::is_container_running(docker, &id).await?;
+    let container_id = ContainersService::running_container_id(docker, &id).await?;
+    let container_shell = ContainersService::interactive_shell(docker, &container_id).await?;
 
-    if !container_running {
-        return Err(format!("Container {} is not running", id));
-    }
-
-    shell::open_container_terminal(&app, &id).await
+    shell::open_container_terminal(&app, endpoint, &container_id, container_shell).await
 }
 
 #[tauri::command]
@@ -239,17 +250,6 @@ pub async fn container_logs(
     let engine = state.get_engine().await?;
     let docker = engine.docker.as_ref().ok_or("Docker not found")?;
     ContainersService::get_container_logs(docker, &id).await
-}
-
-#[tauri::command]
-#[instrument(skip_all, err)]
-pub async fn container_files(
-    _state: State<'_, SharedEngineState>,
-    id: String,
-) -> Result<(), String> {
-    debug!("Opening files for container: {}", id);
-    // TODO: Implement container files functionality
-    Err("Container files functionality is not implemented yet".to_string())
 }
 
 #[tauri::command]

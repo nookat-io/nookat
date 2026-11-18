@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { Label } from '../../ui/label';
 import { Input } from '../../ui/input';
 import { Loader2, ChevronDown } from 'lucide-react';
@@ -13,46 +13,57 @@ interface TagSelectorProps {
   tagSuggestions?: string[];
 }
 
+interface Highlight {
+  within: string[];
+  index: number;
+}
+
+const NO_SUGGESTIONS: string[] = [];
+const NO_HIGHLIGHT: Highlight = { within: NO_SUGGESTIONS, index: -1 };
+
+function suggestionsMatching(suggestions: string[], typed: string) {
+  if (!typed.trim()) {
+    return suggestions;
+  }
+  const prefix = typed.toLowerCase();
+  return suggestions.filter(suggestion =>
+    suggestion.toLowerCase().startsWith(prefix)
+  );
+}
+
 export function TagSelector({
   tag,
   onTagChange,
   disabled = false,
   isLoadingTags = false,
   tagError = null,
-  tagSuggestions = [],
+  tagSuggestions = NO_SUGGESTIONS,
 }: TagSelectorProps) {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [filteredSuggestions, setFilteredSuggestions] = useState<string[]>([]);
-  const [focusedIndex, setFocusedIndex] = useState(-1);
-  const [inputValue, setInputValue] = useState(tag);
+  const [highlight, setHighlight] = useState(NO_HIGHLIGHT);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Filter suggestions based on input value
-  useEffect(() => {
-    if (!inputValue.trim()) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- TECH-005
-      setFilteredSuggestions(tagSuggestions);
-    } else {
-      const filtered = tagSuggestions.filter(suggestion =>
-        suggestion.toLowerCase().startsWith(inputValue.toLowerCase())
-      );
-      setFilteredSuggestions(filtered);
-    }
-    setFocusedIndex(-1);
-  }, [inputValue, tagSuggestions]);
+  const filteredSuggestions = useMemo(
+    () => suggestionsMatching(tagSuggestions, tag),
+    [tagSuggestions, tag]
+  );
+  const focusedIndex =
+    highlight.within === filteredSuggestions
+      ? highlight.index
+      : NO_HIGHLIGHT.index;
 
-  // Sync input value with tag prop
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- TECH-005
-    setInputValue(tag);
-  }, [tag]);
+  const highlightSuggestion = (index: number) =>
+    setHighlight({ within: filteredSuggestions, index });
+
+  const closeDropdown = () => {
+    setIsDropdownOpen(false);
+    setHighlight(NO_HIGHLIGHT);
+  };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    setInputValue(value);
-    onTagChange(value);
+    onTagChange(e.target.value);
     setIsDropdownOpen(true);
   };
 
@@ -62,24 +73,13 @@ export function TagSelector({
     }
   };
 
-  const handleInputBlur = () => {
-    // Delay closing to allow click events on suggestions
-    setTimeout(() => {
-      setIsDropdownOpen(false);
-      setFocusedIndex(-1);
-    }, 150);
-  };
+  const keepFocusOnTheInput = (e: React.MouseEvent) => e.preventDefault();
 
-  const selectTag = useCallback(
-    (selectedTag: string) => {
-      setInputValue(selectedTag);
-      onTagChange(selectedTag);
-      setIsDropdownOpen(false);
-      setFocusedIndex(-1);
-      inputRef.current?.blur();
-    },
-    [onTagChange]
-  );
+  const selectTag = (selectedTag: string) => {
+    onTagChange(selectedTag);
+    closeDropdown();
+    inputRef.current?.blur();
+  };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (!isDropdownOpen || filteredSuggestions.length === 0) {
@@ -90,34 +90,30 @@ export function TagSelector({
       return;
     }
 
+    const lastIndex = filteredSuggestions.length - 1;
+
     switch (e.key) {
       case 'ArrowDown':
         e.preventDefault();
-        setFocusedIndex(prev =>
-          prev < filteredSuggestions.length - 1 ? prev + 1 : 0
-        );
+        highlightSuggestion(focusedIndex < lastIndex ? focusedIndex + 1 : 0);
         break;
       case 'ArrowUp':
         e.preventDefault();
-        setFocusedIndex(prev =>
-          prev > 0 ? prev - 1 : filteredSuggestions.length - 1
-        );
+        highlightSuggestion(focusedIndex > 0 ? focusedIndex - 1 : lastIndex);
         break;
       case 'Enter':
         e.preventDefault();
-        if (focusedIndex >= 0 && focusedIndex < filteredSuggestions.length) {
+        if (focusedIndex >= 0 && focusedIndex <= lastIndex) {
           selectTag(filteredSuggestions[focusedIndex]);
         }
         break;
       case 'Escape':
-        setIsDropdownOpen(false);
-        setFocusedIndex(-1);
+        closeDropdown();
         inputRef.current?.blur();
         break;
     }
   };
 
-  // Handle click outside to close dropdown
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (
@@ -125,7 +121,7 @@ export function TagSelector({
         !containerRef.current.contains(event.target as Node)
       ) {
         setIsDropdownOpen(false);
-        setFocusedIndex(-1);
+        setHighlight(NO_HIGHLIGHT);
       }
     };
 
@@ -141,10 +137,10 @@ export function TagSelector({
           ref={inputRef}
           id="pull-tag"
           placeholder={disabled ? 'Select an image first' : 'latest'}
-          value={inputValue}
+          value={tag}
           onChange={handleInputChange}
           onFocus={handleInputFocus}
-          onBlur={handleInputBlur}
+          onBlur={closeDropdown}
           onKeyDown={handleKeyDown}
           disabled={disabled}
           autoComplete="off"
@@ -165,18 +161,23 @@ export function TagSelector({
           )}
         </div>
 
-        {/* Dropdown */}
         {isDropdownOpen && filteredSuggestions.length > 0 && (
-          <div className="absolute z-50 w-full mt-1 bg-popover border border-border rounded-md shadow-lg max-h-60 overflow-auto">
+          <div
+            role="listbox"
+            onMouseDown={keepFocusOnTheInput}
+            className="absolute z-50 w-full mt-1 bg-popover border border-border rounded-md shadow-lg max-h-60 overflow-auto"
+          >
             {filteredSuggestions.map((suggestion, index) => (
               <div
                 key={suggestion}
+                role="option"
+                aria-selected={index === focusedIndex}
                 className={cn(
                   'px-3 py-2 text-sm cursor-pointer hover:bg-accent hover:text-accent-foreground',
                   index === focusedIndex && 'bg-accent text-accent-foreground'
                 )}
                 onClick={() => selectTag(suggestion)}
-                onMouseEnter={() => setFocusedIndex(index)}
+                onMouseEnter={() => highlightSuggestion(index)}
               >
                 {suggestion}
               </div>

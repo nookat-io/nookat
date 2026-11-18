@@ -68,11 +68,6 @@ impl From<bollard::models::Volume> for Volume {
     }
 }
 
-/// Outcome of a volume prune, taken verbatim from the daemon's prune response.
-///
-/// Never derive these numbers by diffing the volume list before and after the
-/// prune: that races with anything else touching the daemon and cannot tell a
-/// pruned volume from one created or removed concurrently.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct VolumePruneResult {
     pub volumes_deleted: Vec<String>,
@@ -107,9 +102,6 @@ mod tests {
 
     #[test]
     fn prune_result_reports_nothing_deleted_when_the_daemon_omits_the_fields() {
-        // The daemon omits both fields when it removed nothing. That must read
-        // as "zero volumes deleted", never as missing data to be filled in by
-        // some client-side estimate.
         let result = VolumePruneResult::from(VolumePruneResponse {
             volumes_deleted: None,
             space_reclaimed: None,

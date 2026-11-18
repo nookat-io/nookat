@@ -1,55 +1,94 @@
 use crate::services::ConfigService;
-use sentry::{init, ClientInitGuard, ClientOptions};
-use std::sync::Once;
+use sentry::{init, ClientInitGuard, ClientOptions, Hub};
+use std::time::Duration;
 use tracing::{info, warn};
 
 static SENTRY_DSN: Option<&'static str> = option_env!("SENTRY_DSN");
-static INIT: Once = Once::new();
+const FLUSH_TIMEOUT: Duration = Duration::from_secs(2);
 
 pub fn init_sentry() -> Option<ClientInitGuard> {
     info!("Initializing Sentry crash reporting");
 
-    // Only initialize once
-    let mut guard = None;
-    INIT.call_once(|| {
-        let config = ConfigService::get_config().expect("Failed to get config");
-        let error_reporting = config.telemetry.error_reporting;
+    let Some(dsn) = SENTRY_DSN else {
+        warn!("Sentry DSN not configured, crash reporting disabled");
+        return None;
+    };
 
-        // Skip initialization if DSN is not provided or error reporting is disabled
-        if SENTRY_DSN.is_none() || !error_reporting {
-            warn!("Sentry DSN not configured, crash reporting disabled");
-            return;
-        }
+    let config = ConfigService::get_config().expect("Failed to get config");
+    if !config.telemetry.error_reporting {
+        info!("Error reporting is turned off in the settings, crash reporting disabled");
+        return None;
+    }
 
-        // With the `panic` feature enabled in Cargo.toml, sentry::init automatically
-        // registers a robust global panic handler that captures panics (including from
-        // other threads) with stacktraces.
-        // `ClientOptions` is `#[non_exhaustive]`, so it has to be built from its
-        // default rather than with a struct literal.
-        let mut options = ClientOptions::default();
-        options.release = Some(env!("CARGO_PKG_VERSION").into());
+    let mut options = ClientOptions::default();
+    options.release = Some(env!("CARGO_PKG_VERSION").into());
 
-        guard = Some(init((SENTRY_DSN.unwrap(), options)));
-        info!("Sentry crash reporting initialized");
+    let guard = init((dsn, options));
+    info!("Sentry crash reporting initialized");
 
-        // Set application tags
-        set_tag("app.name", "nookat");
-        set_tag("app.version", env!("CARGO_PKG_VERSION"));
-        set_tag("app.platform", std::env::consts::OS);
-    });
+    set_tag("app.name", "nookat");
+    set_tag("app.version", env!("CARGO_PKG_VERSION"));
+    set_tag("app.platform", std::env::consts::OS);
 
-    guard
+    Some(guard)
 }
 
-/// Set tag for crash reports
-pub fn set_tag(key: &str, value: &str) {
+fn set_tag(key: &str, value: &str) {
     sentry::configure_scope(|scope| {
         scope.set_tag(key, value);
     });
 }
 
-/// Flush Sentry events (useful before shutdown)
 pub fn flush_sentry() {
-    // Basic best-effort flush for this crate version
-    std::thread::sleep(std::time::Duration::from_secs(2));
+    if let Some(client) = Hub::current().client() {
+        client.flush(Some(FLUSH_TIMEOUT));
+    }
+}
+
+pub fn stop_error_reporting() {
+    if let Some(client) = Hub::current().client() {
+        client.close(Some(FLUSH_TIMEOUT));
+        info!("Error reporting turned off in the settings, crash reporting stopped");
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use sentry::test::TestTransport;
+    use sentry::Level;
+    use std::sync::Arc;
+
+    fn hub_reporting_to(transport: &Arc<TestTransport>) -> Arc<Hub> {
+        let mut options = ClientOptions::default();
+        options.dsn = Some("https://public@sentry.invalid/1".parse().unwrap());
+        options.transport = Some(Arc::new(transport.clone()));
+        Arc::new(Hub::new(
+            Some(Arc::new(options.into())),
+            Arc::new(Default::default()),
+        ))
+    }
+
+    #[test]
+    fn test_errors_are_reported_while_reporting_is_on() {
+        let transport = TestTransport::new();
+
+        Hub::run(hub_reporting_to(&transport), || {
+            sentry::capture_message("while reporting is on", Level::Error);
+        });
+
+        assert_eq!(transport.fetch_and_clear_events().len(), 1);
+    }
+
+    #[test]
+    fn test_no_errors_are_reported_after_reporting_is_turned_off() {
+        let transport = TestTransport::new();
+
+        Hub::run(hub_reporting_to(&transport), || {
+            stop_error_reporting();
+            sentry::capture_message("after reporting was turned off", Level::Error);
+        });
+
+        assert!(transport.fetch_and_clear_events().is_empty());
+    }
 }

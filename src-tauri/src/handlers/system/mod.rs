@@ -8,11 +8,9 @@ use std::sync::Arc;
 use tauri::State;
 use tauri_plugin_opener::OpenerExt;
 use tokio::sync::Mutex;
-use tracing::instrument;
+use tracing::{info, instrument};
 
-lazy_static::lazy_static! {
-    static ref ENGINE_STATE_MONITOR: Arc<Mutex<Option<Arc<EngineStateMonitor>>>> = Arc::new(Mutex::new(None));
-}
+static ENGINE_STATE_MONITOR: Mutex<Option<Arc<EngineStateMonitor>>> = Mutex::const_new(None);
 
 #[tauri::command]
 #[instrument(skip_all, err)]
@@ -24,6 +22,13 @@ pub async fn open_url(app: tauri::AppHandle, url: String) -> Result<(), String> 
     app.opener()
         .open_url(&url, None::<&str>)
         .map_err(|e| format!("Failed to open URL: {}", e))
+}
+
+#[tauri::command]
+#[instrument(skip_all)]
+pub async fn restart_app(app: tauri::AppHandle) {
+    info!("Restarting to run the installed update");
+    app.request_restart();
 }
 
 #[tauri::command]
@@ -44,16 +49,10 @@ pub async fn get_docker_info(state: State<'_, SharedEngineState>) -> Result<Dock
                 .map_err(|e| format!("Failed to get Docker version: {}", e))?;
             Ok(DockerInfo::from((info, version)))
         }
-        _ => {
-            return Err("DockerInfo is not available".to_string());
-        }
+        _ => Err("DockerInfo is not available".to_string()),
     }
 }
 
-/// Returns the app's engine state monitor, creating it on first use.
-///
-/// Every engine state snapshot the frontend receives, pushed or pulled, goes
-/// through this one monitor, which is what keeps their versions in order.
 pub(crate) async fn engine_state_monitor(
     app: &tauri::AppHandle,
     state: &SharedEngineState,
@@ -76,7 +75,6 @@ pub async fn start_engine_state_monitoring(
     app: tauri::AppHandle,
     state: State<'_, SharedEngineState>,
 ) -> Result<(), String> {
-    // Starting a monitor that is already running is a no-op.
     engine_state_monitor(&app, state.inner())
         .await
         .start_monitoring()

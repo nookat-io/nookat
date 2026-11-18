@@ -25,7 +25,6 @@ export default function VolumesPage() {
 
   const { engineState, isLoading, error } = useEngineState();
 
-  // Convert volumes from Record to array for compatibility
   const volumes = engineState ? Object.values(engineState.volumes) : [];
 
   const filteredVolumes = useFilter(volumes, filter, searchTerm, volumeFilter);
@@ -36,7 +35,6 @@ export default function VolumesPage() {
         <VolumeHeader
           selectedVolumes={selected}
           volumes={volumes}
-          onActionComplete={() => {}}
           onSelectionChange={setSelected}
         />
       }
@@ -53,7 +51,6 @@ export default function VolumesPage() {
           selectedVolumes={selected}
           onSelectionChange={setSelected}
           volumes={filteredVolumes}
-          onActionComplete={() => {}}
           isLoading={isLoading}
           error={error}
           onRetry={() => window.location.reload()}

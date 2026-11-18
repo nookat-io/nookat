@@ -1,10 +1,77 @@
 import { invoke } from '@tauri-apps/api/core';
 import { toast } from 'sonner';
 import { Port } from './container-types';
+import { errorMessage } from '../../utils/error-message';
 
 interface PortMappingsProps {
   ports: Port[];
   maxVisible?: number;
+}
+
+const URL_SCHEME_BY_WELL_KNOWN_PORT: Record<number, string> = {
+  21: 'ftp',
+  22: 'ssh',
+  23: 'telnet',
+  443: 'https',
+  8443: 'https',
+};
+
+const WILDCARD_ADDRESSES = ['0.0.0.0', '::'];
+
+const isPublished = (port: Port) => port.public_port !== undefined;
+
+const hostPort = (port: Port) => port.public_port ?? port.private_port;
+
+const reachableHost = (port: Port) =>
+  !port.ip || WILDCARD_ADDRESSES.includes(port.ip) ? 'localhost' : port.ip;
+
+const mappingKey = (port: Port) => {
+  const protocol = port.port_type?.toLowerCase() || 'tcp';
+  return isPublished(port)
+    ? `${port.public_port}:${port.private_port}/${protocol}`
+    : `${port.private_port}/${protocol}`;
+};
+
+const byHostPortThenContainerPort = (a: Port, b: Port) =>
+  hostPort(a) - hostPort(b) || a.private_port - b.private_port;
+
+function uniquePortMappings(ports: Port[]): Port[] {
+  const portsByMapping = new Map<string, Port>();
+  ports.forEach(port => {
+    const key = mappingKey(port);
+    if (!portsByMapping.has(key)) {
+      portsByMapping.set(key, port);
+    }
+  });
+  return Array.from(portsByMapping.values()).sort(byHostPortThenContainerPort);
+}
+
+const formatPortMapping = (port: Port) =>
+  isPublished(port)
+    ? `${port.public_port}:${port.private_port}`
+    : `${port.private_port}`;
+
+const formatFullPortMapping = (port: Port) => {
+  const protocol = port.port_type?.toUpperCase() || 'TCP';
+  return isPublished(port)
+    ? `${reachableHost(port)}:${port.public_port}:${port.private_port}/${protocol}`
+    : `${port.private_port}/${protocol}`;
+};
+
+async function openPublishedPort(port: Port) {
+  if (port.public_port === undefined) {
+    return;
+  }
+
+  const scheme = URL_SCHEME_BY_WELL_KNOWN_PORT[port.public_port] ?? 'http';
+  const url = `${scheme}://${reachableHost(port)}:${port.public_port}`;
+
+  try {
+    await invoke('open_url', { url });
+  } catch (error) {
+    console.error('Failed to open port URL:', error);
+    toast.error(`Failed to open ${url}: ${errorMessage(error)}`);
+  }
 }
 
 export function PortMappings({ ports, maxVisible = 3 }: PortMappingsProps) {
@@ -12,120 +79,18 @@ export function PortMappings({ ports, maxVisible = 3 }: PortMappingsProps) {
     return <></>;
   }
 
-  // Create unique port mappings by converting to string format and using Set
-  // Include protocol in deduplication to handle TCP/UDP on same port
-  const uniquePortStrings = new Set<string>();
-  const uniquePorts: Port[] = [];
-
-  ports.forEach(port => {
-    const hostPort = port.public_port ?? port.private_port;
-    const containerPort = port.private_port;
-    const protocol = port.port_type?.toLowerCase() || 'tcp';
-    const portString =
-      port.public_port !== undefined
-        ? `${hostPort}:${containerPort}/${protocol}`
-        : `${containerPort}/${protocol}`;
-
-    if (!uniquePortStrings.has(portString)) {
-      uniquePortStrings.add(portString);
-      uniquePorts.push(port);
-    }
-  });
-
-  // Sort unique ports by host port, then by container port for consistent ordering
-  const sortedPorts = uniquePorts.sort((a, b) => {
-    const aHostPort = a.public_port ?? a.private_port;
-    const bHostPort = b.public_port ?? b.private_port;
-
-    // First sort by host port
-    if (aHostPort !== bHostPort) {
-      return aHostPort - bHostPort;
-    }
-
-    // If host ports are equal, sort by container port
-    return a.private_port - b.private_port;
-  });
-
+  const sortedPorts = uniquePortMappings(ports);
   const visiblePorts = sortedPorts.slice(0, maxVisible);
   const hiddenCount = sortedPorts.length - maxVisible;
-
-  const formatPortMapping = (port: Port) => {
-    const hostPort = port.public_port ?? port.private_port;
-    const containerPort = port.private_port;
-
-    // Handle case where public_port is not set (container-only port)
-    if (port.public_port === undefined) {
-      return `${containerPort}`;
-    }
-
-    return `${hostPort}:${containerPort}`;
-  };
-
-  const handlePortClick = async (port: Port) => {
-    // Only make clickable if there's a public port mapping
-    if (port.public_port === undefined) {
-      return;
-    }
-
-    let hostIp = port.ip || 'localhost';
-    // Replace 0.0.0.0 with localhost for better UX
-    if (hostIp === '0.0.0.0') {
-      hostIp = 'localhost';
-    }
-    const hostPort = port.public_port;
-
-    // Determine protocol based on port number or use HTTP as fallback
-    let protocol = 'http';
-    if (hostPort === 443 || hostPort === 8443) {
-      protocol = 'https';
-    } else if (hostPort === 22) {
-      protocol = 'ssh';
-    } else if (hostPort === 21) {
-      protocol = 'ftp';
-    } else if (hostPort === 23) {
-      protocol = 'telnet';
-    }
-
-    const url = `${protocol}://${hostIp}:${hostPort}`;
-
-    // Open in default browser using Tauri opener plugin
-    try {
-      await invoke('open_url', { url });
-    } catch (error) {
-      console.error('Failed to open port URL:', error);
-      toast.error(`Failed to open ${url}: ${error}`);
-    }
-  };
-
-  const isPortClickable = (port: Port) => {
-    return port.public_port !== undefined;
-  };
-
-  const getFullPortMapping = (port: Port) => {
-    let hostIp = port.ip || 'localhost';
-    // Replace 0.0.0.0 with localhost for better UX
-    if (hostIp === '0.0.0.0') {
-      hostIp = 'localhost';
-    }
-    const hostPort = port.public_port ?? port.private_port;
-    const containerPort = port.private_port;
-    const protocol = port.port_type?.toUpperCase() || 'TCP';
-
-    if (port.public_port === undefined) {
-      return `${containerPort}/${protocol}`;
-    }
-
-    return `${hostIp}:${hostPort}:${containerPort}/${protocol}`;
-  };
 
   return (
     <div className="flex flex-wrap gap-1">
       {visiblePorts.map((port, index) => {
-        const clickable = isPortClickable(port);
+        const clickable = isPublished(port);
         return (
           <button
             key={index}
-            onClick={() => handlePortClick(port)}
+            onClick={() => openPublishedPort(port)}
             disabled={!clickable}
             className={`text-xs transition-colors ${
               clickable
@@ -134,8 +99,8 @@ export function PortMappings({ ports, maxVisible = 3 }: PortMappingsProps) {
             }`}
             title={
               clickable
-                ? `Click to open ${getFullPortMapping(port)}`
-                : getFullPortMapping(port)
+                ? `Click to open ${formatFullPortMapping(port)}`
+                : formatFullPortMapping(port)
             }
           >
             {formatPortMapping(port)}

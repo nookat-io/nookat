@@ -1,9 +1,10 @@
 use crate::entities::{Engine, EngineInfo, EngineStatus};
-use crate::services::shell::is_docker_command_available;
+use crate::services::shell::{get_docker_context_endpoints, is_docker_command_available};
 
 use bollard::Docker;
+use std::time::Duration;
 use tauri::AppHandle;
-use tracing::{debug, instrument, warn};
+use tracing::{debug, instrument};
 
 #[cfg(target_os = "macos")]
 mod macos;
@@ -11,34 +12,24 @@ mod macos;
 #[cfg(target_os = "macos")]
 pub use macos::*;
 
-#[cfg(target_os = "windows")]
-mod windows;
+#[cfg(not(target_os = "macos"))]
+mod unmanaged_colima;
 
-#[cfg(target_os = "windows")]
-pub use windows::*;
+#[cfg(not(target_os = "macos"))]
+pub use unmanaged_colima::*;
 
-#[cfg(target_os = "linux")]
-mod linux;
-
-#[cfg(target_os = "linux")]
-pub use linux::*;
-
-/// Whether this build manages a Colima VM itself.
-///
-/// Colima runs on macOS only. On every other platform Nookat attaches to a
-/// daemon that something else started, so the install / start / stop flows do
-/// not apply and must not be offered.
 pub const COLIMA_MANAGED: bool = cfg!(target_os = "macos");
 
-/// The answer the Colima install / start / stop entry points give on a platform
-/// where Nookat does not manage Colima.
-///
-/// This is an `Err` and never a panic. These functions are called directly from
-/// `#[tauri::command]` wrappers, and a panic inside a command aborts the task
-/// the command runs in: the `invoke()` promise on the frontend never settles,
-/// so the caller's `catch` never runs and the UI waits forever, while the
-/// Sentry panic hook files the non-implementation as a crash.
-#[cfg_attr(target_os = "macos", allow(dead_code))]
+const DOCKER_HOST_ENV_VAR: &str = "DOCKER_HOST";
+const ANSWER_TIMEOUT: Duration = Duration::from_secs(5);
+
+#[cfg(unix)]
+const DEFAULT_DOCKER_HOST: &str = "unix:///var/run/docker.sock";
+
+#[cfg(windows)]
+const DEFAULT_DOCKER_HOST: &str = "npipe:////./pipe/docker_engine";
+
+#[cfg(any(not(target_os = "macos"), test))]
 pub fn colima_unmanaged<T>() -> Result<T, String> {
     Err(format!(
         "Colima is only supported on macOS. On {} Nookat connects to a Docker daemon that is already running.",
@@ -46,36 +37,64 @@ pub fn colima_unmanaged<T>() -> Result<T, String> {
     ))
 }
 
-#[instrument(skip_all, err)]
-async fn connect_to_docker_with_local_defaults() -> Result<Docker, String> {
-    debug!("Trying to connect to Docker via local defaults");
-
-    let docker = Docker::connect_with_local_defaults()
-        .map_err(|e| format!("Failed to connect to Docker: {}", e))?;
-
-    if docker.ping().await.is_ok() {
-        debug!("Successfully connected to Docker via local defaults");
-        return Ok(docker);
-    }
-    warn!("local defaults connection failed, trying fallback");
-    Err("Failed to connect to Docker via local defaults".to_string())
+#[cfg(any(target_os = "macos", test))]
+pub fn should_stop_vm(status: &Result<bool, String>) -> bool {
+    let vm_known_to_be_stopped = matches!(status, Ok(false));
+    !vm_known_to_be_stopped
 }
 
 #[instrument(skip_all, err)]
-async fn connect_to_docker(app: &AppHandle) -> Result<Docker, String> {
-    // First, attempt connecting via local defaults (honors DOCKER_HOST if set)
-    if let Ok(docker) = connect_to_docker_with_local_defaults().await {
-        return Ok(docker);
-    }
-    debug!("local defaults connection failed, trying fallback");
+async fn connect_to_docker(app: &AppHandle) -> Result<(Docker, String), String> {
+    let context_endpoints = get_docker_context_endpoints(app).await.unwrap_or_else(|e| {
+        debug!("The Docker contexts are not readable: {}", e);
+        Vec::new()
+    });
+    let docker_host = std::env::var(DOCKER_HOST_ENV_VAR).ok();
 
-    // Try to get the current Docker context
-    if let Ok(docker) = self::connect_to_docker_using_different_contexts(app).await {
-        return Ok(docker);
+    for endpoint in endpoints_in_docker_cli_order(docker_host, context_endpoints) {
+        match connect_to(&endpoint).await {
+            Ok(docker) => {
+                debug!("Connected to Docker at {}", endpoint);
+                return Ok((docker, endpoint));
+            }
+            Err(e) => debug!("Docker at {} is not reachable: {}", endpoint, e),
+        }
     }
-    debug!("context connection failed, trying fallback");
 
-    Err("Failed to connect to Docker after local defaults and context-based attempts".to_string())
+    Err(
+        "Failed to connect to Docker through DOCKER_HOST, the Docker contexts or the default socket"
+            .to_string(),
+    )
+}
+
+async fn connect_to(endpoint: &str) -> Result<Docker, String> {
+    let docker = Docker::connect_with_host(endpoint).map_err(|e| e.to_string())?;
+
+    tokio::time::timeout(ANSWER_TIMEOUT, docker.ping())
+        .await
+        .map_err(|_| format!("no answer within {} seconds", ANSWER_TIMEOUT.as_secs()))?
+        .map_err(|e| e.to_string())?;
+
+    Ok(docker)
+}
+
+fn endpoints_in_docker_cli_order(
+    docker_host: Option<String>,
+    context_endpoints: Vec<String>,
+) -> Vec<String> {
+    let mut endpoints = Vec::new();
+    let candidates = docker_host
+        .into_iter()
+        .chain(context_endpoints)
+        .chain([DEFAULT_DOCKER_HOST.to_string()]);
+
+    for endpoint in candidates {
+        if !endpoint.is_empty() && !endpoints.contains(&endpoint) {
+            endpoints.push(endpoint);
+        }
+    }
+
+    endpoints
 }
 
 #[instrument(skip_all, err)]
@@ -94,36 +113,77 @@ pub async fn create_engine(app: &AppHandle) -> Result<Engine, String> {
         return Ok(Engine {
             engine_status: EngineStatus::Unknown,
             docker: None,
+            endpoint: None,
         });
     }
 
-    if let Ok(docker) = connect_to_docker(app).await {
+    if let Ok((docker, endpoint)) = connect_to_docker(app).await {
         debug!("Docker command is available, creating an engine instance with running status");
         return Ok(Engine {
             engine_status: EngineStatus::Running(EngineInfo::Docker),
             docker: Some(docker),
+            endpoint: Some(endpoint),
         });
     }
 
     Ok(Engine {
         engine_status: EngineStatus::Unknown,
         docker: None,
+        endpoint: None,
     })
-}
-
-/// Decide whether a stop request should actually issue `colima stop`.
-///
-/// Only a definitive "the VM is not running" answer justifies skipping the
-/// stop. A failed status check falls through to attempting the stop, so an
-/// unreadable status can never make the app report a stop it never performed.
-#[cfg_attr(not(target_os = "macos"), allow(dead_code))]
-pub fn should_stop_vm(status: &Result<bool, String>) -> bool {
-    !matches!(status, Ok(false))
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{colima_unmanaged, should_stop_vm, COLIMA_MANAGED};
+    use super::{
+        colima_unmanaged, endpoints_in_docker_cli_order, should_stop_vm, COLIMA_MANAGED,
+        DEFAULT_DOCKER_HOST,
+    };
+
+    fn endpoints(list: &[&str]) -> Vec<String> {
+        list.iter().map(|endpoint| endpoint.to_string()).collect()
+    }
+
+    #[test]
+    fn tries_docker_host_then_the_contexts_then_the_default_socket() {
+        let order = endpoints_in_docker_cli_order(
+            Some("tcp://127.0.0.1:23750".to_string()),
+            endpoints(&[
+                "unix:///Users/me/.colima/default/docker.sock",
+                "unix:///Users/me/.orbstack/run/docker.sock",
+            ]),
+        );
+
+        assert_eq!(
+            order,
+            endpoints(&[
+                "tcp://127.0.0.1:23750",
+                "unix:///Users/me/.colima/default/docker.sock",
+                "unix:///Users/me/.orbstack/run/docker.sock",
+                DEFAULT_DOCKER_HOST,
+            ])
+        );
+    }
+
+    #[test]
+    fn tries_each_endpoint_once_and_skips_empty_ones() {
+        let order = endpoints_in_docker_cli_order(
+            None,
+            endpoints(&[
+                "",
+                DEFAULT_DOCKER_HOST,
+                "unix:///Users/me/.orbstack/run/docker.sock",
+            ]),
+        );
+
+        assert_eq!(
+            order,
+            endpoints(&[
+                DEFAULT_DOCKER_HOST,
+                "unix:///Users/me/.orbstack/run/docker.sock"
+            ])
+        );
+    }
 
     #[test]
     fn stops_when_the_vm_is_running() {
@@ -152,17 +212,10 @@ mod tests {
         assert!(message.contains(std::env::consts::OS), "{message}");
     }
 
-    /// The install / start / stop entry points are called straight from
-    /// `#[tauri::command]` wrappers. A panic inside a command aborts the task
-    /// it runs in, so the `invoke()` promise never settles: the frontend's
-    /// `catch` never runs, the UI waits on a reply that will not arrive, and
-    /// the Sentry panic hook reports the missing implementation as a crash.
-    /// Every one of those signatures returns `Result`, so an unsupported
-    /// operation is an `Err`. Guard the whole backend against the pattern
-    /// coming back.
     #[test]
-    fn no_panicking_placeholders_in_services_or_handlers() {
+    fn tauri_commands_report_unsupported_operations_as_errors_never_as_panics() {
         let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src");
+        let panicking_placeholders = ["todo", "unimplemented"].map(|name| format!("{name}!("));
         let mut offenders = Vec::new();
 
         let mut stack = vec![root.join("services"), root.join("handlers")];
@@ -178,10 +231,8 @@ mod tests {
                     continue;
                 }
                 let source = std::fs::read_to_string(&path).expect("readable source file");
-                // Split so this scanner does not match its own source.
-                let placeholders = [concat!("todo", "!("), concat!("unimplemented", "!(")];
                 for (index, line) in source.lines().enumerate() {
-                    if placeholders.iter().any(|p| line.contains(p)) {
+                    if panicking_placeholders.iter().any(|p| line.contains(p)) {
                         offenders.push(format!("{}:{}", path.display(), index + 1));
                     }
                 }

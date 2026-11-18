@@ -14,7 +14,6 @@ import {
 
 interface VolumeActionsProps {
   selectedVolumes: string[];
-  onActionComplete?: () => void;
   onSelectionChange?: (selected: string[]) => void;
 }
 
@@ -22,7 +21,6 @@ type ActionType = 'delete' | 'prune';
 
 export function VolumeActions({
   selectedVolumes,
-  onActionComplete,
   onSelectionChange,
 }: VolumeActionsProps) {
   const [isLoading, setIsLoading] = useState<ActionType | null>(null);
@@ -42,25 +40,18 @@ export function VolumeActions({
     }
   };
 
-  const handleDelete = () => {
-    handleAction(
-      () =>
-        VolumeActionService.bulkRemoveVolumes(selectedVolumes, {
-          onActionComplete,
-          onSelectionChange,
-        }),
-      'delete'
-    );
-  };
+  const handleDelete = () =>
+    handleAction(async () => {
+      const deleted =
+        await VolumeActionService.bulkRemoveVolumes(selectedVolumes);
+      if (deleted) {
+        onSelectionChange?.([]);
+      }
+    }, 'delete');
 
   const handlePrune = () => {
-    if (isLoading === 'prune') return; // Prevent multiple simultaneous operations
-
     setConfirmDialogOpen(false);
-    handleAction(
-      () => VolumeActionService.pruneVolumes({ onActionComplete }),
-      'prune'
-    );
+    handleAction(() => VolumeActionService.pruneVolumes(), 'prune');
   };
 
   const renderPruneButton = () => (

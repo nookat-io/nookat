@@ -5,65 +5,19 @@ mod services;
 mod state;
 
 use crate::handlers::{
-    bulk_force_remove_containers,
-    bulk_pause_containers,
-    bulk_remove_containers,
-    bulk_remove_networks,
-    bulk_remove_volumes,
-    bulk_restart_containers,
-    bulk_start_containers,
-    bulk_stop_containers,
-    bulk_unpause_containers,
-    check_colima_availability,
-    check_homebrew_availability,
-    container_files,
-    container_logs,
-    delete_image,
-    engine_status,
-    fetch_image_tags,
-    force_remove_container,
-    // Configuration
-    get_config,
-    get_docker_info,
-    get_engine_state,
-    get_language,
-    get_theme,
-    inspect_volume,
-    install_colima_command,
-    is_colima_supported,
-    // Containers
-    list_containers,
-    // Images
-    list_images,
-    // Networks
-    list_networks,
-    // Volumes
-    list_volumes,
-    open_terminal,
-    // System
-    open_url,
-    pause_container,
-    prune_containers,
-    prune_images,
-    prune_volumes,
-    pull_image,
-    remove_container,
-    remove_network,
-    remove_volume,
-    restart_container,
-    search_docker_hub,
-    start_colima_vm_command,
-    start_container,
-    start_engine_state_monitoring,
-    stop_colima_vm_command,
-    stop_container,
-    unpause_container,
-    update_language,
-    update_last_update_check,
-    update_sidebar_collapsed,
-    update_startup_settings,
-    update_telemetry_settings,
-    update_theme,
+    bulk_force_remove_containers, bulk_pause_containers, bulk_remove_containers,
+    bulk_remove_networks, bulk_remove_volumes, bulk_restart_containers, bulk_start_containers,
+    bulk_stop_containers, bulk_unpause_containers, check_colima_availability,
+    check_homebrew_availability, container_logs, create_container, create_network, delete_image,
+    engine_status, fetch_image_tags, force_remove_container, get_binary_install_plan,
+    get_colima_vm, get_config, get_docker_info, get_engine_state, get_language, get_theme,
+    inspect_volume, install_colima_command, is_colima_supported, list_containers, list_images,
+    list_networks, list_volumes, open_terminal, open_url, pause_container, prune_containers,
+    prune_images, prune_volumes, pull_image, remove_container, remove_network, remove_volume,
+    restart_app, restart_container, search_docker_hub, start_colima_vm_command, start_container,
+    start_engine_state_monitoring, stop_colima_vm_command, stop_container, unpause_container,
+    update_language, update_last_update_check, update_sidebar_collapsed, update_startup_settings,
+    update_telemetry_settings, update_theme, use_colima_docker_context_command,
 };
 use crate::sentry::flush_sentry;
 use crate::services::ConfigService;
@@ -74,7 +28,7 @@ use tauri::{
     tray::TrayIconBuilder,
     App, AppHandle, Manager, RunEvent, Window, WindowEvent,
 };
-use tracing::instrument;
+use tracing::{info, instrument};
 
 const MAIN_WINDOW_LABEL: &str = "main";
 
@@ -104,19 +58,31 @@ fn closes_to_tray() -> bool {
     ConfigService::get_config().is_ok_and(|config| config.startup.minimize_to_tray)
 }
 
+fn shut_down() {
+    info!("Shutting down, flushing crash reports");
+    flush_sentry();
+}
+
 #[cfg(target_os = "macos")]
 fn on_run_event(app: &AppHandle, event: RunEvent) {
-    if let RunEvent::Reopen { .. } = event {
-        let _ = show_main_window(app);
+    match event {
+        RunEvent::Reopen { .. } => {
+            let _ = show_main_window(app);
+        }
+        RunEvent::Exit => shut_down(),
+        _ => {}
     }
 }
 
 #[cfg(not(target_os = "macos"))]
-fn on_run_event(_app: &AppHandle, _event: RunEvent) {}
+fn on_run_event(_app: &AppHandle, event: RunEvent) {
+    if let RunEvent::Exit = event {
+        shut_down();
+    }
+}
 
 #[instrument(skip_all)]
 fn build_tray(app: &mut App) -> Result<(), String> {
-    // Build the tray menu
     let show_item = MenuItem::with_id(app, "open", "Open", true, None::<&str>)
         .map_err(|e| format!("Failed to create show menu item: {}", e))?;
     let quit_item = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)
@@ -160,7 +126,6 @@ pub fn run() {
         .plugin(tauri_plugin_autostart::Builder::new().build())
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
-            // Configuration
             get_config,
             get_theme,
             update_theme,
@@ -170,8 +135,8 @@ pub fn run() {
             update_startup_settings,
             update_sidebar_collapsed,
             update_last_update_check,
-            // Containers
             list_containers,
+            create_container,
             start_container,
             stop_container,
             pause_container,
@@ -186,29 +151,26 @@ pub fn run() {
             bulk_force_remove_containers,
             open_terminal,
             container_logs,
-            container_files,
             remove_container,
             force_remove_container,
             prune_containers,
-            // Images
             list_images,
             prune_images,
             delete_image,
             pull_image,
             search_docker_hub,
             fetch_image_tags,
-            // Networks
             list_networks,
+            create_network,
             remove_network,
             bulk_remove_networks,
-            // Volumes
             list_volumes,
             remove_volume,
             bulk_remove_volumes,
             inspect_volume,
             prune_volumes,
-            // System
             open_url,
+            restart_app,
             get_docker_info,
             engine_status,
             get_engine_state,
@@ -217,8 +179,11 @@ pub fn run() {
             check_colima_availability,
             is_colima_supported,
             install_colima_command,
+            get_colima_vm,
+            get_binary_install_plan,
             start_colima_vm_command,
             stop_colima_vm_command,
+            use_colima_docker_context_command,
         ])
         .setup(|app| {
             let engine_state = SharedEngineState::new(app.app_handle().clone());
@@ -237,7 +202,4 @@ pub fn run() {
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
         .run(on_run_event);
-
-    // Flush Sentry events before shutdown
-    flush_sentry();
 }

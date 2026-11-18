@@ -1,5 +1,7 @@
 import { useState, useMemo } from 'react';
 import { SortDirection } from '../components/ui/sortable-table-header';
+import { Container } from '../components/containers/container-types';
+import { formatContainerName } from '../components/containers/container-utils';
 
 export interface SortConfig {
   key: string | null;
@@ -20,8 +22,8 @@ export function useTableSort<T>(
     if (!sortConfig.key) return data;
 
     return [...data].sort((a, b) => {
-      const aValue = getNestedValue(a, sortConfig.key!);
-      const bValue = getNestedValue(b, sortConfig.key!);
+      const aValue = getSortValue(a, sortConfig.key!);
+      const bValue = getSortValue(b, sortConfig.key!);
 
       if (aValue === null && bValue === null) return 0;
       if (aValue === null || aValue === undefined) return 1;
@@ -46,18 +48,7 @@ export function useTableSort<T>(
   }, [data, sortConfig]);
 
   const handleSort = (key: string) => {
-    setSortConfig(prev => {
-      if (prev.key === key) {
-        // Cycle through: asc -> desc -> null (no sort)
-        if (prev.direction === 'asc') {
-          return { key, direction: 'desc' };
-        } else if (prev.direction === 'desc') {
-          return { key: null, direction: null };
-        }
-      }
-      // Set new sort key with ascending direction
-      return { key, direction: 'asc' };
-    });
+    setSortConfig(current => nextSortConfig(current, key));
   };
 
   return {
@@ -67,29 +58,32 @@ export function useTableSort<T>(
   };
 }
 
-// Helper function to get nested object values by dot notation
-function getNestedValue(obj: unknown, path: string): unknown {
-  // Handle special container fields
-  if (path === 'names') {
-    const names = (obj as { names?: string[] })?.names;
-    return names && names.length > 0 ? names[0].replace(/^\//, '') : '';
+function nextSortConfig(current: SortConfig, key: string): SortConfig {
+  const isSameColumn = current.key === key;
+  if (isSameColumn && current.direction === 'asc') {
+    return { key, direction: 'desc' };
   }
-  if (path === 'ports') {
-    const ports = (obj as { ports?: unknown[] })?.ports;
-    return ports && ports.length > 0 ? ports.length : 0;
+  if (isSameColumn && current.direction === 'desc') {
+    return { key: null, direction: null };
   }
+  return { key, direction: 'asc' };
+}
 
-  // Handle dot notation paths
-  const keys = path.split('.');
+function getSortValue(row: unknown, sortKey: string): unknown {
+  if (sortKey === 'names') {
+    return formatContainerName(row as Container);
+  }
+  if (sortKey === 'ports') {
+    return (row as Container).ports?.length ?? 0;
+  }
+  return getValueAtDotPath(row, sortKey);
+}
+
+function getValueAtDotPath(obj: unknown, dotPath: string): unknown {
   let current: unknown = obj;
 
-  for (const key of keys) {
-    if (
-      current &&
-      typeof current === 'object' &&
-      current !== null &&
-      key in current
-    ) {
+  for (const key of dotPath.split('.')) {
+    if (typeof current === 'object' && current !== null && key in current) {
       current = (current as Record<string, unknown>)[key];
     } else {
       return null;

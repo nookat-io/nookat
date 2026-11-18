@@ -57,13 +57,12 @@ export function DockerHubSearch({
         {isSearching && (
           <Loader2 className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
         )}
-        {/* Search Dropdown */}
         {isSearchDropdownOpen && (
-          <div className="absolute z-9999 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-xl max-h-72 overflow-y-auto left-0 top-full">
+          <div className="absolute z-9999 w-full mt-1 bg-popover text-popover-foreground border border-border rounded-md shadow-xl max-h-72 overflow-y-auto left-0 top-full">
             {searchError ? (
-              <div className="p-3 text-sm text-red-600">{searchError}</div>
+              <div className="p-3 text-sm text-destructive">{searchError}</div>
             ) : searchResults.length === 0 ? (
-              <div className="p-3 text-sm text-gray-500 text-center">
+              <div className="p-3 text-sm text-muted-foreground text-center">
                 No images found
               </div>
             ) : (
@@ -71,20 +70,14 @@ export function DockerHubSearch({
                 {searchResults.map((image, index) => (
                   <div
                     key={image.name}
-                    className={`w-full justify-start p-3 h-auto text-left hover:bg-gray-100 cursor-pointer transition-colors ${
-                      index === focusedSearchIndex ? 'bg-gray-100' : ''
+                    className={`w-full justify-start p-3 h-auto text-left hover:bg-accent hover:text-accent-foreground cursor-pointer transition-colors ${
+                      index === focusedSearchIndex
+                        ? 'bg-accent text-accent-foreground'
+                        : ''
                     }`}
                     onClick={event => {
                       event.preventDefault();
                       event.stopPropagation();
-                      // Add visual feedback
-                      const element = event.currentTarget as HTMLElement;
-                      if (element) {
-                        element.style.backgroundColor = '#fef3c7'; // yellow-200
-                        setTimeout(() => {
-                          element.style.backgroundColor = '';
-                        }, 200);
-                      }
                       onImageSelect(image);
                     }}
                   >
@@ -97,7 +90,7 @@ export function DockerHubSearch({
                           {image.is_official && (
                             <div className="relative group">
                               <Crown className="h-3 w-3 text-yellow-500" />
-                              <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-1 px-2 py-1 text-xs text-white bg-gray-800 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap">
+                              <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-1 px-2 py-1 text-xs text-background bg-foreground rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap">
                                 Official
                               </div>
                             </div>
@@ -105,18 +98,18 @@ export function DockerHubSearch({
                           {image.is_automated && (
                             <div className="relative group">
                               <Zap className="h-3 w-3 text-blue-500" />
-                              <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-1 px-2 py-1 text-xs text-white bg-gray-800 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap">
+                              <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-1 px-2 py-1 text-xs text-background bg-foreground rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap">
                                 Automated
                               </div>
                             </div>
                           )}
                         </div>
                         {image.description && (
-                          <p className="text-xs text-gray-600 line-clamp-2 mb-2">
+                          <p className="text-xs text-muted-foreground line-clamp-2 mb-2">
                             {image.description}
                           </p>
                         )}
-                        <div className="flex items-center gap-4 text-xs text-gray-500">
+                        <div className="flex items-center gap-4 text-xs text-muted-foreground">
                           <div className="flex items-center gap-1">
                             <Star className="h-3 w-3" />
                             <span>{formatNumber(image.star_count)}</span>

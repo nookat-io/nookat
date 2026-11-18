@@ -1,17 +1,16 @@
 import { ContainerActions } from './container-actions';
 import { Container } from './container-types';
+import { CreateContainerDialog } from './create';
 
 interface ContainerHeaderProps {
   selectedContainers: string[];
   containers: Container[];
-  onActionComplete?: () => void;
   onSelectionChange?: (selected: string[]) => void;
 }
 
 export function ContainerHeader({
   selectedContainers,
   containers,
-  onActionComplete,
   onSelectionChange,
 }: ContainerHeaderProps) {
   return (
@@ -26,13 +25,13 @@ export function ContainerHeader({
                 ` - ${containers.length} container${containers.length !== 1 ? 's' : ''} found`}
             </p>
           </div>
-          <div className="flex items-start">
+          <div className="flex items-start gap-2">
             <ContainerActions
               selectedContainers={selectedContainers}
               containers={containers}
-              onActionComplete={onActionComplete}
               onSelectionChange={onSelectionChange}
             />
+            <CreateContainerDialog />
           </div>
         </div>
       </div>

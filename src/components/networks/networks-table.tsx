@@ -1,5 +1,3 @@
-'use client';
-
 import {
   Table,
   TableBody,
@@ -20,19 +18,19 @@ import {
 } from '../ui/dropdown-menu';
 import { formatDistanceToNow } from 'date-fns';
 import { Network, isSystemNetwork } from './network-types';
-import { removeNetwork } from './network-actions-utils';
+import { removeNetwork } from './network-actions-service';
 import { toast } from 'sonner';
 import { useState } from 'react';
 import { LoadingSpinner } from '../ui/loading-spinner';
 import { ErrorDisplay } from '../ui/error-display';
 import { SortableTableHeader } from '../ui/sortable-table-header';
 import { useTableSort } from '../../hooks/use-table-sort';
+import { errorMessage } from '../../utils/error-message';
 
 interface NetworksTableProps {
   selectedNetworks: string[];
   onSelectionChange: (_selected: string[]) => void;
   networks: Network[];
-  onActionComplete?: () => void;
   isLoading?: boolean;
   error?: string | null;
   onRetry?: () => void;
@@ -42,7 +40,6 @@ export function NetworksTable({
   selectedNetworks,
   onSelectionChange,
   networks,
-  onActionComplete,
   isLoading = false,
   error = null,
   onRetry,
@@ -83,12 +80,9 @@ export function NetworksTable({
     try {
       await removeNetwork(networkName);
       toast.success(`Successfully deleted network "${networkName}"`);
-      onActionComplete?.();
     } catch (error) {
       console.error('Failed to delete network:', error);
-      const errorMessage =
-        error instanceof Error ? error.message : 'Failed to delete network';
-      toast.error(errorMessage);
+      toast.error(errorMessage(error, 'Failed to delete network'));
     } finally {
       setDeletingNetworks(prev => {
         const newSet = new Set(prev);

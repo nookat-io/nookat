@@ -1,13 +1,16 @@
 use crate::entities::Engine;
 use crate::services::engine;
 use std::sync::Arc;
-use tauri::AppHandle;
-use tokio::sync::Mutex;
-use tracing::{debug, instrument};
+use tauri::{AppHandle, Emitter};
+use tokio::sync::{futures::Notified, Mutex, Notify};
+use tracing::{debug, instrument, warn};
+
+const ENGINE_CONNECTED_EVENT: &str = "engine-connected";
 
 #[derive(Clone)]
 pub struct SharedEngineState {
     engine: Arc<Mutex<Option<Arc<Engine>>>>,
+    connection_forgotten: Arc<Notify>,
     app_handle: Arc<AppHandle>,
 }
 
@@ -15,6 +18,7 @@ impl SharedEngineState {
     pub fn new(app_handle: AppHandle) -> Self {
         Self {
             engine: Arc::new(Mutex::new(None)),
+            connection_forgotten: Arc::new(Notify::new()),
             app_handle: Arc::new(app_handle),
         }
     }
@@ -23,38 +27,52 @@ impl SharedEngineState {
     pub async fn get_engine(&self) -> Result<Arc<Engine>, String> {
         debug!("Getting engine");
 
-        // First, check if engine exists and is running without holding the lock
-        {
-            let engine_guard = self.engine.lock().await;
-            if let Some(ref engine) = *engine_guard {
-                if engine.is_running() {
-                    debug!("Engine exists and is running, returning existing instance");
-                    return Ok(engine.clone());
-                }
-            }
-        } // Guard is dropped here
+        if let Some(engine) = running(&*self.engine.lock().await) {
+            debug!("Engine exists and is running, returning existing instance");
+            return Ok(engine);
+        }
 
-        // Engine doesn't exist or isn't running, need to create one
         debug!("Creating new engine instance");
         let new_engine = Arc::new(engine::create_engine(&self.app_handle).await?);
 
-        // Reacquire the mutex and handle race conditions
-        let mut engine_guard = self.engine.lock().await;
-
-        // Check if another task created an engine while we were waiting
-        if let Some(ref existing_engine) = *engine_guard {
-            if existing_engine.is_running() {
-                debug!(
-                    "Another task created engine while we were waiting, using existing instance"
-                );
-                return Ok(existing_engine.clone());
-            }
+        let mut cached_engine = self.engine.lock().await;
+        if let Some(engine) = running(&cached_engine) {
+            debug!("Another task created engine while we were waiting, using existing instance");
+            return Ok(engine);
         }
 
-        // Set our newly created engine
-        debug!("Setting newly created engine instance");
-        *engine_guard = Some(new_engine.clone());
+        debug!("Caching newly created engine instance");
+        *cached_engine = Some(new_engine.clone());
+        drop(cached_engine);
+
+        if new_engine.is_running() {
+            self.announce_connection();
+        }
 
         Ok(new_engine)
     }
+
+    fn announce_connection(&self) {
+        if let Err(e) = self.app_handle.emit(ENGINE_CONNECTED_EVENT, ()) {
+            warn!("Failed to announce the engine connection: {}", e);
+        }
+    }
+
+    #[instrument(skip_all)]
+    pub async fn forget_connection(&self) {
+        debug!("Forgetting the engine connection, the next request reconnects");
+        *self.engine.lock().await = None;
+        self.connection_forgotten.notify_waiters();
+    }
+
+    pub fn connection_forgotten(&self) -> Notified<'_> {
+        self.connection_forgotten.notified()
+    }
+}
+
+fn running(engine: &Option<Arc<Engine>>) -> Option<Arc<Engine>> {
+    engine
+        .as_ref()
+        .filter(|engine| engine.is_running())
+        .cloned()
 }

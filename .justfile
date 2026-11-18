@@ -44,24 +44,19 @@ install:
     #!/usr/bin/env bash
     echo "🚀 Setting up development environment..."
 
-    # Install Node.js dependencies
     echo "📦 Installing Node.js dependencies..."
     npm install
 
-    # Install pre-commit hooks
     echo "🔧 Installing pre-commit hooks..."
     pip install pre-commit
     pre-commit install
 
-    # Install Rust components
     echo "🦀 Installing Rust components..."
     rustup component add rustfmt
     rustup component add clippy
 
-    # Setup environment variables for Nookat
     echo "Setting up environment variables for Nookat..."
 
-    # Check if .env file exists
     if [ ! -f .env ]; then
         echo "Creating .env file from env.example..."
         cp env.example .env
@@ -84,7 +79,6 @@ upgrade_version version:
     #!/usr/bin/env bash
     echo "🔄 Upgrading version number to v{{version}}..."
 
-    # Update version in package.json
     if [ -f package.json ]; then
         jq '.version = "{{version}}"' package.json > package.json.tmp && mv package.json.tmp package.json
         echo "✅ Updated version in package.json"
@@ -92,7 +86,6 @@ upgrade_version version:
         echo "❌ package.json not found!"
     fi
 
-    # Update version in src-tauri/tauri.conf.json
     if [ -f src-tauri/tauri.conf.json ]; then
         jq '.version = "{{version}}"' src-tauri/tauri.conf.json > src-tauri/tauri.conf.json.tmp && mv src-tauri/tauri.conf.json.tmp src-tauri/tauri.conf.json
         echo "✅ Updated version in src-tauri/tauri.conf.json"
@@ -100,7 +93,6 @@ upgrade_version version:
         echo "❌ src-tauri/tauri.conf.json not found!"
     fi
 
-    # Update version in src-tauri/Cargo.toml
     if [ -f src-tauri/Cargo.toml ]; then
         sed -i.bak -E "s/^version = \".*\"/version = \"{{version}}\"/" src-tauri/Cargo.toml && rm src-tauri/Cargo.toml.bak
         echo "✅ Updated version in src-tauri/Cargo.toml"

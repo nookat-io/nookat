@@ -1,42 +1,13 @@
+mod binary_install;
+mod colima;
 mod docker_info;
 use bollard::Docker;
 
+pub use self::binary_install::*;
+pub use self::colima::*;
 pub use self::docker_info::*;
 
 use serde::{Deserialize, Serialize};
-
-/// The state of the container engine
-#[allow(dead_code)]
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub enum EngineState {
-    /// The container engine is not installed
-    NotInstalled,
-    /// The container engine is not running
-    NotRunning,
-    /// The container engine is healthy
-    Healthy,
-    /// The container engine is malfunctioning
-    Malfunctioning,
-}
-
-#[allow(dead_code)]
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub enum ColimaStatus {
-    Unknown,
-    Installed,
-    Running,
-    NotInstalled,
-}
-
-#[allow(dead_code)]
-type HomebrewVersion = String;
-
-#[allow(dead_code)]
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub enum HomebrewStatus {
-    Unknown,
-    Installed(HomebrewVersion),
-}
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct ColimaEngineInfo {
@@ -47,14 +18,6 @@ pub struct ColimaEngineInfo {
     pub lima_version: Option<String>,
     pub lima_checksum: Option<String>,
     pub lima_download_url: Option<String>,
-}
-
-#[allow(dead_code)]
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct ContextInfo {
-    pub current_context: String,
-    pub docker_host: Option<String>,
-    pub available_contexts: Vec<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
@@ -75,6 +38,7 @@ pub enum EngineStatus {
 pub struct Engine {
     pub engine_status: EngineStatus,
     pub docker: Option<Docker>,
+    pub endpoint: Option<String>,
 }
 
 impl Engine {
@@ -83,14 +47,14 @@ impl Engine {
     }
 }
 
-// Installation-related types
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum InstallationMethod {
     Homebrew,
     Binary,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[cfg(any(target_os = "macos", test))]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct InstallationProgress {
     pub step: String,
     pub message: String,
@@ -98,29 +62,11 @@ pub struct InstallationProgress {
     pub logs: Vec<String>,
 }
 
+#[cfg(target_os = "macos")]
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ColimaEngineStopProgress {
     pub step: String,
     pub message: String,
     pub percentage: u8,
     pub logs: Vec<String>,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct ColimaConfig {
-    pub cpu: u8,
-    pub memory: u16,
-    pub disk: u16,
-    pub architecture: String,
-}
-
-impl Default for ColimaConfig {
-    fn default() -> Self {
-        Self {
-            cpu: 4,
-            memory: 8,
-            disk: 60,
-            architecture: "host".to_string(),
-        }
-    }
 }

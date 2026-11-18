@@ -5,6 +5,18 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Nookat</title>
+    <script>
+      {
+        const savedTheme = localStorage.getItem('nookat-theme');
+        const systemPrefersDark = matchMedia(
+          '(prefers-color-scheme: dark)'
+        ).matches;
+        const dark =
+          savedTheme === 'dark' ||
+          (savedTheme !== 'light' && systemPrefersDark);
+        document.documentElement.classList.add(dark ? 'dark' : 'light');
+      }
+    </script>
   </head>
 
   <body>

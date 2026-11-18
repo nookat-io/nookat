@@ -7,15 +7,16 @@ import {
   Theme,
   Language,
 } from '../types/config';
+import { errorMessage } from '../utils/error-message';
 
 export function useConfig() {
-  const [config, setConfig] = useState<AppConfig | null>(null);
-  const [loading, setLoading] = useState(true);
+  const configService = ConfigService.getInstance();
+  const [config, setConfig] = useState<AppConfig | null>(() =>
+    configService.getConfig()
+  );
+  const [loading, setLoading] = useState(config === null);
   const [error, setError] = useState<string | null>(null);
 
-  const configService = ConfigService.getInstance();
-
-  // Subscribe to config changes
   useEffect(() => {
     const unsubscribe = configService.subscribe(newConfig => {
       setConfig(newConfig);
@@ -23,12 +24,9 @@ export function useConfig() {
       setError(null);
     });
 
-    // Load config if not already loaded
     if (!config) {
       configService.loadConfig().catch(err => {
-        setError(
-          err instanceof Error ? err.message : 'Failed to load configuration'
-        );
+        setError(errorMessage(err, 'Failed to load configuration'));
         setLoading(false);
       });
     }
@@ -37,97 +35,37 @@ export function useConfig() {
   }, [configService, config]);
 
   const updateTheme = useCallback(
-    async (theme: Theme) => {
-      try {
-        setError(null);
-        await configService.updateTheme(theme);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to update theme');
-        throw err;
-      }
-    },
+    (theme: Theme) => configService.updateTheme(theme),
     [configService]
   );
 
   const updateLanguage = useCallback(
-    async (language: Language) => {
-      try {
-        setError(null);
-        await configService.updateLanguage(language);
-      } catch (err) {
-        setError(
-          err instanceof Error ? err.message : 'Failed to update language'
-        );
-        throw err;
-      }
-    },
+    (language: Language) => configService.updateLanguage(language),
     [configService]
   );
 
   const updateTelemetrySettings = useCallback(
-    async (settings: TelemetrySettings) => {
-      try {
-        setError(null);
-        await configService.updateTelemetrySettings(settings);
-      } catch (err) {
-        setError(
-          err instanceof Error
-            ? err.message
-            : 'Failed to update telemetry settings'
-        );
-        throw err;
-      }
-    },
+    (settings: TelemetrySettings) =>
+      configService.updateTelemetrySettings(settings),
     [configService]
   );
 
   const updateStartupSettings = useCallback(
-    async (settings: StartupSettings) => {
-      try {
-        setError(null);
-        await configService.updateStartupSettings(settings);
-      } catch (err) {
-        setError(
-          err instanceof Error
-            ? err.message
-            : 'Failed to update startup settings'
-        );
-        throw err;
-      }
-    },
+    (settings: StartupSettings) =>
+      configService.updateStartupSettings(settings),
     [configService]
   );
 
   const updateSidebarCollapsed = useCallback(
-    async (sidebar_collapsed: boolean) => {
-      try {
-        setError(null);
-        await configService.updateSidebarCollapsed(sidebar_collapsed);
-      } catch (err) {
-        setError(
-          err instanceof Error
-            ? err.message
-            : 'Failed to update sidebar collapsed state'
-        );
-        throw err;
-      }
-    },
+    (sidebarCollapsed: boolean) =>
+      configService.updateSidebarCollapsed(sidebarCollapsed),
     [configService]
   );
 
-  const updateLastUpdateCheck = useCallback(async () => {
-    try {
-      setError(null);
-      await configService.updateLastUpdateCheck();
-    } catch (err) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : 'Failed to update last update check'
-      );
-      throw err;
-    }
-  }, [configService]);
+  const updateLastUpdateCheck = useCallback(
+    () => configService.updateLastUpdateCheck(),
+    [configService]
+  );
 
   const reload = useCallback(async () => {
     try {
@@ -135,9 +73,7 @@ export function useConfig() {
       setError(null);
       await configService.refreshConfig();
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : 'Failed to reload configuration'
-      );
+      setError(errorMessage(err, 'Failed to reload configuration'));
     } finally {
       setLoading(false);
     }

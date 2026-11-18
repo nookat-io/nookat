@@ -2,15 +2,11 @@ name: '[CD] Release'
 
 on:
   workflow_dispatch:
-  # A release starts when its version tag is pushed, or created by publishing
-  # a GitHub release for a new tag. The tag must match the version in
-  # tauri.conf.json, see "Check the tag matches the version" below.
   push:
     tags:
       - 'v*'
 
 concurrency:
-  # This prevents concurrency
   group: release
   cancel-in-progress: true
 
@@ -19,7 +15,6 @@ permissions:
   packages: write
 
 jobs:
-  # Orchestrator job that coordinates the release process
   release-coordinator:
     runs-on: ubuntu-22.04
     outputs:
@@ -40,10 +35,6 @@ jobs:
           echo "Version: $VERSION"
           echo "Version Tag: $VERSION_TAG"
 
-      # The builds read the version from tauri.conf.json, not from the tag, and
-      # upload to the release named after that version. A tag on a commit whose
-      # version was not bumped would rebuild the previous version and overwrite
-      # the assets of its already published release.
       - name: Check the tag matches the version
         if: github.ref_type == 'tag'
         env:
@@ -60,7 +51,6 @@ jobs:
           echo "Preparing release ${{ steps.get-version.outputs.version-tag }}..."
           echo "Release coordination started at $(date)"
 
-  # macOS build job (ad-hoc signed, not notarized - see build-macos.yaml)
   build-macos:
     needs: release-coordinator
     uses: ./.github/workflows/build-macos.yaml
@@ -75,7 +65,6 @@ jobs:
       VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
       SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
 
-  # Windows build job
   build-windows:
     needs: release-coordinator
     uses: ./.github/workflows/build-windows.yaml
@@ -90,7 +79,6 @@ jobs:
       VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
       SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
 
-  # Linux build job
   build-linux:
     needs: release-coordinator
     uses: ./.github/workflows/build-linux.yaml
@@ -105,7 +93,6 @@ jobs:
       VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
       SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
 
-  # Final release coordination
   release-completion:
     needs: [release-coordinator, build-macos, build-windows, build-linux]
     runs-on: ubuntu-22.04

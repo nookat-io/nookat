@@ -88,7 +88,6 @@ export function PullImageTab({
         />
       </div>
 
-      {/* Selected Image Details Display */}
       {searchState.selectedImageDetails && (
         <ImageDetailsDisplay
           image={searchState.selectedImageDetails}

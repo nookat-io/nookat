@@ -28,15 +28,56 @@ pub struct IpamConfig {
     pub gateway: Option<String>,
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum NetworkDriver {
+    Bridge,
+    Macvlan,
+    Ipvlan,
+}
+
+impl NetworkDriver {
+    pub fn name(self) -> &'static str {
+        match self {
+            NetworkDriver::Bridge => "bridge",
+            NetworkDriver::Macvlan => "macvlan",
+            NetworkDriver::Ipvlan => "ipvlan",
+        }
+    }
+
+    pub fn attaches_to_a_parent_interface(self) -> bool {
+        matches!(self, NetworkDriver::Macvlan | NetworkDriver::Ipvlan)
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Default, PartialEq, Eq)]
+pub struct IpAddressing {
+    pub enabled: bool,
+    pub subnet: Option<String>,
+    pub gateway: Option<String>,
+    pub ip_range: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+pub struct NetworkLabel {
+    pub key: String,
+    pub value: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+pub struct NetworkCreateOptions {
+    pub name: String,
+    pub driver: NetworkDriver,
+    pub parent_interface: Option<String>,
+    pub internal: bool,
+    pub attachable: bool,
+    pub ipv4: IpAddressing,
+    pub ipv6: IpAddressing,
+    pub labels: Vec<NetworkLabel>,
+}
+
 impl Network {
-    /// Build a `Network` from the daemon's network listing.
-    ///
-    /// `attached_containers` has to be supplied by the caller because the Docker
-    /// API stopped returning a network's container map on the list endpoint - it
-    /// is only populated by an inspect with `verbose` set. The count is what the
-    /// UI uses to keep the Delete action disabled while a network is still in
-    /// use, so it is derived from the container listing instead.
-    pub fn from_summary(network: bollard::models::Network, attached_containers: i64) -> Self {
+    pub fn from_summary(network: bollard::models::Network, attached_container_count: i64) -> Self {
         let ipam_config = network.ipam.as_ref().and_then(|ipam| {
             ipam.config.as_ref().map(|configs| {
                 configs
@@ -62,7 +103,7 @@ impl Network {
             created: network.created,
             subnet: first_config.as_ref().and_then(|c| c.subnet.clone()),
             gateway: first_config.as_ref().and_then(|c| c.gateway.clone()),
-            containers: attached_containers,
+            containers: attached_container_count,
             internal: network.internal.unwrap_or(false),
             ipam: Ipam {
                 driver: network.ipam.as_ref().and_then(|i| i.driver.clone()),

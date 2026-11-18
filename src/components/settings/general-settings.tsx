@@ -1,5 +1,3 @@
-'use client';
-
 import { useState } from 'react';
 import {
   Card,
@@ -23,9 +21,15 @@ import {
 } from '../ui/select';
 import { useConfig } from '../../hooks/use-config';
 import { useUpdater } from '../../hooks/use-updater';
-import { Language } from '../../types/config';
+import { Language, TelemetrySettings } from '../../types/config';
 import { Download, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
+import { errorMessage } from '../../utils/error-message';
+
+const TELEMETRY_SETTING_NAMES: Record<keyof TelemetrySettings, string> = {
+  send_anonymous_usage_data: 'Anonymous usage statistics',
+  error_reporting: 'Crash reporting',
+};
 
 export function GeneralSettings() {
   const {
@@ -50,48 +54,25 @@ export function GeneralSettings() {
   } = useUpdater(config || undefined, updateLastUpdateCheck);
   const [saving, setSaving] = useState(false);
 
-  // Get current app version from environment
   const currentVersion = import.meta.env.VITE_APP_VERSION || 'unknown';
 
-  const languageOptions = [
-    { value: Language.English, label: 'English' },
-    // { value: Language.Russian, label: 'Русский' },
-  ];
+  const languageOptions = [{ value: Language.English, label: 'English' }];
 
   const handleTelemetryChange = async (
-    sendAnonymousUsageData: boolean,
-    errorReporting: boolean
+    key: keyof TelemetrySettings,
+    value: boolean
   ) => {
     if (!config) return;
 
     setSaving(true);
     try {
-      await updateTelemetrySettings({
-        send_anonymous_usage_data: sendAnonymousUsageData,
-        error_reporting: errorReporting,
-      });
+      await updateTelemetrySettings({ ...config.telemetry, [key]: value });
 
-      // Show success toast
-      const changes = [];
-      if (
-        sendAnonymousUsageData !== config.telemetry.send_anonymous_usage_data
-      ) {
-        changes.push(sendAnonymousUsageData ? 'enabled' : 'disabled');
-      }
-      if (errorReporting !== config.telemetry.error_reporting) {
-        changes.push(errorReporting ? 'enabled' : 'disabled');
-      }
-
-      if (changes.length > 0) {
-        toast.success(`Telemetry settings updated: ${changes.join(', ')}`);
-      }
+      const action = value ? 'enabled' : 'disabled';
+      toast.success(`${TELEMETRY_SETTING_NAMES[key]} ${action}`);
     } catch (error) {
       console.error('Failed to update telemetry settings:', error);
-      const errorMessage =
-        error instanceof Error
-          ? error.message
-          : 'Failed to update telemetry settings';
-      toast.error(errorMessage);
+      toast.error(errorMessage(error, 'Failed to update telemetry settings'));
     } finally {
       setSaving(false);
     }
@@ -108,7 +89,6 @@ export function GeneralSettings() {
       };
       await updateStartupSettings(updatedSettings);
 
-      // Show success toast with descriptive message
       const settingNames: Record<string, string> = {
         start_on_system_startup: 'Start on system boot',
         minimize_to_tray: 'Close to tray',
@@ -121,11 +101,7 @@ export function GeneralSettings() {
       toast.success(`${settingName} ${action}`);
     } catch (error) {
       console.error('Failed to update startup settings:', error);
-      const errorMessage =
-        error instanceof Error
-          ? error.message
-          : 'Failed to update startup settings';
-      toast.error(errorMessage);
+      toast.error(errorMessage(error, 'Failed to update startup settings'));
     } finally {
       setSaving(false);
     }
@@ -136,7 +112,6 @@ export function GeneralSettings() {
     try {
       await updateLanguage(language as Language);
 
-      // Show success toast
       const languageLabel =
         languageOptions.find(opt => opt.value === language)?.label || language;
       toast.success(
@@ -144,9 +119,7 @@ export function GeneralSettings() {
       );
     } catch (error) {
       console.error('Failed to update language:', error);
-      const errorMessage =
-        error instanceof Error ? error.message : 'Failed to update language';
-      toast.error(errorMessage);
+      toast.error(errorMessage(error, 'Failed to update language'));
     } finally {
       setSaving(false);
     }
@@ -209,7 +182,7 @@ export function GeneralSettings() {
               onValueChange={handleLanguageChange}
               disabled={saving}
             >
-              <SelectTrigger>
+              <SelectTrigger id="language-select">
                 <SelectValue placeholder="Select a language" />
               </SelectTrigger>
               <SelectContent>
@@ -247,7 +220,7 @@ export function GeneralSettings() {
               id="send-usage-stats"
               checked={config.telemetry.send_anonymous_usage_data}
               onCheckedChange={checked =>
-                handleTelemetryChange(checked, config.telemetry.error_reporting)
+                handleTelemetryChange('send_anonymous_usage_data', checked)
               }
               disabled={saving}
             />
@@ -263,10 +236,7 @@ export function GeneralSettings() {
               id="crash-reporting"
               checked={config.telemetry.error_reporting}
               onCheckedChange={checked =>
-                handleTelemetryChange(
-                  config.telemetry.send_anonymous_usage_data,
-                  checked
-                )
+                handleTelemetryChange('error_reporting', checked)
               }
               disabled={saving}
             />
@@ -378,7 +348,6 @@ export function GeneralSettings() {
                   <Badge variant="default">{currentUpdate.version}</Badge>
                 </div>
               )}
-              {/* Show download progress */}
               {isDownloading && progress && (
                 <div className="mt-2 space-y-2">
                   <div className="flex justify-between text-xs text-muted-foreground">
@@ -394,7 +363,6 @@ export function GeneralSettings() {
                   </div>
                 </div>
               )}
-              {/* Show installing state */}
               {isInstalling && (
                 <div className="mt-2 text-xs text-muted-foreground">
                   Installing update...

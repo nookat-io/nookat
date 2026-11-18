@@ -1,8 +1,8 @@
-'use client';
-
 import { Moon, Sun, Monitor } from 'lucide-react';
+import { toast } from 'sonner';
 import { useThemeContext } from '../../hooks/use-theme-context';
 import { Theme } from '../../types/config';
+import { errorMessage } from '../../utils/error-message';
 
 import { Button } from './button';
 import {
@@ -16,7 +16,12 @@ export function ThemeToggle() {
   const { updateTheme } = useThemeContext();
 
   const handleThemeChange = async (newTheme: Theme) => {
-    await updateTheme(newTheme);
+    try {
+      await updateTheme(newTheme);
+    } catch (error) {
+      console.error('Failed to change the theme:', error);
+      toast.error(`Failed to change the theme: ${errorMessage(error)}`);
+    }
   };
 
   return (

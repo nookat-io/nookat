@@ -10,6 +10,12 @@ import {
 } from './types';
 import { DEFAULT_PULL_DATA, DEFAULT_PROGRESS_STATE } from './utils';
 
+const SEARCH_DEBOUNCE_MS = 300;
+const MAX_SEARCH_RESULTS = 10;
+
+const officialFirstThenMostStarred = (a: DockerHubImage, b: DockerHubImage) =>
+  Number(b.is_official) - Number(a.is_official) || b.star_count - a.star_count;
+
 export function useModalState() {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -172,14 +178,9 @@ export function useDockerHubSearch() {
       const result = await searchDockerHub(query);
       const images = result.results || [];
 
-      // Sort: Official images first, then by star count (descending)
       const sortedImages = images
-        .sort((a: DockerHubImage, b: DockerHubImage) => {
-          if (a.is_official && !b.is_official) return -1;
-          if (!a.is_official && b.is_official) return 1;
-          return b.star_count - a.star_count;
-        })
-        .slice(0, 10); // Limit to 10 results
+        .sort(officialFirstThenMostStarred)
+        .slice(0, MAX_SEARCH_RESULTS);
 
       setSearchState(prev => ({
         ...prev,
@@ -202,15 +203,13 @@ export function useDockerHubSearch() {
     (query: string) => {
       setSearchState(prev => ({ ...prev, searchQuery: query }));
 
-      // Clear previous timeout
       if (searchTimeoutRef.current) {
         clearTimeout(searchTimeoutRef.current);
       }
 
-      // Set new timeout for search
       searchTimeoutRef.current = setTimeout(() => {
         performSearch(query);
-      }, 300);
+      }, SEARCH_DEBOUNCE_MS);
     },
     [performSearch]
   );
@@ -219,7 +218,7 @@ export function useDockerHubSearch() {
     setSearchState(prev => ({
       ...prev,
       selectedImageDetails: image,
-      searchQuery: image.name, // Update the search query to show the selected image name
+      searchQuery: image.name,
       searchResults: [],
       isSearchDropdownOpen: false,
       focusedSearchIndex: -1,
@@ -298,17 +297,13 @@ export function useDockerHubSearch() {
     }));
   }, []);
 
-  // Handle click outside search dropdown
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (
         searchContainerRef.current &&
         !searchContainerRef.current.contains(event.target as Node)
       ) {
-        // Add a small delay to ensure onClick events on dropdown items can execute
-        setTimeout(() => {
-          closeDropdown();
-        }, 100);
+        closeDropdown();
       }
     };
 
@@ -316,7 +311,6 @@ export function useDockerHubSearch() {
     return () => document.removeEventListener('click', handleClickOutside);
   }, [closeDropdown]);
 
-  // Cleanup timeout on unmount
   useEffect(() => {
     return () => {
       if (searchTimeoutRef.current) {

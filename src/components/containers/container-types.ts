@@ -1,4 +1,3 @@
-// Port type enum matching backend
 export enum PortTypeEnum {
   Empty = '',
   Tcp = 'tcp',
@@ -6,7 +5,6 @@ export enum PortTypeEnum {
   Sctp = 'sctp',
 }
 
-// Port interface matching backend
 export interface Port {
   ip?: string;
   private_port: number;
@@ -14,7 +12,6 @@ export interface Port {
   port_type?: PortTypeEnum;
 }
 
-// Container state enum matching backend
 export enum ContainerState {
   Empty = '',
   Created = 'created',
@@ -27,7 +24,6 @@ export enum ContainerState {
   Stopping = 'stopping',
 }
 
-// Mount point type enum matching backend
 export enum MountPointType {
   Empty = '',
   Bind = 'bind',
@@ -38,28 +34,6 @@ export enum MountPointType {
   Cluster = 'cluster',
 }
 
-// Mount tmpfs options matching backend
-export interface MountTmpfsOptions {
-  size_bytes?: number;
-  mode?: number;
-  options?: string[][];
-}
-
-// Mount volume options driver config matching backend
-export interface MountVolumeOptionsDriverConfig {
-  name?: string;
-  options?: Record<string, string>;
-}
-
-// Mount volume options matching backend
-export interface MountVolumeOptions {
-  no_copy?: boolean;
-  labels?: Record<string, string>;
-  driver_config?: MountVolumeOptionsDriverConfig;
-  subpath?: string;
-}
-
-// Mount point interface matching backend
 export interface MountPoint {
   mount_type?: MountPointType;
   name?: string;
@@ -69,24 +43,19 @@ export interface MountPoint {
   mode?: string;
   rw?: boolean;
   propagation?: string;
-  tmpfs_options?: MountTmpfsOptions;
-  volume_options?: MountVolumeOptions;
 }
 
-// Container host config matching backend
 export interface ContainerHostConfig {
   network_mode?: string;
   annotations?: Record<string, string>;
 }
 
-// Endpoint IPAM config matching backend
 export interface EndpointIpamConfig {
   ipv4_address?: string;
   ipv6_address?: string;
   link_local_ips?: string[];
 }
 
-// Endpoint settings matching backend
 export interface EndpointSettings {
   ipam_config?: EndpointIpamConfig;
   ipv4_address?: string;
@@ -105,12 +74,10 @@ export interface EndpointSettings {
   driver_opts?: Record<string, string>;
 }
 
-// Container network settings matching backend
 export interface ContainerNetworkSettings {
   networks?: Record<string, EndpointSettings>;
 }
 
-// Container interface matching backend
 export interface Container {
   id: string;
   names?: string[];
