@@ -74,6 +74,7 @@ jobs:
         with:
           workspaces: src-tauri -> target
           save-if: ${{ github.event_name != 'pull_request' }}
+          cache-on-failure: true
 
       - name: Run pre-commit on all files
         env:
