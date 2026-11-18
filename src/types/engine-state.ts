@@ -3,7 +3,6 @@ import { Image } from '../components/images/image-types';
 import { Network } from '../components/networks/network-types';
 import { Volume } from '../components/volumes/volume-types';
 import { EngineStatus } from './engine-status';
-import { DockerInfo } from './docker-info';
 import { IsoDateString } from './iso-date-string';
 
 export type SnapshotSequenceNumber = number;
@@ -14,7 +13,6 @@ export interface EngineState {
   volumes: Record<string, Volume>;
   networks: Record<string, Network>;
   engine_status: EngineStatus;
-  docker_info: DockerInfo | null;
   version: SnapshotSequenceNumber;
   last_updated: IsoDateString;
 }
