@@ -1,28 +1,35 @@
 use crate::entities::{Image, PruneResult};
 use bollard::models::ImageSummary;
 use bollard::query_parameters::{
-    CreateImageOptions, ListContainersOptions, ListImagesOptions, RemoveImageOptions,
+    CreateImageOptions, ListContainersOptions, ListImagesOptions, PruneImagesOptions,
+    RemoveImageOptions,
 };
 use bollard::Docker;
+use futures_util::StreamExt;
+use serde_json::Value;
 use std::collections::{HashMap, HashSet};
+use std::time::Duration;
 use tracing::{debug, instrument};
+
+const DOCKER_HUB_REGISTRY: &str = "docker.io";
+const DOCKER_HUB_SEARCH_URL: &str = "https://hub.docker.com/v2/search/repositories/";
+const DOCKER_HUB_SEARCH_PAGE_SIZE: &str = "25";
+const DOCKER_HUB_TIMEOUT: Duration = Duration::from_secs(15);
+const DOCKER_HUB_USER_AGENT: &str = "Nookat/1.0";
 
 #[derive(Default, Debug)]
 pub struct ImagesService {}
 
 impl ImagesService {
-    /// Helper function to get all images and containers with used image IDs
     async fn get_images_and_used_ids(
         docker: &Docker,
     ) -> Result<(Vec<ImageSummary>, HashSet<String>), String> {
-        // Get all images
         let image_options = ListImagesOptions::default();
         let images = docker
             .list_images(Some(image_options))
             .await
             .map_err(|e| format!("Failed to list images: {}", e))?;
 
-        // Get all containers to check which images are in use
         let container_options = ListContainersOptions {
             all: true,
             ..Default::default()
@@ -32,7 +39,6 @@ impl ImagesService {
             .await
             .map_err(|e| format!("Failed to list containers: {}", e))?;
 
-        // Create a set of image IDs that are currently in use
         let used_image_ids: HashSet<String> = containers
             .iter()
             .filter_map(|container| container.image_id.clone())
@@ -55,22 +61,11 @@ impl ImagesService {
 
     #[instrument(skip_all, err)]
     pub async fn perform_prune(docker: &Docker) -> Result<PruneResult, String> {
-        // By default Docker only prunes dangling (untagged) images.
-        // We want to prune ALL unused images (equivalent to `docker image prune -a`).
-        // Docker API achieves this by setting filter dangling=false.
-        let mut filters: HashMap<String, Vec<String>> = HashMap::new();
-        filters.insert("dangling".to_string(), vec!["false".to_string()]);
-
-        let options = bollard::query_parameters::PruneImagesOptions {
-            filters: Some(filters),
-        };
-
         let result = docker
-            .prune_images(Some(options))
+            .prune_images(Some(every_unused_image()))
             .await
             .map_err(|e| format!("Failed to prune images: {}", e))?;
 
-        // Convert ImageDeleteResponseItem to String
         let images_deleted = result
             .images_deleted
             .unwrap_or_default()
@@ -115,24 +110,9 @@ impl ImagesService {
             image_name, tag, registry
         );
 
-        // Construct the full image name with tag
-        let full_image_name = if registry != "docker.io" {
-            format!("{}/{}:{}", registry, image_name, tag)
-        } else {
-            format!("{}:{}", image_name, tag)
-        };
-
+        let full_image_name = full_image_reference(image_name, tag, registry);
         debug!("Full image name for pull: {}", full_image_name);
 
-        // Create options for pulling the image
-        let options = CreateImageOptions {
-            from_image: Some(full_image_name.clone()),
-            ..Default::default()
-        };
-
-        debug!("Pull options: {:?}", options);
-
-        // Test Docker connectivity first
         if let Err(e) = docker.ping().await {
             return Err(format!(
                 "Docker connection failed: {}. Please ensure Docker is running and accessible.",
@@ -140,97 +120,29 @@ impl ImagesService {
             ));
         }
 
-        debug!("Docker connection successful, attempting to pull image");
+        let options = CreateImageOptions {
+            from_image: Some(full_image_name.clone()),
+            ..Default::default()
+        };
+        let mut pull_progress = docker.create_image(Some(options), None, None);
 
-        // Pull the image using create_image (which is the correct API for pulling)
-        let mut stream = docker.create_image(Some(options), None, None);
-
-        use futures_util::StreamExt;
-
-        let mut has_success = false;
-        let mut last_error = None;
-        let mut response_count = 0;
-
-        while let Some(create_result) = stream.next().await {
-            response_count += 1;
-            debug!("Received response {}: {:?}", response_count, create_result);
-
-            match create_result {
-                Ok(create_info) => {
-                    debug!("Pull response: {:?}", create_info);
-
-                    if let Some(status) = create_info.status {
-                        debug!("Pull status: {}", status);
-                        if status.contains("Download complete")
-                            || status.contains("Pull complete")
-                            || status.contains("Status: Downloaded newer image")
-                        {
-                            has_success = true;
-                        }
-                    }
-
-                    if let Some(id) = create_info.id {
-                        debug!("Created image with ID: {}", id);
-                        has_success = true;
-                    }
-
-                    // bollard now surfaces pull failures through `errorDetail` rather
-                    // than a flat `error` string.
-                    if let Some(error) = create_info.error_detail.and_then(|detail| detail.message)
-                    {
-                        debug!("Pull error: {}", error);
-                        last_error = Some(error);
-                    }
-                }
-                Err(e) => {
-                    debug!("Pull stream error: {}", e);
-                    last_error = Some(e.to_string());
-                }
-            }
+        while let Some(progress) = pull_progress.next().await {
+            let progress =
+                progress.map_err(|e| format!("Failed to pull image {}: {}", full_image_name, e))?;
+            debug!("Pull progress: {:?}", progress);
         }
 
-        debug!(
-            "Stream completed. Response count: {}, Has success: {}",
-            response_count, has_success
-        );
-
-        if has_success {
-            debug!("Successfully pulled image: {}", full_image_name);
-            Ok(())
-        } else if let Some(error) = last_error {
-            Err(format!(
-                "Failed to pull image {}: {}",
-                full_image_name, error
-            ))
-        } else if response_count == 0 {
-            Err(format!("Failed to pull image {}: No response from Docker. This might indicate a network issue or the image doesn't exist.", full_image_name))
-        } else {
-            Err(format!("Failed to pull image {}: Pull operation completed but no success indicators were found ({} responses received). The image might already exist or there was an issue during the pull process.", full_image_name, response_count))
-        }
+        debug!("Successfully pulled image: {}", full_image_name);
+        Ok(())
     }
 
     #[instrument(skip_all, err)]
-    pub async fn search_docker_hub(query: &str) -> Result<serde_json::Value, String> {
+    pub async fn search_docker_hub(query: &str) -> Result<Value, String> {
         debug!("Searching Docker Hub for: {}", query);
 
-        // Create reqwest client with timeout to avoid hanging
-        let client = reqwest::Client::builder()
-            .timeout(std::time::Duration::from_secs(15))
-            .build()
-            .map_err(|e| format!("Failed to create HTTP client: {}", e))?;
-
-        // Use Docker Hub v2 search endpoint with page_size and proper URL encoding
-        let url = format!(
-            "https://hub.docker.com/v2/search/repositories/?query={}&page_size=25",
-            query
-                .replace(' ', "%20")
-                .replace('&', "%26")
-                .replace('?', "%3F")
-        );
-
-        let response = client
-            .get(&url)
-            .header("User-Agent", "Nookat/1.0")
+        let response = docker_hub_client()?
+            .get(DOCKER_HUB_SEARCH_URL)
+            .query(&[("query", query), ("page_size", DOCKER_HUB_SEARCH_PAGE_SIZE)])
             .send()
             .await
             .map_err(|e| format!("Failed to search Docker Hub v2 API: {}", e))?;
@@ -243,93 +155,38 @@ impl ImagesService {
         }
 
         let raw = response
-            .json::<serde_json::Value>()
+            .json::<Value>()
             .await
             .map_err(|e| format!("Failed to parse Docker Hub v2 response: {}", e))?;
 
-        // Normalize Docker Hub v2 search response to { results: DockerHubImage[] }
-        // Expected fields in frontend: name, description, star_count, pull_count, is_official, is_automated
-        let mut normalized_results: Vec<serde_json::Value> = Vec::new();
-        if let Some(items) = raw.get("results").and_then(|v| v.as_array()) {
-            for item in items {
-                let name = item
-                    .get("repo_name")
-                    .and_then(|v| v.as_str())
-                    .or_else(|| item.get("name").and_then(|v| v.as_str()))
-                    .or_else(|| item.get("slug").and_then(|v| v.as_str()))
-                    .unwrap_or("")
-                    .to_string();
+        let results: Vec<Value> = raw
+            .get("results")
+            .and_then(Value::as_array)
+            .into_iter()
+            .flatten()
+            .filter_map(to_search_result)
+            .collect();
 
-                let description = item
-                    .get("short_description")
-                    .and_then(|v| v.as_str())
-                    .or_else(|| item.get("description").and_then(|v| v.as_str()))
-                    .unwrap_or("")
-                    .to_string();
-
-                let star_count =
-                    item.get("star_count").and_then(|v| v.as_u64()).unwrap_or(0) as i64;
-
-                let pull_count =
-                    item.get("pull_count").and_then(|v| v.as_u64()).unwrap_or(0) as i64;
-
-                let is_official = item
-                    .get("is_official")
-                    .and_then(|v| v.as_bool())
-                    .unwrap_or(false);
-
-                let is_automated = item
-                    .get("is_automated")
-                    .and_then(|v| v.as_bool())
-                    .unwrap_or(false);
-
-                // Only include entries that have a non-empty name
-                if !name.is_empty() {
-                    normalized_results.push(serde_json::json!({
-                        "name": name,
-                        "description": description,
-                        "star_count": star_count,
-                        "pull_count": pull_count,
-                        "is_official": is_official,
-                        "is_automated": is_automated,
-                    }));
-                }
-            }
-        }
-
-        Ok(serde_json::json!({ "results": normalized_results }))
+        Ok(serde_json::json!({ "results": results }))
     }
 
     #[instrument(skip_all, err)]
     pub async fn fetch_image_tags(image_name: &str) -> Result<Vec<String>, String> {
         debug!("Fetching tags for image: {}", image_name);
 
-        // Ensure image_name uses the namespace form by prefixing "library/" when there is no namespace
-        let namespace_image = if image_name.contains('/') {
-            image_name.to_string()
-        } else {
-            format!("library/{}", image_name)
-        };
-
-        // Create reqwest client with timeout to avoid hanging
-        let client = reqwest::Client::builder()
-            .timeout(std::time::Duration::from_secs(15))
-            .build()
-            .map_err(|e| format!("Failed to create HTTP client: {}", e))?;
+        let client = docker_hub_client()?;
 
         let mut all_tags = Vec::new();
-        let mut next_url = Some(format!(
+        let mut next_page_url = Some(format!(
             "https://registry.hub.docker.com/v2/repositories/{}/tags?page_size=100",
-            namespace_image
+            docker_hub_repository(image_name)
         ));
 
-        // Handle pagination by looping through all pages
-        while let Some(url) = next_url {
+        while let Some(url) = next_page_url {
             debug!("Fetching tags from: {}", url);
 
             let response = client
                 .get(&url)
-                .header("User-Agent", "Nookat/1.0")
                 .send()
                 .await
                 .map_err(|e| format!("Failed to fetch tags for {}: {}", image_name, e))?;
@@ -342,24 +199,21 @@ impl ImagesService {
                 ));
             }
 
-            let result = response
-                .json::<serde_json::Value>()
+            let page = response
+                .json::<Value>()
                 .await
                 .map_err(|e| format!("Failed to parse Docker Hub tags response: {}", e))?;
 
-            // Extract tag names from the current page
-            if let Some(results) = result.get("results").and_then(|r| r.as_array()) {
-                let page_tags: Vec<String> = results
-                    .iter()
-                    .filter_map(|tag| tag.get("name").and_then(|name| name.as_str()))
-                    .map(|name| name.to_string())
-                    .collect();
-
-                all_tags.extend(page_tags);
+            if let Some(results) = page.get("results").and_then(|r| r.as_array()) {
+                all_tags.extend(
+                    results
+                        .iter()
+                        .filter_map(|tag| tag.get("name").and_then(|name| name.as_str()))
+                        .map(|name| name.to_string()),
+                );
             }
 
-            // Check for next page URL
-            next_url = result
+            next_page_url = page
                 .get("next")
                 .and_then(|next| next.as_str())
                 .map(|s| s.to_string());
@@ -368,6 +222,63 @@ impl ImagesService {
         debug!("Found {} tags for image: {}", all_tags.len(), image_name);
         Ok(all_tags)
     }
+}
+
+fn every_unused_image() -> PruneImagesOptions {
+    PruneImagesOptions {
+        filters: Some(HashMap::from([(
+            "dangling".to_string(),
+            vec!["false".to_string()],
+        )])),
+    }
+}
+
+fn full_image_reference(image_name: &str, tag: &str, registry: &str) -> String {
+    if registry == DOCKER_HUB_REGISTRY {
+        format!("{}:{}", image_name, tag)
+    } else {
+        format!("{}/{}:{}", registry, image_name, tag)
+    }
+}
+
+fn docker_hub_client() -> Result<reqwest::Client, String> {
+    reqwest::Client::builder()
+        .timeout(DOCKER_HUB_TIMEOUT)
+        .user_agent(DOCKER_HUB_USER_AGENT)
+        .build()
+        .map_err(|e| format!("Failed to create HTTP client: {}", e))
+}
+
+fn docker_hub_repository(image_name: &str) -> String {
+    if image_name.contains('/') {
+        image_name.to_string()
+    } else {
+        format!("library/{}", image_name)
+    }
+}
+
+fn to_search_result(item: &Value) -> Option<Value> {
+    let text = |field: &str| item.get(field).and_then(Value::as_str);
+    let count = |field: &str| item.get(field).and_then(Value::as_u64).unwrap_or(0) as i64;
+    let flag = |field: &str| item.get(field).and_then(Value::as_bool).unwrap_or(false);
+
+    let name = text("repo_name")
+        .or_else(|| text("name"))
+        .or_else(|| text("slug"))
+        .filter(|name| !name.is_empty())?;
+
+    let description = text("short_description")
+        .or_else(|| text("description"))
+        .unwrap_or("");
+
+    Some(serde_json::json!({
+        "name": name,
+        "description": description,
+        "star_count": count("star_count"),
+        "pull_count": count("pull_count"),
+        "is_official": flag("is_official"),
+        "is_automated": flag("is_automated"),
+    }))
 }
 
 const UNTAGGED_REFERENCE: &str = "<none>:<none>";
@@ -419,8 +330,12 @@ fn untagged_repository(summary: &ImageSummary) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{split_reference, to_image};
+    use super::{
+        docker_hub_repository, every_unused_image, full_image_reference, split_reference, to_image,
+        to_search_result,
+    };
     use bollard::models::ImageSummary;
+    use serde_json::json;
     use std::collections::HashSet;
 
     fn summary(id: &str, repo_tags: &[&str]) -> ImageSummary {
@@ -531,5 +446,53 @@ mod tests {
 
         assert!(image.in_use);
         assert!(image.dangling);
+    }
+
+    #[test]
+    fn prune_removes_tagged_unused_images_too_not_only_dangling_ones() {
+        let filters = every_unused_image().filters.expect("prune filters");
+
+        assert_eq!(filters.get("dangling"), Some(&vec!["false".to_string()]));
+    }
+
+    #[test]
+    fn a_docker_hub_pull_omits_the_registry_and_others_keep_it() {
+        assert_eq!(
+            full_image_reference("nginx", "1.27", "docker.io"),
+            "nginx:1.27"
+        );
+        assert_eq!(
+            full_image_reference("org/app", "latest", "ghcr.io"),
+            "ghcr.io/org/app:latest"
+        );
+    }
+
+    #[test]
+    fn an_official_image_lives_in_the_library_namespace() {
+        assert_eq!(docker_hub_repository("nginx"), "library/nginx");
+        assert_eq!(docker_hub_repository("bitnami/redis"), "bitnami/redis");
+    }
+
+    #[test]
+    fn a_search_result_falls_back_through_the_name_fields_and_defaults_the_rest() {
+        let result = to_search_result(&json!({ "slug": "org/app", "description": "An app" }));
+
+        assert_eq!(
+            result,
+            Some(json!({
+                "name": "org/app",
+                "description": "An app",
+                "star_count": 0,
+                "pull_count": 0,
+                "is_official": false,
+                "is_automated": false,
+            }))
+        );
+    }
+
+    #[test]
+    fn a_search_result_without_a_name_is_dropped() {
+        assert_eq!(to_search_result(&json!({ "repo_name": "" })), None);
+        assert_eq!(to_search_result(&json!({ "star_count": 3 })), None);
     }
 }
