@@ -72,10 +72,18 @@ pub enum ColimaPerformanceWarning {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub struct DockerCliContext {
+    pub name: String,
+    pub host: Option<String>,
+    pub uses_colima: bool,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct ColimaVm {
     pub profile: ColimaProfile,
     pub host: ColimaHost,
     pub warnings: Vec<ColimaPerformanceWarning>,
+    pub docker_context: Option<DockerCliContext>,
 }
 
 #[cfg(test)]
@@ -139,6 +147,11 @@ mod tests {
                 ColimaPerformanceWarning::FewCpus { cpus: 2 },
                 ColimaPerformanceWarning::RosettaOff,
             ],
+            docker_context: Some(DockerCliContext {
+                name: "orbstack".to_string(),
+                host: Some("unix:///Users/me/.orbstack/run/docker.sock".to_string()),
+                uses_colima: false,
+            }),
         };
 
         assert_eq!(
@@ -166,7 +179,12 @@ mod tests {
                 "warnings": [
                     { "kind": "FewCpus", "cpus": 2 },
                     { "kind": "RosettaOff" }
-                ]
+                ],
+                "docker_context": {
+                    "name": "orbstack",
+                    "host": "unix:///Users/me/.orbstack/run/docker.sock",
+                    "uses_colima": false
+                }
             })
         );
     }

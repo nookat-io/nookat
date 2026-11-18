@@ -3,7 +3,11 @@ import { emit } from '@tauri-apps/api/event';
 import { mockIPC } from '@tauri-apps/api/mocks';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { EngineStatus } from '../../../../types/engine-status';
-import { ColimaEngineStopProgressType, ColimaVm } from '../types';
+import {
+  BinaryInstallPlan,
+  ColimaEngineStopProgressType,
+  ColimaVm,
+} from '../types';
 import { useEngineSettingsState } from './use-engine-settings-state';
 
 const RUNNING: EngineStatus = { Running: 'Docker' };
@@ -43,7 +47,16 @@ const stoppedProfile = (cpus = 8): ColimaVm => ({
     supports_vz: true,
   },
   warnings: [],
+  docker_context: null,
 });
+
+const PLAN: BinaryInstallPlan = {
+  install_dir: '/Users/me/.nookat/engine',
+  bin_dir: '/Users/me/.nookat/engine/bin',
+  components: [{ name: 'Colima', version: '0.10.3' }],
+  download_bytes: 15_656_320,
+  installed_bytes: 15_656_320,
+};
 
 interface Backend {
   colimaSupported?: () => Promise<boolean>;
@@ -53,6 +66,7 @@ interface Backend {
   installColima?: () => Promise<null>;
   startEngine?: () => Promise<null>;
   dockerInfo?: () => Promise<unknown>;
+  switchDockerContext?: () => Promise<null>;
 }
 
 function mockBackend({
@@ -63,9 +77,11 @@ function mockBackend({
   installColima = async () => null,
   startEngine = async () => null,
   dockerInfo = async () => ({ server_version: '28.0.0' }),
+  switchDockerContext = async () => null,
 }: Backend = {}) {
   const calls: string[] = [];
   const startRequests: unknown[] = [];
+  const installRequests: unknown[] = [];
   mockIPC(
     (cmd, args) => {
       calls.push(cmd);
@@ -79,7 +95,12 @@ function mockBackend({
         case 'get_docker_info':
           return dockerInfo();
         case 'install_colima_command':
+          installRequests.push(args);
           return installColima();
+        case 'get_binary_install_plan':
+          return PLAN;
+        case 'use_colima_docker_context_command':
+          return switchDockerContext();
         case 'get_colima_vm':
           return colimaVm();
         case 'start_colima_vm_command':
@@ -96,6 +117,7 @@ function mockBackend({
   return {
     count: (cmd: string) => calls.filter(call => call === cmd).length,
     startRequests,
+    installRequests,
   };
 }
 
@@ -412,5 +434,98 @@ describe('useEngineSettingsState', () => {
     );
     expect(state().changes).toEqual({});
     expect(backend.count('get_colima_vm')).toBe(2);
+  });
+
+  it('describes the binary installation while Colima is not installed', async () => {
+    mockBackend({ homebrewAvailable: false, colimaAvailable: false });
+    const { state } = renderEngineSettings();
+
+    await waitFor(() => expect(state().binaryInstallPlan).toEqual(PLAN));
+    expect(state().method).toBe('binary');
+  });
+
+  it('does not describe the binary installation once Colima is installed', async () => {
+    const backend = mockBackend();
+    const { state } = renderEngineSettings();
+
+    await waitFor(() => expect(state().colimaVm).not.toBeNull());
+
+    expect(backend.count('get_binary_install_plan')).toBe(0);
+  });
+
+  it('installs with the binary method', async () => {
+    const backend = mockBackend({
+      homebrewAvailable: false,
+      colimaAvailable: false,
+    });
+    const { state, actions } = renderEngineSettings();
+    await waitFor(() => expect(state().binaryInstallPlan).not.toBeNull());
+
+    await act(() => actions().handleInstall());
+
+    expect(backend.installRequests).toEqual([{ method: 'Binary' }]);
+  });
+
+  it('offers to start the engine once the installation completes', async () => {
+    const backend = mockBackend({
+      homebrewAvailable: false,
+      colimaAvailable: false,
+    });
+    const { state, actions } = renderEngineSettings();
+    await waitFor(() => expect(state().binaryInstallPlan).not.toBeNull());
+    await act(() => actions().handleInstall());
+    await act(flushPromises);
+
+    await act(() => emit('installation-complete'));
+
+    expect(state().startPromptOpen).toBe(true);
+    expect(state().colimaAvailable).toBe(true);
+
+    await act(() => actions().startEngineFromPrompt());
+
+    expect(state().startPromptOpen).toBe(false);
+    expect(backend.startRequests).toEqual([{ changes: {} }]);
+  });
+
+  it('closes the start prompt without starting when the user declines', async () => {
+    const backend = mockBackend({ colimaAvailable: false });
+    const { state, actions } = renderEngineSettings();
+    await waitFor(() => expect(state().binaryInstallPlan).not.toBeNull());
+    await act(() => actions().handleInstall());
+    await act(flushPromises);
+    await act(() => emit('installation-complete'));
+
+    act(() => actions().dismissStartPrompt());
+
+    expect(state().startPromptOpen).toBe(false);
+    expect(backend.startRequests).toEqual([]);
+  });
+
+  it('switches docker to Colima and reads the context again', async () => {
+    const backend = mockBackend();
+    const { state, actions } = renderEngineSettings();
+    await waitFor(() => expect(state().colimaVm).not.toBeNull());
+
+    await act(() => actions().switchDockerToColima());
+
+    expect(backend.count('use_colima_docker_context_command')).toBe(1);
+    expect(backend.count('get_colima_vm')).toBe(2);
+    expect(state().isSwitchingDockerContext).toBe(false);
+    expect(state().dockerContextError).toBeNull();
+  });
+
+  it('explains why docker could not be switched to Colima', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    mockBackend({
+      switchDockerContext: () =>
+        Promise.reject('context "colima" does not exist'),
+    });
+    const { state, actions } = renderEngineSettings();
+    await waitFor(() => expect(state().colimaVm).not.toBeNull());
+
+    await act(() => actions().switchDockerToColima());
+
+    expect(state().dockerContextError).toBe('context "colima" does not exist');
+    expect(state().isSwitchingDockerContext).toBe(false);
   });
 });

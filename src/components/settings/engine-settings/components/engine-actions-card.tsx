@@ -3,6 +3,7 @@ import { Button } from '../../../ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../../../ui/card';
 import { OctagonX, Play, AlertTriangle } from 'lucide-react';
 import {
+  DockerCliContext,
   InstallationOperation,
   InstallationStep,
   InstallationProgress as InstallationProgressType,
@@ -10,6 +11,7 @@ import {
   StopStep,
 } from '../types';
 import { InstallationProgress } from './installation-progress';
+import { DockerContextNotice } from './docker-context-notice';
 import { ConfirmDialog } from '../../../common/ConfirmDialog';
 import { Dialog, DialogTrigger } from '../../../ui/dialog';
 
@@ -25,6 +27,10 @@ interface EngineActionsCardProps {
   onRetry?: () => void;
   onStartEngine: () => void;
   onStopEngine: () => void;
+  dockerContext: DockerCliContext | null;
+  isSwitchingDockerContext: boolean;
+  dockerContextError: string | null;
+  onSwitchDockerToColima: () => void;
 }
 
 export function EngineActionsCard({
@@ -39,6 +45,10 @@ export function EngineActionsCard({
   onRetry,
   onStartEngine,
   onStopEngine,
+  dockerContext,
+  isSwitchingDockerContext,
+  dockerContextError,
+  onSwitchDockerToColima,
 }: EngineActionsCardProps) {
   const [isStopDialogOpen, setIsStopDialogOpen] = useState(false);
   const isStopping = stopStep === 'stopping-vm';
@@ -95,6 +105,15 @@ export function EngineActionsCard({
               ✓ Engine is running and ready to use
             </p>
           </div>
+        )}
+
+        {isEngineRunning && dockerContext && (
+          <DockerContextNotice
+            context={dockerContext}
+            isSwitching={isSwitchingDockerContext}
+            error={dockerContextError}
+            onSwitchToColima={onSwitchDockerToColima}
+          />
         )}
 
         {isEngineRunning && (

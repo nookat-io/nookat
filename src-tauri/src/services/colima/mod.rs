@@ -1,12 +1,16 @@
 mod defaults;
+mod docker_context;
 mod host;
 mod profile;
+mod readiness;
 mod start_args;
 mod warnings;
 
 pub use defaults::*;
+pub use docker_context::*;
 pub use host::*;
 pub use profile::*;
+pub use readiness::*;
 pub use start_args::*;
 pub use warnings::*;
 

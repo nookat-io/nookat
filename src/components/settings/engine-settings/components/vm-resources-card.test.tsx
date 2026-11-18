@@ -34,6 +34,7 @@ function colimaVm(
       supports_vz: true,
     },
     warnings,
+    docker_context: null,
   };
 }
 

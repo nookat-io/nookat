@@ -11,7 +11,7 @@ use std::future::Future;
 use std::sync::Arc;
 use std::time::Duration;
 use tauri::Emitter;
-use tokio::sync::{Mutex, MutexGuard};
+use tokio::sync::{futures::Notified, Mutex, MutexGuard};
 use tokio::task::JoinError;
 use tracing::{debug, error, info, warn};
 
@@ -139,6 +139,7 @@ impl EngineStateMonitor {
                 break;
             }
 
+            let connection_forgotten = state.connection_forgotten();
             match state.get_engine().await {
                 Ok(engine) => {
                     if let Some(docker) = &engine.docker {
@@ -146,6 +147,7 @@ impl EngineStateMonitor {
 
                         if let Err(e) = Self::monitor_docker_events(
                             docker,
+                            connection_forgotten,
                             &state,
                             &last_published,
                             &app_handle,
@@ -201,19 +203,26 @@ impl EngineStateMonitor {
 
     async fn monitor_docker_events(
         docker: &Docker,
+        connection_forgotten: Notified<'_>,
         state: &Arc<SharedEngineState>,
         last_published: &Arc<Mutex<Option<EngineState>>>,
         app_handle: &tauri::AppHandle,
     ) -> MonitorResult<()> {
         let events = docker.events(Some(EventsOptions::default()));
-
-        follow_events_until_the_stream_breaks(events, move || async move {
+        let follow_events = follow_events_until_the_stream_breaks(events, move || async move {
             debug!("Docker event received, broadcasting state update");
             if let Err(e) = Self::publish_if_changed(state, last_published, app_handle).await {
                 error!("Failed to broadcast updated state: {}", e);
             }
-        })
-        .await
+        });
+
+        tokio::select! {
+            _ = connection_forgotten => {
+                debug!("The engine connection was forgotten, following the new engine's events");
+                Ok(())
+            }
+            followed = follow_events => followed,
+        }
     }
 
     pub async fn publish_current_state(&self) -> MonitorResult<EngineState> {

@@ -9,6 +9,8 @@ use std::path::{Path, PathBuf};
 pub const PROFILE_ENV_VAR: &str = "COLIMA_PROFILE";
 const DEFAULT_PROFILE: &str = "default";
 const PROFILE_CONFIG_FILE: &str = "colima.yaml";
+const DOCKER_SOCKET_FILE: &str = "docker.sock";
+const DEFAULT_PROFILE_DOCKER_CONTEXT: &str = "colima";
 
 pub fn colima_profile_name(requested: Option<&str>) -> String {
     match requested {
@@ -42,6 +44,17 @@ pub fn colima_home(
 
 pub fn profile_config_path(colima_home: &Path, profile: &str) -> PathBuf {
     colima_home.join(profile).join(PROFILE_CONFIG_FILE)
+}
+
+pub fn colima_docker_socket(colima_home: &Path, profile: &str) -> PathBuf {
+    colima_home.join(profile).join(DOCKER_SOCKET_FILE)
+}
+
+pub fn colima_docker_context_name(profile: &str) -> String {
+    match profile {
+        DEFAULT_PROFILE => DEFAULT_PROFILE_DOCKER_CONTEXT.to_string(),
+        name => format!("{DEFAULT_PROFILE_DOCKER_CONTEXT}-{name}"),
+    }
 }
 
 #[derive(Deserialize, Debug, Default, Clone, PartialEq)]
@@ -253,6 +266,23 @@ mod tests {
         assert_eq!(
             profile_config_path(Path::new("/Users/me/.colima"), "nookat-e2e"),
             PathBuf::from("/Users/me/.colima/nookat-e2e/colima.yaml")
+        );
+    }
+
+    #[test]
+    fn the_docker_socket_sits_next_to_the_profile_config() {
+        assert_eq!(
+            colima_docker_socket(Path::new("/Users/me/.colima"), "nookat-e2e"),
+            PathBuf::from("/Users/me/.colima/nookat-e2e/docker.sock")
+        );
+    }
+
+    #[test]
+    fn names_the_docker_context_the_way_colima_creates_it() {
+        assert_eq!(colima_docker_context_name("default"), "colima");
+        assert_eq!(
+            colima_docker_context_name("nookat-e2e"),
+            "colima-nookat-e2e"
         );
     }
 
