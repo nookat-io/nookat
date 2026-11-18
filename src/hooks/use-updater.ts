@@ -46,25 +46,24 @@ export const useUpdater = (
       startCheck(async () => {
         try {
           const update = await check();
-          setError(null);
+          startCheck(() => {
+            setError(null);
+            setUpdateAvailable(update !== null);
+            setUpdateInstance(update);
+            setCurrentUpdate(
+              update && {
+                version: update.version,
+                date: update.date,
+                body: update.body,
+                pubDate: undefined,
+              }
+            );
+          });
 
           if (update) {
-            setUpdateAvailable(true);
-            setUpdateInstance(update);
-            setCurrentUpdate({
-              version: update.version,
-              date: update.date,
-              body: update.body,
-              pubDate: undefined,
-            });
             toast.success(`Update available: v${update.version}`);
-          } else {
-            setUpdateAvailable(false);
-            setCurrentUpdate(null);
-            setUpdateInstance(null);
-            if (announce === 'every-outcome') {
-              toast.info('No updates available');
-            }
+          } else if (announce === 'every-outcome') {
+            toast.info('No updates available');
           }
 
           await recordLastCheck();
@@ -72,7 +71,7 @@ export const useUpdater = (
           console.error('Failed to check for updates:', err);
           const errorMessage =
             err instanceof Error ? err.message : 'Failed to check for updates';
-          setError(errorMessage);
+          startCheck(() => setError(errorMessage));
           if (announce === 'every-outcome') {
             toast.error(errorMessage);
           }
