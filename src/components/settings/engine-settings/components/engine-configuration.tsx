@@ -1,7 +1,9 @@
 import { Button } from '../../../ui/button';
 import { Info, AlertTriangle, RefreshCw } from 'lucide-react';
 import {
-  ColimaConfig,
+  ChangeColimaVmSetting,
+  ColimaVm,
+  ColimaVmSettingsChanges,
   InstallationOperation,
   InstallationStep,
   InstallationMethod,
@@ -13,17 +15,18 @@ import { InfoBanner } from './info-banner';
 import { ColimaInstallation } from './colima-installation';
 import { VmResourcesCard } from './vm-resources-card';
 import { EngineActionsCard } from './engine-actions-card';
-import { DockerInfo } from '../../../../types/docker-info';
 import { LoadingSpinner } from '../../../ui/loading-spinner';
 
 interface EngineConfigurationProps {
-  dockerInfo: DockerInfo | null;
   colimaSupported: boolean | null;
   colimaSupportError: string | null;
   onRetrySupportCheck: () => void;
   colimaAvailable: boolean | null;
-  config: ColimaConfig;
-  onConfigChange: (config: ColimaConfig) => void;
+  colimaVm: ColimaVm | null;
+  colimaVmError: string | null;
+  onRetryColimaVm: () => void;
+  changes: ColimaVmSettingsChanges;
+  onChangeSetting: ChangeColimaVmSetting;
   onStartEngine: () => void;
   isInstalling: boolean;
   isEngineRunning: boolean;
@@ -42,13 +45,15 @@ interface EngineConfigurationProps {
 }
 
 export function EngineConfiguration({
-  dockerInfo,
   colimaSupported,
   colimaSupportError,
   onRetrySupportCheck,
   colimaAvailable,
-  config,
-  onConfigChange,
+  colimaVm,
+  colimaVmError,
+  onRetryColimaVm,
+  changes,
+  onChangeSetting,
   onStartEngine,
   isInstalling,
   isEngineRunning,
@@ -117,13 +122,42 @@ export function EngineConfiguration({
     );
   }
 
+  if (colimaVmError) {
+    return (
+      <div className="space-y-3">
+        <InfoBanner
+          icon={AlertTriangle}
+          title="Could not read the Colima profile"
+          message={colimaVmError}
+          variant="error"
+        />
+        <Button onClick={onRetryColimaVm} variant="outline" size="sm">
+          <RefreshCw className="h-4 w-4 mr-2" />
+          Retry
+        </Button>
+      </div>
+    );
+  }
+
+  if (!colimaVm) {
+    return (
+      <LoadingSpinner
+        message="Reading the Colima profile..."
+        className="py-8"
+      />
+    );
+  }
+
+  const isStopping = stopStep === 'stopping-vm';
+
   return (
     <div className="space-y-6">
       <VmResourcesCard
-        dockerInfo={dockerInfo}
-        config={config}
-        onConfigChange={onConfigChange}
+        vm={colimaVm}
+        changes={changes}
+        onChangeSetting={onChangeSetting}
         isEngineRunning={isEngineRunning}
+        isBusy={isInstalling || isStopping}
       />
       <EngineActionsCard
         isEngineRunning={isEngineRunning}

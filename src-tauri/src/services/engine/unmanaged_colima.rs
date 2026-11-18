@@ -1,4 +1,4 @@
-use crate::entities::{ColimaConfig, InstallationMethod};
+use crate::entities::{ColimaVm, ColimaVmSettingsChanges, InstallationMethod};
 use crate::services::engine::colima_unmanaged;
 use tauri::AppHandle;
 use tracing::instrument;
@@ -9,7 +9,15 @@ pub async fn install_colima(_app: &AppHandle, _method: InstallationMethod) -> Re
 }
 
 #[instrument(skip_all, err)]
-pub async fn start_colima_vm(_app: &AppHandle, _config: ColimaConfig) -> Result<(), String> {
+pub async fn read_colima_vm(_app: &AppHandle) -> Result<ColimaVm, String> {
+    colima_unmanaged()
+}
+
+#[instrument(skip_all, err)]
+pub async fn start_colima_vm(
+    _app: &AppHandle,
+    _changes: ColimaVmSettingsChanges,
+) -> Result<(), String> {
     colima_unmanaged()
 }
 

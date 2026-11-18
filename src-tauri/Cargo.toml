@@ -18,6 +18,7 @@ tokio = { version = "1.49.0", features = ["full"] }
 tauri = { version = "2", features = [ "tray-icon", "macos-private-api"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+serde_yaml_ng = "0.10"
 
 bollard = { version = "0.21", features = ["pipe"] }
 dirs = "7"

@@ -3,7 +3,7 @@ import { emit } from '@tauri-apps/api/event';
 import { mockIPC } from '@tauri-apps/api/mocks';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { EngineStatus } from '../../../../types/engine-status';
-import { ColimaEngineStopProgressType } from '../types';
+import { ColimaEngineStopProgressType, ColimaVm } from '../types';
 import { useEngineSettingsState } from './use-engine-settings-state';
 
 const RUNNING: EngineStatus = { Running: 'Docker' };
@@ -22,10 +22,34 @@ beforeEach(() => {
   engine.status = RUNNING;
 });
 
+const stoppedProfile = (cpus = 8): ColimaVm => ({
+  profile: {
+    name: 'default',
+    status: 'Stopped',
+    settings: {
+      cpus,
+      memory_gib: 8,
+      disk_gib: 100,
+      architecture: 'aarch64',
+      vm_type: 'vz',
+      rosetta: true,
+      mount_inotify: false,
+    },
+  },
+  host: {
+    cpus: 12,
+    memory_gib: 36,
+    architecture: 'aarch64',
+    supports_vz: true,
+  },
+  warnings: [],
+});
+
 interface Backend {
   colimaSupported?: () => Promise<boolean>;
   homebrewAvailable?: boolean;
   colimaAvailable?: boolean;
+  colimaVm?: () => Promise<ColimaVm>;
   installColima?: () => Promise<null>;
   startEngine?: () => Promise<null>;
   dockerInfo?: () => Promise<unknown>;
@@ -35,13 +59,15 @@ function mockBackend({
   colimaSupported = async () => true,
   homebrewAvailable = true,
   colimaAvailable = true,
+  colimaVm = async () => stoppedProfile(),
   installColima = async () => null,
   startEngine = async () => null,
   dockerInfo = async () => ({ server_version: '28.0.0' }),
 }: Backend = {}) {
   const calls: string[] = [];
+  const startRequests: unknown[] = [];
   mockIPC(
-    cmd => {
+    (cmd, args) => {
       calls.push(cmd);
       switch (cmd) {
         case 'is_colima_supported':
@@ -54,7 +80,10 @@ function mockBackend({
           return dockerInfo();
         case 'install_colima_command':
           return installColima();
+        case 'get_colima_vm':
+          return colimaVm();
         case 'start_colima_vm_command':
+          startRequests.push(args);
           return startEngine();
         case 'stop_colima_vm_command':
           return null;
@@ -64,7 +93,10 @@ function mockBackend({
     },
     { shouldMockEvents: true }
   );
-  return { count: (cmd: string) => calls.filter(call => call === cmd).length };
+  return {
+    count: (cmd: string) => calls.filter(call => call === cmd).length,
+    startRequests,
+  };
 }
 
 function renderEngineSettings() {
@@ -293,5 +325,92 @@ describe('useEngineSettingsState', () => {
     expect(state().installationOperation).toBe('install');
     expect(state().installationStep).toBe('error');
     expect(state().error).toBe('brew install colima: exit status 1');
+  });
+
+  it('reads the Colima profile once Colima is available, so the form shows its real values', async () => {
+    mockBackend();
+    const { state } = renderEngineSettings();
+
+    await waitFor(() => expect(state().colimaVm).toEqual(stoppedProfile()));
+    expect(state().changes).toEqual({});
+  });
+
+  it('does not read a Colima profile while Colima is not installed', async () => {
+    const backend = mockBackend({ colimaAvailable: false });
+    const { state } = renderEngineSettings();
+
+    await waitFor(() => expect(state().colimaAvailable).toBe(false));
+    await act(flushPromises);
+
+    expect(backend.count('get_colima_vm')).toBe(0);
+  });
+
+  it('explains why the Colima profile could not be read', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    mockBackend({
+      colimaVm: () => Promise.reject('colima list: exit status 1'),
+    });
+    const { state } = renderEngineSettings();
+
+    await waitFor(() =>
+      expect(state().colimaVmError).toBe('colima list: exit status 1')
+    );
+    expect(state().colimaVm).toBeNull();
+  });
+
+  it('starts the engine with only the settings the user changed', async () => {
+    const backend = mockBackend();
+    const { state, actions } = renderEngineSettings();
+    await waitFor(() => expect(state().colimaVm).not.toBeNull());
+
+    act(() => actions().changeSetting('cpus', 4));
+    act(() => actions().changeSetting('mount_inotify', true));
+    await act(() => actions().handleStartEngine());
+
+    expect(backend.startRequests).toEqual([
+      { changes: { cpus: 4, mount_inotify: true } },
+    ]);
+  });
+
+  it('starts an untouched profile without changes, so a tuned profile is never downgraded', async () => {
+    const backend = mockBackend();
+    const { state, actions } = renderEngineSettings();
+    await waitFor(() => expect(state().colimaVm).not.toBeNull());
+
+    await act(() => actions().handleStartEngine());
+
+    expect(backend.startRequests).toEqual([{ changes: {} }]);
+  });
+
+  it('forgets a change once the user sets the profile value again', async () => {
+    mockBackend();
+    const { state, actions } = renderEngineSettings();
+    await waitFor(() => expect(state().colimaVm).not.toBeNull());
+
+    act(() => actions().changeSetting('cpus', 4));
+    act(() => actions().changeSetting('cpus', 8));
+
+    expect(state().changes).toEqual({});
+  });
+
+  it('reads the profile again after the engine starts and drops the changes it applied', async () => {
+    const answers = [stoppedProfile(8), stoppedProfile(4)];
+    const backend = mockBackend({ colimaVm: async () => answers.shift()! });
+    const { state, actions } = renderEngineSettings();
+    await waitFor(() => expect(state().colimaVm).not.toBeNull());
+    act(() => actions().changeSetting('cpus', 4));
+    await act(() => actions().handleStartEngine());
+    await act(flushPromises);
+
+    vi.useFakeTimers();
+    await act(() => emit('vm-startup-complete'));
+    await act(() => vi.advanceTimersByTimeAsync(2000));
+    vi.useRealTimers();
+
+    await waitFor(() =>
+      expect(state().colimaVm?.profile.settings.cpus).toBe(4)
+    );
+    expect(state().changes).toEqual({});
+    expect(backend.count('get_colima_vm')).toBe(2);
   });
 });

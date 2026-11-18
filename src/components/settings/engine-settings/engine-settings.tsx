@@ -17,7 +17,7 @@ export function EngineSettings() {
   const { isChecking } = useEngineStatus();
   const [state, actions] = useEngineSettingsState();
 
-  const isEngineRunning = Boolean(state.dockerInfo?.server_version);
+  const isEngineRunning = state.colimaVm?.profile.status === 'Running';
   const isInstalling =
     state.installationStep === 'installing' ||
     state.installationStep === 'starting-vm' ||
@@ -52,13 +52,15 @@ export function EngineSettings() {
         onToggle={() => actions.setShowEngineConfig(!state.showEngineConfig)}
       >
         <EngineConfiguration
-          dockerInfo={state.dockerInfo}
           colimaSupported={state.colimaSupported}
           colimaSupportError={state.colimaSupportError}
           onRetrySupportCheck={actions.checkColimaSupport}
           colimaAvailable={state.colimaAvailable}
-          config={state.config}
-          onConfigChange={actions.setConfig}
+          colimaVm={state.colimaVm}
+          colimaVmError={state.colimaVmError}
+          onRetryColimaVm={actions.fetchColimaVm}
+          changes={state.changes}
+          onChangeSetting={actions.changeSetting}
           onStartEngine={actions.handleStartEngine}
           isInstalling={isInstalling}
           isEngineRunning={isEngineRunning}
