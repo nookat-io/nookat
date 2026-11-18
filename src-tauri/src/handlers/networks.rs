@@ -1,4 +1,4 @@
-use crate::entities::Network;
+use crate::entities::{Network, NetworkCreateOptions};
 use crate::services::NetworksService;
 use crate::state::SharedEngineState;
 use tauri::State;
@@ -12,6 +12,19 @@ pub async fn list_networks(state: State<'_, SharedEngineState>) -> Result<Vec<Ne
     let engine = state.get_engine().await?;
     let docker = engine.docker.as_ref().ok_or("Docker not found")?;
     NetworksService::get_networks(docker).await
+}
+
+#[tauri::command]
+#[instrument(skip_all, err)]
+pub async fn create_network(
+    state: State<'_, SharedEngineState>,
+    options: NetworkCreateOptions,
+) -> Result<(), String> {
+    debug!("Creating network");
+
+    let engine = state.get_engine().await?;
+    let docker = engine.docker.as_ref().ok_or("Docker not found")?;
+    NetworksService::create_network(docker, &options).await
 }
 
 #[tauri::command]
