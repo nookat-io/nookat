@@ -1,12 +1,15 @@
 use super::{bin_dir, place_artifact, Downloader, ReleaseArtifact};
 use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
+use std::process::Output;
 use std::time::Duration;
 use tracing::{info, instrument, warn};
 
 const WORKSPACE_PREFIX: &str = ".nookat-install-";
 const SYSTEM_PATH: &str = "/usr/bin:/bin:/usr/sbin:/sbin";
 const VERSION_CHECK_TIMEOUT: Duration = Duration::from_secs(30);
+const BUSY_EXECUTABLE_ATTEMPTS: u32 = 20;
+const BUSY_EXECUTABLE_PAUSE: Duration = Duration::from_millis(50);
 const BYTES_PER_MB: u64 = 1_000_000;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -134,12 +137,13 @@ fn available_disk_bytes(dir: &Path) -> Result<u64, String> {
 async fn run_version_check(prefix: &Path, artifact: &ReleaseArtifact) -> Result<String, String> {
     let bin = bin_dir(prefix);
     let executable = bin.join(artifact.check_command);
+    let mut version_command = tokio::process::Command::new(&executable);
+    version_command
+        .arg("--version")
+        .env("PATH", format!("{}:{}", bin.display(), SYSTEM_PATH));
     let output = tokio::time::timeout(
         VERSION_CHECK_TIMEOUT,
-        tokio::process::Command::new(&executable)
-            .arg("--version")
-            .env("PATH", format!("{}:{}", bin.display(), SYSTEM_PATH))
-            .output(),
+        output_once_no_one_writes_to_the_executable(&mut version_command),
     )
     .await
     .map_err(|_| format!("{} --version did not finish", artifact.check_command))?
@@ -154,6 +158,24 @@ async fn run_version_check(prefix: &Path, artifact: &ReleaseArtifact) -> Result<
     }
 
     Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
+}
+
+async fn output_once_no_one_writes_to_the_executable(
+    command: &mut tokio::process::Command,
+) -> std::io::Result<Output> {
+    let mut attempt = 1;
+    loop {
+        match command.output().await {
+            Err(e)
+                if e.kind() == ErrorKind::ExecutableFileBusy
+                    && attempt < BUSY_EXECUTABLE_ATTEMPTS =>
+            {
+                attempt += 1;
+                tokio::time::sleep(BUSY_EXECUTABLE_PAUSE).await;
+            }
+            result => return result,
+        }
+    }
 }
 
 fn activate(staging: &Path, prefix: &Path, workspace: &Path) -> Result<(), String> {
@@ -225,6 +247,7 @@ mod tests {
     use sha2::{Digest, Sha256};
     use std::borrow::Cow;
     use std::fs;
+    use std::os::unix::fs::PermissionsExt;
 
     const COLIMA_SCRIPT: &[u8] = b"#!/bin/sh\necho \"colima version v0.10.3\"\n";
     const LIMACTL_SCRIPT: &[u8] = b"#!/bin/sh\necho \"limactl version 2.2.1\"\n";
@@ -384,6 +407,26 @@ mod tests {
                 InstallEvent::Activated,
             ]
         );
+    }
+
+    #[tokio::test]
+    async fn runs_a_binary_that_another_process_holds_open_for_writing_a_moment_longer() {
+        let served = serve_releases(COLIMA_SCRIPT).await;
+        let prefix = tempfile::tempdir().unwrap();
+        let colima = bin_dir(prefix.path()).join("colima");
+        fs::create_dir_all(colima.parent().unwrap()).unwrap();
+        fs::write(&colima, COLIMA_SCRIPT).unwrap();
+        fs::set_permissions(&colima, fs::Permissions::from_mode(0o755)).unwrap();
+        let writer = fs::OpenOptions::new().append(true).open(&colima).unwrap();
+        let other_process_lets_go = std::thread::spawn(move || {
+            std::thread::sleep(Duration::from_millis(200));
+            drop(writer);
+        });
+
+        let version = run_version_check(prefix.path(), &served.releases[0]).await;
+
+        other_process_lets_go.join().unwrap();
+        assert_eq!(version, Ok("colima version v0.10.3".to_string()));
     }
 
     #[tokio::test]
