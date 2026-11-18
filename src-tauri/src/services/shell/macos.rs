@@ -233,16 +233,17 @@ pub async fn start_colima_with_config(
     Ok(())
 }
 
-#[instrument(skip_all, err)]
-pub async fn validate_colima_startup(app: &AppHandle) -> Result<(), String> {
-    debug!("Validating Colima startup");
-
+#[instrument(skip_all, err(level = "debug"))]
+pub async fn check_docker_responds(app: &AppHandle) -> Result<(), String> {
     let docker_check = run_in_login_shell(app, "docker version")
         .await
         .map_err(|e| format!("Docker command failed: {}", e))?;
 
     if !docker_check.status.success() {
-        return Err("Docker is not responding after Colima startup".to_string());
+        return Err(format!(
+            "docker version failed: {}",
+            String::from_utf8_lossy(&docker_check.stderr).trim()
+        ));
     }
 
     let info_check = run_in_login_shell(app, "docker info")
@@ -250,9 +251,11 @@ pub async fn validate_colima_startup(app: &AppHandle) -> Result<(), String> {
         .map_err(|e| format!("Docker info command failed: {}", e))?;
 
     if !info_check.status.success() {
-        return Err("Cannot connect to Docker daemon".to_string());
+        return Err(format!(
+            "docker info failed: {}",
+            String::from_utf8_lossy(&info_check.stderr).trim()
+        ));
     }
 
-    debug!("Colima startup validation successful");
     Ok(())
 }

@@ -3,8 +3,8 @@ use crate::entities::{
 };
 use crate::services::engine::should_stop_vm;
 use crate::services::shell::{
-    check_colima_status, get_docker_context_endpoints, install_packages_via_homebrew,
-    start_colima_with_config, stop_colima, validate_colima_startup,
+    check_colima_status, check_docker_responds, get_docker_context_endpoints,
+    install_packages_via_homebrew, start_colima_with_config, stop_colima,
 };
 use bollard::Docker;
 use serde::Serialize;
@@ -192,7 +192,7 @@ async fn wait_for_docker_to_respond(app_handle: &AppHandle) -> Result<(), String
 
     let poll = async {
         loop {
-            match validate_colima_startup(app_handle).await {
+            match check_docker_responds(app_handle).await {
                 Ok(()) => return,
                 Err(e) => {
                     debug!("Docker is not responding yet: {}", e);
