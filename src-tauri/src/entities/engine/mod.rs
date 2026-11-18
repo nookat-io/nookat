@@ -5,39 +5,6 @@ pub use self::docker_info::*;
 
 use serde::{Deserialize, Serialize};
 
-/// The state of the container engine
-#[allow(dead_code)]
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub enum EngineState {
-    /// The container engine is not installed
-    NotInstalled,
-    /// The container engine is not running
-    NotRunning,
-    /// The container engine is healthy
-    Healthy,
-    /// The container engine is malfunctioning
-    Malfunctioning,
-}
-
-#[allow(dead_code)]
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub enum ColimaStatus {
-    Unknown,
-    Installed,
-    Running,
-    NotInstalled,
-}
-
-#[allow(dead_code)]
-type HomebrewVersion = String;
-
-#[allow(dead_code)]
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub enum HomebrewStatus {
-    Unknown,
-    Installed(HomebrewVersion),
-}
-
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct ColimaEngineInfo {
     pub colima_version: String,
@@ -47,14 +14,6 @@ pub struct ColimaEngineInfo {
     pub lima_version: Option<String>,
     pub lima_checksum: Option<String>,
     pub lima_download_url: Option<String>,
-}
-
-#[allow(dead_code)]
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct ContextInfo {
-    pub current_context: String,
-    pub docker_host: Option<String>,
-    pub available_contexts: Vec<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
@@ -83,13 +42,13 @@ impl Engine {
     }
 }
 
-// Installation-related types
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum InstallationMethod {
     Homebrew,
     Binary,
 }
 
+#[cfg(target_os = "macos")]
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct InstallationProgress {
     pub step: String,
@@ -98,6 +57,7 @@ pub struct InstallationProgress {
     pub logs: Vec<String>,
 }
 
+#[cfg(target_os = "macos")]
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ColimaEngineStopProgress {
     pub step: String,
