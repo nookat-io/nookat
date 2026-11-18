@@ -1,3 +1,5 @@
+#[cfg(any(target_os = "macos", all(test, unix)))]
+pub(crate) mod binary_install;
 #[cfg(any(target_os = "macos", test))]
 pub(crate) mod colima;
 mod config;

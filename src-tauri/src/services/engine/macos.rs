@@ -1,23 +1,31 @@
 use crate::entities::{
-    ColimaEngineStopProgress, ColimaProfileStatus, ColimaVm, ColimaVmSettingsChanges,
-    InstallationMethod, InstallationProgress,
+    BinaryInstallPlan, ColimaEngineStopProgress, ColimaProfileStatus, ColimaVm,
+    ColimaVmSettingsChanges, DockerCliContext, InstallationMethod, InstallationProgress,
+};
+use crate::services::binary_install::{
+    engine_prefix, install_plan, install_releases, pinned_releases, Downloader, InstallProgress,
 };
 use crate::services::colima::{
-    colima_home, colima_profile, colima_profile_name, colima_start_args, parse_profile_config,
-    performance_warnings, profile_config_path, ColimaProfileConfig, PROFILE_ENV_VAR,
+    colima_docker_context_name, colima_docker_socket, colima_home, colima_profile,
+    colima_profile_name, colima_start_args, docker_responds_on, parse_current_docker_context,
+    parse_profile_config, performance_warnings, profile_config_path, ColimaProfileConfig,
+    PROFILE_ENV_VAR,
 };
 use crate::services::engine::should_stop_vm;
 use crate::services::shell::{
-    check_docker_responds, colima_profile_status, get_docker_context_endpoints,
+    colima_profile_status, get_docker_context_endpoints, inspect_current_docker_context,
     install_packages_via_homebrew, list_colima_instances, read_colima_host, start_colima,
-    stop_colima,
+    stop_colima, use_docker_context,
 };
 use bollard::Docker;
 use serde::Serialize;
-use std::path::Path;
+use std::future::Future;
+use std::path::{Path, PathBuf};
 use std::time::Duration;
 use tauri::{AppHandle, Emitter};
 use tracing::{debug, instrument, warn};
+
+const INSTALLATION_PROGRESS: &str = "installation-progress";
 
 const STATUS_POLL_INTERVAL: Duration = Duration::from_millis(500);
 const DOCKER_READY_TIMEOUT: Duration = Duration::from_secs(60);
@@ -31,6 +39,18 @@ fn emit(app_handle: &AppHandle, event: &str, payload: impl Serialize + Clone) {
 
 fn current_colima_profile() -> String {
     colima_profile_name(std::env::var(PROFILE_ENV_VAR).ok().as_deref())
+}
+
+fn home_dir() -> Result<PathBuf, String> {
+    dirs::home_dir().ok_or_else(|| "Could not determine home directory".to_string())
+}
+
+fn current_colima_home() -> Result<PathBuf, String> {
+    Ok(colima_home(
+        &home_dir()?,
+        |name| std::env::var(name).ok(),
+        |dir| dir.exists(),
+    ))
 }
 
 fn read_profile_config(path: &Path) -> Option<ColimaProfileConfig> {
@@ -52,23 +72,56 @@ pub async fn read_colima_vm(app_handle: &AppHandle) -> Result<ColimaVm, String> 
         .iter()
         .find(|instance| instance.name == profile_name);
 
-    let home_dir = dirs::home_dir().ok_or("Could not determine home directory")?;
-    let colima_home = colima_home(
-        &home_dir,
-        |name| std::env::var(name).ok(),
-        |dir| dir.exists(),
-    );
+    let colima_home = current_colima_home()?;
     let config = instance
         .and_then(|_| read_profile_config(&profile_config_path(&colima_home, &profile_name)));
 
     let profile = colima_profile(&profile_name, instance, config.as_ref(), &host);
     let warnings = performance_warnings(&profile, &host);
+    let docker_context = read_docker_cli_context(
+        app_handle,
+        &colima_docker_socket(&colima_home, &profile_name),
+    )
+    .await;
 
     Ok(ColimaVm {
         profile,
         host,
         warnings,
+        docker_context,
     })
+}
+
+async fn read_colima_vm_and_socket(app_handle: &AppHandle) -> Result<(ColimaVm, PathBuf), String> {
+    let vm = read_colima_vm(app_handle).await?;
+    let socket = colima_docker_socket(&current_colima_home()?, &vm.profile.name);
+    Ok((vm, socket))
+}
+
+async fn read_docker_cli_context(
+    app_handle: &AppHandle,
+    colima_socket: &Path,
+) -> Option<DockerCliContext> {
+    inspect_current_docker_context(app_handle)
+        .await
+        .and_then(|output| parse_current_docker_context(&output, colima_socket))
+        .inspect_err(|e| warn!("Failed to read the current Docker context: {}", e))
+        .ok()
+}
+
+#[instrument(skip_all, err)]
+pub async fn use_colima_docker_context(app_handle: &AppHandle) -> Result<(), String> {
+    let context = colima_docker_context_name(&current_colima_profile());
+    use_docker_context(app_handle, &context).await
+}
+
+#[instrument(skip_all, err)]
+pub async fn binary_install_plan(app_handle: &AppHandle) -> Result<BinaryInstallPlan, String> {
+    let host = read_colima_host(app_handle).await?;
+    Ok(install_plan(
+        &pinned_releases(host.architecture),
+        &engine_prefix(&home_dir()?),
+    ))
 }
 
 async fn is_colima_running(app_handle: &AppHandle, profile: &str) -> Result<bool, String> {
@@ -83,64 +136,95 @@ pub async fn install_colima(
     debug!("Starting Colima installation via {:?}", method);
 
     match method {
-        InstallationMethod::Homebrew => install_colima_via_homebrew(app_handle).await,
-        InstallationMethod::Binary => Err("Binary installation not yet implemented".to_string()),
+        InstallationMethod::Homebrew => {
+            run_installation(app_handle, install_via_homebrew(app_handle.clone())).await
+        }
+        InstallationMethod::Binary => {
+            run_installation(app_handle, install_pinned_releases(app_handle.clone())).await
+        }
     }
 }
 
-#[instrument(skip_all, err)]
-async fn install_colima_via_homebrew(app_handle: &AppHandle) -> Result<(), String> {
-    debug!("Installing Colima via Homebrew");
-
-    let task_app_handle = app_handle.clone();
-    let installation_handle = tokio::spawn(async move {
-        let app_handle = task_app_handle;
-        let report = |progress: &InstallationProgress| {
-            emit(&app_handle, "installation-progress", progress);
-        };
-
-        let mut progress = InstallationProgress {
-            step: "Checking prerequisites...".to_string(),
-            message: "Verifying system requirements".to_string(),
-            percentage: 10,
-            logs: vec![],
-        };
-        report(&progress);
-
-        progress.step = "Installing Colima...".to_string();
-        progress.message = "Installing Colima via Homebrew".to_string();
-        progress.percentage = 30;
-        progress
-            .logs
-            .push("[INFO] Installing Colima via Homebrew".to_string());
-        report(&progress);
-
-        let packages = vec!["colima", "docker"];
-        if let Err(e) = install_packages_via_homebrew(&app_handle, &packages).await {
-            progress.step = "Installation failed".to_string();
-            progress.message = format!("Failed to install Colima: {}", e);
-            progress.percentage = 100;
-            progress.logs.push(format!("[ERROR] {}", e));
-            report(&progress);
-            return Err(e);
-        }
-
-        progress
-            .logs
-            .push("[INFO] Colima installation completed successfully".to_string());
-        progress.percentage = 100;
-        report(&progress);
-
-        Ok(())
-    });
-
-    let result = installation_handle
+async fn run_installation(
+    app_handle: &AppHandle,
+    installation: impl Future<Output = Result<(), String>> + Send + 'static,
+) -> Result<(), String> {
+    let result = tokio::spawn(installation)
         .await
         .map_err(|e| format!("Installation task failed: {}", e))?;
 
     match &result {
         Ok(()) => emit(app_handle, "installation-complete", ()),
         Err(e) => emit(app_handle, "installation-error", e),
+    }
+
+    result
+}
+
+#[instrument(skip_all, err)]
+async fn install_via_homebrew(app_handle: AppHandle) -> Result<(), String> {
+    debug!("Installing Colima via Homebrew");
+
+    let report = |progress: &InstallationProgress| {
+        emit(&app_handle, INSTALLATION_PROGRESS, progress);
+    };
+
+    let mut progress = InstallationProgress {
+        step: "Checking prerequisites...".to_string(),
+        message: "Verifying system requirements".to_string(),
+        percentage: 10,
+        logs: vec![],
+    };
+    report(&progress);
+
+    progress.step = "Installing Colima...".to_string();
+    progress.message = "Installing Colima via Homebrew".to_string();
+    progress.percentage = 30;
+    progress
+        .logs
+        .push("[INFO] Installing Colima via Homebrew".to_string());
+    report(&progress);
+
+    let packages = vec!["colima", "docker"];
+    if let Err(e) = install_packages_via_homebrew(&app_handle, &packages).await {
+        progress.step = "Installation failed".to_string();
+        progress.message = format!("Failed to install Colima: {}", e);
+        progress.percentage = 100;
+        progress.logs.push(format!("[ERROR] {}", e));
+        report(&progress);
+        return Err(e);
+    }
+
+    progress
+        .logs
+        .push("[INFO] Colima installation completed successfully".to_string());
+    progress.percentage = 100;
+    report(&progress);
+
+    Ok(())
+}
+
+#[instrument(skip_all, err)]
+async fn install_pinned_releases(app_handle: AppHandle) -> Result<(), String> {
+    let host = read_colima_host(&app_handle).await?;
+    let releases = pinned_releases(host.architecture);
+    let prefix = engine_prefix(&home_dir()?);
+    let downloader = Downloader::new()?;
+    debug!("Installing {} releases into {:?}", releases.len(), prefix);
+
+    let mut progress = InstallProgress::new(&releases, &prefix);
+    emit(&app_handle, INSTALLATION_PROGRESS, progress.current());
+
+    let result = install_releases(&downloader, &releases, &prefix, |event| {
+        if progress.record(&event) {
+            emit(&app_handle, INSTALLATION_PROGRESS, progress.current());
+        }
+    })
+    .await;
+
+    if let Err(e) = &result {
+        progress.record_failure(e);
+        emit(&app_handle, INSTALLATION_PROGRESS, progress.current());
     }
 
     result
@@ -176,8 +260,8 @@ pub async fn start_colima_vm(
             .push("[INFO] Checking Colima status".to_string());
         report(&progress);
 
-        let vm = match read_colima_vm(&app_handle).await {
-            Ok(vm) => vm,
+        let (vm, colima_socket) = match read_colima_vm_and_socket(&app_handle).await {
+            Ok(vm_and_socket) => vm_and_socket,
             Err(e) => {
                 progress.step = "VM startup failed".to_string();
                 progress.message = format!("Failed to read the Colima profile: {}", e);
@@ -227,7 +311,7 @@ pub async fn start_colima_vm(
             .push("[INFO] Validating Colima startup".to_string());
         report(&progress);
 
-        if let Err(e) = wait_for_docker_to_respond(&app_handle).await {
+        if let Err(e) = wait_for_docker_to_respond(&colima_socket).await {
             progress.step = "Validation failed".to_string();
             progress.message = format!("Failed to validate startup: {}", e);
             progress.percentage = 100;
@@ -260,12 +344,12 @@ pub async fn start_colima_vm(
 }
 
 #[instrument(skip_all, err)]
-async fn wait_for_docker_to_respond(app_handle: &AppHandle) -> Result<(), String> {
+async fn wait_for_docker_to_respond(colima_socket: &Path) -> Result<(), String> {
     let mut last_validation_error = String::new();
 
     let poll = async {
         loop {
-            match check_docker_responds(app_handle).await {
+            match docker_responds_on(colima_socket).await {
                 Ok(()) => return,
                 Err(e) => {
                     debug!("Docker is not responding yet: {}", e);

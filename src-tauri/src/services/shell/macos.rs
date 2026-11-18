@@ -1,8 +1,10 @@
 use crate::entities::{ColimaHost, ColimaProfileStatus};
+use crate::services::binary_install::{bin_dir, engine_prefix};
 use crate::services::colima::{
     parse_colima_list, parse_host_sysctl, ColimaInstance, HOST_SYSCTL_KEYS,
 };
 use std::ffi::OsStr;
+use std::path::PathBuf;
 use tauri::AppHandle;
 use tauri_plugin_shell::process::Output;
 use tauri_plugin_shell::ShellExt;
@@ -21,8 +23,13 @@ const RUN_IN_A_TERMINAL_WINDOW: &str = r#"on run argv
     end tell
 end run"#;
 
-const EXEC_WITHOUT_AN_IMPLICIT_COLIMA_PROFILE: &str = r#"unset COLIMA_PROFILE; exec "$0" "$@""#;
+const ENGINE_BIN_ENV_VAR: &str = "NOOKAT_ENGINE_BIN";
+const EXEC_WITH_ENGINE_BIN_FIRST_AND_NO_IMPLICIT_PROFILE: &str = r#"unset COLIMA_PROFILE; export PATH="${NOOKAT_ENGINE_BIN:+$NOOKAT_ENGINE_BIN:}$PATH"; exec "$0" "$@""#;
 const SYSCTL: &str = "/usr/sbin/sysctl";
+
+pub fn engine_bin_dir() -> Option<PathBuf> {
+    dirs::home_dir().map(|home| bin_dir(&engine_prefix(&home)))
+}
 
 async fn run_in_login_shell<I, S>(
     app: &AppHandle,
@@ -33,12 +40,23 @@ where
     I: IntoIterator<Item = S>,
     S: AsRef<OsStr>,
 {
-    app.shell()
+    let command = app
+        .shell()
         .command("zsh")
-        .args(["-l", "-c", EXEC_WITHOUT_AN_IMPLICIT_COLIMA_PROFILE, program])
-        .args(args)
-        .output()
-        .await
+        .args([
+            "-l",
+            "-c",
+            EXEC_WITH_ENGINE_BIN_FIRST_AND_NO_IMPLICIT_PROFILE,
+            program,
+        ])
+        .args(args);
+
+    match engine_bin_dir() {
+        Some(engine_bin) => command.env(ENGINE_BIN_ENV_VAR, engine_bin),
+        None => command,
+    }
+    .output()
+    .await
 }
 
 #[instrument(skip_all, err)]
@@ -278,27 +296,35 @@ pub async fn start_colima(app: &AppHandle, args: &[String]) -> Result<(), String
     Ok(())
 }
 
-#[instrument(skip_all, err(level = "debug"))]
-pub async fn check_docker_responds(app: &AppHandle) -> Result<(), String> {
-    let docker_check = run_in_login_shell(app, "docker", ["version"])
+#[instrument(skip_all, err)]
+pub async fn inspect_current_docker_context(app: &AppHandle) -> Result<String, String> {
+    let output = run_in_login_shell(app, "docker", ["context", "inspect"])
         .await
-        .map_err(|e| format!("Docker command failed: {}", e))?;
+        .map_err(|e| format!("Failed to inspect the Docker context: {}", e))?;
 
-    if !docker_check.status.success() {
+    if !output.status.success() {
         return Err(format!(
-            "docker version failed: {}",
-            String::from_utf8_lossy(&docker_check.stderr).trim()
+            "Failed to inspect the Docker context: {}",
+            String::from_utf8_lossy(&output.stderr).trim()
         ));
     }
 
-    let info_check = run_in_login_shell(app, "docker", ["info"])
-        .await
-        .map_err(|e| format!("Docker info command failed: {}", e))?;
+    Ok(String::from_utf8_lossy(&output.stdout).to_string())
+}
 
-    if !info_check.status.success() {
+#[instrument(skip_all, err)]
+pub async fn use_docker_context(app: &AppHandle, context: &str) -> Result<(), String> {
+    debug!("Switching the Docker CLI to the {} context", context);
+
+    let output = run_in_login_shell(app, "docker", ["context", "use", context])
+        .await
+        .map_err(|e| format!("Failed to switch the Docker context: {}", e))?;
+
+    if !output.status.success() {
         return Err(format!(
-            "docker info failed: {}",
-            String::from_utf8_lossy(&info_check.stderr).trim()
+            "Failed to switch the Docker context to {}: {}",
+            context,
+            String::from_utf8_lossy(&output.stderr).trim()
         ));
     }
 
@@ -308,6 +334,8 @@ pub async fn check_docker_responds(app: &AppHandle) -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::os::unix::fs::PermissionsExt;
+    use std::path::Path;
     use std::process::Command;
 
     #[test]
@@ -340,29 +368,81 @@ mod tests {
         assert!(!RUN_IN_A_TERMINAL_WINDOW.contains("docker"));
     }
 
+    const SYSTEM_PATH: &str = "/usr/bin:/bin";
+
+    fn write_executable(path: &Path, script: &str) {
+        std::fs::write(path, script).unwrap();
+        std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o755)).unwrap();
+    }
+
+    fn run_like_the_login_shell(engine_bin: Option<&Path>, program: &str, args: &[&str]) -> String {
+        run_like_a_login_shell_exporting(&[], engine_bin, program, args)
+    }
+
     fn run_like_a_login_shell_exporting(
         exported: &[(&str, &str)],
+        engine_bin: Option<&Path>,
         program: &str,
         args: &[&str],
     ) -> String {
-        let output = Command::new("/bin/zsh")
+        let mut command = Command::new("/bin/zsh");
+        command
             .env_clear()
-            .env("PATH", "/usr/bin:/bin")
+            .env("PATH", SYSTEM_PATH)
             .envs(exported.iter().copied())
-            .args(["-f", "-c", EXEC_WITHOUT_AN_IMPLICIT_COLIMA_PROFILE, program])
-            .args(args)
-            .output()
-            .unwrap();
+            .args([
+                "-f",
+                "-c",
+                EXEC_WITH_ENGINE_BIN_FIRST_AND_NO_IMPLICIT_PROFILE,
+                program,
+            ])
+            .args(args);
+        if let Some(engine_bin) = engine_bin {
+            command.env(ENGINE_BIN_ENV_VAR, engine_bin);
+        }
+
+        let output = command.output().unwrap();
         assert!(output.status.success(), "{:?}", output);
         String::from_utf8(output.stdout).unwrap()
     }
 
     #[test]
+    fn runs_the_installed_engine_binaries_before_any_other_on_the_path() {
+        let engine_bin = tempfile::tempdir().unwrap();
+        write_executable(
+            &engine_bin.path().join("colima"),
+            "#!/bin/sh\necho \"engine colima\"\n",
+        );
+
+        let output = run_like_the_login_shell(Some(engine_bin.path()), "colima", &[]);
+
+        assert_eq!(output, "engine colima\n");
+    }
+
+    #[test]
+    fn programs_started_by_an_engine_binary_find_the_other_engine_binaries() {
+        let engine_bin = tempfile::tempdir().unwrap();
+        write_executable(
+            &engine_bin.path().join("colima"),
+            "#!/bin/sh\nexec limactl\n",
+        );
+        write_executable(
+            &engine_bin.path().join("limactl"),
+            "#!/bin/sh\necho \"engine limactl\"\n",
+        );
+
+        let output = run_like_the_login_shell(Some(engine_bin.path()), "colima", &[]);
+
+        assert_eq!(output, "engine limactl\n");
+    }
+
+    #[test]
     fn passes_arguments_through_as_data() {
+        let engine_bin = tempfile::tempdir().unwrap();
         let tricky = ["--profile=a b", "$(echo injected)", "'quoted'", "*"];
 
-        let output = run_like_a_login_shell_exporting(
-            &[],
+        let output = run_like_the_login_shell(
+            Some(engine_bin.path()),
             "printf",
             &[["%s\n"].as_slice(), tricky.as_slice()].concat(),
         );
@@ -374,10 +454,18 @@ mod tests {
     fn hides_a_colima_profile_the_shell_selects_so_colima_list_shows_every_profile() {
         let output = run_like_a_login_shell_exporting(
             &[("COLIMA_PROFILE", "work")],
+            None,
             "sh",
             &["-c", "echo \"${COLIMA_PROFILE:-every profile}\""],
         );
 
         assert_eq!(output, "every profile\n");
+    }
+
+    #[test]
+    fn keeps_the_path_as_it_is_without_an_engine_directory() {
+        let output = run_like_the_login_shell(None, "printenv", &["PATH"]);
+
+        assert_eq!(output, format!("{SYSTEM_PATH}\n"));
     }
 }
