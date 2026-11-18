@@ -1,0 +1,46 @@
+name: Detect changes
+
+on:
+  workflow_call:
+    outputs:
+      tasks_only:
+        description: "'true' when the pull request changes nothing outside tasks/"
+        value: ${{ jobs.detect.outputs.tasks_only }}
+
+permissions:
+  contents: read
+
+jobs:
+  detect:
+    name: Detect changes
+    runs-on: ubuntu-22.04
+    outputs:
+      tasks_only: ${{ steps.diff.outputs.tasks_only }}
+
+    steps:
+      - name: Checkout code
+        if: github.event_name == 'pull_request'
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+
+      - name: Check whether only tasks changed
+        id: diff
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          if [[ "$EVENT_NAME" != "pull_request" ]]; then
+            echo "tasks_only=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          changed_files=$(git -c core.quotePath=false diff --name-only --no-renames HEAD^1 HEAD)
+          echo "Files the pull request changes:"
+          echo "$changed_files"
+
+          if grep -qv '^tasks/' <<< "$changed_files"; then
+            echo "tasks_only=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "tasks_only=true" >> "$GITHUB_OUTPUT"
+          fi

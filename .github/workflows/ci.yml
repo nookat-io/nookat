@@ -5,11 +5,9 @@ on:
   push:
     branches: [ main ]
     paths-ignore:
-      - 'tickets/**'
+      - 'tasks/**'
   pull_request:
     branches: [ main ]
-    paths-ignore:
-      - 'tickets/**'
 
 permissions:
   contents: read
@@ -19,9 +17,14 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  changes:
+    uses: ./.github/workflows/detect-changes.yml
+
   quick-checks:
     name: Quick Checks
     runs-on: ubuntu-22.04
+    needs: [changes]
+    if: ${{ !cancelled() && needs.changes.outputs.tasks_only != 'true' }}
 
     steps:
       - name: Checkout code
@@ -44,6 +47,8 @@ jobs:
   pre-commit:
     name: Pre-commit Checks
     runs-on: ubuntu-22.04
+    needs: [changes]
+    if: ${{ !cancelled() && needs.changes.outputs.tasks_only != 'true' }}
 
     steps:
       - name: Checkout code
