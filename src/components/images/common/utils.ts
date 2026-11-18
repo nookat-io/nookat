@@ -1,7 +1,6 @@
 import { ErrorWithMessage } from './types';
 import { ProgressState } from './types';
 
-// Type guard to check if an object has a message property
 export function isErrorWithMessage(error: unknown): error is ErrorWithMessage {
   return (
     typeof error === 'object' &&
@@ -11,7 +10,6 @@ export function isErrorWithMessage(error: unknown): error is ErrorWithMessage {
   );
 }
 
-// Format large numbers for display
 export function formatNumber(num: number): string {
   if (num >= 1000000000) {
     return (num / 1000000000).toFixed(1) + 'B';
@@ -25,7 +23,6 @@ export function formatNumber(num: number): string {
   return num.toString();
 }
 
-// Extract error message from various error types
 export function extractErrorMessage(error: unknown): string {
   if (typeof error === 'string') {
     return error;
@@ -39,7 +36,6 @@ export function extractErrorMessage(error: unknown): string {
   return 'An unknown error occurred';
 }
 
-// Default form values
 export const DEFAULT_PULL_DATA = {
   imageName: '',
   tag: 'latest',

@@ -23,36 +23,23 @@ export default function ImagesPage() {
 
   const { engineState, isLoading, error, removeImage } = useEngineState();
 
-  // Convert images from Record to array for compatibility
   const images = useMemo(
     () => (engineState ? Object.values(engineState.images) : []),
     [engineState]
   );
 
-  // Filter out deleted images from selection
   useEffect(() => {
-    if (images.length > 0 && selected.length > 0) {
-      const existingImageIds = new Set(images.map(img => img.id));
-      const validSelectedIds = selected.filter(id => existingImageIds.has(id));
-
-      if (validSelectedIds.length !== selected.length) {
-        setSelected(validSelectedIds);
-      }
-    } else if (images.length === 0 && selected.length > 0) {
-      // If no images exist, clear the selection
-      setSelected([]);
+    const existingImageIds = new Set(images.map(img => img.id));
+    const existingSelectedIds = selected.filter(id => existingImageIds.has(id));
+    if (existingSelectedIds.length !== selected.length) {
+      setSelected(existingSelectedIds);
     }
   }, [images, selected, setSelected]);
 
   const filteredImages = useFilter(images, filter, searchTerm, imageFilter);
 
-  const handleActionComplete = useCallback(
-    (deletedImageId?: string) => {
-      // If a specific image was deleted, remove it from local state
-      if (deletedImageId && removeImage) {
-        removeImage(deletedImageId);
-      }
-    },
+  const handleImagesDeleted = useCallback(
+    (imageIds: string[]) => imageIds.forEach(removeImage),
     [removeImage]
   );
 
@@ -63,8 +50,8 @@ export default function ImagesPage() {
           <ImageHeader
             selectedImages={selected}
             images={images}
-            onActionComplete={handleActionComplete}
-            onSelectionClear={() => setSelected([])}
+            onImagesDeleted={handleImagesDeleted}
+            onSelectionChange={setSelected}
           />
         }
         controls={
@@ -81,7 +68,7 @@ export default function ImagesPage() {
               selectedImages={selected}
               onSelectionChange={setSelected}
               images={filteredImages}
-              onActionComplete={handleActionComplete}
+              onImagesDeleted={handleImagesDeleted}
               isLoading={isLoading}
               error={error}
               onRetry={() => window.location.reload()}

@@ -39,7 +39,6 @@ export function RegistrySelector({
         </SelectContent>
       </Select>
 
-      {/* Custom registry input */}
       {registryState.showCustomRegistry && (
         <Input
           id="pull-custom-registry"

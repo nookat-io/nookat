@@ -40,7 +40,7 @@ interface ImagesTableProps {
   selectedImages: string[];
   onSelectionChange: (_selected: string[]) => void;
   images: Image[];
-  onActionComplete?: (deletedImageId?: string) => void;
+  onImagesDeleted?: (imageIds: string[]) => void;
   isLoading?: boolean;
   error?: string | null;
   onRetry?: () => void;
@@ -50,7 +50,7 @@ export function ImagesTable({
   selectedImages,
   onSelectionChange,
   images,
-  onActionComplete,
+  onImagesDeleted,
   isLoading = false,
   error = null,
   onRetry,
@@ -95,15 +95,10 @@ export function ImagesTable({
     try {
       await invoke('delete_image', { imageId: imageToDelete.id });
 
-      // Remove the deleted image from selection if it was selected
       if (selectedImages.includes(imageToDelete.id)) {
         onSelectionChange(selectedImages.filter(id => id !== imageToDelete.id));
       }
-
-      // Notify parent component that action is complete
-      if (onActionComplete) {
-        onActionComplete(imageToDelete.id);
-      }
+      onImagesDeleted?.([imageToDelete.id]);
     } catch (error) {
       console.error('Error deleting image:', error);
       alert(`Failed to delete image: ${error}`);
@@ -190,15 +185,6 @@ export function ImagesTable({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              {/* TODO: TEMPORARILY COMMENTED OUT AS WE DONT HAVE THE LOGIC FOR THEM YET */}
-              {/* <DropdownMenuItem>
-                <Play className="mr-2 h-4 w-4" />
-                Run Container
-              </DropdownMenuItem>
-              <DropdownMenuItem>
-                <Tag className="mr-2 h-4 w-4" />
-                Add Tag
-              </DropdownMenuItem> */}
               <DropdownMenuItem
                 className="text-destructive"
                 onClick={() => handleDeleteImage(image)}
@@ -273,7 +259,6 @@ export function ImagesTable({
         </div>
       </div>
 
-      {/* Delete Confirmation Dialog */}
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <DialogContent>
           <DialogHeader>

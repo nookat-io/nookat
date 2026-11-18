@@ -4,15 +4,15 @@ import { Image } from './image-types';
 interface ImageHeaderProps {
   selectedImages: string[];
   images: Image[];
-  onActionComplete: (deletedImageId?: string) => void;
-  onSelectionClear?: () => void;
+  onImagesDeleted: (imageIds: string[]) => void;
+  onSelectionChange: (selected: string[]) => void;
 }
 
 export function ImageHeader({
   selectedImages,
   images,
-  onActionComplete,
-  onSelectionClear,
+  onImagesDeleted,
+  onSelectionChange,
 }: ImageHeaderProps) {
   return (
     <div className="border border-border/50 rounded-2xl p-6 dark:bg-card/50 w-full flex flex-col items-start justify-start">
@@ -28,8 +28,8 @@ export function ImageHeader({
         <div className="flex items-start">
           <ImageActions
             selectedImages={selectedImages}
-            onRefresh={onActionComplete}
-            onSelectionClear={onSelectionClear}
+            onImagesDeleted={onImagesDeleted}
+            onSelectionChange={onSelectionChange}
           />
         </div>
       </div>
