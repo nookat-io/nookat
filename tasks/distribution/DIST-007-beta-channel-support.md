@@ -27,7 +27,7 @@ There is no channel setting in the app config.
 
 ## Notes
 
-- GitHub issue #56 is titled "[DIST-007]" but covers a bundled Colima distribution for Windows, not a beta channel.
+- GitHub issue #56 is titled "[DIST-007]" but covers a managed Colima engine for Windows, which is DIST-016.
 - Define the criteria for promoting a beta to stable, and how to halt or bisect a regression.
 - Feature flags may be needed to scope beta-only functionality.
 - Alternatives considered:
