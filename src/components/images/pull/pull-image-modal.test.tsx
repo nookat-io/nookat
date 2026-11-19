@@ -1,9 +1,9 @@
-import { act, render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { act, render, screen, waitFor } from '@testing-library/react';
+import userEvent, { UserEvent } from '@testing-library/user-event';
 import { Channel } from '@tauri-apps/api/core';
 import { mockIPC } from '@tauri-apps/api/mocks';
 import { describe, expect, it } from 'vitest';
-import { DockerHubImage } from '../../../types/docker-images';
+import { DockerHubImage, DockerHubTag } from '../../../types/docker-images';
 import { ImagePullLayer, ImagePullProgress } from '../../../types/image-pull';
 import { PullImage } from './pull-image-modal';
 
@@ -17,6 +17,9 @@ const searchResult = (name: string, isOfficial: boolean): DockerHubImage => ({
 });
 
 const NGINX = searchResult('nginx', true);
+const CUDA = searchResult('nvidia/cuda', false);
+const CUDA_TAG = '13.5.0-runtime-ubuntu24.04';
+const PUSHED_AT = '2026-11-18T09:30:00Z';
 const MB = 1024 * 1024;
 
 interface PullRequest {
@@ -34,14 +37,30 @@ const withoutProgress = ({ imageName, tag, registry }: PullRequest) => ({
   registry,
 });
 
-function mockDockerHub(searchResults: DockerHubImage[]) {
+const tagDetails = (name: string): DockerHubTag => ({
+  name,
+  size: 61 * 1024 * 1024,
+  last_pushed: PUSHED_AT,
+  platforms: ['linux/amd64', 'linux/arm64/v8', 'linux/386', 'linux/arm/v7'],
+});
+
+function mockDockerHub(
+  searchResults: DockerHubImage[],
+  { hubTags = ['latest'] }: { hubTags?: string[] } = {}
+) {
   const pulls: unknown[] = [];
+  const tagLookups: string[] = [];
   mockIPC((cmd, args) => {
     switch (cmd) {
       case 'search_docker_hub':
         return { results: searchResults };
       case 'fetch_image_tags':
-        return ['latest'];
+        return hubTags;
+      case 'fetch_image_tag': {
+        const { tag } = args as { tag: string };
+        tagLookups.push(tag);
+        return hubTags.includes(tag) ? tagDetails(tag) : null;
+      }
       case 'pull_image':
         pulls.push(withoutProgress(pullRequest(args)));
         return null;
@@ -49,7 +68,20 @@ function mockDockerHub(searchResults: DockerHubImage[]) {
         throw new Error(`Unexpected command ${cmd}`);
     }
   });
-  return pulls;
+  return { pulls, tagLookups };
+}
+
+const tagInput = () => screen.getByRole('combobox', { name: 'Tag' });
+const pullButton = () => screen.getByRole('button', { name: 'Pull' });
+
+async function pullOnceTheTagIsChecked(user: UserEvent) {
+  await waitFor(() => expect(pullButton()).toBeEnabled());
+  await user.click(pullButton());
+}
+
+async function typeTag(user: UserEvent, tag: string) {
+  await user.clear(tagInput());
+  await user.type(tagInput(), tag);
 }
 
 async function choosePullSource({
@@ -82,7 +114,7 @@ const lookalikeConfirmation = (title: string) =>
 
 describe('PullImage', () => {
   it('asks before pulling from a registry that looks like a well-known one', async () => {
-    const pulls = mockDockerHub([NGINX]);
+    const { pulls } = mockDockerHub([NGINX]);
     const user = await choosePullSource({
       registry: 'ghrc.io',
       image: 'nginx',
@@ -94,7 +126,7 @@ describe('PullImage', () => {
       )
     ).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: 'Pull' }));
+    await pullOnceTheTagIsChecked(user);
 
     const confirmation = lookalikeConfirmation('Pull from ghrc.io?');
     expect(confirmation).toHaveAccessibleDescription(
@@ -111,13 +143,13 @@ describe('PullImage', () => {
   });
 
   it('goes back to the form without pulling when the warning is cancelled', async () => {
-    const pulls = mockDockerHub([NGINX]);
+    const { pulls } = mockDockerHub([NGINX]);
     const user = await choosePullSource({
       registry: 'ghrc.io',
       image: 'nginx',
     });
 
-    await user.click(screen.getByRole('button', { name: 'Pull' }));
+    await pullOnceTheTagIsChecked(user);
     await user.click(screen.getByRole('button', { name: 'Cancel' }));
 
     expect(lookalikeConfirmation('Pull from ghrc.io?')).not.toBeInTheDocument();
@@ -128,7 +160,7 @@ describe('PullImage', () => {
   });
 
   it('checks and pulls the registry without the spaces around it', async () => {
-    const pulls = mockDockerHub([NGINX]);
+    const { pulls } = mockDockerHub([NGINX]);
     const user = await choosePullSource({
       registry: ' ghrc.io ',
       image: 'nginx',
@@ -138,7 +170,7 @@ describe('PullImage', () => {
       screen.getByText(/^ghrc\.io looks like ghcr\.io/)
     ).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: 'Pull' }));
+    await pullOnceTheTagIsChecked(user);
     await user.click(screen.getByRole('button', { name: 'Pull anyway' }));
 
     expect(pulls).toEqual([
@@ -147,10 +179,10 @@ describe('PullImage', () => {
   });
 
   it('asks before pulling an image named like a popular official image', async () => {
-    const pulls = mockDockerHub([searchResult('ubunti', false)]);
+    const { pulls } = mockDockerHub([searchResult('ubunti', false)]);
     const user = await choosePullSource({ image: 'ubunti' });
 
-    await user.click(screen.getByRole('button', { name: 'Pull' }));
+    await pullOnceTheTagIsChecked(user);
 
     expect(lookalikeConfirmation('Pull ubunti?')).toHaveAccessibleDescription(
       'ubunti looks like the official ubuntu image, but it is a different image. Lookalike names are a common way to spread malicious images, so check the spelling before you pull.'
@@ -164,7 +196,7 @@ describe('PullImage', () => {
   });
 
   it('only notes a registry it does not know and pulls without asking', async () => {
-    const pulls = mockDockerHub([NGINX]);
+    const { pulls } = mockDockerHub([NGINX]);
     const user = await choosePullSource({
       registry: 'registry.mycompany.com',
       image: 'nginx',
@@ -176,7 +208,7 @@ describe('PullImage', () => {
       )
     ).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: 'Pull' }));
+    await pullOnceTheTagIsChecked(user);
 
     expect(screen.queryByRole('button', { name: 'Pull anyway' })).toBeNull();
     expect(pulls).toEqual([
@@ -195,6 +227,8 @@ describe('PullImage', () => {
           return { results: [NGINX, searchResult('redis', true)] };
         case 'fetch_image_tags':
           return ['latest'];
+        case 'fetch_image_tag':
+          return tagDetails('latest');
         case 'pull_image':
           return (args as { imageName: string }).imageName === 'nginx'
             ? Promise.reject('manifest for nginx:latest not found')
@@ -205,7 +239,7 @@ describe('PullImage', () => {
     });
     const user = await choosePullSource({ image: 'nginx' });
 
-    await user.click(screen.getByRole('button', { name: 'Pull' }));
+    await pullOnceTheTagIsChecked(user);
     expect(
       await screen.findByText('manifest for nginx:latest not found')
     ).toBeInTheDocument();
@@ -220,12 +254,12 @@ describe('PullImage', () => {
   });
 
   it('pulls an official Docker Hub image without any notice', async () => {
-    const pulls = mockDockerHub([NGINX]);
+    const { pulls } = mockDockerHub([NGINX]);
     const user = await choosePullSource({ image: 'nginx' });
 
     expect(screen.queryByText(/looks like|recognizes/)).toBeNull();
 
-    await user.click(screen.getByRole('button', { name: 'Pull' }));
+    await pullOnceTheTagIsChecked(user);
 
     expect(screen.queryByRole('button', { name: 'Pull anyway' })).toBeNull();
     expect(pulls).toEqual([
@@ -242,6 +276,8 @@ describe('PullImage', () => {
           return { results: [NGINX] };
         case 'fetch_image_tags':
           return ['latest'];
+        case 'fetch_image_tag':
+          return tagDetails('latest');
         case 'pull_image':
           progressChannel = pullRequest(args).onProgress;
           return new Promise(resolve => {
@@ -252,7 +288,7 @@ describe('PullImage', () => {
       }
     });
     const user = await choosePullSource({ image: 'nginx' });
-    await user.click(screen.getByRole('button', { name: 'Pull' }));
+    await pullOnceTheTagIsChecked(user);
     const report = (...layers: ImagePullLayer[]) =>
       act(() => progressChannel?.onmessage({ layers }));
     const bar = () =>
@@ -306,5 +342,159 @@ describe('PullImage', () => {
       await screen.findByText('Image pulled successfully!')
     ).toBeInTheDocument();
     expect(screen.queryByRole('progressbar')).toBeNull();
+  });
+
+  it('leaves the tag blank and says so when the image has no latest tag', async () => {
+    const { pulls } = mockDockerHub([CUDA], { hubTags: [CUDA_TAG] });
+    const user = await choosePullSource({ image: 'nvidia/cuda' });
+
+    await waitFor(() =>
+      expect(tagInput()).toHaveAccessibleDescription(
+        'This image has no latest tag.'
+      )
+    );
+    expect(tagInput()).toHaveValue('');
+    expect(tagInput()).not.toBeInvalid();
+    expect(pullButton()).toBeDisabled();
+    expect(screen.getByText('docker.io/nvidia/cuda')).toBeInTheDocument();
+    expect(screen.getByText('Repository nvidia/cuda')).toBeInTheDocument();
+    expect(screen.queryByText(/^Tag /)).toBeNull();
+
+    await user.click(tagInput());
+    await user.click(screen.getByRole('option', { name: CUDA_TAG }));
+    await pullOnceTheTagIsChecked(user);
+
+    expect(pulls).toEqual([
+      { imageName: 'nvidia/cuda', tag: CUDA_TAG, registry: 'docker.io' },
+    ]);
+  });
+
+  it('shows the size, push date and platforms of the chosen tag', async () => {
+    mockDockerHub([NGINX]);
+    await choosePullSource({ image: 'nginx' });
+
+    expect(await screen.findByText('Tag latest')).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        `61 MB compressed · pushed ${new Date(PUSHED_AT).toLocaleDateString()}`
+      )
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText('linux/amd64, linux/arm64/v8, linux/386, linux/arm/v7')
+    ).toBeInTheDocument();
+    expect(screen.getByText('Repository nginx')).toBeInTheDocument();
+  });
+
+  it('refuses a tag Docker Hub does not have', async () => {
+    mockDockerHub([NGINX]);
+    const user = await choosePullSource({ image: 'nginx' });
+    await waitFor(() => expect(pullButton()).toBeEnabled());
+
+    await typeTag(user, 'no-such-tag');
+
+    await waitFor(() =>
+      expect(tagInput()).toHaveAccessibleDescription(
+        'No tag no-such-tag on Docker Hub.'
+      )
+    );
+    expect(tagInput()).toBeInvalid();
+    expect(pullButton()).toBeDisabled();
+    expect(screen.queryByText(/^Tag /)).toBeNull();
+  });
+
+  it('explains which characters a tag can have without asking Docker Hub', async () => {
+    const { tagLookups } = mockDockerHub([NGINX]);
+    const user = await choosePullSource({ image: 'nginx' });
+    await waitFor(() => expect(pullButton()).toBeEnabled());
+
+    await typeTag(user, '-rc 1');
+
+    expect(tagInput()).toHaveAccessibleDescription(
+      'Use letters, digits, _, . and -, not starting with . or -.'
+    );
+    expect(tagInput()).toBeInvalid();
+    expect(pullButton()).toBeDisabled();
+    expect(tagLookups).toEqual(['latest']);
+  });
+
+  it('still pulls a tag it could not check on Docker Hub', async () => {
+    const pulls: unknown[] = [];
+    mockIPC((cmd, args) => {
+      switch (cmd) {
+        case 'search_docker_hub':
+          return { results: [NGINX] };
+        case 'fetch_image_tags':
+          return ['latest'];
+        case 'fetch_image_tag':
+          return Promise.reject('Docker Hub is unreachable');
+        case 'pull_image':
+          pulls.push(withoutProgress(pullRequest(args)));
+          return null;
+        default:
+          throw new Error(`Unexpected command ${cmd}`);
+      }
+    });
+    const user = await choosePullSource({ image: 'nginx' });
+
+    await waitFor(() =>
+      expect(tagInput()).toHaveAccessibleDescription(
+        'Could not check this tag on Docker Hub.'
+      )
+    );
+    expect(tagInput()).toHaveValue('latest');
+    expect(tagInput()).not.toBeInvalid();
+    await pullOnceTheTagIsChecked(user);
+
+    expect(pulls).toEqual([
+      { imageName: 'nginx', tag: 'latest', registry: 'docker.io' },
+    ]);
+  });
+
+  it('forgets the image and its tag on Clear', async () => {
+    mockDockerHub([NGINX]);
+    const user = await choosePullSource({ image: 'nginx' });
+    await waitFor(() => expect(pullButton()).toBeEnabled());
+
+    await user.click(screen.getByRole('button', { name: 'Clear' }));
+
+    expect(screen.getByLabelText('Image Name')).toHaveValue('');
+    expect(tagInput()).toHaveValue('');
+    expect(pullButton()).toBeDisabled();
+  });
+
+  it('chooses a search result with the keyboard', async () => {
+    const { pulls } = mockDockerHub([NGINX]);
+    const user = userEvent.setup();
+    render(<PullImage />);
+    await user.click(screen.getByRole('button', { name: 'Pull Image' }));
+
+    await user.type(screen.getByLabelText('Image Name'), 'nginx');
+    await screen.findByText('nginx', { selector: 'span' });
+    await user.keyboard('{ArrowDown}{Enter}');
+
+    expect(await screen.findByText('Tag latest')).toBeInTheDocument();
+    await pullOnceTheTagIsChecked(user);
+    expect(pulls).toEqual([
+      { imageName: 'nginx', tag: 'latest', registry: 'docker.io' },
+    ]);
+  });
+
+  it('closes an open list with Escape before it closes the dialog', async () => {
+    mockDockerHub([NGINX]);
+    const user = await choosePullSource({ image: 'nginx' });
+    const dialog = screen.getByRole('dialog', {
+      name: 'Pull Image from Registry',
+    });
+
+    await user.click(tagInput());
+    expect(tagInput()).toHaveAttribute('aria-expanded', 'true');
+    await user.keyboard('{Escape}');
+
+    expect(tagInput()).toHaveAttribute('aria-expanded', 'false');
+    expect(dialog).toBeInTheDocument();
+
+    await user.keyboard('{Escape}');
+
+    await waitFor(() => expect(dialog).not.toBeInTheDocument());
   });
 });

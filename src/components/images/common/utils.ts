@@ -1,5 +1,16 @@
 import { DOCKER_HUB } from '../../../lib/image-source';
-import { PullFormData, ProgressState } from './types';
+import { PullFormData, ProgressState, TagStatus } from './types';
+
+export const DEFAULT_TAG = 'latest';
+
+const TAG_PATTERN = /^[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}$/;
+
+export const isValidTag = (tag: string) => TAG_PATTERN.test(tag);
+
+export const canPullWithTag = (status: TagStatus) =>
+  status.kind === 'found' ||
+  status.kind === 'unknown' ||
+  status.kind === 'unchecked';
 
 export function formatNumber(num: number): string {
   if (num >= 1000000000) {
@@ -16,7 +27,7 @@ export function formatNumber(num: number): string {
 
 export const DEFAULT_PULL_DATA: PullFormData = {
   imageName: '',
-  tag: 'latest',
+  tag: '',
   registry: DOCKER_HUB,
 };
 
@@ -32,9 +43,9 @@ export const trimPullData = ({
 
 export function pullReference(pullData: PullFormData) {
   const { registry, imageName, tag } = trimPullData(pullData);
-  return registry === DOCKER_HUB
-    ? `${imageName}:${tag}`
-    : `${registry}/${imageName}:${tag}`;
+  const repository =
+    registry === DOCKER_HUB ? imageName : `${registry}/${imageName}`;
+  return tag ? `${repository}:${tag}` : repository;
 }
 
 export const DEFAULT_PROGRESS_STATE: ProgressState = {
