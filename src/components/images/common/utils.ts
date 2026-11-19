@@ -53,4 +53,5 @@ export const DEFAULT_PROGRESS_STATE: ProgressState = {
   progress: '',
   error: null,
   success: false,
+  cancelled: false,
 };

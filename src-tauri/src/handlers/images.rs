@@ -1,6 +1,8 @@
-use crate::entities::{DockerHubTag, Image, ImagePullProgress, PruneResult};
+use crate::entities::{
+    DockerHubTag, Image, ImagePullOutcome, ImagePullProgress, ImagePullRequest, PruneResult,
+};
 use crate::services::ImagesService;
-use crate::state::SharedEngineState;
+use crate::state::{RunningPulls, SharedEngineState};
 use tauri::ipc::{Channel, JavaScriptChannelId};
 use tauri::{State, Webview};
 use tracing::{debug, instrument};
@@ -41,29 +43,44 @@ pub async fn delete_image(
 #[instrument(skip_all, err)]
 pub async fn pull_image(
     state: State<'_, SharedEngineState>,
-    image_name: String,
-    tag: String,
-    registry: String,
+    running_pulls: State<'_, RunningPulls>,
+    request: ImagePullRequest,
     on_progress: Option<JavaScriptChannelId>,
     webview: Webview,
-) -> Result<(), String> {
+) -> Result<ImagePullOutcome, String> {
+    let running_pull = running_pulls.register(&request.pull_id);
     debug!(
         "Pulling image: {}:{} from registry: {}",
-        image_name, tag, registry
+        request.image_name, request.tag, request.registry
     );
 
     let engine = state.get_engine().await?;
     let docker = engine.docker.as_ref().ok_or("Docker not found")?;
     let progress_channel: Option<Channel<ImagePullProgress>> =
         on_progress.map(|channel| channel.channel_on(webview));
-    ImagesService::pull_image(docker, &image_name, &tag, &registry, |progress| {
-        if let Some(channel) = &progress_channel {
-            if let Err(e) = channel.send(progress) {
-                debug!("Could not send the pull progress: {}", e);
+    ImagesService::pull_image(
+        docker,
+        &request.image_name,
+        &request.tag,
+        &request.registry,
+        running_pull.cancelled(),
+        |progress| {
+            if let Some(channel) = &progress_channel {
+                if let Err(e) = channel.send(progress) {
+                    debug!("Could not send the pull progress: {}", e);
+                }
             }
-        }
-    })
+        },
+    )
     .await
+}
+
+#[tauri::command]
+#[instrument(skip_all)]
+pub fn cancel_image_pull(running_pulls: State<'_, RunningPulls>, pull_id: String) -> bool {
+    let cancelled = running_pulls.cancel(&pull_id);
+    debug!("Cancel pull {}: {}", pull_id, cancelled);
+    cancelled
 }
 
 #[tauri::command]

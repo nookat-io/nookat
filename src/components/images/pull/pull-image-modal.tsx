@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Button } from '../../ui/button';
 import {
   Dialog,
@@ -12,7 +12,11 @@ import {
 import { Download } from 'lucide-react';
 import { Channel, invoke } from '@tauri-apps/api/core';
 import { DockerHubImage } from '../../../types/docker-images';
-import { ImagePullProgress } from '../../../types/image-pull';
+import {
+  ImagePullOutcome,
+  ImagePullProgress,
+  ImagePullRequest,
+} from '../../../types/image-pull';
 import { PullImageTab } from './pull-image-tab';
 import { ProgressDisplay } from '../common/progress-display';
 import { PullSummary, advancePull } from '../common/pull-summary';
@@ -102,8 +106,15 @@ export function PullImage() {
   const { isOpen, openModal, closeModal } = useModalState();
   const { pullData, resetForms, updatePullData, chooseTagIfBlank } =
     useFormData();
-  const { progress, resetProgress, setRunning, setSuccess, setError } =
-    useProgress();
+  const {
+    progress,
+    resetProgress,
+    setRunning,
+    setSuccess,
+    setCancelled,
+    setError,
+  } = useProgress();
+  const runningPullId = useRef<string | null>(null);
   const { registryState, updateRegistry, updateCustomRegistry, resetRegistry } =
     useRegistryState();
   const [lookupTag] = useState(() => createTagLookup());
@@ -260,27 +271,73 @@ export function PullImage() {
   };
 
   const pullImage = async ({ imageName, tag, registry }: PullFormData) => {
+    const pullId = crypto.randomUUID();
+    const isCurrentPull = () => runningPullId.current === pullId;
+    runningPullId.current = pullId;
     setPullToConfirm(null);
     setPullSummary(null);
     setRunning('Pulling image...');
 
     try {
-      const onProgress = new Channel<ImagePullProgress>(progress =>
-        setPullSummary(previous => advancePull(previous, progress))
-      );
-      await invoke('pull_image', { imageName, tag, registry, onProgress });
-      setSuccess('Image pulled successfully!');
+      const onProgress = new Channel<ImagePullProgress>(progress => {
+        if (isCurrentPull()) {
+          setPullSummary(previous => advancePull(previous, progress));
+        }
+      });
+      const request: ImagePullRequest = { pullId, imageName, tag, registry };
+      const outcome = await invoke<ImagePullOutcome>('pull_image', {
+        request,
+        onProgress,
+      });
+      if (!isCurrentPull()) {
+        return;
+      }
+      if (outcome === 'cancelled') {
+        setCancelled('Pull cancelled');
+      } else {
+        setSuccess('Image pulled successfully!');
+      }
     } catch (error) {
       console.error('Pull image error:', error);
-      setError(errorMessage(error));
+      if (isCurrentPull()) {
+        setError(errorMessage(error));
+      }
+    } finally {
+      if (isCurrentPull()) {
+        runningPullId.current = null;
+      }
     }
+  };
+
+  const cancelPull = (pullId: string | null) => {
+    if (!pullId) {
+      return;
+    }
+    invoke<boolean>('cancel_image_pull', { pullId }).catch(error =>
+      console.error('Cancel pull error:', error)
+    );
+  };
+
+  const cancelPullAndClose = () => {
+    const pullId = runningPullId.current;
+    runningPullId.current = null;
+    cancelPull(pullId);
+    closeAndResetPullForm();
   };
 
   const handleOpenChange = (open: boolean) => {
     if (open) {
       resetPullForm();
-    } else if (!progress.isRunning) {
+    } else if (progress.isRunning) {
+      cancelPullAndClose();
+    } else {
       closeAndResetPullForm();
+    }
+  };
+
+  const keepOpenWhilePulling = (event: Event) => {
+    if (progress.isRunning) {
+      event.preventDefault();
     }
   };
 
@@ -301,6 +358,7 @@ export function PullImage() {
         className="max-w-2xl"
         onOpenAutoFocus={focusSearchInput}
         onEscapeKeyDown={closeOnlyAnOpenList}
+        onInteractOutside={keepOpenWhilePulling}
       >
         <DialogHeader>
           <DialogTitle>Pull Image from Registry</DialogTitle>
@@ -341,13 +399,18 @@ export function PullImage() {
         )}
 
         <DialogFooter>
-          <Button
-            variant="outline"
-            onClick={closeModal}
-            disabled={progress.isRunning}
-          >
-            Cancel
-          </Button>
+          {progress.isRunning ? (
+            <Button
+              variant="outline"
+              onClick={() => cancelPull(runningPullId.current)}
+            >
+              Cancel Pull
+            </Button>
+          ) : (
+            <Button variant="outline" onClick={closeModal}>
+              Cancel
+            </Button>
+          )}
           <Button
             onClick={handlePull}
             disabled={

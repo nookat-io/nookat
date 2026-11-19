@@ -386,7 +386,7 @@ describe('CreateContainerDialog', () => {
   });
 
   it('pulls an image that is not local through the pull command and selects it', async () => {
-    const { user, calls } = renderWizard({ pull_image: () => null });
+    const { user, calls } = renderWizard({ pull_image: () => 'completed' });
     await openWizard(user);
 
     await user.type(
@@ -399,7 +399,14 @@ describe('CreateContainerDialog', () => {
     expect(calls).toEqual([
       {
         cmd: 'pull_image',
-        args: { imageName: 'busybox', tag: '1.37', registry: 'docker.io' },
+        args: {
+          request: {
+            pullId: expect.any(String),
+            imageName: 'busybox',
+            tag: '1.37',
+            registry: 'docker.io',
+          },
+        },
       },
     ]);
     expect(toast.success).toHaveBeenCalledWith('Pulled busybox:1.37');
@@ -430,7 +437,7 @@ describe('CreateContainerDialog', () => {
   });
 
   it('asks before pulling from a registry that looks like a well-known one', async () => {
-    const { user, calls } = renderWizard({ pull_image: () => null });
+    const { user, calls } = renderWizard({ pull_image: () => 'completed' });
     await openWizard(user);
 
     await user.type(
@@ -463,13 +470,20 @@ describe('CreateContainerDialog', () => {
     expect(calls).toEqual([
       {
         cmd: 'pull_image',
-        args: { imageName: 'acme/api', tag: '2', registry: 'ghrc.io' },
+        args: {
+          request: {
+            pullId: expect.any(String),
+            imageName: 'acme/api',
+            tag: '2',
+            registry: 'ghrc.io',
+          },
+        },
       },
     ]);
   });
 
   it('asks before pulling an image named like a popular official one', async () => {
-    const { user, calls } = renderWizard({ pull_image: () => null });
+    const { user, calls } = renderWizard({ pull_image: () => 'completed' });
     await openWizard(user);
 
     await user.type(
@@ -485,7 +499,7 @@ describe('CreateContainerDialog', () => {
   });
 
   it('only notes a registry it does not know and pulls without asking', async () => {
-    const { user, calls } = renderWizard({ pull_image: () => null });
+    const { user, calls } = renderWizard({ pull_image: () => 'completed' });
     await openWizard(user);
 
     await user.type(
@@ -507,9 +521,12 @@ describe('CreateContainerDialog', () => {
       {
         cmd: 'pull_image',
         args: {
-          imageName: 'team/api',
-          tag: '1',
-          registry: 'registry.example.com',
+          request: {
+            pullId: expect.any(String),
+            imageName: 'team/api',
+            tag: '1',
+            registry: 'registry.example.com',
+          },
         },
       },
     ]);

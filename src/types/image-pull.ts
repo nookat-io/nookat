@@ -17,3 +17,12 @@ export interface ImagePullLayer {
 export interface ImagePullProgress {
   layers: ImagePullLayer[];
 }
+
+export interface ImagePullRequest {
+  pullId: string;
+  imageName: string;
+  tag: string;
+  registry: string;
+}
+
+export type ImagePullOutcome = 'completed' | 'cancelled';

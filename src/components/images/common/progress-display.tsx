@@ -1,4 +1,4 @@
-import { CheckCircle, AlertCircle } from 'lucide-react';
+import { CheckCircle, AlertCircle, CircleSlash } from 'lucide-react';
 import { Progress } from '../../ui/progress';
 import { ProgressState } from './types';
 import { PullSummary, describePull } from './pull-summary';
@@ -68,6 +68,9 @@ export function ProgressDisplay({
     <div className="p-4 rounded-lg border">
       <div className="flex items-center space-x-2">
         {progress.success && <CheckCircle className="h-4 w-4 text-green-500" />}
+        {progress.cancelled && (
+          <CircleSlash className="h-4 w-4 text-muted-foreground" />
+        )}
         <span>{progress.progress}</span>
       </div>
     </div>

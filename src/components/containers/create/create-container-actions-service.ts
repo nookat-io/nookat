@@ -1,6 +1,7 @@
 import { invoke } from '@tauri-apps/api/core';
 import { toast } from 'sonner';
 import { errorMessage } from '../../../utils/error-message';
+import { ImagePullRequest } from '../../../types/image-pull';
 import {
   CreateContainerError,
   CreateContainerSpec,
@@ -37,7 +38,11 @@ export async function pullImage(reference: string): Promise<boolean> {
     return false;
   }
   try {
-    await invoke('pull_image', { ...target });
+    const request: ImagePullRequest = {
+      pullId: crypto.randomUUID(),
+      ...target,
+    };
+    await invoke('pull_image', { request });
     toast.success(`Pulled ${reference}`);
     return true;
   } catch (error) {
