@@ -7,11 +7,14 @@ interface PerformanceWarningsProps {
   host: ColimaHost;
 }
 
+const cpuCores = (count: number) =>
+  count === 1 ? '1 CPU core' : `${count} CPU cores`;
+
 function describe(warning: ColimaPerformanceWarning, host: ColimaHost) {
   switch (warning.kind) {
     case 'FewCpus':
       return {
-        title: `The engine runs on only ${warning.cpus} CPU cores`,
+        title: `The engine runs on only ${cpuCores(warning.cpus)}`,
         message: `Builds and parallel workloads run up to 3x slower than with all ${host.cpus} cores. Stop the engine, raise CPU Cores and start it again.`,
       };
     case 'RosettaOff':

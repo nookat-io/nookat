@@ -3,6 +3,10 @@ use crate::services::engine::colima_unmanaged;
 use tauri::AppHandle;
 use tracing::instrument;
 
+pub fn managed_colima_endpoint() -> Option<String> {
+    None
+}
+
 #[instrument(skip_all, err)]
 pub async fn install_colima(_app: &AppHandle, _method: InstallationMethod) -> Result<(), String> {
     colima_unmanaged()
