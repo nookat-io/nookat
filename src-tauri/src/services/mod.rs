@@ -8,6 +8,7 @@ mod containers;
 mod docker_error;
 pub(crate) mod engine;
 pub mod engine_state_monitor;
+mod image_pull;
 mod images;
 mod networks;
 pub(crate) mod shell;

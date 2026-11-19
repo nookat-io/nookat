@@ -10,45 +10,139 @@ import {
   DialogTrigger,
 } from '../../ui/dialog';
 import { Download } from 'lucide-react';
-import { invoke } from '@tauri-apps/api/core';
+import { Channel, invoke } from '@tauri-apps/api/core';
 import { DockerHubImage } from '../../../types/docker-images';
+import { ImagePullProgress } from '../../../types/image-pull';
 import { PullImageTab } from './pull-image-tab';
 import { ProgressDisplay } from '../common/progress-display';
+import { PullSummary, advancePull } from '../common/pull-summary';
 import {
   useModalState,
   useFormData,
   useProgress,
   useRegistryState,
   useDockerHubSearch,
-  useSelectionFeedback,
   useTagSuggestions,
+  useTagStatus,
 } from '../common/hooks';
 import { errorMessage } from '../../../utils/error-message';
 import {
+  DOCKER_HUB,
   LookalikeCheck,
   checkImageReference,
   needsConfirmation,
 } from '../../../lib/image-source';
 import {
   DEFAULT_PROGRESS_STATE,
+  DEFAULT_TAG,
+  canPullWithTag,
   pullReference,
   trimPullData,
 } from '../common/utils';
-import { PullFormData } from '../common/types';
+import { PullFormData, TagMessage, TagStatus } from '../common/types';
+import { createTagLookup } from '../common/tag-lookup';
 import { ImageSourceConfirmDialog } from '../../common/image-source-warnings';
 
 const SUCCESS_MESSAGE_VISIBLE_MS = 2000;
 
+const closeOnlyAnOpenList = (event: KeyboardEvent) => {
+  const hasOpenList =
+    event.target instanceof HTMLElement &&
+    event.target.getAttribute('aria-expanded') === 'true';
+  if (hasOpenList) {
+    event.preventDefault();
+  }
+};
+
 const hasSpaceOrTab = (value: string) =>
   value.includes(' ') || value.includes('\t');
 
+function tagMessageFor({
+  status,
+  tag,
+  hasNoDefaultTag,
+  suggestionsError,
+}: {
+  status: TagStatus;
+  tag: string;
+  hasNoDefaultTag: boolean;
+  suggestionsError: string | null;
+}): TagMessage | null {
+  if (status.kind === 'invalid') {
+    return {
+      tone: 'error',
+      text: 'Use letters, digits, _, . and -, not starting with . or -.',
+    };
+  }
+  if (status.kind === 'missing') {
+    return {
+      tone: 'error',
+      text: `No tag ${tag} on Docker Hub.`,
+    };
+  }
+  if (status.kind === 'unknown') {
+    return {
+      tone: 'muted',
+      text: 'Could not check this tag on Docker Hub.',
+    };
+  }
+  if (hasNoDefaultTag) {
+    return {
+      tone: 'muted',
+      text: `This image has no ${DEFAULT_TAG} tag.`,
+    };
+  }
+  if (suggestionsError) {
+    return { tone: 'error', text: suggestionsError };
+  }
+  return null;
+}
+
 export function PullImage() {
   const { isOpen, openModal, closeModal } = useModalState();
-  const { pullData, resetForms, updatePullData } = useFormData();
+  const { pullData, resetForms, updatePullData, chooseTagIfBlank } =
+    useFormData();
   const { progress, resetProgress, setRunning, setSuccess, setError } =
     useProgress();
   const { registryState, updateRegistry, updateCustomRegistry, resetRegistry } =
     useRegistryState();
+  const [lookupTag] = useState(() => createTagLookup());
+  const [defaultTagCheck, setDefaultTagCheck] = useState<{
+    imageName: string;
+    defaultTag: 'checking' | 'present' | 'absent';
+  } | null>(null);
+
+  const chooseImage = useCallback(
+    (image: DockerHubImage) => {
+      const registry = registryState.showCustomRegistry
+        ? registryState.customRegistry
+        : registryState.selectedRegistry;
+      updatePullData({ imageName: image.name, tag: '', registry });
+
+      if (registry.trim() !== DOCKER_HUB) {
+        setDefaultTagCheck(null);
+        chooseTagIfBlank(image.name, DEFAULT_TAG);
+        return;
+      }
+      setDefaultTagCheck({ imageName: image.name, defaultTag: 'checking' });
+      const settleDefaultTag = (defaultTag: 'present' | 'absent') => {
+        setDefaultTagCheck(check =>
+          check?.imageName === image.name
+            ? { imageName: image.name, defaultTag }
+            : check
+        );
+        if (defaultTag === 'present') {
+          chooseTagIfBlank(image.name, DEFAULT_TAG);
+        }
+      };
+      lookupTag(image.name, DEFAULT_TAG).then(
+        found => settleDefaultTag(found ? 'present' : 'absent'),
+        () => settleDefaultTag('present')
+      );
+    },
+    [registryState, updatePullData, chooseTagIfBlank, lookupTag]
+  );
+
   const {
     searchState,
     searchContainerRef,
@@ -58,10 +152,31 @@ export function PullImage() {
     clearSelection,
     handleSearchKeyDown,
     resetSearch,
-  } = useDockerHubSearch();
-  const { showFeedback, resetFeedback } = useSelectionFeedback();
-  const { tagSuggestions, isLoadingTags, tagError, fetchTags, clearTags } =
-    useTagSuggestions();
+  } = useDockerHubSearch(chooseImage);
+  const { tagSuggestions, isLoadingTags, tagError } = useTagSuggestions(
+    searchState.selectedImageDetails?.name ?? null,
+    pullData.tag
+  );
+  const tagStatus = useTagStatus(
+    lookupTag,
+    pullData.imageName,
+    pullData.tag,
+    pullData.registry.trim() === DOCKER_HUB
+  );
+  const defaultTagCheckOfThisImage =
+    !pullData.tag && defaultTagCheck?.imageName === pullData.imageName
+      ? defaultTagCheck
+      : null;
+  const tagMessage = tagMessageFor({
+    status: tagStatus,
+    tag: pullData.tag,
+    hasNoDefaultTag: defaultTagCheckOfThisImage?.defaultTag === 'absent',
+    suggestionsError: tagError,
+  });
+  const isCheckingTags =
+    isLoadingTags ||
+    tagStatus.kind === 'checking' ||
+    defaultTagCheckOfThisImage?.defaultTag === 'checking';
   const [pullToConfirm, setPullToConfirm] = useState<{
     request: PullFormData;
     source: LookalikeCheck;
@@ -69,6 +184,7 @@ export function PullImage() {
   const [attemptedReference, setAttemptedReference] = useState<string | null>(
     null
   );
+  const [pullSummary, setPullSummary] = useState<PullSummary | null>(null);
   const progressOfChosenImage =
     progress.isRunning || attemptedReference === pullReference(pullData)
       ? progress
@@ -79,39 +195,13 @@ export function PullImage() {
     resetProgress();
     resetRegistry();
     resetSearch();
-    resetFeedback();
-  }, [resetForms, resetProgress, resetRegistry, resetSearch, resetFeedback]);
+    setDefaultTagCheck(null);
+  }, [resetForms, resetProgress, resetRegistry, resetSearch]);
 
   const closeAndResetPullForm = useCallback(() => {
     closeModal();
     resetPullForm();
   }, [closeModal, resetPullForm]);
-
-  useEffect(() => {
-    if (searchState.selectedImageDetails) {
-      const imageName = searchState.selectedImageDetails.name;
-
-      updatePullData({
-        imageName,
-        tag: 'latest',
-        registry: registryState.showCustomRegistry
-          ? registryState.customRegistry
-          : registryState.selectedRegistry,
-      });
-
-      showFeedback(`Selected: ${imageName}`);
-      fetchTags(imageName);
-    } else {
-      clearTags();
-    }
-  }, [
-    searchState.selectedImageDetails,
-    updatePullData,
-    registryState,
-    showFeedback,
-    fetchTags,
-    clearTags,
-  ]);
 
   useEffect(() => {
     if (!progress.success) {
@@ -136,16 +226,10 @@ export function PullImage() {
     updatePullData({ registry: value });
   };
 
-  const handleImageSelect = (image: DockerHubImage) => {
-    selectImage(image);
-
-    updatePullData({
-      imageName: image.name,
-      tag: '',
-      registry: registryState.showCustomRegistry
-        ? registryState.customRegistry
-        : registryState.selectedRegistry,
-    });
+  const clearChosenImage = () => {
+    clearSelection();
+    updatePullData({ imageName: '', tag: '' });
+    setDefaultTagCheck(null);
   };
 
   const handlePull = () => {
@@ -177,10 +261,14 @@ export function PullImage() {
 
   const pullImage = async ({ imageName, tag, registry }: PullFormData) => {
     setPullToConfirm(null);
+    setPullSummary(null);
     setRunning('Pulling image...');
 
     try {
-      await invoke('pull_image', { imageName, tag, registry });
+      const onProgress = new Channel<ImagePullProgress>(progress =>
+        setPullSummary(previous => advancePull(previous, progress))
+      );
+      await invoke('pull_image', { imageName, tag, registry, onProgress });
       setSuccess('Image pulled successfully!');
     } catch (error) {
       console.error('Pull image error:', error);
@@ -209,7 +297,11 @@ export function PullImage() {
           Pull Image
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-2xl" onOpenAutoFocus={focusSearchInput}>
+      <DialogContent
+        className="max-w-2xl"
+        onOpenAutoFocus={focusSearchInput}
+        onEscapeKeyDown={closeOnlyAnOpenList}
+      >
         <DialogHeader>
           <DialogTitle>Pull Image from Registry</DialogTitle>
           <DialogDescription>Pull an image from a registry</DialogDescription>
@@ -219,22 +311,26 @@ export function PullImage() {
           pullData={pullData}
           registryState={registryState}
           searchState={searchState}
-          isLoadingTags={isLoadingTags}
-          tagError={tagError}
+          isLoadingTags={isCheckingTags}
+          tagMessage={tagMessage}
+          tagStatus={tagStatus}
           tagSuggestions={tagSuggestions}
           onRegistryChange={handleRegistryChange}
           onCustomRegistryChange={handleCustomRegistryChange}
           onSearchChange={handleSearchChange}
-          onImageSelect={handleImageSelect}
+          onImageSelect={selectImage}
           onSearchKeyDown={handleSearchKeyDown}
           onTagChange={tag => updatePullData({ tag })}
-          onClearSelection={clearSelection}
+          onClearSelection={clearChosenImage}
           disabled={progress.isRunning}
           searchContainerRef={searchContainerRef}
           searchInputRef={searchInputRef}
         />
 
-        <ProgressDisplay progress={progressOfChosenImage} />
+        <ProgressDisplay
+          progress={progressOfChosenImage}
+          pullSummary={pullSummary}
+        />
 
         {pullToConfirm && (
           <ImageSourceConfirmDialog
@@ -255,7 +351,10 @@ export function PullImage() {
           <Button
             onClick={handlePull}
             disabled={
-              progress.isRunning || !pullData.imageName || !pullData.tag
+              progress.isRunning ||
+              !pullData.imageName ||
+              !pullData.tag ||
+              !canPullWithTag(tagStatus)
             }
             className="min-w-[100px]"
           >

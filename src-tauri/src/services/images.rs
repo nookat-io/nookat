@@ -1,4 +1,5 @@
-use crate::entities::{Image, PruneResult};
+use super::image_pull::PullLayers;
+use crate::entities::{DockerHubTag, Image, ImagePullProgress, PruneResult};
 use bollard::models::ImageSummary;
 use bollard::query_parameters::{
     CreateImageOptions, ListContainersOptions, ListImagesOptions, PruneImagesOptions,
@@ -6,16 +7,24 @@ use bollard::query_parameters::{
 };
 use bollard::Docker;
 use futures_util::StreamExt;
+use reqwest::{StatusCode, Url};
 use serde_json::Value;
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeSet, HashMap, HashSet};
 use std::time::Duration;
+use tokio::time::MissedTickBehavior;
 use tracing::{debug, instrument};
 
 const DOCKER_HUB_REGISTRY: &str = "docker.io";
 const DOCKER_HUB_SEARCH_URL: &str = "https://hub.docker.com/v2/search/repositories/";
 const DOCKER_HUB_SEARCH_PAGE_SIZE: &str = "25";
+const DOCKER_HUB_REPOSITORIES_URL: &str = "https://hub.docker.com/v2/repositories/";
+const DOCKER_HUB_TAGS_PAGE_SIZE: &str = "100";
+const MAX_TAG_LENGTH: usize = 128;
+const ATTESTATION_PLATFORM: &str = "unknown";
+const MAINSTREAM_ARCHITECTURES: [&str; 2] = ["amd64", "arm64"];
 const DOCKER_HUB_TIMEOUT: Duration = Duration::from_secs(15);
 const DOCKER_HUB_USER_AGENT: &str = "Nookat/1.0";
+const PULL_PROGRESS_INTERVAL: Duration = Duration::from_millis(100);
 
 #[derive(Default, Debug)]
 pub struct ImagesService {}
@@ -104,6 +113,7 @@ impl ImagesService {
         image_name: &str,
         tag: &str,
         registry: &str,
+        mut report_progress: impl FnMut(ImagePullProgress),
     ) -> Result<(), String> {
         debug!(
             "Pulling image: {}:{} from registry: {}",
@@ -124,12 +134,31 @@ impl ImagesService {
             from_image: Some(full_image_name.clone()),
             ..Default::default()
         };
-        let mut pull_progress = docker.create_image(Some(options), None, None);
+        let mut pull_messages = docker.create_image(Some(options), None, None);
+        let mut layers = PullLayers::default();
+        let mut has_unreported_progress = false;
+        let mut report_timer = tokio::time::interval(PULL_PROGRESS_INTERVAL);
+        report_timer.set_missed_tick_behavior(MissedTickBehavior::Delay);
 
-        while let Some(progress) = pull_progress.next().await {
-            let progress =
-                progress.map_err(|e| format!("Failed to pull image {}: {}", full_image_name, e))?;
-            debug!("Pull progress: {:?}", progress);
+        loop {
+            tokio::select! {
+                message = pull_messages.next() => {
+                    let Some(message) = message else {
+                        break;
+                    };
+                    let message = message
+                        .map_err(|e| format!("Failed to pull image {}: {}", full_image_name, e))?;
+                    debug!("Pull progress: {:?}", message);
+                    has_unreported_progress |= layers.apply(&message);
+                }
+                _ = report_timer.tick(), if has_unreported_progress => {
+                    report_progress(layers.progress());
+                    has_unreported_progress = false;
+                }
+            }
+        }
+        if has_unreported_progress {
+            report_progress(layers.progress());
         }
 
         debug!("Successfully pulled image: {}", full_image_name);
@@ -171,56 +200,82 @@ impl ImagesService {
     }
 
     #[instrument(skip_all, err)]
-    pub async fn fetch_image_tags(image_name: &str) -> Result<Vec<String>, String> {
-        debug!("Fetching tags for image: {}", image_name);
+    pub async fn fetch_image_tags(
+        image_name: &str,
+        name_filter: &str,
+    ) -> Result<Vec<String>, String> {
+        debug!(
+            "Fetching tags of {} containing {:?}",
+            image_name, name_filter
+        );
 
-        let client = docker_hub_client()?;
+        let response = docker_hub_client()?
+            .get(docker_hub_tags_url(image_name)?)
+            .query(&[
+                ("page_size", DOCKER_HUB_TAGS_PAGE_SIZE),
+                ("name", name_filter),
+            ])
+            .send()
+            .await
+            .map_err(|e| format!("Failed to fetch tags for {}: {}", image_name, e))?;
 
-        let mut all_tags = Vec::new();
-        let mut next_page_url = Some(format!(
-            "https://registry.hub.docker.com/v2/repositories/{}/tags?page_size=100",
-            docker_hub_repository(image_name)
-        ));
-
-        while let Some(url) = next_page_url {
-            debug!("Fetching tags from: {}", url);
-
-            let response = client
-                .get(&url)
-                .send()
-                .await
-                .map_err(|e| format!("Failed to fetch tags for {}: {}", image_name, e))?;
-
-            if !response.status().is_success() {
-                return Err(format!(
-                    "Docker Hub API returned status: {} for image: {}",
-                    response.status(),
-                    image_name
-                ));
-            }
-
-            let page = response
-                .json::<Value>()
-                .await
-                .map_err(|e| format!("Failed to parse Docker Hub tags response: {}", e))?;
-
-            if let Some(results) = page.get("results").and_then(|r| r.as_array()) {
-                all_tags.extend(
-                    results
-                        .iter()
-                        .filter_map(|tag| tag.get("name").and_then(|name| name.as_str()))
-                        .map(|name| name.to_string()),
-                );
-            }
-
-            next_page_url = page
-                .get("next")
-                .and_then(|next| next.as_str())
-                .map(|s| s.to_string());
+        if !response.status().is_success() {
+            return Err(format!(
+                "Docker Hub API returned status: {} for image: {}",
+                response.status(),
+                image_name
+            ));
         }
 
-        debug!("Found {} tags for image: {}", all_tags.len(), image_name);
-        Ok(all_tags)
+        let page = response
+            .json::<Value>()
+            .await
+            .map_err(|e| format!("Failed to parse Docker Hub tags response: {}", e))?;
+
+        Ok(tag_names(&page))
+    }
+
+    #[instrument(skip_all, err)]
+    pub async fn fetch_image_tag(
+        image_name: &str,
+        tag: &str,
+    ) -> Result<Option<DockerHubTag>, String> {
+        debug!("Looking up tag {} of {}", tag, image_name);
+
+        if !is_valid_tag(tag) {
+            return Err(format!("{:?} is not a valid image tag", tag));
+        }
+
+        let mut url = docker_hub_tags_url(image_name)?;
+        url.path_segments_mut()
+            .map_err(|_| "Docker Hub tags URL cannot take a tag".to_string())?
+            .push(tag);
+
+        let response = docker_hub_client()?
+            .get(url)
+            .send()
+            .await
+            .map_err(|e| format!("Failed to look up {}:{}: {}", image_name, tag, e))?;
+
+        if response.status() == StatusCode::NOT_FOUND {
+            return Ok(None);
+        }
+
+        if !response.status().is_success() {
+            return Err(format!(
+                "Docker Hub API returned status: {} for {}:{}",
+                response.status(),
+                image_name,
+                tag
+            ));
+        }
+
+        let raw = response
+            .json::<Value>()
+            .await
+            .map_err(|e| format!("Failed to parse Docker Hub tag response: {}", e))?;
+
+        Ok(Some(to_docker_hub_tag(tag, &raw)))
     }
 }
 
@@ -255,6 +310,76 @@ fn docker_hub_repository(image_name: &str) -> String {
     } else {
         format!("library/{}", image_name)
     }
+}
+
+fn docker_hub_tags_url(image_name: &str) -> Result<Url, String> {
+    let mut url = Url::parse(DOCKER_HUB_REPOSITORIES_URL)
+        .map_err(|e| format!("Invalid Docker Hub URL: {}", e))?;
+    url.path_segments_mut()
+        .map_err(|_| "Docker Hub URL cannot take a repository".to_string())?
+        .pop_if_empty()
+        .extend(docker_hub_repository(image_name).split('/'))
+        .push("tags");
+    Ok(url)
+}
+
+fn is_valid_tag(tag: &str) -> bool {
+    let mut chars = tag.chars();
+    let starts_well = chars
+        .next()
+        .is_some_and(|first| first.is_ascii_alphanumeric() || first == '_');
+    starts_well
+        && tag.len() <= MAX_TAG_LENGTH
+        && chars.all(|c| c.is_ascii_alphanumeric() || matches!(c, '_' | '.' | '-'))
+}
+
+fn tag_names(page: &Value) -> Vec<String> {
+    page.get("results")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter_map(|tag| tag.get("name").and_then(Value::as_str))
+        .map(str::to_string)
+        .collect()
+}
+
+fn to_docker_hub_tag(tag: &str, raw: &Value) -> DockerHubTag {
+    let text = |field: &str| raw.get(field).and_then(Value::as_str).map(str::to_string);
+
+    DockerHubTag {
+        name: text("name").unwrap_or_else(|| tag.to_string()),
+        size: raw.get("full_size").and_then(Value::as_u64),
+        last_pushed: text("tag_last_pushed").or_else(|| text("last_updated")),
+        platforms: platforms(raw),
+    }
+}
+
+fn platforms(raw: &Value) -> Vec<String> {
+    let field = |image: &Value, name: &str| {
+        image
+            .get(name)
+            .and_then(Value::as_str)
+            .filter(|value| !value.is_empty() && *value != ATTESTATION_PLATFORM)
+            .map(str::to_string)
+    };
+
+    let unique: BTreeSet<(bool, String)> = raw
+        .get("images")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter_map(|image| {
+            let os = field(image, "os")?;
+            let architecture = field(image, "architecture")?;
+            let is_niche = !MAINSTREAM_ARCHITECTURES.contains(&architecture.as_str());
+            let platform = match field(image, "variant") {
+                Some(variant) => format!("{os}/{architecture}/{variant}"),
+                None => format!("{os}/{architecture}"),
+            };
+            Some((is_niche, platform))
+        })
+        .collect();
+    unique.into_iter().map(|(_, platform)| platform).collect()
 }
 
 fn to_search_result(item: &Value) -> Option<Value> {
@@ -331,8 +456,9 @@ fn untagged_repository(summary: &ImageSummary) -> String {
 #[cfg(test)]
 mod tests {
     use super::{
-        docker_hub_repository, every_unused_image, full_image_reference, split_reference, to_image,
-        to_search_result,
+        docker_hub_repository, docker_hub_tags_url, every_unused_image, full_image_reference,
+        is_valid_tag, split_reference, tag_names, to_docker_hub_tag, to_image, to_search_result,
+        DockerHubTag,
     };
     use bollard::models::ImageSummary;
     use serde_json::json;
@@ -494,5 +620,94 @@ mod tests {
     fn a_search_result_without_a_name_is_dropped() {
         assert_eq!(to_search_result(&json!({ "repo_name": "" })), None);
         assert_eq!(to_search_result(&json!({ "star_count": 3 })), None);
+    }
+
+    #[test]
+    fn tags_are_listed_from_the_repository_with_the_library_namespace_for_official_images() {
+        assert_eq!(
+            docker_hub_tags_url("nginx").unwrap().as_str(),
+            "https://hub.docker.com/v2/repositories/library/nginx/tags"
+        );
+        assert_eq!(
+            docker_hub_tags_url("nvidia/cuda").unwrap().as_str(),
+            "https://hub.docker.com/v2/repositories/nvidia/cuda/tags"
+        );
+    }
+
+    #[test]
+    fn a_tag_follows_the_docker_reference_grammar() {
+        for tag in ["latest", "13.5.0-runtime-ubuntu24.04", "_private", "V1.2"] {
+            assert!(is_valid_tag(tag), "{tag} should be valid");
+        }
+        let too_long = "a".repeat(129);
+        for tag in [
+            "",
+            "-dash",
+            ".dot",
+            "a/b",
+            "a:b",
+            "has space",
+            "../x",
+            too_long.as_str(),
+        ] {
+            assert!(!is_valid_tag(tag), "{tag} should be invalid");
+        }
+    }
+
+    #[test]
+    fn a_tags_page_yields_the_tag_names_in_order() {
+        let page = json!({ "results": [{ "name": "13.5.0-base" }, { "name": "12.9.1-base" }, {}] });
+
+        assert_eq!(tag_names(&page), vec!["13.5.0-base", "12.9.1-base"]);
+        assert!(tag_names(&json!({})).is_empty());
+    }
+
+    #[test]
+    fn a_tag_lists_amd64_and_arm64_first_once_each_without_attestation_manifests() {
+        let raw = json!({
+            "name": "alpine",
+            "full_size": 26335122,
+            "last_updated": "2026-11-18T19:53:53Z",
+            "tag_last_pushed": "2026-11-18T19:50:00Z",
+            "images": [
+                { "os": "linux", "architecture": "386" },
+                { "os": "linux", "architecture": "arm64", "variant": "v8" },
+                { "os": "linux", "architecture": "amd64" },
+                { "os": "linux", "architecture": "amd64", "variant": "" },
+                { "os": "linux", "architecture": "arm", "variant": "v7" },
+                { "os": "unknown", "architecture": "unknown" }
+            ]
+        });
+
+        assert_eq!(
+            to_docker_hub_tag("alpine", &raw),
+            DockerHubTag {
+                name: "alpine".to_string(),
+                size: Some(26335122),
+                last_pushed: Some("2026-11-18T19:50:00Z".to_string()),
+                platforms: vec![
+                    "linux/amd64".to_string(),
+                    "linux/arm64/v8".to_string(),
+                    "linux/386".to_string(),
+                    "linux/arm/v7".to_string(),
+                ],
+            }
+        );
+    }
+
+    #[test]
+    fn a_tag_without_details_keeps_the_requested_name() {
+        assert_eq!(
+            to_docker_hub_tag(
+                "13.5.0-base",
+                &json!({ "last_updated": "2026-11-06T00:00:00Z" })
+            ),
+            DockerHubTag {
+                name: "13.5.0-base".to_string(),
+                size: None,
+                last_pushed: Some("2026-11-06T00:00:00Z".to_string()),
+                platforms: vec![],
+            }
+        );
     }
 }
