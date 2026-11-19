@@ -10,9 +10,8 @@ Today they have to configure it by hand inside the Colima VM or in Docker's daem
 
 ## Current state
 
-- Settings has a Proxy tab (`src/pages/SettingsPage.tsx`) that renders `src/components/settings/proxy-settings.tsx`.
-- That component is a placeholder: HTTP proxy, HTTPS proxy, no proxy and authentication fields are all disabled, both cards carry a "Not available right now" badge, and the values live only in local React state.
-- There is no backend command and no config field for a proxy.
+- Nothing: there is no proxy UI, no backend command and no config field for a proxy.
+- Settings had a Proxy tab with disabled placeholder fields; it was removed until this ships (#238).
 
 ## Scope
 
@@ -23,7 +22,7 @@ Today they have to configure it by hand inside the Colima VM or in Docker's daem
   - the VM environment (`env:` in `colima.yaml`), so pulls made inside the VM also use the proxy.
 - Tell the user the change applies on the next VM start and offer a restart (ENGINE-008).
 - Keep the password out of `~/.nookat/config.json` in plain text (see the credential storage question in ENGINE-006).
-- Until this ships, hide the Proxy tab instead of showing disabled controls.
+- Add a Proxy tab to Settings (`src/pages/SettingsPage.tsx`) once the settings above are stored and applied.
 
 ## Notes
 
