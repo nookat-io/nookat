@@ -1,7 +1,7 @@
 # [DIST-005] Package and submit to the Microsoft Store
 
 - **Status:** Not started
-- **Related:** DIST-001, LPAGE-001, #56
+- **Related:** DIST-001, DIST-016, LPAGE-001
 
 ## Problem
 
@@ -27,7 +27,7 @@ There is no MSIX package, app manifest or Partner Center setup.
 
 - Needs a Partner Center account.
 - Needs Windows code signing (DIST-001) for Store acceptance.
-- Running containers on Windows is still open: the bundled Windows engine (#56) is on hold.
+- Running containers on Windows is still open: the managed Windows engine (DIST-016) is blocked until Colima supports Windows.
   The Store listing is less useful until Nookat can provide or find an engine on Windows.
 - Decide on the CI tooling for Partner Center submission and asset uploads.
 - Plan for localized Store listings, screenshots and ongoing metadata updates.
