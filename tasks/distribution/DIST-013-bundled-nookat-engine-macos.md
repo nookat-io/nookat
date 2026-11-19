@@ -1,7 +1,7 @@
 # [DIST-013] Ship Colima inside Nookat as the built-in Nookat Engine on macOS
 
 - **Status:** Not started
-- **Related:** DIST-003, DIST-004, DIST-008, ENGINE-008, ENGINE-009, TRAY-005, UX-004, #74, #214
+- **Related:** DIST-003, DIST-004, DIST-008, DIST-015, ENGINE-008, ENGINE-009, MODEL-001, TRAY-005, UX-004, #74
 
 ## Problem
 
@@ -106,7 +106,7 @@ The terminal gets nothing from Nookat in return: no `docker`, no Compose and no 
 - Alternatives considered:
   - Keep downloading the engine at install time, as today: it needs GitHub at install time and keeps Colima visible.
   - A `.pkg` installer with a postinstall script: Tauri does not build one, it needs an administrator password, and uninstalling is harder.
-  - Drive Lima directly without Colima: full control over names and paths, but Nookat would own Docker provisioning in the VM, the colima-core images, inotify propagation, Rosetta, networking, k3s and `colima model`, which #214 depends on.
+  - Drive Lima directly without Colima: full control over names and paths, but Nookat would own Docker provisioning in the VM, the colima-core images, inotify propagation, Rosetta, networking, k3s and `colima model`, which MODEL-001 depends on.
     Everything this task needs is reachable through Colima's flags and environment.
   - Replace Colima with Apple container: it runs only on Apple silicon with macOS 26 and has no Docker API or Compose, so it is an additional engine in ENGINE-009.
   - Fork Colima to rename its processes: `colima` and `limactl` in Activity Monitor are acceptable, and Docker Desktop shows its own processes too.

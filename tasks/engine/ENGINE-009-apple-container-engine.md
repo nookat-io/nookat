@@ -1,7 +1,7 @@
 # [ENGINE-009] Support Apple container as an additional engine on macOS
 
 - **Status:** Not started
-- **Related:** DIST-013, CONTAINER-008, UX-004, TRAY-005, ENGINE-008, #30, #214
+- **Related:** DIST-013, CONTAINER-008, UX-004, TRAY-005, ENGINE-008, MODEL-001, #30
 
 ## Problem
 
@@ -80,7 +80,7 @@ Support Apple container through socktainer, without a native backend, and make N
 - Alternatives considered:
   - Replace Colima with Apple container.
     It needs Apple silicon and macOS 26 while Nookat supports Intel and macOS 11, and it has no Compose, `--privileged` or pause.
-    Its system-wide installer contradicts the bundled engine of DIST-013, and Colima also provides k3s and `colima model` for #214.
+    Its system-wide installer contradicts the bundled engine of DIST-013, and Colima also provides k3s and `colima model` for MODEL-001.
     Per-container VMs start about 4 times slower from cold than Docker Desktop in published benchmarks, and are slower with small files.
   - A native backend over XPC: it needs a Swift sidecar and a second implementation of every service behind a runtime abstraction, including the state monitor.
     Reconsider it only if socktainer stops being enough.
