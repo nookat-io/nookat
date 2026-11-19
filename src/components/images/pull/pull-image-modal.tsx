@@ -10,10 +10,12 @@ import {
   DialogTrigger,
 } from '../../ui/dialog';
 import { Download } from 'lucide-react';
-import { invoke } from '@tauri-apps/api/core';
+import { Channel, invoke } from '@tauri-apps/api/core';
 import { DockerHubImage } from '../../../types/docker-images';
+import { ImagePullProgress } from '../../../types/image-pull';
 import { PullImageTab } from './pull-image-tab';
 import { ProgressDisplay } from '../common/progress-display';
+import { PullSummary, advancePull } from '../common/pull-summary';
 import {
   useModalState,
   useFormData,
@@ -69,6 +71,7 @@ export function PullImage() {
   const [attemptedReference, setAttemptedReference] = useState<string | null>(
     null
   );
+  const [pullSummary, setPullSummary] = useState<PullSummary | null>(null);
   const progressOfChosenImage =
     progress.isRunning || attemptedReference === pullReference(pullData)
       ? progress
@@ -177,10 +180,14 @@ export function PullImage() {
 
   const pullImage = async ({ imageName, tag, registry }: PullFormData) => {
     setPullToConfirm(null);
+    setPullSummary(null);
     setRunning('Pulling image...');
 
     try {
-      await invoke('pull_image', { imageName, tag, registry });
+      const onProgress = new Channel<ImagePullProgress>(progress =>
+        setPullSummary(previous => advancePull(previous, progress))
+      );
+      await invoke('pull_image', { imageName, tag, registry, onProgress });
       setSuccess('Image pulled successfully!');
     } catch (error) {
       console.error('Pull image error:', error);
@@ -234,7 +241,10 @@ export function PullImage() {
           searchInputRef={searchInputRef}
         />
 
-        <ProgressDisplay progress={progressOfChosenImage} />
+        <ProgressDisplay
+          progress={progressOfChosenImage}
+          pullSummary={pullSummary}
+        />
 
         {pullToConfirm && (
           <ImageSourceConfirmDialog

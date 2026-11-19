@@ -1,8 +1,10 @@
-import { render, screen } from '@testing-library/react';
+import { act, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { Channel } from '@tauri-apps/api/core';
 import { mockIPC } from '@tauri-apps/api/mocks';
 import { describe, expect, it } from 'vitest';
 import { DockerHubImage } from '../../../types/docker-images';
+import { ImagePullLayer, ImagePullProgress } from '../../../types/image-pull';
 import { PullImage } from './pull-image-modal';
 
 const searchResult = (name: string, isOfficial: boolean): DockerHubImage => ({
@@ -15,6 +17,22 @@ const searchResult = (name: string, isOfficial: boolean): DockerHubImage => ({
 });
 
 const NGINX = searchResult('nginx', true);
+const MB = 1024 * 1024;
+
+interface PullRequest {
+  imageName: string;
+  tag: string;
+  registry: string;
+  onProgress: Channel<ImagePullProgress>;
+}
+
+const pullRequest = (args: unknown) => args as PullRequest;
+
+const withoutProgress = ({ imageName, tag, registry }: PullRequest) => ({
+  imageName,
+  tag,
+  registry,
+});
 
 function mockDockerHub(searchResults: DockerHubImage[]) {
   const pulls: unknown[] = [];
@@ -25,7 +43,7 @@ function mockDockerHub(searchResults: DockerHubImage[]) {
       case 'fetch_image_tags':
         return ['latest'];
       case 'pull_image':
-        pulls.push(args);
+        pulls.push(withoutProgress(pullRequest(args)));
         return null;
       default:
         throw new Error(`Unexpected command ${cmd}`);
@@ -213,5 +231,80 @@ describe('PullImage', () => {
     expect(pulls).toEqual([
       { imageName: 'nginx', tag: 'latest', registry: 'docker.io' },
     ]);
+  });
+
+  it('shows the pull progress the engine reports until the pull ends', async () => {
+    let progressChannel: Channel<ImagePullProgress> | undefined;
+    let finishPull = () => {};
+    mockIPC((cmd, args) => {
+      switch (cmd) {
+        case 'search_docker_hub':
+          return { results: [NGINX] };
+        case 'fetch_image_tags':
+          return ['latest'];
+        case 'pull_image':
+          progressChannel = pullRequest(args).onProgress;
+          return new Promise(resolve => {
+            finishPull = () => resolve(null);
+          });
+        default:
+          throw new Error(`Unexpected command ${cmd}`);
+      }
+    });
+    const user = await choosePullSource({ image: 'nginx' });
+    await user.click(screen.getByRole('button', { name: 'Pull' }));
+    const report = (...layers: ImagePullLayer[]) =>
+      act(() => progressChannel?.onmessage({ layers }));
+    const bar = () =>
+      screen.getByRole('progressbar', { name: 'Pull progress' });
+
+    expect(bar()).not.toHaveAttribute('aria-valuenow');
+    expect(screen.getByText('Waiting for the registry')).toBeInTheDocument();
+
+    report(
+      {
+        id: 'a',
+        phase: 'downloading',
+        size: 100 * MB,
+        downloaded: 30 * MB,
+        extracted: 0,
+      },
+      { id: 'b', phase: 'pending', size: null, downloaded: 0, extracted: 0 }
+    );
+
+    expect(bar()).toHaveAttribute('aria-valuenow', '12');
+    expect(
+      screen.getByText('30 MB downloaded · 0 of 2 layers ready')
+    ).toBeInTheDocument();
+
+    report(
+      {
+        id: 'a',
+        phase: 'extracting',
+        size: 100 * MB,
+        downloaded: 100 * MB,
+        extracted: 50 * MB,
+      },
+      {
+        id: 'b',
+        phase: 'downloading',
+        size: 20 * MB,
+        downloaded: 10 * MB,
+        extracted: 0,
+      }
+    );
+
+    expect(bar()).toHaveAttribute('aria-valuenow', '81');
+    expect(screen.getByText('81%')).toBeInTheDocument();
+    expect(
+      screen.getByText('110 MB of 120 MB downloaded · 0 of 2 layers ready')
+    ).toBeInTheDocument();
+
+    await act(async () => finishPull());
+
+    expect(
+      await screen.findByText('Image pulled successfully!')
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('progressbar')).toBeNull();
   });
 });

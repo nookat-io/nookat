@@ -1,7 +1,8 @@
-use crate::entities::{Image, PruneResult};
+use crate::entities::{Image, ImagePullProgress, PruneResult};
 use crate::services::ImagesService;
 use crate::state::SharedEngineState;
-use tauri::State;
+use tauri::ipc::{Channel, JavaScriptChannelId};
+use tauri::{State, Webview};
 use tracing::{debug, instrument};
 
 #[tauri::command]
@@ -43,6 +44,8 @@ pub async fn pull_image(
     image_name: String,
     tag: String,
     registry: String,
+    on_progress: Option<JavaScriptChannelId>,
+    webview: Webview,
 ) -> Result<(), String> {
     debug!(
         "Pulling image: {}:{} from registry: {}",
@@ -51,7 +54,16 @@ pub async fn pull_image(
 
     let engine = state.get_engine().await?;
     let docker = engine.docker.as_ref().ok_or("Docker not found")?;
-    ImagesService::pull_image(docker, &image_name, &tag, &registry).await
+    let progress_channel: Option<Channel<ImagePullProgress>> =
+        on_progress.map(|channel| channel.channel_on(webview));
+    ImagesService::pull_image(docker, &image_name, &tag, &registry, |progress| {
+        if let Some(channel) = &progress_channel {
+            if let Err(e) = channel.send(progress) {
+                debug!("Could not send the pull progress: {}", e);
+            }
+        }
+    })
+    .await
 }
 
 #[tauri::command]
