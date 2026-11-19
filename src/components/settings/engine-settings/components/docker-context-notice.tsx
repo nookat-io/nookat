@@ -7,6 +7,30 @@ interface DockerContextNoticeProps {
   isSwitching: boolean;
   error: string | null;
   onSwitchToColima: () => void;
+  otherEngineName: string | null;
+}
+
+function describeContext(context: DockerCliContext) {
+  const endpoint = context.host ? ` (${context.host})` : '';
+  return `The current Docker context is "${context.name}"${endpoint}`;
+}
+
+function otherEngineNotice(
+  context: DockerCliContext,
+  otherEngineName: string | null
+) {
+  if (otherEngineName) {
+    return {
+      title: `Nookat and docker commands in your terminal use ${otherEngineName}`,
+      message: `${describeContext(context)}. Switch it to Colima to use this VM.`,
+      action: 'Switch to Colima',
+    };
+  }
+  return {
+    title: 'docker commands in your terminal use another engine',
+    message: `${describeContext(context)}, so docker in a terminal does not reach Colima.`,
+    action: 'Use Colima for docker commands',
+  };
 }
 
 export function DockerContextNotice({
@@ -14,6 +38,7 @@ export function DockerContextNotice({
   isSwitching,
   error,
   onSwitchToColima,
+  otherEngineName,
 }: DockerContextNoticeProps) {
   if (context.uses_colima) {
     return (
@@ -25,17 +50,13 @@ export function DockerContextNotice({
     );
   }
 
+  const notice = otherEngineNotice(context, otherEngineName);
+
   return (
     <div className="space-y-3 rounded-md border border-amber-200 bg-amber-50 p-3 text-amber-800 dark:border-amber-800 dark:bg-amber-950/20 dark:text-amber-200">
       <div>
-        <p className="text-sm font-medium">
-          docker commands in your terminal use another engine
-        </p>
-        <p className="mt-1 text-sm">
-          The current Docker context is &quot;{context.name}&quot;
-          {context.host ? ` (${context.host})` : ''}, so docker in a terminal
-          does not reach Colima.
-        </p>
+        <p className="text-sm font-medium">{notice.title}</p>
+        <p className="mt-1 text-sm">{notice.message}</p>
         {error && <p className="mt-2 text-sm text-destructive">{error}</p>}
       </div>
       <Button
@@ -45,7 +66,7 @@ export function DockerContextNotice({
         disabled={isSwitching}
       >
         <ArrowRightLeft className="h-4 w-4 mr-2" />
-        {isSwitching ? 'Switching...' : 'Use Colima for docker commands'}
+        {isSwitching ? 'Switching...' : notice.action}
       </Button>
     </div>
   );

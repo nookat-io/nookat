@@ -82,6 +82,12 @@ export type ColimaPerformanceWarning =
   | { kind: 'FewCpus'; cpus: number }
   | { kind: 'RosettaOff' };
 
+export interface ConnectedEngine {
+  name: string;
+  endpoint: string;
+  is_managed_colima: boolean;
+}
+
 export interface DockerCliContext {
   name: string;
   host: string | null;

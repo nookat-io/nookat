@@ -1,5 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from '../../ui/card';
 import { ChevronDown, ChevronRight } from 'lucide-react';
+import { useId } from 'react';
 import { CollapsibleSectionProps } from './types';
 
 export const CollapsibleSection = ({
@@ -7,27 +8,28 @@ export const CollapsibleSection = ({
   children,
   isOpen,
   onToggle,
-}: CollapsibleSectionProps) => (
-  <Card className="mb-4">
-    <CardHeader
-      className="cursor-pointer hover:bg-accent/50 transition-colors"
-      onClick={onToggle}
-    >
-      <div className="flex items-center justify-between">
-        <CardTitle className="text-lg">{title}</CardTitle>
-        {isOpen ? (
-          <ChevronDown
+}: CollapsibleSectionProps) => {
+  const contentId = useId();
+  const Chevron = isOpen ? ChevronDown : ChevronRight;
+
+  return (
+    <Card>
+      <CardHeader className="p-0">
+        <button
+          type="button"
+          aria-expanded={isOpen}
+          aria-controls={contentId}
+          onClick={onToggle}
+          className="flex w-full items-center justify-between rounded-lg p-6 text-left transition-colors hover:bg-accent/50 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+        >
+          <CardTitle>{title}</CardTitle>
+          <Chevron
             className="h-5 w-5 text-muted-foreground"
             aria-hidden="true"
           />
-        ) : (
-          <ChevronRight
-            className="h-5 w-5 text-muted-foreground"
-            aria-hidden="true"
-          />
-        )}
-      </div>
-    </CardHeader>
-    {isOpen && <CardContent>{children}</CardContent>}
-  </Card>
-);
+        </button>
+      </CardHeader>
+      {isOpen && <CardContent id={contentId}>{children}</CardContent>}
+    </Card>
+  );
+};

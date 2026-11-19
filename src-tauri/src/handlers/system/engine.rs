@@ -1,8 +1,8 @@
-use crate::entities::EngineStatus;
 use crate::entities::{BinaryInstallPlan, ColimaVm, ColimaVmSettingsChanges, InstallationMethod};
+use crate::entities::{ConnectedEngine, EngineStatus};
 use crate::services::engine::{
-    binary_install_plan, install_colima, read_colima_vm, start_colima_vm, stop_colima_vm,
-    use_colima_docker_context, COLIMA_MANAGED,
+    binary_install_plan, describe_connected_engine, install_colima, managed_colima_endpoint,
+    read_colima_vm, start_colima_vm, stop_colima_vm, use_colima_docker_context, COLIMA_MANAGED,
 };
 use crate::services::shell::{is_colima_available, is_homebrew_available};
 use crate::state::SharedEngineState;
@@ -18,6 +18,30 @@ pub async fn engine_status(state: State<'_, SharedEngineState>) -> Result<Engine
     let status = engine.engine_status.clone();
     debug!("Engine status: {:?}", status);
     Ok(status)
+}
+
+#[tauri::command]
+#[instrument(skip_all, err)]
+pub async fn get_connected_engine(
+    state: State<'_, SharedEngineState>,
+) -> Result<Option<ConnectedEngine>, String> {
+    debug!("Describing the connected engine");
+
+    let engine = state.get_engine().await?;
+    let (Some(docker), Some(endpoint)) = (engine.docker.as_ref(), engine.endpoint.as_deref())
+    else {
+        return Ok(None);
+    };
+    let info = docker
+        .info()
+        .await
+        .map_err(|e| format!("Failed to get Docker info: {}", e))?;
+    Ok(Some(describe_connected_engine(
+        endpoint,
+        info.operating_system.as_deref(),
+        info.name.as_deref(),
+        managed_colima_endpoint().as_deref(),
+    )))
 }
 
 #[tauri::command]

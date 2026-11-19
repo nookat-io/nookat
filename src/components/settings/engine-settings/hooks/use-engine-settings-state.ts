@@ -12,6 +12,7 @@ import {
   InstallationProgress,
   ColimaEngineStopProgressType,
   ChangeColimaVmSetting,
+  ConnectedEngine,
   ColimaVm,
   ColimaVmSettings,
   ColimaVmSettingsChanges,
@@ -52,7 +53,8 @@ export interface EngineSettingsState {
   stopProgress: ColimaEngineStopProgressType;
   error: string | null;
   dockerInfo: DockerInfo | null;
-  showEngineConfig: boolean;
+  connectedEngine: ConnectedEngine | null | undefined;
+  showEngineConfig: boolean | null;
   binaryInstallPlan: BinaryInstallPlan | null;
   binaryInstallPlanError: string | null;
   startPromptOpen: boolean;
@@ -70,7 +72,7 @@ export interface EngineSettingsActions {
   handleInstall: () => Promise<void>;
   handleStartEngine: () => Promise<void>;
   handleRetry: () => void;
-  fetchDockerInfo: () => Promise<void>;
+  fetchEngineDetails: () => Promise<void>;
   fetchColimaVm: () => Promise<void>;
   handleStopEngine: () => Promise<void>;
   checkColimaSupport: () => Promise<void>;
@@ -117,7 +119,12 @@ export function useEngineSettingsState(): [
     });
   const [error, setError] = useState<string | null>(null);
   const [dockerInfo, setDockerInfo] = useState<DockerInfo | null>(null);
-  const [showEngineConfig, setShowEngineConfig] = useState(true);
+  const [connectedEngine, setConnectedEngine] = useState<
+    ConnectedEngine | null | undefined
+  >(undefined);
+  const [showEngineConfig, setShowEngineConfig] = useState<boolean | null>(
+    null
+  );
   const { status: engineStatus } = useEngineStatus();
   const engineAnswers =
     typeof engineStatus === 'object' && 'Running' in engineStatus;
@@ -152,12 +159,21 @@ export function useEngineSettingsState(): [
     await probeColimaSupport();
   };
 
-  const fetchDockerInfo = useCallback(
+  const fetchEngineDetails = useCallback(
     () =>
-      invoke<DockerInfo>('get_docker_info').then(setDockerInfo, err => {
-        console.error('Error fetching Docker info:', err);
-        setDockerInfo(null);
-      }),
+      Promise.all([
+        invoke<DockerInfo>('get_docker_info').then(setDockerInfo, err => {
+          console.error('Error fetching Docker info:', err);
+          setDockerInfo(null);
+        }),
+        invoke<ConnectedEngine | null>('get_connected_engine').then(
+          setConnectedEngine,
+          err => {
+            console.error('Error describing the connected engine:', err);
+            setConnectedEngine(null);
+          }
+        ),
+      ]).then(() => undefined),
     []
   );
 
@@ -233,15 +249,15 @@ export function useEngineSettingsState(): [
   }, [method]);
 
   useEffect(() => {
-    fetchDockerInfo();
-  }, [engineAnswers, fetchDockerInfo]);
+    fetchEngineDetails();
+  }, [engineAnswers, fetchEngineDetails]);
 
   useEffect(() => {
-    const unlisten = listen('engine-connected', () => fetchDockerInfo());
+    const unlisten = listen('engine-connected', () => fetchEngineDetails());
     return () => {
       unlisten.then(stop => stop());
     };
-  }, [fetchDockerInfo]);
+  }, [fetchEngineDetails]);
 
   useEffect(() => {
     if (
@@ -327,7 +343,7 @@ export function useEngineSettingsState(): [
 
     const engineReady = setTimeout(() => {
       setInstallationStep('complete');
-      fetchDockerInfo().catch(() => {});
+      fetchEngineDetails().catch(() => {});
       refreshColimaVmAfterStart();
       setInstallationProgress(prev => ({
         ...prev,
@@ -339,7 +355,7 @@ export function useEngineSettingsState(): [
     }, ENGINE_VALIDATION_MS);
 
     return () => clearTimeout(engineReady);
-  }, [installationStep, fetchDockerInfo, refreshColimaVmAfterStart]);
+  }, [installationStep, fetchEngineDetails, refreshColimaVmAfterStart]);
 
   useEffect(() => {
     if (stopStep !== 'stopping-vm') {
@@ -376,13 +392,13 @@ export function useEngineSettingsState(): [
     }
 
     const backToIdle = setTimeout(() => {
-      fetchDockerInfo().catch(() => {});
+      fetchEngineDetails().catch(() => {});
       fetchColimaVm();
       setStopStep('idle');
     }, STOP_RESULT_SHOWN_MS);
 
     return () => clearTimeout(backToIdle);
-  }, [stopStep, fetchDockerInfo, fetchColimaVm]);
+  }, [stopStep, fetchEngineDetails, fetchColimaVm]);
 
   const handleInstall = async () => {
     setInstallationOperation('install');
@@ -457,7 +473,7 @@ export function useEngineSettingsState(): [
     return invoke('use_colima_docker_context_command')
       .then(
         async () => {
-          await Promise.all([fetchColimaVm(), fetchDockerInfo()]);
+          await Promise.all([fetchColimaVm(), fetchEngineDetails()]);
         },
         err => {
           console.error('Error switching the Docker context to Colima:', err);
@@ -507,6 +523,7 @@ export function useEngineSettingsState(): [
     stopProgress,
     error,
     dockerInfo,
+    connectedEngine,
     showEngineConfig,
     binaryInstallPlan,
     binaryInstallPlanError,
@@ -525,7 +542,7 @@ export function useEngineSettingsState(): [
     handleInstall,
     handleStartEngine,
     handleRetry,
-    fetchDockerInfo,
+    fetchEngineDetails,
     fetchColimaVm,
     handleStopEngine,
     checkColimaSupport,

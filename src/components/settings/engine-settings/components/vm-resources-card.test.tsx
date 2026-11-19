@@ -160,4 +160,15 @@ describe('VmResourcesCard', () => {
     expect(screen.getByText(/than with all 12 cores/)).toBeInTheDocument();
     expect(screen.getByText('Rosetta is off')).toBeInTheDocument();
   });
+
+  it('names a single CPU core in the singular', () => {
+    renderCard({
+      vm: colimaVm('Running', [{ kind: 'FewCpus', cpus: 1 }]),
+      isEngineRunning: true,
+    });
+
+    expect(
+      screen.getByText('The engine runs on only 1 CPU core')
+    ).toBeInTheDocument();
+  });
 });

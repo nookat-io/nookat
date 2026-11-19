@@ -54,6 +54,7 @@ describe('EngineActionsCard', () => {
         isSwitchingDockerContext={false}
         dockerContextError={null}
         onSwitchDockerToColima={() => {}}
+        otherEngineName={null}
       />
     );
 

@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { mockIPC } from '@tauri-apps/api/mocks';
 import { describe, expect, it, vi } from 'vitest';
 import { EngineSettings } from './engine-settings';
+import { ConnectedEngine } from './types';
 
 vi.mock('../../../hooks/use-engine-status', () => ({
   useEngineStatus: () => ({
@@ -40,6 +41,18 @@ const ORBSTACK_CONTEXT = {
   uses_colima: false,
 };
 
+const ORBSTACK_ENGINE: ConnectedEngine = {
+  name: 'OrbStack',
+  endpoint: 'unix:///Users/me/.orbstack/run/docker.sock',
+  is_managed_colima: false,
+};
+
+const NOOKAT_COLIMA_ENGINE: ConnectedEngine = {
+  name: 'Colima',
+  endpoint: 'unix:///Users/me/.colima/default/docker.sock',
+  is_managed_colima: true,
+};
+
 const BINARY_INSTALL_PLAN = {
   install_dir: '/Users/me/.nookat/engine',
   bin_dir: '/Users/me/.nookat/engine/bin',
@@ -53,6 +66,11 @@ const BINARY_INSTALL_PLAN = {
 };
 
 interface Backend {
+  colimaSupported?: boolean;
+  connectedEngine?: {
+    beforeSwitch: ConnectedEngine | null;
+    afterSwitch?: ConnectedEngine;
+  };
   profileStatus?: string;
   otherEngineAnswers?: boolean;
   homebrewAvailable?: boolean;
@@ -62,6 +80,8 @@ interface Backend {
 }
 
 function mockBackend({
+  colimaSupported = true,
+  connectedEngine = { beforeSwitch: null },
   profileStatus = 'Stopped',
   otherEngineAnswers = false,
   homebrewAvailable = true,
@@ -76,7 +96,11 @@ function mockBackend({
     (cmd, args) => {
       switch (cmd) {
         case 'is_colima_supported':
-          return true;
+          return colimaSupported;
+        case 'get_connected_engine':
+          return contextSwitches.length > 0 && connectedEngine.afterSwitch
+            ? connectedEngine.afterSwitch
+            : connectedEngine.beforeSwitch;
         case 'check_homebrew_availability':
           return homebrewAvailable;
         case 'check_colima_availability':
@@ -121,7 +145,112 @@ function mockBackend({
   return { startRequests, installRequests, contextSwitches };
 }
 
+const engineSection = (name: string | RegExp) =>
+  screen.findByRole('button', { name });
+
 describe('EngineSettings', () => {
+  it('names the engine Nookat is connected to and folds Colima under it', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    const user = userEvent.setup();
+    const { startRequests } = mockBackend({
+      connectedEngine: { beforeSwitch: ORBSTACK_ENGINE },
+      otherEngineAnswers: true,
+    });
+    render(<EngineSettings />);
+
+    expect(
+      await screen.findByText('unix:///Users/me/.orbstack/run/docker.sock')
+    ).toBeInTheDocument();
+    expect(screen.getByText(/^Nookat is connected to/)).toHaveTextContent(
+      'Nookat is connected to OrbStack at unix:///Users/me/.orbstack/run/docker.sock'
+    );
+    const section = await engineSection('Use Colima instead of OrbStack');
+    expect(section).toHaveAttribute('aria-expanded', 'false');
+    expect(
+      screen.queryByRole('button', { name: 'Start Engine' })
+    ).not.toBeInTheDocument();
+
+    await user.click(section);
+
+    expect(section).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByText('Colima is a second engine')).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        'Nookat uses OrbStack. Colima runs its own Linux VM next to it, with its own CPU, memory and disk.'
+      )
+    ).toBeInTheDocument();
+    expect(
+      await screen.findByText(
+        'Colima is installed but not running. Starting it switches Nookat and docker commands in your terminal from OrbStack to Colima.'
+      )
+    ).toBeInTheDocument();
+    expect(startRequests).toEqual([]);
+  });
+
+  it('keeps Colima management open when Nookat is connected to its own Colima', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    mockBackend({
+      connectedEngine: { beforeSwitch: NOOKAT_COLIMA_ENGINE },
+      profileStatus: 'Running',
+    });
+    render(<EngineSettings />);
+
+    expect(await engineSection('Engine Configuration')).toHaveAttribute(
+      'aria-expanded',
+      'true'
+    );
+    expect(screen.getByText(/^Nookat is connected to/)).toHaveTextContent(
+      'Nookat is connected to Colima at unix:///Users/me/.colima/default/docker.sock'
+    );
+    expect(
+      screen.queryByText('Colima is a second engine')
+    ).not.toBeInTheDocument();
+  });
+
+  it('says so when Nookat is not connected to any engine and offers Colima', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    mockBackend();
+    render(<EngineSettings />);
+
+    expect(
+      await screen.findByText('Nookat is not connected to an engine')
+    ).toBeInTheDocument();
+    expect(await engineSection('Engine Configuration')).toHaveAttribute(
+      'aria-expanded',
+      'true'
+    );
+    expect(
+      await screen.findByText(
+        'Colima is installed but the engine is not running. Start the engine to begin using Docker.'
+      )
+    ).toBeInTheDocument();
+  });
+
+  it('does not offer Colima instead of the engine on a platform without Colima', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    mockBackend({
+      colimaSupported: false,
+      connectedEngine: {
+        beforeSwitch: {
+          name: 'Docker Engine',
+          endpoint: 'unix:///var/run/docker.sock',
+          is_managed_colima: false,
+        },
+      },
+      otherEngineAnswers: true,
+    });
+    render(<EngineSettings />);
+
+    expect(await engineSection('Engine Configuration')).toHaveAttribute(
+      'aria-expanded',
+      'true'
+    );
+    expect(
+      screen.getByText('Engine management is available on macOS only')
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/Use Colima instead/)).not.toBeInTheDocument();
+  });
+
   it('shows the resources of the stopped Colima profile instead of 2 CPUs and 2 GB', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => {});
     mockBackend();
@@ -203,10 +332,37 @@ describe('EngineSettings', () => {
     );
   });
 
-  it('warns that terminal docker commands reach another engine and switches them to Colima', async () => {
+  it('warns that Nookat and terminal docker commands use OrbStack while Colima runs, and switches both to Colima', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => {});
     const user = userEvent.setup();
     const { contextSwitches } = mockBackend({
+      connectedEngine: { beforeSwitch: ORBSTACK_ENGINE },
+      profileStatus: 'Running',
+      dockerContext: ORBSTACK_CONTEXT,
+    });
+    render(<EngineSettings />);
+    await user.click(await engineSection('Use Colima instead of OrbStack'));
+
+    expect(
+      await screen.findByText(
+        'Nookat and docker commands in your terminal use OrbStack'
+      )
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        'The current Docker context is "orbstack" (unix:///Users/me/.orbstack/run/docker.sock). Switch it to Colima to use this VM.'
+      )
+    ).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Switch to Colima' }));
+
+    expect(contextSwitches).toHaveLength(1);
+  });
+
+  it('warns that terminal docker commands reach another engine while Nookat uses Colima', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    const user = userEvent.setup();
+    const { contextSwitches } = mockBackend({
+      connectedEngine: { beforeSwitch: NOOKAT_COLIMA_ENGINE },
       profileStatus: 'Running',
       dockerContext: ORBSTACK_CONTEXT,
     });
@@ -228,6 +384,10 @@ describe('EngineSettings', () => {
     vi.spyOn(console, 'error').mockImplementation(() => {});
     const user = userEvent.setup();
     mockBackend({
+      connectedEngine: {
+        beforeSwitch: ORBSTACK_ENGINE,
+        afterSwitch: NOOKAT_COLIMA_ENGINE,
+      },
       profileStatus: 'Running',
       dockerContext: ORBSTACK_CONTEXT,
       operatingSystem: {
@@ -237,14 +397,22 @@ describe('EngineSettings', () => {
     });
     render(<EngineSettings />);
 
-    expect(await screen.findByText('OrbStack')).toBeInTheDocument();
+    expect(
+      await screen.findByText('OrbStack', { selector: 'div' })
+    ).toBeInTheDocument();
+    await user.click(await engineSection('Use Colima instead of OrbStack'));
     await user.click(
-      await screen.findByRole('button', {
-        name: 'Use Colima for docker commands',
-      })
+      await screen.findByRole('button', { name: 'Switch to Colima' })
     );
 
     expect(await screen.findByText('Ubuntu 24.04.3 LTS')).toBeInTheDocument();
+    expect(screen.getByText(/^Nookat is connected to/)).toHaveTextContent(
+      'Nookat is connected to Colima at unix:///Users/me/.colima/default/docker.sock'
+    );
+    expect(await engineSection('Engine Configuration')).toHaveAttribute(
+      'aria-expanded',
+      'true'
+    );
   });
 
   it('confirms when terminal docker commands already reach Colima', async () => {

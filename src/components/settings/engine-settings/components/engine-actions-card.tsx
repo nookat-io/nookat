@@ -31,6 +31,14 @@ interface EngineActionsCardProps {
   isSwitchingDockerContext: boolean;
   dockerContextError: string | null;
   onSwitchDockerToColima: () => void;
+  otherEngineName: string | null;
+}
+
+function stoppedEngineMessage(otherEngineName: string | null) {
+  if (otherEngineName) {
+    return `Colima is installed but not running. Starting it switches Nookat and docker commands in your terminal from ${otherEngineName} to Colima.`;
+  }
+  return 'Colima is installed but the engine is not running. Start the engine to begin using Docker.';
 }
 
 export function EngineActionsCard({
@@ -49,6 +57,7 @@ export function EngineActionsCard({
   isSwitchingDockerContext,
   dockerContextError,
   onSwitchDockerToColima,
+  otherEngineName,
 }: EngineActionsCardProps) {
   const [isStopDialogOpen, setIsStopDialogOpen] = useState(false);
   const isStopping = stopStep === 'stopping-vm';
@@ -84,8 +93,7 @@ export function EngineActionsCard({
         {!isEngineRunning && (
           <div className="space-y-3">
             <p className="text-sm text-muted-foreground">
-              Colima is installed but the engine is not running. Start the
-              engine to begin using Docker.
+              {stoppedEngineMessage(otherEngineName)}
             </p>
             <Button
               onClick={onStartEngine}
@@ -113,6 +121,7 @@ export function EngineActionsCard({
             isSwitching={isSwitchingDockerContext}
             error={dockerContextError}
             onSwitchToColima={onSwitchDockerToColima}
+            otherEngineName={otherEngineName}
           />
         )}
 

@@ -34,6 +34,13 @@ pub enum EngineStatus {
     Running(EngineInfo),
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub struct ConnectedEngine {
+    pub name: String,
+    pub endpoint: String,
+    pub is_managed_colima: bool,
+}
+
 #[derive(Debug, Clone)]
 pub struct Engine {
     pub engine_status: EngineStatus,

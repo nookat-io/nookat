@@ -52,6 +52,7 @@ interface EngineConfigurationProps {
   isSwitchingDockerContext: boolean;
   dockerContextError: string | null;
   onSwitchDockerToColima: () => void;
+  otherEngineName: string | null;
 }
 
 export function EngineConfiguration({
@@ -87,6 +88,7 @@ export function EngineConfiguration({
   isSwitchingDockerContext,
   dockerContextError,
   onSwitchDockerToColima,
+  otherEngineName,
 }: EngineConfigurationProps) {
   if (colimaSupported === false) {
     return (
@@ -195,9 +197,11 @@ export function EngineConfiguration({
         isSwitchingDockerContext={isSwitchingDockerContext}
         dockerContextError={dockerContextError}
         onSwitchDockerToColima={onSwitchDockerToColima}
+        otherEngineName={otherEngineName}
       />
       <StartEnginePrompt
         open={startPromptOpen && !isEngineRunning}
+        otherEngineName={otherEngineName}
         onStart={onStartFromPrompt}
         onDismiss={onDismissStartPrompt}
       />
