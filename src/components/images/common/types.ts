@@ -11,6 +11,7 @@ export interface ProgressState {
   progress: string;
   error: string | null;
   success: boolean;
+  cancelled: boolean;
 }
 
 export interface DockerHubSearchState {

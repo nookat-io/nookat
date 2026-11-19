@@ -18,18 +18,23 @@ During that time users see only a spinner, cannot tell whether anything is happe
   The dialog turns that into a percentage, bytes downloaded and layers ready (`src/components/images/common/pull-summary.ts`).
 - The pull step of the container creation wizard calls `pull_image` without a channel and still shows only a spinner.
 - Bulk container actions, bulk volume removal and prunes return only when they finish, with no progress.
-- No backend command accepts a cancel request.
+- The Pull Image dialog can cancel a running pull (#242).
+  `pull_image` takes a `pullId` that `RunningPulls` in `src-tauri/src/state.rs` tracks, and `cancel_image_pull` makes the pull drop Docker's `create_image` stream and return `cancelled`.
+  Closing the dialog during a pull cancels it too.
+  The container creation wizard cannot cancel its pull yet.
+- Bulk actions, prunes and the Colima install cannot be cancelled.
 
 ## Scope
 
 - Show the image pull progress in the pull step of the container creation wizard, reusing the pull dialog's channel and summary.
 - Report bulk action progress as items done out of the total, with per-item failures.
 - Show a running state and the result for prunes.
-- Let users cancel a pull, a bulk action and a running install, and clean up what was started.
+- Let users cancel the wizard's pull, a bulk action and a running install, and clean up what was started.
 - Report progress through a Tauri channel passed to the command, as `pull_image` does, so it reaches only the caller that started the operation.
 
 ## Notes
 
 - This task took over the progress parts of UX-006.
 - Per-item results of bulk actions come from the rework in PERF-008.
-- Open question: whether dropping the pull stream on cancel also stops the pull in the engine, or whether the engine keeps downloading.
+- Dropping the pull stream stops the pull in the engine as well.
+  Checked against OrbStack 29.4 on 2026-11-19: after a cancel 6 s into a pull of `golang:1.25-bookworm`, the image did not appear within 90 s, while the full pull takes about 40 s at that speed.

@@ -1,5 +1,48 @@
-use crate::entities::{ImagePullLayer, ImagePullPhase, ImagePullProgress};
+use crate::entities::{ImagePullLayer, ImagePullOutcome, ImagePullPhase, ImagePullProgress};
 use bollard::models::CreateImageInfo;
+use futures_util::{Stream, StreamExt};
+use std::future::Future;
+use std::time::Duration;
+use tokio::time::MissedTickBehavior;
+use tracing::debug;
+
+const PULL_PROGRESS_INTERVAL: Duration = Duration::from_millis(100);
+
+pub(crate) async fn follow_pull<E>(
+    messages: impl Stream<Item = Result<CreateImageInfo, E>>,
+    cancelled: impl Future<Output = ()>,
+    mut report_progress: impl FnMut(ImagePullProgress),
+) -> Result<ImagePullOutcome, E> {
+    let mut messages = std::pin::pin!(messages);
+    let mut cancelled = std::pin::pin!(cancelled);
+    let mut layers = PullLayers::default();
+    let mut has_unreported_progress = false;
+    let mut report_timer = tokio::time::interval(PULL_PROGRESS_INTERVAL);
+    report_timer.set_missed_tick_behavior(MissedTickBehavior::Delay);
+
+    loop {
+        tokio::select! {
+            biased;
+            _ = &mut cancelled => return Ok(ImagePullOutcome::Cancelled),
+            _ = report_timer.tick(), if has_unreported_progress => {
+                report_progress(layers.progress());
+                has_unreported_progress = false;
+            }
+            message = messages.next() => {
+                let Some(message) = message else {
+                    break;
+                };
+                let message = message?;
+                debug!("Pull progress: {:?}", message);
+                has_unreported_progress |= layers.apply(&message);
+            }
+        }
+    }
+    if has_unreported_progress {
+        report_progress(layers.progress());
+    }
+    Ok(ImagePullOutcome::Completed)
+}
 
 #[derive(Default, Debug)]
 pub(crate) struct PullLayers {
@@ -90,9 +133,11 @@ fn byte_count(value: Option<i64>) -> Option<u64> {
 
 #[cfg(test)]
 mod tests {
-    use super::PullLayers;
-    use crate::entities::{ImagePullLayer, ImagePullPhase};
+    use super::{follow_pull, PullLayers};
+    use crate::entities::{ImagePullLayer, ImagePullOutcome, ImagePullPhase};
     use bollard::models::{CreateImageInfo, ProgressDetail};
+    use futures_util::stream::{self, StreamExt};
+    use std::future::{pending, ready};
 
     fn message(id: &str, status: &str) -> CreateImageInfo {
         CreateImageInfo {
@@ -254,5 +299,38 @@ mod tests {
             status: Some("Digest: sha256:3833".to_string()),
             ..Default::default()
         }));
+    }
+
+    #[tokio::test]
+    async fn a_pull_completes_when_the_engine_ends_the_stream_and_reports_the_last_progress() {
+        let messages = stream::iter([Ok::<_, String>(with_bytes("a", "Downloading", 10, 40))]);
+        let mut reports = Vec::new();
+
+        let outcome = follow_pull(messages, pending(), |progress| reports.push(progress)).await;
+
+        assert_eq!(outcome, Ok(ImagePullOutcome::Completed));
+        assert_eq!(reports.len(), 1);
+        assert_eq!(reports[0].layers[0].downloaded, 10);
+    }
+
+    #[tokio::test]
+    async fn a_pull_stops_without_reporting_once_it_is_cancelled() {
+        let messages = stream::iter([Ok::<_, String>(message("a", "Pulling fs layer"))])
+            .chain(stream::pending());
+        let mut reports = Vec::new();
+
+        let outcome = follow_pull(messages, ready(()), |progress| reports.push(progress)).await;
+
+        assert_eq!(outcome, Ok(ImagePullOutcome::Cancelled));
+        assert!(reports.is_empty());
+    }
+
+    #[tokio::test]
+    async fn a_pull_fails_with_the_error_the_engine_sends() {
+        let messages = stream::iter([Err("manifest unknown".to_string())]);
+
+        let outcome = follow_pull(messages, pending(), |_| {}).await;
+
+        assert_eq!(outcome, Err("manifest unknown".to_string()));
     }
 }

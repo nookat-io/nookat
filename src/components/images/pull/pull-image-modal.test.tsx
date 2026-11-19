@@ -1,4 +1,10 @@
-import { act, render, screen, waitFor } from '@testing-library/react';
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from '@testing-library/react';
 import userEvent, { UserEvent } from '@testing-library/user-event';
 import { Channel } from '@tauri-apps/api/core';
 import { mockIPC } from '@tauri-apps/api/mocks';
@@ -23,13 +29,20 @@ const PUSHED_AT = '2026-11-18T09:30:00Z';
 const MB = 1024 * 1024;
 
 interface PullRequest {
+  pullId: string;
   imageName: string;
   tag: string;
   registry: string;
   onProgress: Channel<ImagePullProgress>;
 }
 
-const pullRequest = (args: unknown) => args as PullRequest;
+const pullRequest = (args: unknown): PullRequest => {
+  const { request, onProgress } = args as {
+    request: Omit<PullRequest, 'onProgress'>;
+    onProgress: Channel<ImagePullProgress>;
+  };
+  return { ...request, onProgress };
+};
 
 const withoutProgress = ({ imageName, tag, registry }: PullRequest) => ({
   imageName,
@@ -63,7 +76,7 @@ function mockDockerHub(
       }
       case 'pull_image':
         pulls.push(withoutProgress(pullRequest(args)));
-        return null;
+        return 'completed';
       default:
         throw new Error(`Unexpected command ${cmd}`);
     }
@@ -108,6 +121,41 @@ async function choosePullSource({
   await user.click(await screen.findByText(image, { selector: 'span' }));
   return user;
 }
+
+function mockPullThatRunsUntilCancelled() {
+  const pullIds: string[] = [];
+  const cancellations: string[] = [];
+  const runningPulls = new Map<string, () => void>();
+  mockIPC((cmd, args) => {
+    switch (cmd) {
+      case 'search_docker_hub':
+        return { results: [NGINX] };
+      case 'fetch_image_tags':
+        return ['latest'];
+      case 'fetch_image_tag':
+        return tagDetails('latest');
+      case 'pull_image': {
+        const { pullId } = pullRequest(args);
+        pullIds.push(pullId);
+        return new Promise(resolve => {
+          runningPulls.set(pullId, () => resolve('cancelled'));
+        });
+      }
+      case 'cancel_image_pull': {
+        const { pullId } = args as { pullId: string };
+        cancellations.push(pullId);
+        runningPulls.get(pullId)?.();
+        return true;
+      }
+      default:
+        throw new Error(`Unexpected command ${cmd}`);
+    }
+  });
+  return { pullIds, cancellations };
+}
+
+const pullImageDialog = () =>
+  screen.queryByRole('dialog', { name: 'Pull Image from Registry' });
 
 const lookalikeConfirmation = (title: string) =>
   screen.queryByRole('dialog', { name: title });
@@ -230,7 +278,7 @@ describe('PullImage', () => {
         case 'fetch_image_tag':
           return tagDetails('latest');
         case 'pull_image':
-          return (args as { imageName: string }).imageName === 'nginx'
+          return pullRequest(args).imageName === 'nginx'
             ? Promise.reject('manifest for nginx:latest not found')
             : null;
         default:
@@ -281,7 +329,7 @@ describe('PullImage', () => {
         case 'pull_image':
           progressChannel = pullRequest(args).onProgress;
           return new Promise(resolve => {
-            finishPull = () => resolve(null);
+            finishPull = () => resolve('completed');
           });
         default:
           throw new Error(`Unexpected command ${cmd}`);
@@ -429,7 +477,7 @@ describe('PullImage', () => {
           return Promise.reject('Docker Hub is unreachable');
         case 'pull_image':
           pulls.push(withoutProgress(pullRequest(args)));
-          return null;
+          return 'completed';
         default:
           throw new Error(`Unexpected command ${cmd}`);
       }
@@ -496,5 +544,69 @@ describe('PullImage', () => {
     await user.keyboard('{Escape}');
 
     await waitFor(() => expect(dialog).not.toBeInTheDocument());
+  });
+
+  it('cancels a running pull and says so, keeping the dialog open', async () => {
+    const { pullIds, cancellations } = mockPullThatRunsUntilCancelled();
+    const user = await choosePullSource({ image: 'nginx' });
+    await pullOnceTheTagIsChecked(user);
+    expect(screen.getByText('Pulling image...')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Cancel Pull' }));
+
+    expect(await screen.findByText('Pull cancelled')).toBeInTheDocument();
+    expect(cancellations).toEqual(pullIds);
+    expect(pullIds).toHaveLength(1);
+    expect(pullImageDialog()).toBeInTheDocument();
+    expect(pullButton()).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Cancel' })).toBeEnabled();
+  });
+
+  it('stops the pull when the dialog is closed during it', async () => {
+    const { pullIds, cancellations } = mockPullThatRunsUntilCancelled();
+    const user = await choosePullSource({ image: 'nginx' });
+    await pullOnceTheTagIsChecked(user);
+
+    await user.click(screen.getByRole('button', { name: 'Close' }));
+
+    await waitFor(() => expect(pullImageDialog()).not.toBeInTheDocument());
+    expect(cancellations).toEqual(pullIds);
+  });
+
+  it('stops the pull when Escape closes the dialog during it', async () => {
+    const { pullIds, cancellations } = mockPullThatRunsUntilCancelled();
+    const user = await choosePullSource({ image: 'nginx' });
+    await pullOnceTheTagIsChecked(user);
+
+    await user.keyboard('{Escape}');
+
+    await waitFor(() => expect(pullImageDialog()).not.toBeInTheDocument());
+    expect(cancellations).toEqual(pullIds);
+  });
+
+  it('keeps the pull running when a click lands outside the dialog', async () => {
+    const { cancellations } = mockPullThatRunsUntilCancelled();
+    const user = await choosePullSource({ image: 'nginx' });
+    await pullOnceTheTagIsChecked(user);
+
+    fireEvent.pointerDown(document.body);
+
+    expect(pullImageDialog()).toBeInTheDocument();
+    expect(screen.getByText('Pulling image...')).toBeInTheDocument();
+    expect(cancellations).toEqual([]);
+  });
+
+  it('starts clean when reopened after a pull was stopped by closing', async () => {
+    mockPullThatRunsUntilCancelled();
+    const user = await choosePullSource({ image: 'nginx' });
+    await pullOnceTheTagIsChecked(user);
+    await user.keyboard('{Escape}');
+    await waitFor(() => expect(pullImageDialog()).not.toBeInTheDocument());
+
+    await user.click(screen.getByRole('button', { name: 'Pull Image' }));
+
+    expect(pullImageDialog()).toBeInTheDocument();
+    expect(screen.queryByText('Pull cancelled')).toBeNull();
+    expect(screen.queryByText('Pulling image...')).toBeNull();
   });
 });

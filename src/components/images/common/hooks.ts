@@ -72,29 +72,30 @@ export function useProgress() {
 
   const setRunning = useCallback((message: string) => {
     setProgress({
+      ...DEFAULT_PROGRESS_STATE,
       isRunning: true,
       progress: message,
-      error: null,
-      success: false,
     });
   }, []);
 
   const setSuccess = useCallback((message: string) => {
     setProgress({
-      isRunning: false,
+      ...DEFAULT_PROGRESS_STATE,
       progress: message,
-      error: null,
       success: true,
     });
   }, []);
 
-  const setError = useCallback((message: string) => {
+  const setCancelled = useCallback((message: string) => {
     setProgress({
-      isRunning: false,
-      progress: '',
-      error: message,
-      success: false,
+      ...DEFAULT_PROGRESS_STATE,
+      progress: message,
+      cancelled: true,
     });
+  }, []);
+
+  const setError = useCallback((message: string) => {
+    setProgress({ ...DEFAULT_PROGRESS_STATE, error: message });
   }, []);
 
   return {
@@ -102,6 +103,7 @@ export function useProgress() {
     resetProgress,
     setRunning,
     setSuccess,
+    setCancelled,
     setError,
   };
 }

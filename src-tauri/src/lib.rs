@@ -7,7 +7,7 @@ mod state;
 use crate::handlers::{
     bulk_force_remove_containers, bulk_pause_containers, bulk_remove_containers,
     bulk_remove_networks, bulk_remove_volumes, bulk_restart_containers, bulk_start_containers,
-    bulk_stop_containers, bulk_unpause_containers, check_colima_availability,
+    bulk_stop_containers, bulk_unpause_containers, cancel_image_pull, check_colima_availability,
     check_homebrew_availability, container_logs, create_container, create_network, delete_image,
     engine_status, fetch_image_tag, fetch_image_tags, force_remove_container,
     get_binary_install_plan, get_colima_vm, get_config, get_docker_info, get_engine_state,
@@ -22,7 +22,7 @@ use crate::handlers::{
 };
 use crate::sentry::flush_sentry;
 use crate::services::ConfigService;
-use crate::state::SharedEngineState;
+use crate::state::{RunningPulls, SharedEngineState};
 use tauri::{
     image::Image,
     menu::{MenuBuilder, MenuItem},
@@ -159,6 +159,7 @@ pub fn run() {
             prune_images,
             delete_image,
             pull_image,
+            cancel_image_pull,
             search_docker_hub,
             fetch_image_tags,
             fetch_image_tag,
@@ -190,6 +191,7 @@ pub fn run() {
         .setup(|app| {
             let engine_state = SharedEngineState::new(app.app_handle().clone());
             app.manage(engine_state);
+            app.manage(RunningPulls::default());
             Ok(build_tray(app)?)
         })
         .on_window_event(|window, event| {

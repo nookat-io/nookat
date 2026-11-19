@@ -20,6 +20,22 @@ pub struct ImagePullLayer {
     pub extracted: u64,
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct ImagePullRequest {
+    pub pull_id: String,
+    pub image_name: String,
+    pub tag: String,
+    pub registry: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum ImagePullOutcome {
+    Completed,
+    Cancelled,
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Default)]
 pub struct ImagePullProgress {
     pub layers: Vec<ImagePullLayer>,

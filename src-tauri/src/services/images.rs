@@ -1,18 +1,17 @@
-use super::image_pull::PullLayers;
-use crate::entities::{DockerHubTag, Image, ImagePullProgress, PruneResult};
+use super::image_pull::follow_pull;
+use crate::entities::{DockerHubTag, Image, ImagePullOutcome, ImagePullProgress, PruneResult};
 use bollard::models::ImageSummary;
 use bollard::query_parameters::{
     CreateImageOptions, ListContainersOptions, ListImagesOptions, PruneImagesOptions,
     RemoveImageOptions,
 };
 use bollard::Docker;
-use futures_util::StreamExt;
 use reqwest::{StatusCode, Url};
 use serde_json::Value;
 use std::collections::{BTreeSet, HashMap, HashSet};
+use std::future::Future;
 use std::time::Duration;
-use tokio::time::MissedTickBehavior;
-use tracing::{debug, instrument};
+use tracing::{debug, info, instrument};
 
 const DOCKER_HUB_REGISTRY: &str = "docker.io";
 const DOCKER_HUB_SEARCH_URL: &str = "https://hub.docker.com/v2/search/repositories/";
@@ -24,7 +23,6 @@ const ATTESTATION_PLATFORM: &str = "unknown";
 const MAINSTREAM_ARCHITECTURES: [&str; 2] = ["amd64", "arm64"];
 const DOCKER_HUB_TIMEOUT: Duration = Duration::from_secs(15);
 const DOCKER_HUB_USER_AGENT: &str = "Nookat/1.0";
-const PULL_PROGRESS_INTERVAL: Duration = Duration::from_millis(100);
 
 #[derive(Default, Debug)]
 pub struct ImagesService {}
@@ -113,8 +111,9 @@ impl ImagesService {
         image_name: &str,
         tag: &str,
         registry: &str,
-        mut report_progress: impl FnMut(ImagePullProgress),
-    ) -> Result<(), String> {
+        cancelled: impl Future<Output = ()>,
+        report_progress: impl FnMut(ImagePullProgress),
+    ) -> Result<ImagePullOutcome, String> {
         debug!(
             "Pulling image: {}:{} from registry: {}",
             image_name, tag, registry
@@ -134,35 +133,16 @@ impl ImagesService {
             from_image: Some(full_image_name.clone()),
             ..Default::default()
         };
-        let mut pull_messages = docker.create_image(Some(options), None, None);
-        let mut layers = PullLayers::default();
-        let mut has_unreported_progress = false;
-        let mut report_timer = tokio::time::interval(PULL_PROGRESS_INTERVAL);
-        report_timer.set_missed_tick_behavior(MissedTickBehavior::Delay);
+        let pull_messages = docker.create_image(Some(options), None, None);
+        let outcome = follow_pull(pull_messages, cancelled, report_progress)
+            .await
+            .map_err(|e| format!("Failed to pull image {}: {}", full_image_name, e))?;
 
-        loop {
-            tokio::select! {
-                message = pull_messages.next() => {
-                    let Some(message) = message else {
-                        break;
-                    };
-                    let message = message
-                        .map_err(|e| format!("Failed to pull image {}: {}", full_image_name, e))?;
-                    debug!("Pull progress: {:?}", message);
-                    has_unreported_progress |= layers.apply(&message);
-                }
-                _ = report_timer.tick(), if has_unreported_progress => {
-                    report_progress(layers.progress());
-                    has_unreported_progress = false;
-                }
-            }
+        match outcome {
+            ImagePullOutcome::Completed => debug!("Pulled image {}", full_image_name),
+            ImagePullOutcome::Cancelled => info!("Cancelled the pull of {}", full_image_name),
         }
-        if has_unreported_progress {
-            report_progress(layers.progress());
-        }
-
-        debug!("Successfully pulled image: {}", full_image_name);
-        Ok(())
+        Ok(outcome)
     }
 
     #[instrument(skip_all, err)]
