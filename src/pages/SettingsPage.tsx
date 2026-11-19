@@ -31,7 +31,7 @@ export default function SettingsPage() {
       <div className="flex-1 overflow-hidden">
         <div className="p-6 max-w-full h-full overflow-auto">
           <Tabs defaultValue="general" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-2 bg-card/50 backdrop-blur-xs">
+            <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="general">General</TabsTrigger>
               <TabsTrigger value="engine">Engine</TabsTrigger>
             </TabsList>
