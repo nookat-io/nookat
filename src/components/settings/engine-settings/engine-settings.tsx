@@ -6,32 +6,60 @@ import {
   CardHeader,
   CardTitle,
 } from '../../ui/card';
-import { Activity, Layers } from 'lucide-react';
+import { Activity, Layers, RefreshCw } from 'lucide-react';
+import { Button } from '../../ui/button';
 import { useEngineSettingsState } from './hooks';
 import { CollapsibleSection } from './collapsible-section';
 import { EngineStatusSection } from './engine-status-section';
 import { EngineConfiguration, InfoBanner } from './components';
 import { LoadingSpinner } from '../../ui/loading-spinner';
-import { ConnectedEngine } from './types';
+import { EngineConnection } from './types';
 
 function ConnectionDescription({
-  engine,
+  connection,
+  onRetry,
 }: {
-  engine: ConnectedEngine | null | undefined;
+  connection: EngineConnection;
+  onRetry: () => void;
 }) {
-  if (engine === undefined) {
-    return <>Checking which engine Nookat is connected to</>;
+  switch (connection.kind) {
+    case 'checking':
+      return (
+        <CardDescription>
+          Checking which engine Nookat is connected to
+        </CardDescription>
+      );
+    case 'disconnected':
+      return (
+        <CardDescription>Nookat is not connected to an engine</CardDescription>
+      );
+    case 'unidentified':
+      return (
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+          <CardDescription className="break-words">
+            Nookat could not tell which engine it is connected to:{' '}
+            {connection.error}
+          </CardDescription>
+          <Button onClick={onRetry} variant="outline" size="sm">
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Retry
+          </Button>
+        </div>
+      );
+    case 'connected':
+      return (
+        <CardDescription>
+          Nookat is connected to{' '}
+          <span className="font-medium text-foreground">
+            {connection.engine.name}
+          </span>{' '}
+          at{' '}
+          <code className="break-all font-mono text-xs">
+            {connection.engine.endpoint}
+          </code>
+        </CardDescription>
+      );
   }
-  if (engine === null) {
-    return <>Nookat is not connected to an engine</>;
-  }
-  return (
-    <>
-      Nookat is connected to{' '}
-      <span className="font-medium text-foreground">{engine.name}</span> at{' '}
-      <code className="break-all font-mono text-xs">{engine.endpoint}</code>
-    </>
-  );
 }
 
 export function EngineSettings() {
@@ -44,14 +72,14 @@ export function EngineSettings() {
     state.installationStep === 'starting-vm' ||
     state.installationStep === 'validating';
 
-  const { connectedEngine } = state;
+  const { engineConnection } = state;
   const isColimaSupportKnown =
     state.colimaSupported !== null || state.colimaSupportError !== null;
   const otherEngine =
     state.colimaSupported === true &&
-    connectedEngine &&
-    !connectedEngine.is_managed_colima
-      ? connectedEngine
+    engineConnection.kind === 'connected' &&
+    !engineConnection.engine.is_managed_colima
+      ? engineConnection.engine
       : null;
   const isEngineConfigOpen = state.showEngineConfig ?? !otherEngine;
 
@@ -69,16 +97,17 @@ export function EngineSettings() {
             <Activity className="h-5 w-5" />
             Engine Status
           </CardTitle>
-          <CardDescription>
-            <ConnectionDescription engine={connectedEngine} />
-          </CardDescription>
+          <ConnectionDescription
+            connection={engineConnection}
+            onRetry={actions.fetchEngineDetails}
+          />
         </CardHeader>
         <CardContent>
           <EngineStatusSection dockerInfo={state.dockerInfo} />
         </CardContent>
       </Card>
 
-      {connectedEngine !== undefined && isColimaSupportKnown && (
+      {engineConnection.kind !== 'checking' && isColimaSupportKnown && (
         <CollapsibleSection
           title={
             otherEngine
@@ -129,7 +158,7 @@ export function EngineSettings() {
             isSwitchingDockerContext={state.isSwitchingDockerContext}
             dockerContextError={state.dockerContextError}
             onSwitchDockerToColima={actions.switchDockerToColima}
-            otherEngineName={otherEngine?.name ?? null}
+            otherEngine={otherEngine}
           />
         </CollapsibleSection>
       )}

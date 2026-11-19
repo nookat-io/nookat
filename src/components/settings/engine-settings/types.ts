@@ -76,6 +76,7 @@ export interface ColimaProfile {
   name: string;
   status: ColimaProfileStatus;
   settings: ColimaVmSettings;
+  activates_docker_context: boolean;
 }
 
 export type ColimaPerformanceWarning =
@@ -87,6 +88,12 @@ export interface ConnectedEngine {
   endpoint: string;
   is_managed_colima: boolean;
 }
+
+export type EngineConnection =
+  | { kind: 'checking' }
+  | { kind: 'connected'; engine: ConnectedEngine }
+  | { kind: 'disconnected' }
+  | { kind: 'unidentified'; error: string };
 
 export interface DockerCliContext {
   name: string;

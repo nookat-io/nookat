@@ -1,13 +1,13 @@
 import { ArrowRightLeft, CircleCheck } from 'lucide-react';
 import { Button } from '../../../ui/button';
-import { DockerCliContext } from '../types';
+import { ConnectedEngine, DockerCliContext } from '../types';
 
 interface DockerContextNoticeProps {
   context: DockerCliContext;
   isSwitching: boolean;
   error: string | null;
   onSwitchToColima: () => void;
-  otherEngineName: string | null;
+  otherEngine: ConnectedEngine | null;
 }
 
 function describeContext(context: DockerCliContext) {
@@ -15,13 +15,23 @@ function describeContext(context: DockerCliContext) {
   return `The current Docker context is "${context.name}"${endpoint}`;
 }
 
+function otherEngineTitle(
+  context: DockerCliContext,
+  otherEngine: ConnectedEngine
+) {
+  if (context.host === otherEngine.endpoint) {
+    return `Nookat and docker commands in your terminal use ${otherEngine.name}`;
+  }
+  return `Nookat uses ${otherEngine.name}, not Colima`;
+}
+
 function otherEngineNotice(
   context: DockerCliContext,
-  otherEngineName: string | null
+  otherEngine: ConnectedEngine | null
 ) {
-  if (otherEngineName) {
+  if (otherEngine) {
     return {
-      title: `Nookat and docker commands in your terminal use ${otherEngineName}`,
+      title: otherEngineTitle(context, otherEngine),
       message: `${describeContext(context)}. Switch it to Colima to use this VM.`,
       action: 'Switch to Colima',
     };
@@ -38,7 +48,7 @@ export function DockerContextNotice({
   isSwitching,
   error,
   onSwitchToColima,
-  otherEngineName,
+  otherEngine,
 }: DockerContextNoticeProps) {
   if (context.uses_colima) {
     return (
@@ -50,7 +60,7 @@ export function DockerContextNotice({
     );
   }
 
-  const notice = otherEngineNotice(context, otherEngineName);
+  const notice = otherEngineNotice(context, otherEngine);
 
   return (
     <div className="space-y-3 rounded-md border border-amber-200 bg-amber-50 p-3 text-amber-800 dark:border-amber-800 dark:bg-amber-950/20 dark:text-amber-200">

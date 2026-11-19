@@ -1,4 +1,5 @@
 use crate::entities::ConnectedEngine;
+use std::path::{Path, PathBuf};
 
 const ORBSTACK: &str = "OrbStack";
 const DOCKER_DESKTOP: &str = "Docker Desktop";
@@ -12,6 +13,7 @@ const COLIMA_DEFAULT_HOST_NAME: &str = "colima";
 const COLIMA_HOST_NAME_PREFIX: &str = "colima-";
 const COLIMA_HOME_SEGMENT: &str = "/.colima/";
 const REMOTE_SCHEMES: [&str; 2] = ["tcp://", "ssh://"];
+const LOCAL_SOCKET_SCHEME: &str = "unix://";
 
 pub fn describe_connected_engine(
     endpoint: &str,
@@ -26,8 +28,21 @@ pub fn describe_connected_engine(
             host_name.unwrap_or_default(),
         ),
         endpoint: endpoint.to_string(),
-        is_managed_colima: managed_colima_endpoint == Some(endpoint),
+        is_managed_colima: managed_colima_endpoint
+            .is_some_and(|managed| is_same_local_socket(endpoint, managed)),
     }
+}
+
+fn is_same_local_socket(endpoint: &str, other_endpoint: &str) -> bool {
+    match (local_socket(endpoint), local_socket(other_endpoint)) {
+        (Some(socket), Some(other_socket)) => socket == other_socket,
+        _ => false,
+    }
+}
+
+fn local_socket(endpoint: &str) -> Option<PathBuf> {
+    let path = Path::new(endpoint.strip_prefix(LOCAL_SOCKET_SCHEME)?);
+    Some(std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf()))
 }
 
 fn engine_name(endpoint: &str, operating_system: &str, host_name: &str) -> String {
@@ -198,5 +213,51 @@ mod tests {
             None,
         );
         assert!(!without_colima.is_managed_colima);
+
+        let remote = describe_connected_engine(
+            "tcp://10.0.0.5:2376",
+            Some("Ubuntu 24.04 LTS"),
+            Some("colima"),
+            Some(NOOKAT_COLIMA),
+        );
+        assert!(!remote.is_managed_colima);
+    }
+
+    #[test]
+    fn the_managed_socket_counts_as_managed_however_the_endpoint_spells_its_path() {
+        for endpoint in [
+            "unix:///Users/me/.colima/default/./docker.sock",
+            "unix:///Users/me//.colima/default/docker.sock",
+        ] {
+            let engine = describe_connected_engine(endpoint, None, None, Some(NOOKAT_COLIMA));
+            assert!(engine.is_managed_colima, "{endpoint}");
+            assert_eq!(engine.endpoint, endpoint);
+        }
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_link_to_the_managed_socket_counts_as_managed() {
+        let dir = tempfile::tempdir().expect("temporary directory");
+        let socket = dir
+            .path()
+            .join(".colima")
+            .join("default")
+            .join("docker.sock");
+        std::fs::create_dir_all(socket.parent().expect("profile directory"))
+            .expect("profile directory created");
+        std::fs::write(&socket, "").expect("socket placeholder created");
+        let default_socket = dir.path().join("docker.sock");
+        std::os::unix::fs::symlink(&socket, &default_socket).expect("link created");
+
+        let engine = describe_connected_engine(
+            &format!("unix://{}", default_socket.display()),
+            Some("Ubuntu 24.04.3 LTS"),
+            Some("colima"),
+            Some(&format!("unix://{}", socket.display())),
+        );
+
+        assert!(engine.is_managed_colima);
+        assert_eq!(engine.name, "Colima");
     }
 }

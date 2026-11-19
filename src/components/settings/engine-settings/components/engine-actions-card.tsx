@@ -3,6 +3,7 @@ import { Button } from '../../../ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../../../ui/card';
 import { OctagonX, Play, AlertTriangle } from 'lucide-react';
 import {
+  ConnectedEngine,
   DockerCliContext,
   InstallationOperation,
   InstallationStep,
@@ -12,6 +13,7 @@ import {
 } from '../types';
 import { InstallationProgress } from './installation-progress';
 import { DockerContextNotice } from './docker-context-notice';
+import { colimaStartEffect } from './colima-start-effect';
 import { ConfirmDialog } from '../../../common/ConfirmDialog';
 import { Dialog, DialogTrigger } from '../../../ui/dialog';
 
@@ -31,12 +33,16 @@ interface EngineActionsCardProps {
   isSwitchingDockerContext: boolean;
   dockerContextError: string | null;
   onSwitchDockerToColima: () => void;
-  otherEngineName: string | null;
+  otherEngine: ConnectedEngine | null;
+  activatesDockerContext: boolean;
 }
 
-function stoppedEngineMessage(otherEngineName: string | null) {
-  if (otherEngineName) {
-    return `Colima is installed but not running. Starting it switches Nookat and docker commands in your terminal from ${otherEngineName} to Colima.`;
+function stoppedEngineMessage(
+  otherEngine: ConnectedEngine | null,
+  activatesDockerContext: boolean
+) {
+  if (otherEngine) {
+    return `Colima is installed but not running. ${colimaStartEffect(otherEngine.name, activatesDockerContext)}`;
   }
   return 'Colima is installed but the engine is not running. Start the engine to begin using Docker.';
 }
@@ -57,7 +63,8 @@ export function EngineActionsCard({
   isSwitchingDockerContext,
   dockerContextError,
   onSwitchDockerToColima,
-  otherEngineName,
+  otherEngine,
+  activatesDockerContext,
 }: EngineActionsCardProps) {
   const [isStopDialogOpen, setIsStopDialogOpen] = useState(false);
   const isStopping = stopStep === 'stopping-vm';
@@ -93,7 +100,7 @@ export function EngineActionsCard({
         {!isEngineRunning && (
           <div className="space-y-3">
             <p className="text-sm text-muted-foreground">
-              {stoppedEngineMessage(otherEngineName)}
+              {stoppedEngineMessage(otherEngine, activatesDockerContext)}
             </p>
             <Button
               onClick={onStartEngine}
@@ -121,7 +128,7 @@ export function EngineActionsCard({
             isSwitching={isSwitchingDockerContext}
             error={dockerContextError}
             onSwitchToColima={onSwitchDockerToColima}
-            otherEngineName={otherEngineName}
+            otherEngine={otherEngine}
           />
         )}
 

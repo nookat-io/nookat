@@ -26,6 +26,7 @@ function colimaVm(
         rosetta: false,
         mount_inotify: false,
       },
+      activates_docker_context: true,
     },
     host: {
       cpus: 12,

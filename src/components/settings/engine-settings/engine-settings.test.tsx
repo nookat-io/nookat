@@ -21,9 +21,10 @@ const APPLE_SILICON = {
   supports_vz: true,
 };
 
-const tunedProfile = (status: string) => ({
+const tunedProfile = (status: string, activatesDockerContext: boolean) => ({
   name: 'default',
   status,
+  activates_docker_context: activatesDockerContext,
   settings: {
     cpus: 8,
     memory_gib: 8,
@@ -71,7 +72,9 @@ interface Backend {
     beforeSwitch: ConnectedEngine | null;
     afterSwitch?: ConnectedEngine;
   };
+  identificationError?: { current: string | null };
   profileStatus?: string;
+  activatesDockerContext?: boolean;
   otherEngineAnswers?: boolean;
   homebrewAvailable?: boolean;
   colimaInstalled?: boolean;
@@ -82,7 +85,9 @@ interface Backend {
 function mockBackend({
   colimaSupported = true,
   connectedEngine = { beforeSwitch: null },
+  identificationError,
   profileStatus = 'Stopped',
+  activatesDockerContext = true,
   otherEngineAnswers = false,
   homebrewAvailable = true,
   colimaInstalled = true,
@@ -98,6 +103,9 @@ function mockBackend({
         case 'is_colima_supported':
           return colimaSupported;
         case 'get_connected_engine':
+          if (identificationError?.current) {
+            return Promise.reject(identificationError.current);
+          }
           return contextSwitches.length > 0 && connectedEngine.afterSwitch
             ? connectedEngine.afterSwitch
             : connectedEngine.beforeSwitch;
@@ -128,7 +136,7 @@ function mockBackend({
           throw new Error('DockerInfo is not available');
         case 'get_colima_vm':
           return {
-            profile: tunedProfile(profileStatus),
+            profile: tunedProfile(profileStatus, activatesDockerContext),
             host: APPLE_SILICON,
             warnings: [],
             docker_context: dockerContext,
@@ -167,6 +175,11 @@ describe('EngineSettings', () => {
     const section = await engineSection('Use Colima instead of OrbStack');
     expect(section).toHaveAttribute('aria-expanded', 'false');
     expect(
+      within(
+        screen.getByRole('heading', { name: 'Use Colima instead of OrbStack' })
+      ).getByRole('button')
+    ).toBe(section);
+    expect(
       screen.queryByRole('button', { name: 'Start Engine' })
     ).not.toBeInTheDocument();
 
@@ -185,6 +198,62 @@ describe('EngineSettings', () => {
       )
     ).toBeInTheDocument();
     expect(startRequests).toEqual([]);
+  });
+
+  it('says that starting Colima leaves Nookat on OrbStack when its profile does not switch the Docker context', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    const user = userEvent.setup();
+    mockBackend({
+      connectedEngine: { beforeSwitch: ORBSTACK_ENGINE },
+      activatesDockerContext: false,
+    });
+    render(<EngineSettings />);
+
+    await user.click(await engineSection('Use Colima instead of OrbStack'));
+
+    expect(
+      await screen.findByText(
+        'Colima is installed but not running. This Colima profile does not switch the Docker context when it starts, so Nookat and docker commands in your terminal stay on OrbStack until you switch them to Colima.'
+      )
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/Starting it switches/)).not.toBeInTheDocument();
+  });
+
+  it('says when it cannot tell which engine Nookat uses, and finds it on retry', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    const user = userEvent.setup();
+    const identificationError = {
+      current: 'Failed to get Docker info: connection reset' as string | null,
+    };
+    mockBackend({
+      connectedEngine: { beforeSwitch: ORBSTACK_ENGINE },
+      identificationError,
+      otherEngineAnswers: true,
+    });
+    render(<EngineSettings />);
+
+    expect(
+      await screen.findByText(
+        'Nookat could not tell which engine it is connected to: Failed to get Docker info: connection reset'
+      )
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText('Nookat is not connected to an engine')
+    ).not.toBeInTheDocument();
+    expect(await engineSection('Engine Configuration')).toBeInTheDocument();
+
+    identificationError.current = null;
+    await user.click(screen.getByRole('button', { name: 'Retry' }));
+
+    expect(
+      await engineSection('Use Colima instead of OrbStack')
+    ).toBeInTheDocument();
+    expect(screen.getByText(/^Nookat is connected to/)).toHaveTextContent(
+      'Nookat is connected to OrbStack at unix:///Users/me/.orbstack/run/docker.sock'
+    );
+    expect(
+      screen.queryByRole('button', { name: 'Retry' })
+    ).not.toBeInTheDocument();
   });
 
   it('keeps Colima management open when Nookat is connected to its own Colima', async () => {
@@ -353,6 +422,42 @@ describe('EngineSettings', () => {
         'The current Docker context is "orbstack" (unix:///Users/me/.orbstack/run/docker.sock). Switch it to Colima to use this VM.'
       )
     ).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Switch to Colima' }));
+
+    expect(contextSwitches).toHaveLength(1);
+  });
+
+  it('names only the engine Nookat uses when the terminal context points somewhere else', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    const user = userEvent.setup();
+    const { contextSwitches } = mockBackend({
+      connectedEngine: {
+        beforeSwitch: {
+          ...ORBSTACK_ENGINE,
+          endpoint: 'unix:///var/run/docker.sock',
+        },
+      },
+      profileStatus: 'Running',
+      dockerContext: {
+        name: 'desktop-linux',
+        host: 'unix:///Users/me/.docker/run/docker.sock',
+        uses_colima: false,
+      },
+    });
+    render(<EngineSettings />);
+    await user.click(await engineSection('Use Colima instead of OrbStack'));
+
+    expect(
+      await screen.findByText('Nookat uses OrbStack, not Colima')
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        'The current Docker context is "desktop-linux" (unix:///Users/me/.docker/run/docker.sock). Switch it to Colima to use this VM.'
+      )
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText(/docker commands in your terminal use OrbStack/)
+    ).not.toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Switch to Colima' }));
 
     expect(contextSwitches).toHaveLength(1);

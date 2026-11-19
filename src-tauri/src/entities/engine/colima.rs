@@ -62,6 +62,7 @@ pub struct ColimaProfile {
     pub name: String,
     pub status: ColimaProfileStatus,
     pub settings: ColimaVmSettings,
+    pub activates_docker_context: bool,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
@@ -136,6 +137,7 @@ mod tests {
                     rosetta: false,
                     mount_inotify: false,
                 },
+                activates_docker_context: true,
             },
             host: ColimaHost {
                 cpus: 12,
@@ -168,7 +170,8 @@ mod tests {
                         "vm_type": "vz",
                         "rosetta": false,
                         "mount_inotify": false
-                    }
+                    },
+                    "activates_docker_context": true
                 },
                 "host": {
                     "cpus": 12,

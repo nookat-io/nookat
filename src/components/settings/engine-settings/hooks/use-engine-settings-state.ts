@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useEngineStatus } from '../../../../hooks/use-engine-status';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
@@ -17,6 +17,7 @@ import {
   ColimaVmSettings,
   ColimaVmSettingsChanges,
   EditableColimaVmSetting,
+  EngineConnection,
   StopStep,
 } from '../types';
 
@@ -37,6 +38,10 @@ function withSettingChange<K extends EditableColimaVmSetting>(
   return next;
 }
 
+function connectionTo(engine: ConnectedEngine | null): EngineConnection {
+  return engine ? { kind: 'connected', engine } : { kind: 'disconnected' };
+}
+
 export interface EngineSettingsState {
   colimaSupported: boolean | typeof SUPPORT_UNKNOWN;
   colimaSupportError: string | null;
@@ -53,7 +58,7 @@ export interface EngineSettingsState {
   stopProgress: ColimaEngineStopProgressType;
   error: string | null;
   dockerInfo: DockerInfo | null;
-  connectedEngine: ConnectedEngine | null | undefined;
+  engineConnection: EngineConnection;
   showEngineConfig: boolean | null;
   binaryInstallPlan: BinaryInstallPlan | null;
   binaryInstallPlanError: string | null;
@@ -119,9 +124,10 @@ export function useEngineSettingsState(): [
     });
   const [error, setError] = useState<string | null>(null);
   const [dockerInfo, setDockerInfo] = useState<DockerInfo | null>(null);
-  const [connectedEngine, setConnectedEngine] = useState<
-    ConnectedEngine | null | undefined
-  >(undefined);
+  const [engineConnection, setEngineConnection] = useState<EngineConnection>({
+    kind: 'checking',
+  });
+  const latestEngineDetailsRequest = useRef(0);
   const [showEngineConfig, setShowEngineConfig] = useState<boolean | null>(
     null
   );
@@ -159,23 +165,36 @@ export function useEngineSettingsState(): [
     await probeColimaSupport();
   };
 
-  const fetchEngineDetails = useCallback(
-    () =>
-      Promise.all([
-        invoke<DockerInfo>('get_docker_info').then(setDockerInfo, err => {
+  const fetchEngineDetails = useCallback(() => {
+    const request = ++latestEngineDetailsRequest.current;
+    const unlessSuperseded =
+      <T>(apply: (value: T) => void) =>
+      (value: T) => {
+        if (request === latestEngineDetailsRequest.current) {
+          apply(value);
+        }
+      };
+
+    return Promise.all([
+      invoke<DockerInfo>('get_docker_info').then(
+        unlessSuperseded(setDockerInfo),
+        unlessSuperseded(err => {
           console.error('Error fetching Docker info:', err);
           setDockerInfo(null);
-        }),
-        invoke<ConnectedEngine | null>('get_connected_engine').then(
-          setConnectedEngine,
-          err => {
-            console.error('Error describing the connected engine:', err);
-            setConnectedEngine(null);
-          }
-        ),
-      ]).then(() => undefined),
-    []
-  );
+        })
+      ),
+      invoke<ConnectedEngine | null>('get_connected_engine').then(
+        unlessSuperseded(engine => setEngineConnection(connectionTo(engine))),
+        unlessSuperseded(err => {
+          console.error('Error describing the connected engine:', err);
+          setEngineConnection({
+            kind: 'unidentified',
+            error: errorMessage(err),
+          });
+        })
+      ),
+    ]).then(() => undefined);
+  }, []);
 
   const fetchColimaVm = useCallback(
     () =>
@@ -523,7 +542,7 @@ export function useEngineSettingsState(): [
     stopProgress,
     error,
     dockerInfo,
-    connectedEngine,
+    engineConnection,
     showEngineConfig,
     binaryInstallPlan,
     binaryInstallPlanError,
