@@ -73,7 +73,6 @@ jobs:
         os: [ubuntu-22.04, macos-26, windows-2022]
         include:
           - os: ubuntu-22.04
-            platform: linux
             deps: |
               sudo apt-get update
               sudo apt-get install -y \
@@ -82,11 +81,9 @@ jobs:
                 librsvg2-dev \
                 patchelf
           - os: macos-26
-            platform: macos
             deps: |
               brew install pkg-config openssl
           - os: windows-2022
-            platform: windows
             deps: |
               echo "Windows dependencies handled by Tauri"
 
@@ -103,11 +100,6 @@ jobs:
       uses: dtolnay/rust-toolchain@stable
 
     - name: Install system dependencies
-      if: matrix.platform == 'linux'
-      run: ${{ matrix.deps }}
-
-    - name: Install macOS dependencies
-      if: matrix.platform == 'macos'
       run: ${{ matrix.deps }}
 
     - name: Restore the Rust build cache
