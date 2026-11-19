@@ -1,4 +1,4 @@
-use crate::entities::{Image, PruneResult};
+use crate::entities::{DockerHubTag, Image, PruneResult};
 use crate::services::ImagesService;
 use crate::state::SharedEngineState;
 use tauri::State;
@@ -63,7 +63,20 @@ pub async fn search_docker_hub(query: String) -> Result<serde_json::Value, Strin
 
 #[tauri::command]
 #[instrument(skip_all, err)]
-pub async fn fetch_image_tags(image_name: String) -> Result<Vec<String>, String> {
+pub async fn fetch_image_tags(
+    image_name: String,
+    name_filter: String,
+) -> Result<Vec<String>, String> {
     debug!("Fetching tags for image: {}", image_name);
-    ImagesService::fetch_image_tags(&image_name).await
+    ImagesService::fetch_image_tags(&image_name, &name_filter).await
+}
+
+#[tauri::command]
+#[instrument(skip_all, err)]
+pub async fn fetch_image_tag(
+    image_name: String,
+    tag: String,
+) -> Result<Option<DockerHubTag>, String> {
+    debug!("Looking up tag {} of {}", tag, image_name);
+    ImagesService::fetch_image_tag(&image_name, &tag).await
 }

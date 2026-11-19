@@ -3,15 +3,18 @@ import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
 import { describe, expect, it } from 'vitest';
 import { TagSelector } from './tag-selector';
+import { TagMessage } from './types';
 
 const TAGS = ['latest', 'lts', '3.12', '3.12-slim', '3.11'];
 
 function PullFormTag({
   initialTag = '',
   suggestions = TAGS,
+  message = null,
 }: {
   initialTag?: string;
   suggestions?: string[];
+  message?: TagMessage | null;
 }) {
   const [tag, setTag] = useState(initialTag);
   return (
@@ -20,6 +23,7 @@ function PullFormTag({
         tag={tag}
         onTagChange={setTag}
         tagSuggestions={suggestions}
+        message={message}
       />
       <button onClick={() => setTag('latest')}>pick image</button>
       <output>form tag: {tag}</output>
@@ -46,13 +50,17 @@ describe('TagSelector', () => {
     expect(optionNames()).toEqual(TAGS);
   });
 
-  it('narrows suggestions to tags starting with what was typed, ignoring case', async () => {
+  it('narrows suggestions to tags containing what was typed, ignoring case', async () => {
     const user = userEvent.setup();
-    render(<PullFormTag suggestions={['Latest', 'lts', '3.12']} />);
+    render(
+      <PullFormTag
+        suggestions={['Latest', 'lts', '3.12', '3.12-slim-latest']}
+      />
+    );
 
     await user.type(tagInput(), 'LA');
 
-    expect(optionNames()).toEqual(['Latest']);
+    expect(optionNames()).toEqual(['Latest', '3.12-slim-latest']);
     expect(screen.getByText('form tag: LA')).toBeInTheDocument();
   });
 
@@ -163,5 +171,32 @@ describe('TagSelector', () => {
     await user.click(screen.getByRole('option', { name: 'lts' }));
 
     expect(tagInput()).toHaveValue('lts');
+  });
+
+  it('describes the tag with a note without marking it invalid', () => {
+    render(
+      <PullFormTag
+        message={{ tone: 'muted', text: 'This image has no latest tag.' }}
+      />
+    );
+
+    expect(tagInput()).toHaveAccessibleDescription(
+      'This image has no latest tag.'
+    );
+    expect(tagInput()).not.toBeInvalid();
+  });
+
+  it('marks the tag invalid when its message is an error', () => {
+    render(
+      <PullFormTag
+        initialTag="no-such-tag"
+        message={{ tone: 'error', text: 'No tag no-such-tag on Docker Hub.' }}
+      />
+    );
+
+    expect(tagInput()).toHaveAccessibleDescription(
+      'No tag no-such-tag on Docker Hub.'
+    );
+    expect(tagInput()).toBeInvalid();
   });
 });

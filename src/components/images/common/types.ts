@@ -1,4 +1,4 @@
-import { DockerHubImage } from '../../../types/docker-images';
+import { DockerHubImage, DockerHubTag } from '../../../types/docker-images';
 
 export interface PullFormData {
   imageName: string;
@@ -29,9 +29,17 @@ export interface RegistryState {
   showCustomRegistry: boolean;
 }
 
-export interface SelectionFeedbackState {
-  message: string;
-  isVisible: boolean;
+export type TagStatus =
+  | { kind: 'unchecked' }
+  | { kind: 'invalid' }
+  | { kind: 'checking' }
+  | { kind: 'found'; details: DockerHubTag }
+  | { kind: 'missing' }
+  | { kind: 'unknown' };
+
+export interface TagMessage {
+  tone: 'muted' | 'error';
+  text: string;
 }
 
 export interface PullData {
