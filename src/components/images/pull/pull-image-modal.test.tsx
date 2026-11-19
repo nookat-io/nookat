@@ -1,8 +1,10 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent, { UserEvent } from '@testing-library/user-event';
+import { Channel } from '@tauri-apps/api/core';
 import { mockIPC } from '@tauri-apps/api/mocks';
 import { describe, expect, it } from 'vitest';
 import { DockerHubImage, DockerHubTag } from '../../../types/docker-images';
+import { ImagePullLayer, ImagePullProgress } from '../../../types/image-pull';
 import { PullImage } from './pull-image-modal';
 
 const searchResult = (name: string, isOfficial: boolean): DockerHubImage => ({
@@ -18,6 +20,22 @@ const NGINX = searchResult('nginx', true);
 const CUDA = searchResult('nvidia/cuda', false);
 const CUDA_TAG = '13.5.0-runtime-ubuntu24.04';
 const PUSHED_AT = '2026-11-18T09:30:00Z';
+const MB = 1024 * 1024;
+
+interface PullRequest {
+  imageName: string;
+  tag: string;
+  registry: string;
+  onProgress: Channel<ImagePullProgress>;
+}
+
+const pullRequest = (args: unknown) => args as PullRequest;
+
+const withoutProgress = ({ imageName, tag, registry }: PullRequest) => ({
+  imageName,
+  tag,
+  registry,
+});
 
 const tagDetails = (name: string): DockerHubTag => ({
   name,
@@ -44,7 +62,7 @@ function mockDockerHub(
         return hubTags.includes(tag) ? tagDetails(tag) : null;
       }
       case 'pull_image':
-        pulls.push(args);
+        pulls.push(withoutProgress(pullRequest(args)));
         return null;
       default:
         throw new Error(`Unexpected command ${cmd}`);
@@ -249,6 +267,83 @@ describe('PullImage', () => {
     ]);
   });
 
+  it('shows the pull progress the engine reports until the pull ends', async () => {
+    let progressChannel: Channel<ImagePullProgress> | undefined;
+    let finishPull = () => {};
+    mockIPC((cmd, args) => {
+      switch (cmd) {
+        case 'search_docker_hub':
+          return { results: [NGINX] };
+        case 'fetch_image_tags':
+          return ['latest'];
+        case 'fetch_image_tag':
+          return tagDetails('latest');
+        case 'pull_image':
+          progressChannel = pullRequest(args).onProgress;
+          return new Promise(resolve => {
+            finishPull = () => resolve(null);
+          });
+        default:
+          throw new Error(`Unexpected command ${cmd}`);
+      }
+    });
+    const user = await choosePullSource({ image: 'nginx' });
+    await pullOnceTheTagIsChecked(user);
+    const report = (...layers: ImagePullLayer[]) =>
+      act(() => progressChannel?.onmessage({ layers }));
+    const bar = () =>
+      screen.getByRole('progressbar', { name: 'Pull progress' });
+
+    expect(bar()).not.toHaveAttribute('aria-valuenow');
+    expect(screen.getByText('Waiting for the registry')).toBeInTheDocument();
+
+    report(
+      {
+        id: 'a',
+        phase: 'downloading',
+        size: 100 * MB,
+        downloaded: 30 * MB,
+        extracted: 0,
+      },
+      { id: 'b', phase: 'pending', size: null, downloaded: 0, extracted: 0 }
+    );
+
+    expect(bar()).toHaveAttribute('aria-valuenow', '12');
+    expect(
+      screen.getByText('30 MB downloaded · 0 of 2 layers ready')
+    ).toBeInTheDocument();
+
+    report(
+      {
+        id: 'a',
+        phase: 'extracting',
+        size: 100 * MB,
+        downloaded: 100 * MB,
+        extracted: 50 * MB,
+      },
+      {
+        id: 'b',
+        phase: 'downloading',
+        size: 20 * MB,
+        downloaded: 10 * MB,
+        extracted: 0,
+      }
+    );
+
+    expect(bar()).toHaveAttribute('aria-valuenow', '81');
+    expect(screen.getByText('81%')).toBeInTheDocument();
+    expect(
+      screen.getByText('110 MB of 120 MB downloaded · 0 of 2 layers ready')
+    ).toBeInTheDocument();
+
+    await act(async () => finishPull());
+
+    expect(
+      await screen.findByText('Image pulled successfully!')
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('progressbar')).toBeNull();
+  });
+
   it('leaves the tag blank and says so when the image has no latest tag', async () => {
     const { pulls } = mockDockerHub([CUDA], { hubTags: [CUDA_TAG] });
     const user = await choosePullSource({ image: 'nvidia/cuda' });
@@ -333,7 +428,7 @@ describe('PullImage', () => {
         case 'fetch_image_tag':
           return Promise.reject('Docker Hub is unreachable');
         case 'pull_image':
-          pulls.push(args);
+          pulls.push(withoutProgress(pullRequest(args)));
           return null;
         default:
           throw new Error(`Unexpected command ${cmd}`);
