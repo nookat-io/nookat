@@ -51,6 +51,11 @@ fn current_colima_home() -> Result<PathBuf, String> {
     ))
 }
 
+pub fn managed_colima_endpoint() -> Option<String> {
+    let socket = colima_docker_socket(&current_colima_home().ok()?, &current_colima_profile());
+    Some(format!("unix://{}", socket.display()))
+}
+
 fn read_profile_config(path: &Path) -> Option<ColimaProfileConfig> {
     let yaml = std::fs::read_to_string(path)
         .inspect_err(|e| warn!("Failed to read Colima profile config {:?}: {}", path, e))

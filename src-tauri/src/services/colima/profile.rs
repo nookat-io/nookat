@@ -12,6 +12,7 @@ const DEFAULT_PROFILE: &str = "default";
 const PROFILE_CONFIG_FILE: &str = "colima.yaml";
 const DOCKER_SOCKET_FILE: &str = "docker.sock";
 const DEFAULT_PROFILE_DOCKER_CONTEXT: &str = "colima";
+const COLIMA_ACTIVATES_DOCKER_CONTEXT_BY_DEFAULT: bool = true;
 
 pub fn colima_profile_name(requested: Option<&str>) -> String {
     match requested {
@@ -90,6 +91,7 @@ pub struct ColimaProfileConfig {
     pub vm_type: Option<String>,
     pub rosetta: bool,
     pub mount_inotify: bool,
+    pub auto_activate: Option<bool>,
 }
 
 pub fn parse_profile_config(yaml: &str) -> Result<ColimaProfileConfig, String> {
@@ -107,6 +109,7 @@ pub fn colima_profile(
             name: name.to_string(),
             status: ColimaProfileStatus::Missing,
             settings: default_settings(host),
+            activates_docker_context: COLIMA_ACTIVATES_DOCKER_CONTEXT_BY_DEFAULT,
         };
     };
 
@@ -140,6 +143,9 @@ pub fn colima_profile(
             rosetta: config.rosetta,
             mount_inotify: config.mount_inotify,
         },
+        activates_docker_context: config
+            .auto_activate
+            .unwrap_or(COLIMA_ACTIVATES_DOCKER_CONTEXT_BY_DEFAULT),
     }
 }
 
@@ -197,7 +203,8 @@ mod tests {
         rosetta: true\n\
         mountType: virtiofs\n\
         mountInotify: true\n\
-        mounts: []\n";
+        mounts: []\n\
+        autoActivate: true\n";
 
     #[test]
     fn the_default_profile_has_several_names_in_colima() {
@@ -348,6 +355,7 @@ mod tests {
                 vm_type: Some("vz".to_string()),
                 rosetta: true,
                 mount_inotify: true,
+                auto_activate: Some(true),
             })
         );
     }
@@ -366,6 +374,20 @@ mod tests {
 
         assert_eq!(profile.status, ColimaProfileStatus::Missing);
         assert_eq!(profile.settings, default_settings(&APPLE_SILICON));
+        assert!(profile.activates_docker_context);
+    }
+
+    #[test]
+    fn a_profile_switches_the_docker_context_on_start_unless_its_config_turns_that_off() {
+        let instance = &parse_colima_list(STOPPED_DEFAULT_PROFILE).unwrap()[0];
+        let profile_with = |yaml: &str| {
+            let config = parse_profile_config(yaml).unwrap();
+            colima_profile("default", Some(instance), Some(&config), &APPLE_SILICON)
+        };
+
+        assert!(profile_with("autoActivate: true\n").activates_docker_context);
+        assert!(profile_with("runtime: docker\n").activates_docker_context);
+        assert!(!profile_with("autoActivate: false\n").activates_docker_context);
     }
 
     #[test]
@@ -392,6 +414,7 @@ mod tests {
                     rosetta: false,
                     mount_inotify: false,
                 },
+                activates_docker_context: true,
             }
         );
     }

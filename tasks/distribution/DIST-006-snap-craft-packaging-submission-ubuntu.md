@@ -1,7 +1,7 @@
 # [DIST-006] Package and submit to the Snap Store
 
 - **Status:** Not started
-- **Related:** DIST-002, DIST-007, LPAGE-001
+- **Related:** DIST-002, DIST-007, DIST-015, LPAGE-001
 
 ## Problem
 
@@ -25,7 +25,7 @@ Linux releases ship an AppImage, a `.deb` and an `.rpm` from `.github/workflows/
 
 - Choose the confinement from the capabilities Nookat needs.
   It talks to a Docker socket and may run `docker` and `colima`, which strict confinement restricts.
-- GitHub issue #55 is titled "[DIST-006]" but covers a different scope, a bundled Colima distribution for Linux, not Snapcraft.
+- GitHub issue #55 is titled "[DIST-006]" but covers a managed Colima engine for Linux, which is DIST-015.
 - Coordinate with Linux signing (DIST-002) and the overall packaging strategy.
 - Plan ownership, listing copy and screenshots for the Snap Store page.
 - Alternatives considered:

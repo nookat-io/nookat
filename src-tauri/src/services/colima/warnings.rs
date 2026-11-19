@@ -59,6 +59,7 @@ mod tests {
                 rosetta,
                 mount_inotify: false,
             },
+            activates_docker_context: true,
         }
     }
 

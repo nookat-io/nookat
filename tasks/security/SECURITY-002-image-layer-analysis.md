@@ -1,7 +1,7 @@
 # [SECURITY-002] Show image layers and history
 
 - **Status:** Not started
-- **Related:** SECURITY-001, SECURITY-004, #123
+- **Related:** SECURITY-001, SECURITY-004, SECURITY-008
 
 ## Problem
 
@@ -25,4 +25,4 @@ The Images table (`src/components/images/images-table.tsx`) has no detail view.
 ## Notes
 
 - A file-by-file view of each layer would need the layer tarballs and is an open question for a later step.
-- SECURITY-001, SECURITY-004 and #123 can reuse the inspect data this task adds.
+- SECURITY-001, SECURITY-004 and SECURITY-008 can reuse the inspect data this task adds.

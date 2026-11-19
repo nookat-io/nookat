@@ -5,6 +5,7 @@ import {
   ChangeColimaVmSetting,
   ColimaVm,
   ColimaVmSettingsChanges,
+  ConnectedEngine,
   InstallationOperation,
   InstallationStep,
   InstallationMethod,
@@ -52,6 +53,7 @@ interface EngineConfigurationProps {
   isSwitchingDockerContext: boolean;
   dockerContextError: string | null;
   onSwitchDockerToColima: () => void;
+  otherEngine: ConnectedEngine | null;
 }
 
 export function EngineConfiguration({
@@ -87,6 +89,7 @@ export function EngineConfiguration({
   isSwitchingDockerContext,
   dockerContextError,
   onSwitchDockerToColima,
+  otherEngine,
 }: EngineConfigurationProps) {
   if (colimaSupported === false) {
     return (
@@ -195,9 +198,13 @@ export function EngineConfiguration({
         isSwitchingDockerContext={isSwitchingDockerContext}
         dockerContextError={dockerContextError}
         onSwitchDockerToColima={onSwitchDockerToColima}
+        otherEngine={otherEngine}
+        activatesDockerContext={colimaVm.profile.activates_docker_context}
       />
       <StartEnginePrompt
         open={startPromptOpen && !isEngineRunning}
+        otherEngineName={otherEngine?.name ?? null}
+        activatesDockerContext={colimaVm.profile.activates_docker_context}
         onStart={onStartFromPrompt}
         onDismiss={onDismissStartPrompt}
       />

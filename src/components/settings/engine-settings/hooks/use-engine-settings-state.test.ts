@@ -7,6 +7,7 @@ import {
   BinaryInstallPlan,
   ColimaEngineStopProgressType,
   ColimaVm,
+  ConnectedEngine,
 } from '../types';
 import { useEngineSettingsState } from './use-engine-settings-state';
 
@@ -43,6 +44,7 @@ const stoppedProfile = (cpus = 8): ColimaVm => ({
       rosetta: true,
       mount_inotify: false,
     },
+    activates_docker_context: true,
   },
   host: {
     cpus: 12,
@@ -70,6 +72,7 @@ interface Backend {
   installColima?: () => Promise<null>;
   startEngine?: () => Promise<null>;
   dockerInfo?: () => Promise<unknown>;
+  connectedEngine?: () => Promise<ConnectedEngine | null>;
   switchDockerContext?: () => Promise<null>;
 }
 
@@ -81,6 +84,7 @@ function mockBackend({
   installColima = async () => null,
   startEngine = async () => null,
   dockerInfo = async () => ({ server_version: '28.0.0' }),
+  connectedEngine = async () => null,
   switchDockerContext = async () => null,
 }: Backend = {}) {
   const calls: string[] = [];
@@ -98,6 +102,8 @@ function mockBackend({
           return colimaAvailable;
         case 'get_docker_info':
           return dockerInfo();
+        case 'get_connected_engine':
+          return connectedEngine();
         case 'install_colima_command':
           installRequests.push(args);
           return installColima();
@@ -143,6 +149,29 @@ const engineLoads = (backend: ReturnType<typeof mockBackend>) => ({
 });
 
 const flushPromises = () => new Promise(resolve => setTimeout(resolve, 0));
+
+function inOrder<T>(...answers: Array<() => Promise<T>>) {
+  let next = 0;
+  return () => answers[Math.min(next++, answers.length - 1)]();
+}
+
+function later<T>() {
+  let answer: (value: T) => void = () => {};
+  const promise = new Promise<T>(resolve => (answer = resolve));
+  return { promise, answer };
+}
+
+const ORBSTACK: ConnectedEngine = {
+  name: 'OrbStack',
+  endpoint: 'unix:///Users/me/.orbstack/run/docker.sock',
+  is_managed_colima: false,
+};
+
+const NOOKAT_COLIMA: ConnectedEngine = {
+  name: 'Colima',
+  endpoint: 'unix:///Users/me/.colima/default/docker.sock',
+  is_managed_colima: true,
+};
 
 describe('useEngineSettingsState', () => {
   it('asks once on mount whether this build manages Colima', async () => {
@@ -263,6 +292,54 @@ describe('useEngineSettingsState', () => {
 
     await waitFor(() =>
       expect(state().dockerInfo).toEqual({ operating_system: 'OrbStack' })
+    );
+  });
+
+  it('keeps the engine the newest refresh found when an earlier refresh answers last', async () => {
+    const orbStackInfo = later<unknown>();
+    const orbStack = later<ConnectedEngine | null>();
+    const backend = mockBackend({
+      dockerInfo: inOrder(
+        () => orbStackInfo.promise,
+        async () => ({ operating_system: 'Ubuntu 24.04.3 LTS' })
+      ),
+      connectedEngine: inOrder(
+        () => orbStack.promise,
+        async () => NOOKAT_COLIMA
+      ),
+    });
+    const { state, actions } = renderEngineSettings();
+    await waitFor(() => expect(backend.count('get_connected_engine')).toBe(1));
+
+    await act(() => actions().fetchEngineDetails());
+    await act(async () => {
+      orbStackInfo.answer({ operating_system: 'OrbStack' });
+      orbStack.answer(ORBSTACK);
+      await flushPromises();
+    });
+
+    expect(state().engineConnection).toEqual({
+      kind: 'connected',
+      engine: NOOKAT_COLIMA,
+    });
+    expect(state().dockerInfo).toEqual({
+      operating_system: 'Ubuntu 24.04.3 LTS',
+    });
+  });
+
+  it('keeps a failed engine lookup apart from a confirmed disconnection', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    mockBackend({
+      connectedEngine: () =>
+        Promise.reject('Failed to get Docker info: connection reset'),
+    });
+    const { state } = renderEngineSettings();
+
+    await waitFor(() =>
+      expect(state().engineConnection).toEqual({
+        kind: 'unidentified',
+        error: 'Failed to get Docker info: connection reset',
+      })
     );
   });
 

@@ -6,8 +6,11 @@ use std::time::Duration;
 use tauri::AppHandle;
 use tracing::{debug, instrument};
 
+mod connected_engine;
 #[cfg(target_os = "macos")]
 mod macos;
+
+pub use connected_engine::describe_connected_engine;
 
 #[cfg(target_os = "macos")]
 pub use macos::*;
