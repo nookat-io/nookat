@@ -17,3 +17,11 @@ pub struct PruneResult {
     pub images_deleted: Vec<String>,
     pub space_reclaimed: i64,
 }
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub struct DockerHubTag {
+    pub name: String,
+    pub size: Option<u64>,
+    pub last_pushed: Option<String>,
+    pub platforms: Vec<String>,
+}

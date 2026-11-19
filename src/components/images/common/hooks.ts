@@ -6,11 +6,13 @@ import {
   ProgressState,
   DockerHubSearchState,
   RegistryState,
-  SelectionFeedbackState,
+  TagStatus,
 } from './types';
-import { DEFAULT_PULL_DATA, DEFAULT_PROGRESS_STATE } from './utils';
+import { DEFAULT_PULL_DATA, DEFAULT_PROGRESS_STATE, isValidTag } from './utils';
+import { TagLookup } from './tag-lookup';
 
 const SEARCH_DEBOUNCE_MS = 300;
+const TAG_TYPING_DEBOUNCE_MS = 300;
 const MAX_SEARCH_RESULTS = 10;
 
 const officialFirstThenMostStarred = (a: DockerHubImage, b: DockerHubImage) =>
@@ -45,10 +47,17 @@ export function useFormData() {
     setPullData(prev => ({ ...prev, ...updates }));
   }, []);
 
+  const chooseTagIfBlank = useCallback((imageName: string, tag: string) => {
+    setPullData(prev =>
+      prev.imageName === imageName && !prev.tag ? { ...prev, tag } : prev
+    );
+  }, []);
+
   return {
     pullData,
     resetForms,
     updatePullData,
+    chooseTagIfBlank,
   };
 }
 
@@ -143,7 +152,9 @@ export function useRegistryState() {
   };
 }
 
-export function useDockerHubSearch() {
+export function useDockerHubSearch(
+  onImageSelected: (image: DockerHubImage) => void
+) {
   const [searchState, setSearchState] = useState<DockerHubSearchState>({
     searchQuery: '',
     searchResults: [],
@@ -214,16 +225,20 @@ export function useDockerHubSearch() {
     [performSearch]
   );
 
-  const selectImage = useCallback((image: DockerHubImage) => {
-    setSearchState(prev => ({
-      ...prev,
-      selectedImageDetails: image,
-      searchQuery: image.name,
-      searchResults: [],
-      isSearchDropdownOpen: false,
-      focusedSearchIndex: -1,
-    }));
-  }, []);
+  const selectImage = useCallback(
+    (image: DockerHubImage) => {
+      setSearchState(prev => ({
+        ...prev,
+        selectedImageDetails: image,
+        searchQuery: image.name,
+        searchResults: [],
+        isSearchDropdownOpen: false,
+        focusedSearchIndex: -1,
+      }));
+      onImageSelected(image);
+    },
+    [onImageSelected]
+  );
 
   const clearSelection = useCallback(() => {
     setSearchState(prev => ({
@@ -235,6 +250,15 @@ export function useDockerHubSearch() {
 
   const handleSearchKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
+      if (e.key === 'Escape' && searchState.isSearchDropdownOpen) {
+        setSearchState(prev => ({
+          ...prev,
+          isSearchDropdownOpen: false,
+          focusedSearchIndex: -1,
+        }));
+        searchInputRef.current?.blur();
+        return;
+      }
       if (
         !searchState.isSearchDropdownOpen ||
         searchState.searchResults.length === 0
@@ -270,14 +294,6 @@ export function useDockerHubSearch() {
               searchState.searchResults[searchState.focusedSearchIndex]
             );
           }
-          break;
-        case 'Escape':
-          setSearchState(prev => ({
-            ...prev,
-            isSearchDropdownOpen: false,
-            focusedSearchIndex: -1,
-          }));
-          searchInputRef.current?.blur();
           break;
       }
     },
@@ -343,85 +359,116 @@ export function useDockerHubSearch() {
   };
 }
 
-export function useSelectionFeedback() {
-  const [feedback, setFeedback] = useState<SelectionFeedbackState>({
-    message: '',
-    isVisible: false,
-  });
+interface SettledTagSuggestions {
+  imageName: string;
+  nameFilter: string;
+  tags: string[];
+  error: string | null;
+}
 
-  const feedbackTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(
-    undefined
-  );
-
-  const showFeedback = useCallback((message: string) => {
-    setFeedback({ message, isVisible: true });
-    if (feedbackTimeoutRef.current) {
-      clearTimeout(feedbackTimeoutRef.current);
-    }
-    feedbackTimeoutRef.current = setTimeout(() => {
-      setFeedback(prev => ({ ...prev, isVisible: false }));
-    }, 1000);
-  }, []);
-
-  const resetFeedback = useCallback(() => {
-    setFeedback({ message: '', isVisible: false });
-
-    if (feedbackTimeoutRef.current) {
-      clearTimeout(feedbackTimeoutRef.current);
-    }
-  }, []);
+export function useTagSuggestions(
+  imageName: string | null,
+  nameFilter: string
+) {
+  const [settled, setSettled] = useState<SettledTagSuggestions | null>(null);
 
   useEffect(() => {
+    if (!imageName) {
+      return;
+    }
+    let isCurrent = true;
+    const timer = setTimeout(
+      () => {
+        fetchImageTags(imageName, nameFilter).then(
+          tags => {
+            if (isCurrent) {
+              setSettled({ imageName, nameFilter, tags, error: null });
+            }
+          },
+          () => {
+            if (isCurrent) {
+              setSettled({
+                imageName,
+                nameFilter,
+                tags: [],
+                error: 'Failed to fetch available tags',
+              });
+            }
+          }
+        );
+      },
+      nameFilter ? TAG_TYPING_DEBOUNCE_MS : 0
+    );
     return () => {
-      if (feedbackTimeoutRef.current) {
-        clearTimeout(feedbackTimeoutRef.current);
-      }
+      isCurrent = false;
+      clearTimeout(timer);
     };
-  }, []);
+  }, [imageName, nameFilter]);
 
+  const forThisImage = settled?.imageName === imageName ? settled : null;
   return {
-    feedback,
-    showFeedback,
-    resetFeedback,
+    tagSuggestions: forThisImage?.tags ?? [],
+    tagError: forThisImage?.error ?? null,
+    isLoadingTags:
+      !!imageName &&
+      (forThisImage === null || forThisImage.nameFilter !== nameFilter),
   };
 }
 
-export function useTagSuggestions() {
-  const [tagSuggestions, setTagSuggestions] = useState<string[]>([]);
-  const [isLoadingTags, setIsLoadingTags] = useState(false);
-  const [tagError, setTagError] = useState<string | null>(null);
+interface SettledTagStatus {
+  reference: string;
+  status: TagStatus;
+}
 
-  const fetchTags = useCallback(async (imageName: string) => {
-    if (!imageName.trim()) {
-      setTagSuggestions([]);
+export function useTagStatus(
+  lookupTag: TagLookup,
+  imageName: string,
+  tag: string,
+  checksDockerHub: boolean
+): TagStatus {
+  const isCheckable =
+    checksDockerHub && !!imageName && !!tag && isValidTag(tag);
+  const reference = isCheckable ? `${imageName}:${tag}` : null;
+  const [settled, setSettled] = useState<SettledTagStatus | null>(null);
+
+  useEffect(() => {
+    if (!reference) {
       return;
     }
+    let isCurrent = true;
+    const timer = setTimeout(() => {
+      lookupTag(imageName, tag).then(
+        details => {
+          if (isCurrent) {
+            setSettled({
+              reference,
+              status: details
+                ? { kind: 'found', details }
+                : { kind: 'missing' },
+            });
+          }
+        },
+        () => {
+          if (isCurrent) {
+            setSettled({ reference, status: { kind: 'unknown' } });
+          }
+        }
+      );
+    }, TAG_TYPING_DEBOUNCE_MS);
+    return () => {
+      isCurrent = false;
+      clearTimeout(timer);
+    };
+  }, [reference, lookupTag, imageName, tag]);
 
-    setIsLoadingTags(true);
-    setTagError(null);
-
-    try {
-      const tags = await fetchImageTags(imageName);
-      setTagSuggestions(tags);
-    } catch (error) {
-      console.error('Failed to fetch tags:', error);
-      setTagError('Failed to fetch available tags');
-      setTagSuggestions([]);
-    } finally {
-      setIsLoadingTags(false);
-    }
-  }, []);
-
-  const clearTags = useCallback(() => {
-    setTagSuggestions([]);
-    setTagError(null);
-  }, []);
-
-  return {
-    tagSuggestions,
-    isLoadingTags,
-    tagError,
-    fetchTags,
-    clearTags,
-  };
+  if (!checksDockerHub || !imageName || !tag) {
+    return { kind: 'unchecked' };
+  }
+  if (!isValidTag(tag)) {
+    return { kind: 'invalid' };
+  }
+  if (settled?.reference !== reference) {
+    return { kind: 'checking' };
+  }
+  return settled.status;
 }

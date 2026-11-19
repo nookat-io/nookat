@@ -1,4 +1,4 @@
-import { DockerImageSearchResult } from '../types/docker-images';
+import { DockerHubTag, DockerImageSearchResult } from '../types/docker-images';
 import { invoke } from '@tauri-apps/api/core';
 
 export async function searchDockerHub(
@@ -12,11 +12,26 @@ export async function searchDockerHub(
   }
 }
 
-export async function fetchImageTags(imageName: string): Promise<string[]> {
+export async function fetchImageTags(
+  imageName: string,
+  nameFilter: string
+): Promise<string[]> {
   try {
-    return await invoke('fetch_image_tags', { imageName });
+    return await invoke('fetch_image_tags', { imageName, nameFilter });
   } catch (error) {
     console.error('Failed to fetch image tags:', error);
+    throw error;
+  }
+}
+
+export async function fetchImageTag(
+  imageName: string,
+  tag: string
+): Promise<DockerHubTag | null> {
+  try {
+    return await invoke('fetch_image_tag', { imageName, tag });
+  } catch (error) {
+    console.error('Failed to look up the image tag:', error);
     throw error;
   }
 }

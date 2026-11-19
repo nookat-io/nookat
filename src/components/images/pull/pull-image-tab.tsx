@@ -3,7 +3,12 @@ import { RegistrySelector } from '../common/registry-selector';
 import { DockerHubSearch } from '../common/docker-hub-search';
 import { TagSelector } from '../common/tag-selector';
 import { ImageDetailsDisplay } from '../common/image-details-display';
-import { RegistryState, PullFormData } from '../common/types';
+import {
+  RegistryState,
+  PullFormData,
+  TagMessage,
+  TagStatus,
+} from '../common/types';
 
 interface PullImageTabProps {
   pullData: PullFormData;
@@ -18,7 +23,8 @@ interface PullImageTabProps {
     selectedImageDetails: DockerHubImage | null;
   };
   isLoadingTags: boolean;
-  tagError: string | null;
+  tagMessage: TagMessage | null;
+  tagStatus: TagStatus;
   tagSuggestions: string[];
   onRegistryChange: (value: string) => void;
   onCustomRegistryChange: (value: string) => void;
@@ -37,7 +43,8 @@ export function PullImageTab({
   registryState,
   searchState,
   isLoadingTags,
-  tagError,
+  tagMessage,
+  tagStatus,
   tagSuggestions,
   onRegistryChange,
   onCustomRegistryChange,
@@ -83,7 +90,7 @@ export function PullImageTab({
           onTagChange={onTagChange}
           disabled={disabled || !searchState.selectedImageDetails}
           isLoadingTags={isLoadingTags}
-          tagError={tagError}
+          message={tagMessage}
           tagSuggestions={tagSuggestions}
         />
       </div>
@@ -92,6 +99,7 @@ export function PullImageTab({
         <ImageDetailsDisplay
           image={searchState.selectedImageDetails}
           pullData={pullData}
+          tagStatus={tagStatus}
           onClear={onClearSelection}
         />
       )}

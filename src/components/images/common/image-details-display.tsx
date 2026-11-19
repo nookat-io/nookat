@@ -1,21 +1,67 @@
 import { Crown, Zap, Star, Download } from 'lucide-react';
-import { DockerHubImage } from '../../../types/docker-images';
+import { DockerHubImage, DockerHubTag } from '../../../types/docker-images';
 import { checkImageReference } from '../../../lib/image-source';
+import { formatBytes } from '../../../utils/format';
 import { formatNumber, pullReference } from './utils';
-import { PullFormData } from './types';
+import { PullFormData, TagStatus } from './types';
 import { ImageSourceNote } from '../../common/image-source-warnings';
+
+const PLATFORMS_SHOWN = 3;
 
 interface ImageDetailsDisplayProps {
   image: DockerHubImage;
   pullData: PullFormData;
+  tagStatus: TagStatus;
   onClear: () => void;
+}
+
+function platformSummary(platforms: string[]) {
+  const hidden = platforms.length - PLATFORMS_SHOWN;
+  if (hidden <= 1) {
+    return platforms.join(', ');
+  }
+  const shown = platforms.slice(0, PLATFORMS_SHOWN).join(', ');
+  return `${shown} +${hidden} more`;
+}
+
+function TagFacts({ tag }: { tag: DockerHubTag }) {
+  const facts = [
+    tag.size === null ? null : `${formatBytes(tag.size)} compressed`,
+    tag.last_pushed
+      ? `pushed ${new Date(tag.last_pushed).toLocaleDateString()}`
+      : null,
+  ].filter(fact => fact !== null);
+
+  return (
+    <div className="space-y-1">
+      <p className="text-xs font-medium text-muted-foreground">
+        Tag {tag.name}
+      </p>
+      {facts.length > 0 && (
+        <p className="text-muted-foreground">{facts.join(' · ')}</p>
+      )}
+      {tag.platforms.length > 0 && (
+        <p
+          className="text-muted-foreground text-xs"
+          title={tag.platforms.join('\n')}
+        >
+          {platformSummary(tag.platforms)}
+        </p>
+      )}
+    </div>
+  );
 }
 
 export function ImageDetailsDisplay({
   image,
   pullData,
+  tagStatus,
   onClear,
 }: ImageDetailsDisplayProps) {
+  const reference = pullData.tag
+    ? `${pullData.registry}/${pullData.imageName}:${pullData.tag}`
+    : `${pullData.registry}/${pullData.imageName}`;
+
   return (
     <div className="mt-4 p-4 bg-card text-card-foreground border border-border rounded-md">
       <div className="flex items-start justify-between mb-4">
@@ -49,34 +95,38 @@ export function ImageDetailsDisplay({
 
       <div className="space-y-3">
         <div className="p-2 bg-muted rounded border border-border">
-          <p className="text-xs font-mono">
-            {pullData.registry}/{pullData.imageName}:{pullData.tag}
-          </p>
+          <p className="text-xs font-mono">{reference}</p>
         </div>
 
         <ImageSourceNote check={checkImageReference(pullReference(pullData))} />
 
-        <div className="space-y-2 text-sm">
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-1">
-              <Star className="h-3 w-3 text-yellow-500" />
-              <span className="text-muted-foreground">
-                {formatNumber(image.star_count)} stars
-              </span>
-            </div>
-            <div className="flex items-center gap-1">
-              <Download className="h-3 w-3 text-blue-500" />
-              <span className="text-muted-foreground">
-                {formatNumber(image.pull_count)} pulls
-              </span>
-            </div>
-          </div>
+        <div className="space-y-3 text-sm">
+          {tagStatus.kind === 'found' && <TagFacts tag={tagStatus.details} />}
 
-          {image.description && (
-            <p className="text-muted-foreground text-xs leading-relaxed">
-              {image.description}
+          <div className="space-y-1">
+            <p className="text-xs font-medium text-muted-foreground">
+              Repository {image.name}
             </p>
-          )}
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-1">
+                <Star className="h-3 w-3 text-yellow-500" />
+                <span className="text-muted-foreground">
+                  {formatNumber(image.star_count)} stars
+                </span>
+              </div>
+              <div className="flex items-center gap-1">
+                <Download className="h-3 w-3 text-blue-500" />
+                <span className="text-muted-foreground">
+                  {formatNumber(image.pull_count)} pulls
+                </span>
+              </div>
+            </div>
+            {image.description && (
+              <p className="text-muted-foreground text-xs leading-relaxed">
+                {image.description}
+              </p>
+            )}
+          </div>
         </div>
       </div>
     </div>

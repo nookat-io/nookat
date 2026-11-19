@@ -17,6 +17,13 @@ export interface LocalDockerImage {
   fullName: string;
 }
 
+export interface DockerHubTag {
+  name: string;
+  size: number | null;
+  last_pushed: string | null;
+  platforms: string[];
+}
+
 export interface DockerImageSearchResult {
   results: DockerHubImage[];
 }
