@@ -1,0 +1,317 @@
+name: '[Factory] Engineer'
+
+on:
+  issues:
+    types: [labeled]
+  pull_request_target:
+    types: [closed]
+  pull_request_review:
+    types: [submitted]
+  workflow_run:
+    workflows: ['[CI] Checks']
+    types: [completed]
+  schedule:
+    - cron: '17 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: >-
+    ${{ (github.actor == 'dependabot[bot]' || (github.event_name == 'pull_request_review' &&
+    github.event.pull_request.head.repo.full_name != github.repository)) &&
+    format('factory-engineer-ignored-{0}', github.run_id) || 'factory-engineer' }}
+  cancel-in-progress: false
+
+jobs:
+  dispatch:
+    name: Dispatch
+    if: >-
+      vars.FACTORY_ENABLED == 'true' && github.actor != 'dependabot[bot]' && (
+        github.event_name != 'pull_request_review' ||
+        github.event.pull_request.head.repo.full_name == github.repository
+      )
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    outputs:
+      mode: ${{ steps.dispatch.outputs.mode }}
+      issue: ${{ steps.dispatch.outputs.issue }}
+      base_sha: ${{ steps.dispatch.outputs.base_sha }}
+      bot_name: ${{ steps.dispatch.outputs.bot_name }}
+      bot_email: ${{ steps.dispatch.outputs.bot_email }}
+
+    steps:
+      - name: Mint the factory token
+        id: token
+        uses: actions/create-github-app-token@f418cff399f7aef4c2f0ad47e25ca7a6abbdd6fc # v3.4.0
+        with:
+          client-id: ${{ vars.FACTORY_APP_CLIENT_ID }}
+          private-key: ${{ secrets.FACTORY_APP_PRIVATE_KEY }}
+          owner: nookat-io
+          repositories: nookat,software-factory
+          permission-contents: read
+          permission-issues: write
+          permission-pull-requests: write
+          permission-actions: read
+
+      - name: Check out the factory
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: nookat-io/software-factory
+          ref: main
+          token: ${{ steps.token.outputs.token }}
+          path: factory
+          persist-credentials: false
+
+      - name: Setup Python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.13'
+
+      - name: Decide what the engineer does next
+        id: dispatch
+        working-directory: factory
+        env:
+          GH_TOKEN: ${{ steps.token.outputs.token }}
+          ENGINEER_MODEL: ${{ vars.FACTORY_ENGINEER_MODEL }}
+          ENGINEER_BUDGET_USD: ${{ vars.FACTORY_ENGINEER_BUDGET_USD }}
+        run: python -m factory engineer dispatch --out "$RUNNER_TEMP/engineer-context"
+
+      - name: Upload the context
+        if: steps.dispatch.outputs.mode != 'none'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: engineer-context
+          path: ${{ runner.temp }}/engineer-context
+          retention-days: 7
+
+  work:
+    name: Work
+    needs: dispatch
+    if: needs.dispatch.outputs.mode != '' && needs.dispatch.outputs.mode != 'none'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 120
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      MODE: ${{ needs.dispatch.outputs.mode }}
+      ISSUE: ${{ needs.dispatch.outputs.issue }}
+      BASE_SHA: ${{ needs.dispatch.outputs.base_sha }}
+
+    steps:
+      - name: Check out the commit to build on
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.dispatch.outputs.base_sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Download the context
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: engineer-context
+          path: ${{ runner.temp }}/engineer-context
+
+      - name: Prepare the workspace
+        id: prepare
+        env:
+          CONTEXT: ${{ runner.temp }}/engineer-context
+          BOT_NAME: ${{ needs.dispatch.outputs.bot_name }}
+          BOT_EMAIL: ${{ needs.dispatch.outputs.bot_email }}
+        run: |
+          cp "$CONTEXT/CLAUDE.md" CLAUDE.md
+          echo CLAUDE.md >> .git/info/exclude
+          git config user.name "$BOT_NAME"
+          git config user.email "$BOT_EMAIL"
+          if [[ "$MODE" == "resolve-conflicts" ]]; then
+            git merge --no-ff --no-commit origin/main || true
+          fi
+          {
+            echo "claude_args<<EOF_CLAUDE_ARGS"
+            cat "$CONTEXT/claude_args.txt"
+            echo
+            echo "EOF_CLAUDE_ARGS"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Setup Python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.11'
+
+      - name: Install pre-commit
+        run: pip install pre-commit
+
+      - name: Install frontend dependencies
+        uses: ./.github/actions/install-frontend
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+              libwebkit2gtk-4.1-dev \
+              libappindicator3-dev \
+              librsvg2-dev \
+              patchelf
+
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@39008827e6b4319a349e9a42dfc90579dd25f1ca # stable
+        with:
+          toolchain: stable
+          components: clippy, rustfmt
+
+      - name: Restore the Rust build cache
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          workspaces: src-tauri -> target
+          save-if: false
+
+      - name: Install the pre-commit hook environments
+        run: pre-commit install-hooks
+
+      - name: Run the engineer
+        id: agent
+        uses: anthropics/claude-code-action/base-action@acfe7992852970efb4fee683d63d628e3e52df67 # v1.0.286
+        env:
+          NODE_VERSION: lts/*
+          CLAUDE_CODE_SUBPROCESS_ENV_SCRUB: '1'
+        with:
+          prompt_file: ${{ runner.temp }}/engineer-context/prompt.md
+          claude_args: ${{ steps.prepare.outputs.claude_args }}
+          anthropic_api_key: ${{ vars.ANTHROPIC_FEDERATION_RULE_ID == '' && secrets.ANTHROPIC_API_KEY || '' }}
+          anthropic_federation_rule_id: ${{ vars.ANTHROPIC_FEDERATION_RULE_ID }}
+          anthropic_organization_id: ${{ vars.ANTHROPIC_ORGANIZATION_ID }}
+          anthropic_service_account_id: ${{ vars.ANTHROPIC_SERVICE_ACCOUNT_ID }}
+          anthropic_workspace_id: ${{ vars.ANTHROPIC_WORKSPACE_ID }}
+
+      - name: Record the cost
+        if: always() && steps.prepare.outcome == 'success'
+        env:
+          EXECUTION_FILE: ${{ steps.agent.outputs.execution_file }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/cost"
+          summary='{}'
+          if [[ -n "$EXECUTION_FILE" && -f "$EXECUTION_FILE" ]]; then
+            summary=$(jq -sc 'if length == 1 and (.[0] | type) == "array" then .[0] else . end
+              | map(select(type == "object" and .type == "result")) | last // {}' "$EXECUTION_FILE")
+          fi
+          jq -n --argjson s "$summary" --arg mode "$MODE" --arg issue "$ISSUE" --arg run "$GITHUB_RUN_ID" \
+            '{role: "engineer", mode: $mode, issue: ($issue | tonumber), run_id: $run,
+              cost_usd: ($s.total_cost_usd // 0), turns: ($s.num_turns // null),
+              duration_ms: ($s.duration_ms // null), subtype: ($s.subtype // null)}' \
+            > "$RUNNER_TEMP/cost/cost.json"
+          cat "$RUNNER_TEMP/cost/cost.json"
+
+      - name: Upload the cost
+        if: always() && steps.prepare.outcome == 'success'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: factory-cost
+          path: ${{ runner.temp }}/cost/cost.json
+          retention-days: 35
+
+      - name: Commit the change into a bundle
+        if: steps.agent.outcome == 'success'
+        env:
+          RESULT: ${{ runner.temp }}/engineer-result
+          STRUCTURED: ${{ steps.agent.outputs.structured_output }}
+        run: |
+          mkdir -p "$RESULT"
+          printf '%s' "$STRUCTURED" > "$RESULT/result.json"
+          if ! jq -e '.status == "done"' "$RESULT/result.json" > /dev/null; then
+            exit 0
+          fi
+          message=$(jq -r '.commit_message' "$RESULT/result.json")
+          git add -A
+          if git rev-parse -q --verify MERGE_HEAD > /dev/null; then
+            if git diff --cached --name-only -z | xargs -0 -r grep -lE '^(<{7}|>{7}|={7})( |$)' --; then
+              echo "::error::Conflict markers remain in the files above."
+              exit 1
+            fi
+            git commit --no-verify -m "$message"
+          elif ! git diff --cached --quiet; then
+            git commit --no-verify -m "$message"
+          fi
+          if [[ "$(git rev-parse HEAD)" != "$BASE_SHA" ]]; then
+            git branch -f factory-result HEAD
+            git bundle create "$RESULT/changes.bundle" factory-result "^$BASE_SHA"
+          fi
+          ls -la "$RESULT"
+
+      - name: Upload the result
+        if: steps.agent.outcome == 'success'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: engineer-result
+          path: ${{ runner.temp }}/engineer-result
+          retention-days: 7
+
+  publish:
+    name: Publish
+    needs: [dispatch, work]
+    if: >-
+      always() && needs.dispatch.result == 'success' &&
+      needs.dispatch.outputs.mode != '' && needs.dispatch.outputs.mode != 'none'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+
+    steps:
+      - name: Mint the factory token
+        id: token
+        uses: actions/create-github-app-token@f418cff399f7aef4c2f0ad47e25ca7a6abbdd6fc # v3.4.0
+        with:
+          client-id: ${{ vars.FACTORY_APP_CLIENT_ID }}
+          private-key: ${{ secrets.FACTORY_APP_PRIVATE_KEY }}
+          owner: nookat-io
+          repositories: nookat,software-factory
+          permission-contents: write
+          permission-issues: write
+          permission-pull-requests: write
+
+      - name: Check out the factory
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: nookat-io/software-factory
+          ref: main
+          token: ${{ steps.token.outputs.token }}
+          path: factory
+          persist-credentials: false
+
+      - name: Check out Nookat with push access
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+          fetch-depth: 0
+          token: ${{ steps.token.outputs.token }}
+          path: nookat
+
+      - name: Download the context
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: engineer-context
+          path: ${{ runner.temp }}/engineer-context
+
+      - name: Download the result
+        continue-on-error: true
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: engineer-result
+          path: ${{ runner.temp }}/engineer-result
+
+      - name: Setup Python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.13'
+
+      - name: Publish the result
+        working-directory: factory
+        env:
+          GH_TOKEN: ${{ steps.token.outputs.token }}
+          WORK_OUTCOME: ${{ needs.work.result }}
+        run: >-
+          python -m factory engineer publish
+          --repo "$GITHUB_WORKSPACE/nookat"
+          --context "$RUNNER_TEMP/engineer-context"
+          --result "$RUNNER_TEMP/engineer-result"
+          --work-outcome "$WORK_OUTCOME"
