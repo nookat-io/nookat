@@ -30,8 +30,8 @@ jobs:
         run: |
           VERSION=$(jq -r '.version' < src-tauri/tauri.conf.json)
           VERSION_TAG="v$VERSION"
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "version-tag=$VERSION_TAG" >> $GITHUB_OUTPUT
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "version-tag=$VERSION_TAG" >> "$GITHUB_OUTPUT"
           echo "Version: $VERSION"
           echo "Version Tag: $VERSION_TAG"
 
@@ -57,13 +57,7 @@ jobs:
     with:
       version: ${{ needs.release-coordinator.outputs.version }}
       version-tag: ${{ needs.release-coordinator.outputs.version-tag }}
-    secrets:
-      TAURI_SIGNING_PUBLIC_KEY: ${{ secrets.TAURI_SIGNING_PUBLIC_KEY }}
-      TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-      TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-      VITE_APTABASE_APP_KEY: ${{ secrets.VITE_APTABASE_APP_KEY }}
-      VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
-      SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+    secrets: inherit
 
   build-windows:
     needs: release-coordinator
@@ -71,13 +65,7 @@ jobs:
     with:
       version: ${{ needs.release-coordinator.outputs.version }}
       version-tag: ${{ needs.release-coordinator.outputs.version-tag }}
-    secrets:
-      TAURI_SIGNING_PUBLIC_KEY: ${{ secrets.TAURI_SIGNING_PUBLIC_KEY }}
-      TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-      TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-      VITE_APTABASE_APP_KEY: ${{ secrets.VITE_APTABASE_APP_KEY }}
-      VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
-      SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+    secrets: inherit
 
   build-linux:
     needs: release-coordinator
@@ -85,13 +73,7 @@ jobs:
     with:
       version: ${{ needs.release-coordinator.outputs.version }}
       version-tag: ${{ needs.release-coordinator.outputs.version-tag }}
-    secrets:
-      TAURI_SIGNING_PUBLIC_KEY: ${{ secrets.TAURI_SIGNING_PUBLIC_KEY }}
-      TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-      TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-      VITE_APTABASE_APP_KEY: ${{ secrets.VITE_APTABASE_APP_KEY }}
-      VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
-      SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+    secrets: inherit
 
   release-completion:
     needs: [release-coordinator, build-macos, build-windows, build-linux]

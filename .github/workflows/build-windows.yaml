@@ -9,23 +9,11 @@ on:
       version-tag:
         required: true
         type: string
-    secrets:
-      TAURI_SIGNING_PUBLIC_KEY:
-        required: true
-      TAURI_SIGNING_PRIVATE_KEY:
-        required: true
-      TAURI_SIGNING_PRIVATE_KEY_PASSWORD:
-        required: true
-      VITE_APTABASE_APP_KEY:
-        required: true
-      VITE_SENTRY_DSN:
-        required: true
-      SENTRY_DSN:
-        required: true
 
 jobs:
   build-windows:
     runs-on: windows-2022
+    environment: release
     permissions:
       contents: write
       packages: write

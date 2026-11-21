@@ -1,0 +1,21 @@
+/.github/ @Almaz-KG
+
+/package.json @Almaz-KG
+/package-lock.json @Almaz-KG
+/.npmrc @Almaz-KG
+/.justfile @Almaz-KG
+/vite.config.ts @Almaz-KG
+
+/eslint.config.js @Almaz-KG
+/tsconfig.json @Almaz-KG
+/tsconfig.node.json @Almaz-KG
+/.prettierrc @Almaz-KG
+/.prettierignore @Almaz-KG
+/.pre-commit-config.yaml @Almaz-KG
+
+/src-tauri/Cargo.toml @Almaz-KG
+/src-tauri/Cargo.lock @Almaz-KG
+/src-tauri/build.rs @Almaz-KG
+/src-tauri/tauri.conf.json @Almaz-KG
+/src-tauri/capabilities/ @Almaz-KG
+/src-tauri/rustfmt.toml @Almaz-KG
