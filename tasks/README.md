@@ -17,6 +17,11 @@ Every remaining task has one of these statuses:
 - `Partially done` - part of it has shipped, and `Current state` says which part.
 - `Blocked` - it waits on something outside the code, named under `Blocked by`.
 
+## Roadmap
+
+`ROADMAP.md` puts every task into a release.
+A pull request that adds a task places it in a release there, and one that deletes a finished task removes its line there.
+
 ## Template
 
 ```markdown
