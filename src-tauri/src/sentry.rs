@@ -46,6 +46,7 @@ fn client_options(
     transport: Arc<dyn TransportFactory>,
 ) -> ClientOptions {
     let breadcrumbs_reporting = reporting.clone();
+    let logs_reporting = reporting.clone();
     let mut options = ClientOptions::default();
     options.dsn = dsn.parse().ok();
     options.release = Some(env!("CARGO_PKG_VERSION").into());
@@ -57,6 +58,9 @@ fn client_options(
         breadcrumbs_reporting
             .load(Ordering::Relaxed)
             .then_some(breadcrumb)
+    }));
+    options.before_send_log = Some(Arc::new(move |log| {
+        logs_reporting.load(Ordering::Relaxed).then_some(log)
     }));
     options
 }
@@ -170,6 +174,12 @@ mod tests {
         fn run(&self, body: impl FnOnce()) {
             Hub::run(self.hub.clone(), body);
         }
+
+        fn flush(&self) {
+            if let Some(client) = self.hub.client() {
+                client.flush(Some(FLUSH_TIMEOUT));
+            }
+        }
     }
 
     fn capture_error() {
@@ -247,6 +257,27 @@ mod tests {
             .filter_map(|breadcrumb| breadcrumb.message.as_deref())
             .collect();
         assert_eq!(messages, ["while on"]);
+    }
+
+    #[test]
+    fn logs_from_while_reporting_was_off_are_not_sent_later() {
+        let reporting = Reporting::starting(false);
+
+        reporting.run(|| sentry::logger_info!("while off"));
+        reporting.turn(true);
+        reporting.flush();
+
+        assert!(reporting.transport.fetch_and_clear_envelopes().is_empty());
+    }
+
+    #[test]
+    fn logs_are_sent_while_reporting_is_on() {
+        let reporting = Reporting::starting(true);
+
+        reporting.run(|| sentry::logger_info!("while on"));
+        reporting.flush();
+
+        assert_eq!(reporting.transport.fetch_and_clear_envelopes().len(), 1);
     }
 
     #[test]
