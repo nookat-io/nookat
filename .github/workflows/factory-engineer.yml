@@ -125,9 +125,6 @@ jobs:
           echo CLAUDE.md >> .git/info/exclude
           git config user.name "$BOT_NAME"
           git config user.email "$BOT_EMAIL"
-          if [[ "$MODE" == "resolve-conflicts" ]]; then
-            git merge --no-ff --no-commit origin/main || true
-          fi
           {
             echo "claude_args<<EOF_CLAUDE_ARGS"
             cat "$CONTEXT/claude_args.txt"
@@ -145,6 +142,8 @@ jobs:
 
       - name: Install frontend dependencies
         uses: ./.github/actions/install-frontend
+        with:
+          save-cache: 'false'
 
       - name: Install system dependencies
         run: |
@@ -169,6 +168,10 @@ jobs:
 
       - name: Install the pre-commit hook environments
         run: pre-commit install-hooks
+
+      - name: Merge main into the branch
+        if: env.MODE == 'resolve-conflicts'
+        run: git merge --no-ff --no-commit origin/main || git rev-parse -q --verify MERGE_HEAD > /dev/null
 
       - name: Run the engineer
         id: agent
