@@ -62,7 +62,7 @@ impl ImagesService {
 
         Ok(images
             .iter()
-            .map(|summary| to_image(summary, &used_image_ids))
+            .flat_map(|summary| to_images(summary, &used_image_ids))
             .collect())
     }
 
@@ -388,25 +388,32 @@ fn to_search_result(item: &Value) -> Option<Value> {
 
 const UNTAGGED_REFERENCE: &str = "<none>:<none>";
 
-fn to_image(summary: &ImageSummary, used_image_ids: &HashSet<String>) -> Image {
-    let reference = summary
-        .repo_tags
-        .iter()
-        .find(|reference| reference.as_str() != UNTAGGED_REFERENCE);
-    let (repository, tag) = match reference {
-        Some(reference) => split_reference(reference),
-        None => (untagged_repository(summary), None),
-    };
-
-    Image {
-        id: summary.id.clone(),
+fn to_images(summary: &ImageSummary, used_image_ids: &HashSet<String>) -> Vec<Image> {
+    let row = |id: &str, repository: String, tag: Option<String>, dangling: bool| Image {
+        id: id.to_string(),
         repository: Some(repository),
         tag,
         image_id: summary.id.clone(),
         created: summary.created,
         size: summary.size,
         in_use: used_image_ids.contains(&summary.id),
-        dangling: reference.is_none(),
+        dangling,
+    };
+
+    let tagged_rows: Vec<Image> = summary
+        .repo_tags
+        .iter()
+        .filter(|reference| reference.as_str() != UNTAGGED_REFERENCE)
+        .map(|reference| {
+            let (repository, tag) = split_reference(reference);
+            row(reference, repository, tag, false)
+        })
+        .collect();
+
+    if tagged_rows.is_empty() {
+        vec![row(&summary.id, untagged_repository(summary), None, true)]
+    } else {
+        tagged_rows
     }
 }
 
@@ -437,9 +444,10 @@ fn untagged_repository(summary: &ImageSummary) -> String {
 mod tests {
     use super::{
         docker_hub_repository, docker_hub_tags_url, every_unused_image, full_image_reference,
-        is_valid_tag, split_reference, tag_names, to_docker_hub_tag, to_image, to_search_result,
+        is_valid_tag, split_reference, tag_names, to_docker_hub_tag, to_images, to_search_result,
         DockerHubTag,
     };
+    use crate::entities::Image;
     use bollard::models::ImageSummary;
     use serde_json::json;
     use std::collections::HashSet;
@@ -490,9 +498,66 @@ mod tests {
         );
     }
 
+    fn only_row(summary: &ImageSummary, used_image_ids: &HashSet<String>) -> Image {
+        let mut images = to_images(summary, used_image_ids);
+        assert_eq!(images.len(), 1, "expected one row, got {images:?}");
+        images.remove(0)
+    }
+
+    fn row_ids(images: &[Image]) -> Vec<&str> {
+        images.iter().map(|image| image.id.as_str()).collect()
+    }
+
+    fn several_tags() -> ImageSummary {
+        summary("sha256:abc", &["alpine:3.20", "localhost:5000/alpine:3.20"])
+    }
+
+    #[test]
+    fn an_image_with_several_tags_is_listed_once_per_tag() {
+        let images = to_images(&several_tags(), &HashSet::new());
+
+        assert_eq!(
+            row_ids(&images),
+            vec!["alpine:3.20", "localhost:5000/alpine:3.20"]
+        );
+        let repositories: Vec<_> = images
+            .iter()
+            .map(|image| image.repository.as_deref())
+            .collect();
+        assert_eq!(
+            repositories,
+            vec![Some("alpine"), Some("localhost:5000/alpine")]
+        );
+        for image in &images {
+            assert_eq!(image.tag.as_deref(), Some("3.20"));
+            assert_eq!(image.image_id, "sha256:abc");
+            assert!(!image.dangling);
+        }
+    }
+
+    #[test]
+    fn every_tag_of_an_image_in_use_is_in_use() {
+        let used = HashSet::from(["sha256:abc".to_string()]);
+        let images = to_images(&several_tags(), &used);
+
+        assert_eq!(images.len(), 2);
+        assert!(images.iter().all(|image| image.in_use));
+    }
+
+    #[test]
+    fn an_untagged_image_is_one_row_under_its_image_id() {
+        for tags in [&[][..], &["<none>:<none>"][..]] {
+            let image = only_row(&summary("sha256:abc", tags), &HashSet::new());
+
+            assert_eq!(image.id, "sha256:abc");
+            assert_eq!(image.image_id, "sha256:abc");
+            assert!(image.dangling);
+        }
+    }
+
     #[test]
     fn a_tagged_image_is_not_dangling_even_when_unused() {
-        let image = to_image(&summary("sha256:abc", &["postgres:18"]), &HashSet::new());
+        let image = only_row(&summary("sha256:abc", &["postgres:18"]), &HashSet::new());
 
         assert!(!image.dangling);
         assert!(!image.in_use);
@@ -502,7 +567,7 @@ mod tests {
 
     #[test]
     fn an_image_without_tags_is_dangling() {
-        let image = to_image(&summary("sha256:abc", &[]), &HashSet::new());
+        let image = only_row(&summary("sha256:abc", &[]), &HashSet::new());
 
         assert!(image.dangling);
         assert_eq!(image.repository.as_deref(), Some("<untagged>@abc"));
@@ -511,7 +576,7 @@ mod tests {
 
     #[test]
     fn an_image_tagged_none_by_an_older_daemon_is_dangling() {
-        let image = to_image(&summary("sha256:abc", &["<none>:<none>"]), &HashSet::new());
+        let image = only_row(&summary("sha256:abc", &["<none>:<none>"]), &HashSet::new());
 
         assert!(image.dangling);
         assert_eq!(image.repository.as_deref(), Some("<untagged>@abc"));
@@ -519,7 +584,7 @@ mod tests {
 
     #[test]
     fn an_untagged_image_keeps_the_repository_it_was_pulled_from() {
-        let image = to_image(
+        let image = only_row(
             &pulled_then_untagged(
                 "sha256:abc",
                 &[
@@ -537,7 +602,7 @@ mod tests {
 
     #[test]
     fn an_untagged_image_with_a_none_digest_falls_back_to_its_id() {
-        let image = to_image(
+        let image = only_row(
             &pulled_then_untagged("sha256:abc", &["<none>@<none>"]),
             &HashSet::new(),
         );
@@ -548,7 +613,7 @@ mod tests {
     #[test]
     fn an_image_is_in_use_when_a_container_runs_it() {
         let used = HashSet::from(["sha256:abc".to_string()]);
-        let image = to_image(&summary("sha256:abc", &[]), &used);
+        let image = only_row(&summary("sha256:abc", &[]), &used);
 
         assert!(image.in_use);
         assert!(image.dangling);
