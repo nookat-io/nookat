@@ -68,6 +68,7 @@ export default function ImagesPage() {
               selectedImages={selected}
               onSelectionChange={setSelected}
               images={filteredImages}
+              allImages={images}
               onImagesDeleted={handleImagesDeleted}
               isLoading={isLoading}
               error={error}

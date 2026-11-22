@@ -38,16 +38,21 @@ interface ImagesTableProps {
   selectedImages: string[];
   onSelectionChange: (_selected: string[]) => void;
   images: Image[];
+  allImages?: Image[];
   onImagesDeleted?: (imageIds: string[]) => void;
   isLoading?: boolean;
   error?: string | null;
   onRetry?: () => void;
 }
 
+const imageName = (image: Image) =>
+  image.tag ? `${image.repository}:${image.tag}` : image.repository;
+
 export function ImagesTable({
   selectedImages,
   onSelectionChange,
   images,
+  allImages = images,
   onImagesDeleted,
   isLoading = false,
   error = null,
@@ -62,6 +67,16 @@ export function ImagesTable({
   const [deletingImageId, setDeletingImageId] = useState<string | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [imageToDelete, setImageToDelete] = useState<Image | null>(null);
+
+  const otherTagsOfImageToDelete = imageToDelete
+    ? allImages.filter(
+        image =>
+          image.image_id === imageToDelete.image_id &&
+          image.id !== imageToDelete.id &&
+          !image.dangling
+      )
+    : [];
+  const removesOnlyTag = otherTagsOfImageToDelete.length > 0;
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
@@ -257,21 +272,40 @@ export function ImagesTable({
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Confirm Delete Image</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to delete the image{' '}
-              <span className="font-mono font-medium">
-                {imageToDelete?.tag
-                  ? `${imageToDelete.repository}:${imageToDelete.tag}`
-                  : imageToDelete?.repository}
-              </span>
-              ? This action cannot be undone.
-              {imageToDelete?.in_use && (
-                <div className="mt-2 p-2 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded text-yellow-800 dark:text-yellow-200">
-                  ⚠️ Warning: This image is currently in use by containers.
-                </div>
-              )}
-            </DialogDescription>
+            <DialogTitle>
+              {removesOnlyTag ? 'Confirm Remove Tag' : 'Confirm Delete Image'}
+            </DialogTitle>
+            {removesOnlyTag ? (
+              <DialogDescription>
+                Are you sure you want to remove the tag{' '}
+                <span className="font-mono font-medium">
+                  {imageToDelete && imageName(imageToDelete)}
+                </span>
+                ? The image stays with its other tags:{' '}
+                {otherTagsOfImageToDelete.map((image, index) => (
+                  <span key={image.id}>
+                    {index > 0 && ', '}
+                    <span className="font-mono font-medium">
+                      {imageName(image)}
+                    </span>
+                  </span>
+                ))}
+                .
+              </DialogDescription>
+            ) : (
+              <DialogDescription>
+                Are you sure you want to delete the image{' '}
+                <span className="font-mono font-medium">
+                  {imageToDelete && imageName(imageToDelete)}
+                </span>
+                ? This action cannot be undone.
+                {imageToDelete?.in_use && (
+                  <div className="mt-2 p-2 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded text-yellow-800 dark:text-yellow-200">
+                    ⚠️ Warning: This image is currently in use by containers.
+                  </div>
+                )}
+              </DialogDescription>
+            )}
           </DialogHeader>
           <DialogFooter>
             <Button
@@ -287,7 +321,9 @@ export function ImagesTable({
             >
               {deletingImageId === imageToDelete?.id
                 ? 'Deleting...'
-                : 'Delete Image'}
+                : removesOnlyTag
+                  ? 'Remove Tag'
+                  : 'Delete Image'}
             </Button>
           </DialogFooter>
         </DialogContent>

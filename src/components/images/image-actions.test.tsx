@@ -128,4 +128,63 @@ describe('image actions', () => {
     expect(window.alert).not.toHaveBeenCalled();
     expect(onImagesDeleted).not.toHaveBeenCalled();
   });
+
+  it('removes only the chosen tag of an image that has other tags', async () => {
+    const user = userEvent.setup();
+    const deleted: unknown[] = [];
+    mockImageCommands({
+      delete_image: args => {
+        deleted.push(args.imageId);
+        return null;
+      },
+    });
+    const onImagesDeleted = vi.fn();
+    const alpine: Image = {
+      id: 'alpine:3.20',
+      repository: 'alpine',
+      tag: '3.20',
+      image_id: 'sha256:abc',
+      created: 1_700_000_000,
+      size: 1024,
+      in_use: true,
+      dangling: false,
+    };
+    const localAlpine: Image = {
+      ...alpine,
+      id: 'localhost:5000/alpine:3.20',
+      repository: 'localhost:5000/alpine',
+    };
+    render(
+      <ImagesTable
+        selectedImages={[]}
+        onSelectionChange={() => {}}
+        images={[localAlpine]}
+        allImages={[alpine, localAlpine]}
+        onImagesDeleted={onImagesDeleted}
+      />
+    );
+
+    const row = screen.getByRole('row', { name: /localhost:5000\/alpine/ });
+    await user.click(within(row).getByRole('button'));
+    await user.click(await screen.findByRole('menuitem', { name: 'Delete' }));
+
+    const dialog = screen.getByRole('dialog');
+    expect(
+      within(dialog).getByText('localhost:5000/alpine:3.20')
+    ).toBeInTheDocument();
+    expect(within(dialog).getByText('alpine:3.20')).toBeInTheDocument();
+    expect(within(dialog).queryByText(/in use/)).not.toBeInTheDocument();
+    expect(
+      within(dialog).queryByRole('button', { name: 'Delete Image' })
+    ).not.toBeInTheDocument();
+
+    await user.click(
+      within(dialog).getByRole('button', { name: 'Remove Tag' })
+    );
+
+    expect(deleted).toEqual(['localhost:5000/alpine:3.20']);
+    expect(onImagesDeleted).toHaveBeenCalledWith([
+      'localhost:5000/alpine:3.20',
+    ]);
+  });
 });
