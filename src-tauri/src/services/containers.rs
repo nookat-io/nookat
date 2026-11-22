@@ -10,7 +10,6 @@ use futures_util::StreamExt;
 use std::future::Future;
 use tracing::instrument;
 
-const NO_LOGS_MESSAGE: &str = "No logs available for this container";
 const INTERACTIVE_SHELLS: [&str; 2] = ["bash", "sh"];
 
 #[derive(Default, Debug)]
@@ -118,10 +117,15 @@ impl ContainersService {
     }
 
     #[instrument(skip_all, err)]
-    pub async fn get_container_logs(docker: &Docker, id: &str) -> Result<Vec<String>, String> {
+    pub async fn get_container_logs(
+        docker: &Docker,
+        id: &str,
+        lines: u32,
+    ) -> Result<Vec<String>, String> {
         let options = LogsOptions {
             stdout: true,
             stderr: true,
+            tail: lines.to_string(),
             ..Default::default()
         };
 
@@ -133,14 +137,14 @@ impl ContainersService {
                 LogOutput::StdOut { message }
                 | LogOutput::StdErr { message }
                 | LogOutput::Console { message } => {
-                    logs.push(String::from_utf8_lossy(&message).into_owned());
+                    logs.push(
+                        String::from_utf8_lossy(&message)
+                            .trim_end_matches(['\r', '\n'])
+                            .to_string(),
+                    );
                 }
                 LogOutput::StdIn { .. } => {}
             }
-        }
-
-        if logs.is_empty() {
-            logs.push(NO_LOGS_MESSAGE.to_string());
         }
 
         Ok(logs)
@@ -279,12 +283,13 @@ mod tests {
         };
         use tempfile::TempDir;
 
-        fn daemon_answering_no_content() -> (TempDir, Docker, RecordedRequests) {
+        const MULTIPLEXED_STREAM: &str = "application/vnd.docker.multiplexed-stream";
+        const RAW_STREAM: &str = "application/vnd.docker.raw-stream";
+
+        fn daemon_answering(response: String) -> (TempDir, Docker, RecordedRequests) {
             let dir = tempfile::tempdir().unwrap();
             let socket = dir.path().join("docker.sock");
-            let requests = serve_daemon(&socket, |_| {
-                http_response("204 No Content", "text/plain", "")
-            });
+            let requests = serve_daemon(&socket, move |_| response.clone());
             let docker = Docker::connect_with_unix(
                 socket.to_str().unwrap(),
                 5,
@@ -292,6 +297,66 @@ mod tests {
             )
             .unwrap();
             (dir, docker, requests)
+        }
+
+        fn daemon_answering_no_content() -> (TempDir, Docker, RecordedRequests) {
+            daemon_answering(http_response("204 No Content", "text/plain", ""))
+        }
+
+        fn daemon_answering_logs(
+            content_type: &str,
+            body: &str,
+        ) -> (TempDir, Docker, RecordedRequests) {
+            daemon_answering(http_response("200 OK", content_type, body))
+        }
+
+        fn lines_of_the_web_log() -> Result<Vec<String>, String> {
+            Ok(vec!["booting".to_string(), "listening on :80".to_string()])
+        }
+
+        #[tokio::test]
+        async fn logs_ask_the_daemon_for_the_last_lines_only() {
+            let (_dir, docker, requests) = daemon_answering_logs(MULTIPLEXED_STREAM, "");
+
+            ContainersService::get_container_logs(&docker, "web", 1000)
+                .await
+                .unwrap();
+
+            let line = the_only_request_line(&requests);
+            assert!(line.contains("/containers/web/logs?"), "{line}");
+            assert!(line.contains("tail=1000"), "{line}");
+            assert!(!line.contains("tail=all"), "{line}");
+        }
+
+        #[tokio::test]
+        async fn logs_return_each_line_without_its_line_break() {
+            let (_dir, docker, _requests) = daemon_answering_logs(
+                MULTIPLEXED_STREAM,
+                "\u{1}\u{0}\u{0}\u{0}\u{0}\u{0}\u{0}\u{8}booting\n\u{2}\u{0}\u{0}\u{0}\u{0}\u{0}\u{0}\u{11}listening on :80\n",
+            );
+
+            let logs = ContainersService::get_container_logs(&docker, "web", 1000).await;
+
+            assert_eq!(logs, lines_of_the_web_log());
+        }
+
+        #[tokio::test]
+        async fn logs_of_a_tty_container_return_each_line_without_its_line_break() {
+            let (_dir, docker, _requests) =
+                daemon_answering_logs(RAW_STREAM, "booting\r\nlistening on :80\r\n");
+
+            let logs = ContainersService::get_container_logs(&docker, "web", 1000).await;
+
+            assert_eq!(logs, lines_of_the_web_log());
+        }
+
+        #[tokio::test]
+        async fn logs_of_a_container_with_no_output_are_empty() {
+            let (_dir, docker, _requests) = daemon_answering_logs(MULTIPLEXED_STREAM, "");
+
+            let logs = ContainersService::get_container_logs(&docker, "web", 1000).await;
+
+            assert_eq!(logs, Ok(vec![]));
         }
 
         fn the_only_request_line(requests: &RecordedRequests) -> String {

@@ -222,12 +222,13 @@ pub async fn open_terminal(
 pub async fn container_logs(
     state: State<'_, SharedEngineState>,
     id: String,
+    lines: u32,
 ) -> Result<Vec<String>, String> {
-    debug!("Getting logs for container: {}", id);
+    debug!("Getting the last {} log lines of container: {}", lines, id);
 
     let engine = state.get_engine().await?;
     let docker = engine.docker.as_ref().ok_or("Docker not found")?;
-    ContainersService::get_container_logs(docker, &id).await
+    ContainersService::get_container_logs(docker, &id, lines).await
 }
 
 #[tauri::command]

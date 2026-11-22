@@ -1,4 +1,4 @@
-import { act, render, screen } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { mockIPC } from '@tauri-apps/api/mocks';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -7,15 +7,20 @@ import { ContainerLogsForm } from './container-logs-form';
 const toast = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn() }));
 vi.mock('sonner', () => ({ toast }));
 
-function mockLogReads(readLogs: (id: string) => Promise<string[]>) {
-  const reads: string[] = [];
+interface LogRead {
+  id: string;
+  lines: number;
+}
+
+function mockLogReads(readLogs: (read: LogRead) => Promise<string[]>) {
+  const reads: LogRead[] = [];
   mockIPC((cmd, args) => {
     if (cmd !== 'container_logs') {
       throw new Error(`Unexpected command ${cmd}`);
     }
-    const { id } = args as { id: string };
-    reads.push(id);
-    return readLogs(id);
+    const read = args as unknown as LogRead;
+    reads.push(read);
+    return readLogs(read);
   });
   return reads;
 }
@@ -50,7 +55,37 @@ describe('ContainerLogsForm', () => {
 
     expect(await screen.findByText(/listening on :80/)).toBeInTheDocument();
     expect(screen.getByText('2 log entries')).toBeInTheDocument();
-    expect(reads).toEqual(['c0ffee']);
+    expect(reads).toEqual([{ id: 'c0ffee', lines: 1000 }]);
+  });
+
+  it('reads the logs again with the picked line count', async () => {
+    const user = userEvent.setup();
+    const reads = mockLogReads(async () => ['booting']);
+    renderLogs();
+    await screen.findByText('booting');
+
+    screen.getByRole('combobox', { name: 'Lines' }).focus();
+    await user.keyboard('{Enter}');
+    await user.click(
+      await screen.findByRole('option', { name: 'Last 10,000 lines' })
+    );
+
+    await waitFor(() =>
+      expect(reads).toEqual([
+        { id: 'c0ffee', lines: 1000 },
+        { id: 'c0ffee', lines: 10000 },
+      ])
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Refresh' }));
+
+    await waitFor(() =>
+      expect(reads).toEqual([
+        { id: 'c0ffee', lines: 1000 },
+        { id: 'c0ffee', lines: 10000 },
+        { id: 'c0ffee', lines: 10000 },
+      ])
+    );
   });
 
   it('says it is loading until the first read returns, instead of claiming there are no logs', async () => {
@@ -76,7 +111,10 @@ describe('ContainerLogsForm', () => {
     await user.click(screen.getByRole('button', { name: 'Refresh' }));
 
     expect(await screen.findByText('2 log entries')).toBeInTheDocument();
-    expect(reads).toEqual(['c0ffee', 'c0ffee']);
+    expect(reads).toEqual([
+      { id: 'c0ffee', lines: 1000 },
+      { id: 'c0ffee', lines: 1000 },
+    ]);
   });
 
   it('shows no logs and a toast with the reason the backend gives when the logs cannot be read', async () => {

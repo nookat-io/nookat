@@ -13,13 +13,14 @@ DEBUG-007 (error log analysis) and the logs part of PERF-006 (load logs lazily) 
 ## Current state
 
 - The `container_logs` command in `src-tauri/src/handlers/containers.rs` calls `ContainersService::get_container_logs` in `src-tauri/src/services/containers.rs`.
-- It reads the whole log stream to the end into one list of lines, mixing stdout and stderr, without timestamps.
+- It reads only the last N lines through the `tail` option into one list of lines, each without its line break, mixing stdout and stderr, without timestamps.
 - `src/components/containers/container-logs-form.tsx` shows the lines in a dialog with a text search, copy, download and a manual refresh.
-- Logs are fetched only when the dialog opens.
+- The dialog reads the last 1,000, 5,000 or 10,000 lines, picked in a select next to Refresh, with 1,000 by default.
+- Logs are fetched when the dialog opens, when the line count changes and on Refresh.
 
 ## Scope
 
-- Fetch only the last N lines by default through the `tail` option, with a way to load more or set a `since` time.
+- Allow reading the logs from a `since` time.
 - Add a follow mode that streams new lines on a Tauri event while the dialog is open and stops when it closes.
 - Keep timestamps from the `timestamps` option and show them as a toggleable column.
 - Keep stdout and stderr apart, show stderr lines differently, and allow filtering by stream.
