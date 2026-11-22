@@ -3,7 +3,7 @@ use bollard::exec::{CreateExecOptions, StartExecResults};
 use bollard::models::{ContainerStateStatusEnum, ContainerSummary};
 use bollard::query_parameters::{
     ListContainersOptions, LogsOptions, PruneContainersOptions, RemoveContainerOptions,
-    RestartContainerOptions, StartContainerOptions, StopContainerOptions,
+    StartContainerOptions,
 };
 use bollard::Docker;
 use futures_util::StreamExt;
@@ -47,13 +47,8 @@ impl ContainersService {
 
     #[instrument(skip_all, err)]
     pub async fn stop_container(docker: &Docker, id: &str) -> Result<(), String> {
-        let options = StopContainerOptions {
-            t: Some(0),
-            ..Default::default()
-        };
-
         docker
-            .stop_container(id, Some(options))
+            .stop_container(id, None)
             .await
             .map_err(|e| format!("Failed to stop container: {}", e))?;
 
@@ -82,13 +77,8 @@ impl ContainersService {
 
     #[instrument(skip_all, err)]
     pub async fn restart_container(docker: &Docker, id: &str) -> Result<(), String> {
-        let options = RestartContainerOptions {
-            t: Some(0),
-            ..Default::default()
-        };
-
         docker
-            .restart_container(id, Some(options))
+            .restart_container(id, None)
             .await
             .map_err(|e| format!("Failed to restart container: {}", e))?;
 
@@ -279,5 +269,61 @@ mod tests {
 
         assert_eq!(shell, Err("The engine stopped answering".to_string()));
         assert_eq!(tried, ["bash"]);
+    }
+
+    #[cfg(unix)]
+    mod against_a_fake_daemon {
+        use super::*;
+        use crate::services::fake_docker_daemon::{
+            http_response, request_lines, serve_daemon, RecordedRequests,
+        };
+        use tempfile::TempDir;
+
+        fn daemon_answering_no_content() -> (TempDir, Docker, RecordedRequests) {
+            let dir = tempfile::tempdir().unwrap();
+            let socket = dir.path().join("docker.sock");
+            let requests = serve_daemon(&socket, |_| {
+                http_response("204 No Content", "text/plain", "")
+            });
+            let docker = Docker::connect_with_unix(
+                socket.to_str().unwrap(),
+                5,
+                bollard::API_DEFAULT_VERSION,
+            )
+            .unwrap();
+            (dir, docker, requests)
+        }
+
+        fn the_only_request_line(requests: &RecordedRequests) -> String {
+            let lines = request_lines(requests);
+            assert_eq!(lines.len(), 1, "{lines:?}");
+            lines[0].clone()
+        }
+
+        #[tokio::test]
+        async fn stop_lets_the_daemon_apply_the_container_stop_timeout() {
+            let (_dir, docker, requests) = daemon_answering_no_content();
+
+            ContainersService::stop_container(&docker, "web")
+                .await
+                .unwrap();
+
+            let line = the_only_request_line(&requests);
+            assert!(line.contains("/containers/web/stop"), "{line}");
+            assert!(!line.contains("t="), "{line}");
+        }
+
+        #[tokio::test]
+        async fn restart_lets_the_daemon_apply_the_container_stop_timeout() {
+            let (_dir, docker, requests) = daemon_answering_no_content();
+
+            ContainersService::restart_container(&docker, "web")
+                .await
+                .unwrap();
+
+            let line = the_only_request_line(&requests);
+            assert!(line.contains("/containers/web/restart"), "{line}");
+            assert!(!line.contains("t="), "{line}");
+        }
     }
 }
