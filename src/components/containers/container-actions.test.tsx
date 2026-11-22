@@ -247,6 +247,40 @@ describe('container actions', () => {
       expect(onSelectionChange).toHaveBeenCalledWith([]);
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     });
+
+    it('does not reopen the dialog when a selected container starts again after it stopped', async () => {
+      const user = userEvent.setup();
+      mockContainerCommands({});
+      const webExited: Container[] = webAndOld.map(container => ({
+        ...container,
+        state: ContainerState.Exited,
+      }));
+      const { rerender } = render(
+        <ContainerActions
+          selectedContainers={['web', 'old']}
+          containers={webAndOld}
+        />
+      );
+
+      await user.click(screen.getByRole('button', { name: 'Force Delete' }));
+      expect(screen.getByRole('dialog')).toBeInTheDocument();
+
+      rerender(
+        <ContainerActions
+          selectedContainers={['web', 'old']}
+          containers={webExited}
+        />
+      );
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+
+      rerender(
+        <ContainerActions
+          selectedContainers={['web', 'old']}
+          containers={webAndOld}
+        />
+      );
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
   });
 
   it('deletes stopped containers without asking', async () => {

@@ -55,6 +55,11 @@ export function ContainerActions({
     .filter(isContainerRunning)
     .map(formatContainerName);
   const hasRunning = runningContainerNames.length > 0;
+  const showForceDelete = canDelete && hasRunning;
+
+  if (forceDeleteDialogOpen && !showForceDelete) {
+    setForceDeleteDialogOpen(false);
+  }
 
   const handleAction = async (
     action: () => Promise<unknown>,
@@ -191,7 +196,7 @@ export function ContainerActions({
         </Button>
       )}
 
-      {canDelete && hasRunning && (
+      {showForceDelete && (
         <ContainerForceDeleteConfirmDialog
           open={forceDeleteDialogOpen}
           isDeleting={isLoading === 'delete'}
@@ -202,7 +207,7 @@ export function ContainerActions({
         />
       )}
 
-      {canDelete && !hasRunning && (
+      {canDelete && !showForceDelete && (
         <Button
           variant="outline"
           size="sm"
