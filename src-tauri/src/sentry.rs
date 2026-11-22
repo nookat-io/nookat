@@ -1,3 +1,4 @@
+use crate::entities::AppConfig;
 use crate::services::ConfigService;
 use sentry::{init, ClientInitGuard, ClientOptions, Hub};
 use std::time::Duration;
@@ -14,9 +15,7 @@ pub fn init_sentry() -> Option<ClientInitGuard> {
         return None;
     };
 
-    let config = ConfigService::get_config().expect("Failed to get config");
-    if !config.telemetry.error_reporting {
-        info!("Error reporting is turned off in the settings, crash reporting disabled");
+    if !error_reporting_allowed(ConfigService::get_config()) {
         return None;
     }
 
@@ -31,6 +30,20 @@ pub fn init_sentry() -> Option<ClientInitGuard> {
     set_tag("app.platform", std::env::consts::OS);
 
     Some(guard)
+}
+
+fn error_reporting_allowed(config: Result<AppConfig, String>) -> bool {
+    match config {
+        Ok(config) if config.telemetry.error_reporting => true,
+        Ok(_) => {
+            info!("Error reporting is turned off in the settings, crash reporting disabled");
+            false
+        }
+        Err(reason) => {
+            warn!("Could not read the config ({reason}), crash reporting disabled for this run");
+            false
+        }
+    }
 }
 
 fn set_tag(key: &str, value: &str) {
@@ -90,5 +103,23 @@ mod tests {
         });
 
         assert!(transport.fetch_and_clear_events().is_empty());
+    }
+
+    #[test]
+    fn a_config_that_cannot_be_read_turns_crash_reporting_off() {
+        let unreadable = Err("Failed to read config file: Permission denied".to_string());
+
+        assert!(!error_reporting_allowed(unreadable));
+    }
+
+    #[test]
+    fn crash_reporting_follows_the_saved_setting() {
+        let mut config = AppConfig::default();
+
+        config.telemetry.error_reporting = true;
+        assert!(error_reporting_allowed(Ok(config.clone())));
+
+        config.telemetry.error_reporting = false;
+        assert!(!error_reporting_allowed(Ok(config)));
     }
 }
