@@ -158,7 +158,6 @@ jobs:
         run: pip install pre-commit
 
       - name: Install frontend dependencies
-        if: env.MODE != 'review'
         uses: ./.github/actions/install-frontend
         with:
           save-cache: 'false'
@@ -184,11 +183,14 @@ jobs:
         run: sudo systemctl stop docker.socket docker.service
 
       - name: Setup Rust toolchain
-        if: env.MODE != 'review'
         uses: dtolnay/rust-toolchain@39008827e6b4319a349e9a42dfc90579dd25f1ca # stable
         with:
           toolchain: stable
           components: clippy, rustfmt
+
+      - name: Fetch the Rust dependency sources for the reviewer
+        if: env.MODE == 'review'
+        run: cargo fetch --locked --manifest-path src-tauri/Cargo.toml
 
       - name: Restore the Rust build cache
         if: env.MODE != 'review'
