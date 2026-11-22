@@ -42,11 +42,11 @@ export function VolumeActions({
 
   const handleDelete = () =>
     handleAction(async () => {
-      const deleted =
+      const deletedNames =
         await VolumeActionService.bulkRemoveVolumes(selectedVolumes);
-      if (deleted) {
-        onSelectionChange?.([]);
-      }
+      onSelectionChange?.(
+        selectedVolumes.filter(name => !deletedNames.includes(name))
+      );
     }, 'delete');
 
   const handlePrune = () => {

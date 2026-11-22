@@ -1,6 +1,7 @@
 import { invoke } from '@tauri-apps/api/core';
 import { toast } from 'sonner';
 import { errorMessage } from '../../utils/error-message';
+import { BulkOutcome, distinctReasons } from '../../types/bulk-outcome';
 
 type ContainerAction =
   | 'start'
@@ -19,30 +20,59 @@ const PAST_TENSE: Record<ContainerAction, string> = {
   remove: 'Removed',
 };
 
-type ContainerTarget = { id: string } | { ids: string[] };
+const describeContainers = (count: number) =>
+  count === 1 ? 'container' : `${count} containers`;
 
-function describeTarget(target: ContainerTarget): string {
-  if ('id' in target || target.ids.length === 1) {
-    return 'container';
-  }
-  return `${target.ids.length} containers`;
-}
+const describeFailedContainers = (failed: number, requested: number) =>
+  failed === requested
+    ? describeContainers(failed)
+    : `${failed} of ${requested} containers`;
 
 async function runContainerAction(
   action: ContainerAction,
   command: string,
-  target: ContainerTarget
+  target: { id: string }
 ): Promise<boolean> {
-  const containers = describeTarget(target);
   try {
     await invoke(command, target);
-    toast.success(`${PAST_TENSE[action]} ${containers}`);
+    toast.success(`${PAST_TENSE[action]} container`);
     return true;
   } catch (error) {
-    console.error(`Failed to ${action} ${containers}:`, error);
-    toast.error(`Failed to ${action} ${containers}: ${errorMessage(error)}`);
+    console.error(`Failed to ${action} container:`, error);
+    toast.error(`Failed to ${action} container: ${errorMessage(error)}`);
     return false;
   }
+}
+
+async function runBulkContainerAction(
+  action: ContainerAction,
+  command: string,
+  ids: string[]
+): Promise<string[]> {
+  let outcome: BulkOutcome;
+  try {
+    outcome = await invoke<BulkOutcome>(command, { ids });
+  } catch (error) {
+    const containers = describeContainers(ids.length);
+    console.error(`Failed to ${action} ${containers}:`, error);
+    toast.error(`Failed to ${action} ${containers}: ${errorMessage(error)}`);
+    return [];
+  }
+
+  const { succeeded, failed } = outcome;
+  if (failed.length === 0) {
+    toast.success(`${PAST_TENSE[action]} ${describeContainers(ids.length)}`);
+  } else {
+    const failedContainers = describeFailedContainers(
+      failed.length,
+      ids.length
+    );
+    console.error(`Failed to ${action} ${failedContainers}:`, failed);
+    toast.error(
+      `Failed to ${action} ${failedContainers}: ${distinctReasons(failed)}`
+    );
+  }
+  return succeeded;
 }
 
 export class ContainerActionService {
@@ -72,30 +102,30 @@ export class ContainerActionService {
   }
 
   static bulkStartContainers(ids: string[]) {
-    return runContainerAction('start', 'bulk_start_containers', { ids });
+    return runBulkContainerAction('start', 'bulk_start_containers', ids);
   }
 
   static bulkStopContainers(ids: string[]) {
-    return runContainerAction('stop', 'bulk_stop_containers', { ids });
+    return runBulkContainerAction('stop', 'bulk_stop_containers', ids);
   }
 
   static bulkPauseContainers(ids: string[]) {
-    return runContainerAction('pause', 'bulk_pause_containers', { ids });
+    return runBulkContainerAction('pause', 'bulk_pause_containers', ids);
   }
 
   static bulkResumeContainers(ids: string[]) {
-    return runContainerAction('resume', 'bulk_unpause_containers', { ids });
+    return runBulkContainerAction('resume', 'bulk_unpause_containers', ids);
   }
 
   static bulkRestartContainers(ids: string[]) {
-    return runContainerAction('restart', 'bulk_restart_containers', { ids });
+    return runBulkContainerAction('restart', 'bulk_restart_containers', ids);
   }
 
   static bulkDeleteContainers(ids: string[], hasRunning: boolean) {
     const command = hasRunning
       ? 'bulk_force_remove_containers'
       : 'bulk_remove_containers';
-    return runContainerAction('remove', command, { ids });
+    return runBulkContainerAction('remove', command, ids);
   }
 
   static async openTerminal(containerId: string) {
