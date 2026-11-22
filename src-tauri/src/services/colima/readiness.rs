@@ -31,32 +31,14 @@ pub async fn docker_responds_on(socket: &Path) -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tokio::io::{AsyncReadExt, AsyncWriteExt};
-    use tokio::net::UnixListener;
-
-    fn http_response(status: &str, content_type: &str, body: &str) -> String {
-        format!(
-            "HTTP/1.1 {status}\r\nContent-Type: {content_type}\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
-            body.len()
-        )
-    }
+    use crate::services::fake_docker_daemon::http_response;
 
     fn serve_daemon(socket: &Path, info_status: &'static str) {
-        let listener = UnixListener::bind(socket).unwrap();
-        tokio::spawn(async move {
-            while let Ok((mut stream, _)) = listener.accept().await {
-                tokio::spawn(async move {
-                    let mut request = vec![0u8; 4096];
-                    let read = stream.read(&mut request).await.unwrap_or(0);
-                    let request = String::from_utf8_lossy(&request[..read]).to_string();
-                    let response = if request.contains("/_ping") {
-                        http_response("200 OK", "text/plain", "OK")
-                    } else {
-                        http_response(info_status, "application/json", "{}")
-                    };
-                    let _ = stream.write_all(response.as_bytes()).await;
-                    let _ = stream.shutdown().await;
-                });
+        crate::services::fake_docker_daemon::serve_daemon(socket, move |request| {
+            if request.contains("/_ping") {
+                http_response("200 OK", "text/plain", "OK")
+            } else {
+                http_response(info_status, "application/json", "{}")
             }
         });
     }

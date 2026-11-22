@@ -8,6 +8,8 @@ mod containers;
 mod docker_error;
 pub(crate) mod engine;
 pub mod engine_state_monitor;
+#[cfg(all(test, unix))]
+pub(crate) mod fake_docker_daemon;
 mod image_pull;
 mod images;
 mod networks;
