@@ -15,11 +15,13 @@ import {
   canResumeContainer,
   canStartContainer,
   canStopContainer,
+  formatContainerName,
   isContainerRunning,
 } from './container-utils';
 import { useState } from 'react';
 import { ContainerActionService } from './container-actions-service';
 import { ContainerPruneConfirmDialog } from './dialogs/ContainerPruneConfirmDialog';
+import { ContainerForceDeleteConfirmDialog } from './dialogs/ContainerForceDeleteConfirmDialog';
 
 interface ContainerActionsProps {
   selectedContainers: string[];
@@ -34,6 +36,7 @@ export function ContainerActions({
 }: ContainerActionsProps) {
   const [isLoading, setIsLoading] = useState<string | null>(null);
   const [pruneDialogOpen, setPruneDialogOpen] = useState(false);
+  const [forceDeleteDialogOpen, setForceDeleteDialogOpen] = useState(false);
 
   const selectedContainerData = containers.filter(container =>
     selectedContainers.includes(container.id)
@@ -48,6 +51,10 @@ export function ContainerActions({
   const canResume = allSelected(canResumeContainer);
   const canRestart = allSelected(canRestartContainer);
   const canDelete = allSelected(canDeleteContainer);
+  const runningContainerNames = selectedContainerData
+    .filter(isContainerRunning)
+    .map(formatContainerName);
+  const hasRunning = runningContainerNames.length > 0;
 
   const handleAction = async (
     action: () => Promise<unknown>,
@@ -93,11 +100,11 @@ export function ContainerActions({
 
   const handleDelete = () =>
     handleAction(async () => {
-      const hasRunning = selectedContainerData.some(isContainerRunning);
       const deletedIds = await ContainerActionService.bulkDeleteContainers(
         selectedContainers,
         hasRunning
       );
+      setForceDeleteDialogOpen(false);
       onSelectionChange?.(
         selectedContainers.filter(id => !deletedIds.includes(id))
       );
@@ -184,7 +191,18 @@ export function ContainerActions({
         </Button>
       )}
 
-      {canDelete && (
+      {canDelete && hasRunning && (
+        <ContainerForceDeleteConfirmDialog
+          open={forceDeleteDialogOpen}
+          isDeleting={isLoading === 'delete'}
+          containerCount={selectedContainerData.length}
+          runningContainerNames={runningContainerNames}
+          onOpenChange={setForceDeleteDialogOpen}
+          onConfirm={handleDelete}
+        />
+      )}
+
+      {canDelete && !hasRunning && (
         <Button
           variant="outline"
           size="sm"
