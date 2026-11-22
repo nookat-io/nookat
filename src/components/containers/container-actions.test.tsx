@@ -171,4 +171,132 @@ describe('container actions', () => {
     );
     expect(onSelectionChange).not.toHaveBeenCalledWith([]);
   });
+
+  describe('when a selected container is running', () => {
+    const webAndOld: Container[] = [
+      { id: 'web', names: ['/web'], state: ContainerState.Running },
+      { id: 'old', names: ['/old'], state: ContainerState.Exited },
+    ];
+
+    const renderWithRunningSelection = () => {
+      const forceRemove = vi.fn(() => ({
+        succeeded: ['web', 'old'],
+        failed: [],
+      }));
+      mockContainerCommands({ bulk_force_remove_containers: forceRemove });
+      const onSelectionChange = vi.fn();
+      render(
+        <ContainerActions
+          selectedContainers={['web', 'old']}
+          containers={webAndOld}
+          onSelectionChange={onSelectionChange}
+        />
+      );
+      return { forceRemove, onSelectionChange };
+    };
+
+    it('labels the toolbar delete Force Delete when a selected container is running', () => {
+      renderWithRunningSelection();
+
+      expect(
+        screen.getByRole('button', { name: 'Force Delete' })
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByRole('button', { name: 'Delete' })
+      ).not.toBeInTheDocument();
+    });
+
+    it('asks before force deleting and names the running containers', async () => {
+      const user = userEvent.setup();
+      const { forceRemove } = renderWithRunningSelection();
+
+      await user.click(screen.getByRole('button', { name: 'Force Delete' }));
+
+      const dialog = screen.getByRole('dialog', {
+        name: 'Confirm Force Delete',
+      });
+      expect(dialog).toHaveTextContent('2 containers');
+      expect(dialog).toHaveTextContent('web');
+      expect(dialog).not.toHaveTextContent('old');
+      expect(forceRemove).not.toHaveBeenCalled();
+    });
+
+    it('sends nothing when the force delete is cancelled', async () => {
+      const user = userEvent.setup();
+      const { forceRemove, onSelectionChange } = renderWithRunningSelection();
+
+      await user.click(screen.getByRole('button', { name: 'Force Delete' }));
+      await user.click(screen.getByRole('button', { name: 'Cancel' }));
+
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      expect(forceRemove).not.toHaveBeenCalled();
+      expect(onSelectionChange).not.toHaveBeenCalled();
+    });
+
+    it('force deletes the selection once confirmed', async () => {
+      const user = userEvent.setup();
+      const { forceRemove, onSelectionChange } = renderWithRunningSelection();
+
+      await user.click(screen.getByRole('button', { name: 'Force Delete' }));
+      await user.click(
+        screen.getByRole('button', { name: 'Force Delete Containers' })
+      );
+
+      expect(forceRemove).toHaveBeenCalledWith({ ids: ['web', 'old'] });
+      expect(toast.success).toHaveBeenCalledWith('Removed 2 containers');
+      expect(onSelectionChange).toHaveBeenCalledWith([]);
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
+
+    it('does not reopen the dialog when a selected container starts again after it stopped', async () => {
+      const user = userEvent.setup();
+      mockContainerCommands({});
+      const webExited: Container[] = webAndOld.map(container => ({
+        ...container,
+        state: ContainerState.Exited,
+      }));
+      const { rerender } = render(
+        <ContainerActions
+          selectedContainers={['web', 'old']}
+          containers={webAndOld}
+        />
+      );
+
+      await user.click(screen.getByRole('button', { name: 'Force Delete' }));
+      expect(screen.getByRole('dialog')).toBeInTheDocument();
+
+      rerender(
+        <ContainerActions
+          selectedContainers={['web', 'old']}
+          containers={webExited}
+        />
+      );
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+
+      rerender(
+        <ContainerActions
+          selectedContainers={['web', 'old']}
+          containers={webAndOld}
+        />
+      );
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
+  });
+
+  it('deletes stopped containers without asking', async () => {
+    const user = userEvent.setup();
+    const remove = vi.fn(() => ({ succeeded: ['a', 'b'], failed: [] }));
+    mockContainerCommands({ bulk_remove_containers: remove });
+    render(
+      <ContainerActions
+        selectedContainers={['a', 'b']}
+        containers={containersIn(ContainerState.Exited)}
+      />
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Delete' }));
+
+    expect(remove).toHaveBeenCalledWith({ ids: ['a', 'b'] });
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
 });
