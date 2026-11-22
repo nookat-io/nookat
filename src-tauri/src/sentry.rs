@@ -1,5 +1,6 @@
 use crate::entities::AppConfig;
 use crate::services::ConfigService;
+use sentry::protocol::EnvelopeItem;
 use sentry::transports::DefaultTransportFactory;
 use sentry::{
     init, ClientInitGuard, ClientOptions, Envelope, Hub, Transport, TransportFactory,
@@ -12,8 +13,37 @@ use tracing::{info, warn};
 
 static SENTRY_DSN: Option<&'static str> = option_env!("SENTRY_DSN");
 const FLUSH_TIMEOUT: Duration = Duration::from_secs(2);
-static ERROR_REPORTING: LazyLock<Arc<AtomicBool>> =
-    LazyLock::new(|| Arc::new(AtomicBool::new(false)));
+static ERROR_REPORTING: LazyLock<Arc<ReportingSwitch>> =
+    LazyLock::new(|| Arc::new(ReportingSwitch::new(false)));
+
+struct ReportingSwitch {
+    enabled: AtomicBool,
+    off_since_last_envelope: AtomicBool,
+}
+
+impl ReportingSwitch {
+    fn new(enabled: bool) -> Self {
+        Self {
+            enabled: AtomicBool::new(enabled),
+            off_since_last_envelope: AtomicBool::new(!enabled),
+        }
+    }
+
+    fn set(&self, enabled: bool) {
+        if !enabled {
+            self.off_since_last_envelope.store(true, Ordering::SeqCst);
+        }
+        self.enabled.store(enabled, Ordering::SeqCst);
+    }
+
+    fn is_on(&self) -> bool {
+        self.enabled.load(Ordering::SeqCst)
+    }
+
+    fn take_off_period(&self) -> bool {
+        self.off_since_last_envelope.swap(false, Ordering::SeqCst)
+    }
+}
 
 pub fn init_sentry() -> Option<ClientInitGuard> {
     info!("Initializing Sentry crash reporting");
@@ -42,7 +72,7 @@ pub fn init_sentry() -> Option<ClientInitGuard> {
 
 fn client_options(
     dsn: &str,
-    reporting: Arc<AtomicBool>,
+    reporting: Arc<ReportingSwitch>,
     transport: Arc<dyn TransportFactory>,
 ) -> ClientOptions {
     let breadcrumbs_reporting = reporting.clone();
@@ -55,18 +85,14 @@ fn client_options(
         inner: transport,
     }));
     options.before_breadcrumb = Some(Arc::new(move |breadcrumb| {
-        breadcrumbs_reporting
-            .load(Ordering::Relaxed)
-            .then_some(breadcrumb)
+        breadcrumbs_reporting.is_on().then_some(breadcrumb)
     }));
-    options.before_send_log = Some(Arc::new(move |log| {
-        logs_reporting.load(Ordering::Relaxed).then_some(log)
-    }));
+    options.before_send_log = Some(Arc::new(move |log| logs_reporting.is_on().then_some(log)));
     options
 }
 
 struct GatedTransportFactory {
-    reporting: Arc<AtomicBool>,
+    reporting: Arc<ReportingSwitch>,
     inner: Arc<dyn TransportFactory>,
 }
 
@@ -80,13 +106,18 @@ impl TransportFactory for GatedTransportFactory {
 }
 
 struct GatedTransport {
-    reporting: Arc<AtomicBool>,
+    reporting: Arc<ReportingSwitch>,
     inner: Arc<dyn Transport>,
 }
 
 impl Transport for GatedTransport {
     fn send_envelope(&self, envelope: Envelope) {
-        if self.reporting.load(Ordering::Relaxed) {
+        if !self.reporting.is_on() {
+            return;
+        }
+        if self.reporting.take_off_period() {
+            self.inner.send_envelope(without_client_reports(envelope));
+        } else {
             self.inner.send_envelope(envelope);
         }
     }
@@ -98,6 +129,15 @@ impl Transport for GatedTransport {
     fn shutdown(&self, timeout: Duration) -> bool {
         self.inner.shutdown(timeout)
     }
+}
+
+fn without_client_reports(envelope: Envelope) -> Envelope {
+    let mut kept = Envelope::new().with_headers(envelope.headers().clone());
+    envelope
+        .into_items()
+        .filter(|item| !matches!(item, EnvelopeItem::ClientReport(_)))
+        .for_each(|item| kept.add_item(item));
+    kept
 }
 
 fn error_reporting_allowed(config: Result<AppConfig, String>) -> bool {
@@ -127,7 +167,7 @@ pub fn flush_sentry() {
 }
 
 pub fn set_error_reporting(enabled: bool) {
-    ERROR_REPORTING.store(enabled, Ordering::Relaxed);
+    ERROR_REPORTING.set(enabled);
     info!(
         "Crash reporting turned {}",
         if enabled { "on" } else { "off" }
@@ -142,14 +182,14 @@ mod tests {
     use sentry::Level;
 
     struct Reporting {
-        switch: Arc<AtomicBool>,
+        switch: Arc<ReportingSwitch>,
         transport: Arc<TestTransport>,
         hub: Arc<Hub>,
     }
 
     impl Reporting {
         fn starting(enabled: bool) -> Self {
-            let switch = Arc::new(AtomicBool::new(enabled));
+            let switch = Arc::new(ReportingSwitch::new(enabled));
             let transport = TestTransport::new();
             let options = client_options(
                 "https://public@sentry.invalid/1",
@@ -168,7 +208,7 @@ mod tests {
         }
 
         fn turn(&self, enabled: bool) {
-            self.switch.store(enabled, Ordering::Relaxed);
+            self.switch.set(enabled);
         }
 
         fn run(&self, body: impl FnOnce()) {
@@ -259,15 +299,30 @@ mod tests {
         assert_eq!(messages, ["while on"]);
     }
 
+    fn has_client_report(envelope: &Envelope) -> bool {
+        envelope
+            .items()
+            .any(|item| matches!(item, EnvelopeItem::ClientReport(_)))
+    }
+
     #[test]
     fn logs_from_while_reporting_was_off_are_not_sent_later() {
-        let reporting = Reporting::starting(false);
+        for starting_enabled in [false, true] {
+            let reporting = Reporting::starting(starting_enabled);
 
-        reporting.run(|| sentry::logger_info!("while off"));
-        reporting.turn(true);
-        reporting.flush();
+            reporting.turn(false);
+            reporting.run(|| sentry::logger_info!("while off"));
+            reporting.turn(true);
+            reporting.flush();
+            assert!(reporting.transport.fetch_and_clear_envelopes().is_empty());
 
-        assert!(reporting.transport.fetch_and_clear_envelopes().is_empty());
+            reporting.run(capture_error);
+
+            let envelopes = reporting.transport.fetch_and_clear_envelopes();
+            assert_eq!(envelopes.len(), 1);
+            assert!(envelopes[0].event().is_some());
+            assert!(!has_client_report(&envelopes[0]));
+        }
     }
 
     #[test]
