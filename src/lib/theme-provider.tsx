@@ -24,17 +24,18 @@ function applyTheme(theme: Theme) {
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const { config, loading, error, updateTheme } = useConfig();
-  const theme = config?.theme || Theme.System;
+  const configuredTheme = config?.theme;
+  const theme = configuredTheme ?? Theme.System;
 
   useEffect(() => {
-    if (loading) {
+    if (!configuredTheme) {
       return;
     }
 
-    applyTheme(theme);
-    localStorage.setItem(THEME_FOR_FIRST_PAINT_KEY, theme);
+    applyTheme(configuredTheme);
+    localStorage.setItem(THEME_FOR_FIRST_PAINT_KEY, configuredTheme);
 
-    if (theme !== Theme.System) {
+    if (configuredTheme !== Theme.System) {
       return;
     }
 
@@ -42,7 +43,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     const followSystemTheme = () => applyTheme(Theme.System);
     colorScheme.addEventListener('change', followSystemTheme);
     return () => colorScheme.removeEventListener('change', followSystemTheme);
-  }, [theme, loading]);
+  }, [configuredTheme]);
 
   return (
     <ThemeContext.Provider value={{ theme, loading, error, updateTheme }}>

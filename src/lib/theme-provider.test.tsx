@@ -1,4 +1,4 @@
-import { render, waitFor } from '@testing-library/react';
+import { act, render, waitFor } from '@testing-library/react';
 import { mockIPC } from '@tauri-apps/api/mocks';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { AppConfig, Language, Theme } from '../types/config';
@@ -28,10 +28,14 @@ function stubSystemColorScheme(prefersDark: boolean) {
   }));
 }
 
-async function renderWithSavedTheme(theme: Theme) {
+function renderWithSavedTheme(theme: Theme) {
+  return renderThemeProvider(async () => configWithTheme(theme));
+}
+
+async function renderThemeProvider(readConfig: () => Promise<AppConfig>) {
   mockIPC(cmd => {
     if (cmd === 'get_config') {
-      return configWithTheme(theme);
+      return readConfig();
     }
     if (cmd === 'plugin:autostart|is_enabled') {
       return false;
@@ -86,6 +90,21 @@ describe('ThemeProvider', () => {
     await waitFor(() =>
       expect(localStorage.getItem(THEME_FOR_FIRST_PAINT_KEY)).toBe(Theme.Dark)
     );
+  });
+
+  it('keeps the remembered first-paint theme when the config cannot be read', async () => {
+    const consoleError = vi
+      .spyOn(console, 'error')
+      .mockImplementation(() => {});
+    stubSystemColorScheme(false);
+    localStorage.setItem('nookat-theme', Theme.Dark);
+
+    await renderThemeProvider(() => Promise.reject(new Error('unreadable')));
+
+    await waitFor(() => expect(consoleError).toHaveBeenCalled());
+    await act(async () => {});
+    expect(localStorage.getItem('nookat-theme')).toBe(Theme.Dark);
+    expect(document.documentElement).not.toHaveClass(Theme.Light);
   });
 
   it('is read back by the first-paint script in index.html under the same key', async () => {

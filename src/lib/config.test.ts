@@ -101,21 +101,34 @@ describe('ConfigService', () => {
     expect(backend.count('get_config')).toBe(1);
   });
 
-  it('falls back to the backend defaults, with telemetry and automatic update checks off, when the config cannot be read', async () => {
+  it('rejects and publishes nothing when the config cannot be read', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => {});
     mockBackend({ readConfig: () => Promise.reject(new Error('unreadable')) });
     const service = await freshService();
     const subscriber = vi.fn();
     service.subscribe(subscriber);
 
-    const config = await service.loadConfig();
+    await expect(service.loadConfig()).rejects.toThrow('unreadable');
 
-    expect(config).toMatchObject({
-      theme: Theme.System,
-      telemetry: { send_anonymous_usage_data: false, error_reporting: false },
-      startup: { check_for_updates: false },
+    expect(subscriber).not.toHaveBeenCalled();
+    expect(service.getConfig()).toBeNull();
+  });
+
+  it('asks the backend again on the next load after a failed read', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    let reads = 0;
+    const backend = mockBackend({
+      readConfig: () =>
+        ++reads === 1
+          ? Promise.reject(new Error('unreadable'))
+          : Promise.resolve(savedConfig()),
     });
-    expect(subscriber).toHaveBeenCalledWith(config);
+    const service = await freshService();
+
+    await expect(service.loadConfig()).rejects.toThrow('unreadable');
+
+    await expect(service.loadConfig()).resolves.toEqual(savedConfig());
+    expect(backend.count('get_config')).toBe(2);
   });
 
   it('gives a new subscriber the current config and stops after unsubscribing', async () => {
