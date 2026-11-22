@@ -1,5 +1,6 @@
 #[cfg(any(target_os = "macos", all(test, unix)))]
 pub(crate) mod binary_install;
+mod bulk;
 #[cfg(any(target_os = "macos", all(test, unix)))]
 pub(crate) mod colima;
 mod config;
@@ -17,6 +18,7 @@ pub(crate) mod shell;
 mod updater;
 mod volumes;
 
+pub use bulk::run_for_each_concurrently;
 pub use config::*;
 pub use container_creation::ContainerCreationService;
 pub use containers::*;

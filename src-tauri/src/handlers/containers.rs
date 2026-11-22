@@ -1,5 +1,9 @@
-use crate::entities::{Container, CreateContainerError, CreateContainerSpec, CreatedContainer};
-use crate::services::{shell, ContainerCreationService, ContainersService};
+use crate::entities::{
+    BulkOutcome, Container, CreateContainerError, CreateContainerSpec, CreatedContainer,
+};
+use crate::services::{
+    run_for_each_concurrently, shell, ContainerCreationService, ContainersService,
+};
 use crate::state::SharedEngineState;
 use tauri::State;
 use tracing::{debug, instrument};
@@ -99,17 +103,12 @@ pub async fn restart_container(
 pub async fn bulk_start_containers(
     state: State<'_, SharedEngineState>,
     ids: Vec<String>,
-) -> Result<(), String> {
+) -> Result<BulkOutcome, String> {
     debug!("Starting {} containers", ids.len());
 
     let engine = state.get_engine().await?;
     let docker = engine.docker.as_ref().ok_or("Docker not found")?;
-    for id in &ids {
-        if let Err(e) = ContainersService::start_container(docker, id).await {
-            return Err(format!("Failed to start container {}: {}", id, e));
-        }
-    }
-    Ok(())
+    Ok(run_for_each_concurrently(&ids, |id| ContainersService::start_container(docker, id)).await)
 }
 
 #[tauri::command]
@@ -117,17 +116,12 @@ pub async fn bulk_start_containers(
 pub async fn bulk_stop_containers(
     state: State<'_, SharedEngineState>,
     ids: Vec<String>,
-) -> Result<(), String> {
+) -> Result<BulkOutcome, String> {
     debug!("Stopping {} containers", ids.len());
 
     let engine = state.get_engine().await?;
     let docker = engine.docker.as_ref().ok_or("Docker not found")?;
-    for id in &ids {
-        if let Err(e) = ContainersService::stop_container(docker, id).await {
-            return Err(format!("Failed to stop container {}: {}", id, e));
-        }
-    }
-    Ok(())
+    Ok(run_for_each_concurrently(&ids, |id| ContainersService::stop_container(docker, id)).await)
 }
 
 #[tauri::command]
@@ -135,17 +129,12 @@ pub async fn bulk_stop_containers(
 pub async fn bulk_pause_containers(
     state: State<'_, SharedEngineState>,
     ids: Vec<String>,
-) -> Result<(), String> {
+) -> Result<BulkOutcome, String> {
     debug!("Pausing {} containers", ids.len());
 
     let engine = state.get_engine().await?;
     let docker = engine.docker.as_ref().ok_or("Docker not found")?;
-    for id in &ids {
-        if let Err(e) = ContainersService::pause_container(docker, id).await {
-            return Err(format!("Failed to pause container {}: {}", id, e));
-        }
-    }
-    Ok(())
+    Ok(run_for_each_concurrently(&ids, |id| ContainersService::pause_container(docker, id)).await)
 }
 
 #[tauri::command]
@@ -153,17 +142,15 @@ pub async fn bulk_pause_containers(
 pub async fn bulk_unpause_containers(
     state: State<'_, SharedEngineState>,
     ids: Vec<String>,
-) -> Result<(), String> {
+) -> Result<BulkOutcome, String> {
     debug!("Unpausing {} containers", ids.len());
 
     let engine = state.get_engine().await?;
     let docker = engine.docker.as_ref().ok_or("Docker not found")?;
-    for id in &ids {
-        if let Err(e) = ContainersService::unpause_container(docker, id).await {
-            return Err(format!("Failed to unpause container {}: {}", id, e));
-        }
-    }
-    Ok(())
+    Ok(
+        run_for_each_concurrently(&ids, |id| ContainersService::unpause_container(docker, id))
+            .await,
+    )
 }
 
 #[tauri::command]
@@ -171,17 +158,15 @@ pub async fn bulk_unpause_containers(
 pub async fn bulk_restart_containers(
     state: State<'_, SharedEngineState>,
     ids: Vec<String>,
-) -> Result<(), String> {
+) -> Result<BulkOutcome, String> {
     debug!("Restarting {} containers", ids.len());
 
     let engine = state.get_engine().await?;
     let docker = engine.docker.as_ref().ok_or("Docker not found")?;
-    for id in &ids {
-        if let Err(e) = ContainersService::restart_container(docker, id).await {
-            return Err(format!("Failed to restart container {}: {}", id, e));
-        }
-    }
-    Ok(())
+    Ok(
+        run_for_each_concurrently(&ids, |id| ContainersService::restart_container(docker, id))
+            .await,
+    )
 }
 
 #[tauri::command]
@@ -189,17 +174,12 @@ pub async fn bulk_restart_containers(
 pub async fn bulk_remove_containers(
     state: State<'_, SharedEngineState>,
     ids: Vec<String>,
-) -> Result<(), String> {
+) -> Result<BulkOutcome, String> {
     debug!("Removing {} containers", ids.len());
 
     let engine = state.get_engine().await?;
     let docker = engine.docker.as_ref().ok_or("Docker not found")?;
-    for id in &ids {
-        if let Err(e) = ContainersService::remove_container(docker, id).await {
-            return Err(format!("Failed to remove container {}: {}", id, e));
-        }
-    }
-    Ok(())
+    Ok(run_for_each_concurrently(&ids, |id| ContainersService::remove_container(docker, id)).await)
 }
 
 #[tauri::command]
@@ -207,17 +187,15 @@ pub async fn bulk_remove_containers(
 pub async fn bulk_force_remove_containers(
     state: State<'_, SharedEngineState>,
     ids: Vec<String>,
-) -> Result<(), String> {
+) -> Result<BulkOutcome, String> {
     debug!("Force removing {} containers", ids.len());
 
     let engine = state.get_engine().await?;
     let docker = engine.docker.as_ref().ok_or("Docker not found")?;
-    for id in &ids {
-        if let Err(e) = ContainersService::force_remove_container(docker, id).await {
-            return Err(format!("Failed to force remove container {}: {}", id, e));
-        }
-    }
-    Ok(())
+    Ok(run_for_each_concurrently(&ids, |id| {
+        ContainersService::force_remove_container(docker, id)
+    })
+    .await)
 }
 
 #[tauri::command]

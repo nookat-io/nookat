@@ -1,4 +1,4 @@
-use crate::entities::{Volume, VolumePruneResult};
+use crate::entities::{BulkOutcome, Volume, VolumePruneResult};
 use crate::services::VolumesService;
 use crate::state::SharedEngineState;
 use tauri::State;
@@ -32,12 +32,12 @@ pub async fn remove_volume(
 pub async fn bulk_remove_volumes(
     state: State<'_, SharedEngineState>,
     names: Vec<String>,
-) -> Result<(), String> {
+) -> Result<BulkOutcome, String> {
     debug!("Removing {} volumes", names.len());
 
     let engine = state.get_engine().await?;
     let docker = engine.docker.as_ref().ok_or("Docker not found")?;
-    VolumesService::bulk_remove_volumes(docker, &names).await
+    Ok(VolumesService::bulk_remove_volumes(docker, &names).await)
 }
 
 #[tauri::command]

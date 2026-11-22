@@ -1,3 +1,4 @@
+mod bulk_outcome;
 mod config;
 mod containers;
 mod engine;
@@ -7,6 +8,7 @@ mod images;
 mod networks;
 mod volumes;
 
+pub use self::bulk_outcome::*;
 pub use self::config::*;
 pub use self::containers::*;
 pub use self::engine::*;
