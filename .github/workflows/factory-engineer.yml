@@ -7,8 +7,6 @@ on:
     types: [closed]
   pull_request_review:
     types: [submitted]
-  check_run:
-    types: [completed]
   workflow_run:
     workflows: ['\[CI\] Checks']
     types: [completed]
@@ -21,8 +19,7 @@ permissions:
 
 concurrency:
   group: >-
-    ${{ (github.actor == 'dependabot[bot]' || github.event_name == 'pull_request_review' ||
-    (github.event_name == 'check_run' && github.event.check_run.app.slug != 'coderabbitai')) &&
+    ${{ (github.actor == 'dependabot[bot]' || github.event_name == 'pull_request_review') &&
     format('factory-engineer-side-{0}', github.run_id) || 'factory-engineer' }}
   cancel-in-progress: false
 
@@ -47,8 +44,7 @@ jobs:
     name: Dispatch
     if: >-
       vars.FACTORY_ENABLED == 'true' && github.actor != 'dependabot[bot]' &&
-      github.event_name != 'pull_request_review' &&
-      (github.event_name != 'check_run' || github.event.check_run.app.slug == 'coderabbitai')
+      github.event_name != 'pull_request_review'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     outputs:
@@ -93,6 +89,8 @@ jobs:
           GH_TOKEN: ${{ steps.token.outputs.token }}
           ENGINEER_MODEL: ${{ vars.FACTORY_ENGINEER_MODEL }}
           ENGINEER_BUDGET_USD: ${{ vars.FACTORY_ENGINEER_BUDGET_USD }}
+          REVIEWER_MODEL: ${{ vars.FACTORY_REVIEWER_MODEL }}
+          REVIEWER_BUDGET_USD: ${{ vars.FACTORY_REVIEWER_BUDGET_USD }}
         run: python -m factory engineer dispatch --out "$RUNNER_TEMP/engineer-context"
 
       - name: Upload the context
@@ -150,19 +148,23 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
       - name: Setup Python
+        if: env.MODE != 'review'
         uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: '3.11'
 
       - name: Install pre-commit
+        if: env.MODE != 'review'
         run: pip install pre-commit
 
       - name: Install frontend dependencies
+        if: env.MODE != 'review'
         uses: ./.github/actions/install-frontend
         with:
           save-cache: 'false'
 
       - name: Install system dependencies
+        if: env.MODE != 'review'
         run: |
           sudo apt-get update
           sudo apt-get install -y \
@@ -174,18 +176,22 @@ jobs:
               socat
 
       - name: Create the directories the sandbox may write to
+        if: env.MODE != 'review'
         run: mkdir -p ~/.cargo ~/.npm ~/.cache/pre-commit
 
       - name: Stop Docker so sandboxed code cannot reach its socket
+        if: env.MODE != 'review'
         run: sudo systemctl stop docker.socket docker.service
 
       - name: Setup Rust toolchain
+        if: env.MODE != 'review'
         uses: dtolnay/rust-toolchain@39008827e6b4319a349e9a42dfc90579dd25f1ca # stable
         with:
           toolchain: stable
           components: clippy, rustfmt
 
       - name: Restore the Rust build cache
+        if: env.MODE != 'review'
         uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
           workspaces: src-tauri -> target
@@ -193,13 +199,14 @@ jobs:
           save-if: false
 
       - name: Install the pre-commit hook environments
+        if: env.MODE != 'review'
         run: pre-commit install-hooks
 
       - name: Merge main into the branch
         if: env.MODE == 'resolve-conflicts'
         run: git merge --no-ff --no-commit origin/main || git rev-parse -q --verify MERGE_HEAD > /dev/null
 
-      - name: Run the engineer
+      - name: Run the agent
         id: agent
         uses: anthropics/claude-code-action/base-action@acfe7992852970efb4fee683d63d628e3e52df67 # v1.0.286
         env:
@@ -224,8 +231,10 @@ jobs:
             summary=$(jq -sc 'if length == 1 and (.[0] | type) == "array" then .[0] else . end
               | map(select(type == "object" and .type == "result")) | last // {}' "$EXECUTION_FILE")
           fi
-          jq -n --argjson s "$summary" --arg mode "$MODE" --arg issue "$ISSUE" --arg run "$GITHUB_RUN_ID" \
-            '{role: "engineer", mode: $mode, issue: ($issue | tonumber), run_id: $run,
+          role=engineer
+          if [[ "$MODE" == review ]]; then role=reviewer; fi
+          jq -n --argjson s "$summary" --arg role "$role" --arg mode "$MODE" --arg issue "$ISSUE" --arg run "$GITHUB_RUN_ID" \
+            '{role: $role, mode: $mode, issue: ($issue | tonumber), run_id: $run,
               cost_usd: ($s.total_cost_usd // 0), turns: ($s.num_turns // null),
               duration_ms: ($s.duration_ms // null), subtype: ($s.subtype // null)}' \
             > "$RUNNER_TEMP/cost/cost.json"
@@ -343,3 +352,20 @@ jobs:
           --context "$RUNNER_TEMP/engineer-context"
           --result "$RUNNER_TEMP/engineer-result"
           --work-outcome "$WORK_OUTCOME"
+
+  follow-up:
+    name: Wake the engineer for the next step
+    needs: [dispatch, work, publish]
+    if: >-
+      always() && needs.publish.result == 'success' && needs.work.result == 'success' &&
+      (needs.dispatch.outputs.mode == 'review' || needs.dispatch.outputs.mode == 'address-findings')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      actions: write
+
+    steps:
+      - name: Start the engineer on main
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run factory-engineer.yml --repo "$GITHUB_REPOSITORY" --ref main
