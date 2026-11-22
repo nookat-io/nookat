@@ -7,6 +7,8 @@ on:
     types: [closed]
   pull_request_review:
     types: [submitted]
+  check_run:
+    types: [completed]
   workflow_run:
     workflows: ['\[CI\] Checks']
     types: [completed]
@@ -19,19 +21,34 @@ permissions:
 
 concurrency:
   group: >-
-    ${{ (github.actor == 'dependabot[bot]' || (github.event_name == 'pull_request_review' &&
-    github.event.pull_request.head.repo.full_name != github.repository)) &&
-    format('factory-engineer-ignored-{0}', github.run_id) || 'factory-engineer' }}
+    ${{ (github.actor == 'dependabot[bot]' || github.event_name == 'pull_request_review' ||
+    (github.event_name == 'check_run' && github.event.check_run.app.slug != 'coderabbitai')) &&
+    format('factory-engineer-side-{0}', github.run_id) || 'factory-engineer' }}
   cancel-in-progress: false
 
 jobs:
+  relay:
+    name: Relay the review to main
+    if: >-
+      vars.FACTORY_ENABLED == 'true' && github.event_name == 'pull_request_review' &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      actions: write
+
+    steps:
+      - name: Start the engineer on main
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run factory-engineer.yml --repo "$GITHUB_REPOSITORY" --ref main
+
   dispatch:
     name: Dispatch
     if: >-
-      vars.FACTORY_ENABLED == 'true' && github.actor != 'dependabot[bot]' && (
-        github.event_name != 'pull_request_review' ||
-        github.event.pull_request.head.repo.full_name == github.repository
-      )
+      vars.FACTORY_ENABLED == 'true' && github.actor != 'dependabot[bot]' &&
+      github.event_name != 'pull_request_review' &&
+      (github.event_name != 'check_run' || github.event.check_run.app.slug == 'coderabbitai')
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     outputs:
