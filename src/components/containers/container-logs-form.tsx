@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useTransition } from 'react';
+import { useState, useEffect, useCallback, useRef, useTransition } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -9,6 +9,13 @@ import {
 } from '../ui/dialog';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '../ui/select';
 import { Download, RefreshCw, Copy, Search, FileText } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
 import { toast } from 'sonner';
@@ -21,6 +28,14 @@ interface ContainerLogsFormProps {
   isOpen: boolean;
   onClose: () => void;
 }
+
+const LINE_COUNT_OPTIONS = [
+  { count: 1000, label: 'Last 1,000 lines' },
+  { count: 5000, label: 'Last 5,000 lines' },
+  { count: 10000, label: 'Last 10,000 lines' },
+];
+
+const DEFAULT_LINE_COUNT = LINE_COUNT_OPTIONS[0].count;
 
 const exportLogs = (logs: string[], filename: string) => {
   const logText = logs.join('\n');
@@ -86,23 +101,34 @@ export function ContainerLogsForm({
   const [logs, setLogs] = useState<string[]>([]);
   const [isLoading, startLoadingLogs] = useTransition();
   const [searchTerm, setSearchTerm] = useState('');
+  const [lines, setLines] = useState(DEFAULT_LINE_COUNT);
+
+  const latestReadId = useRef(0);
 
   const fetchLogs = useCallback(() => {
     if (!containerId) return;
 
+    const readId = ++latestReadId.current;
+    const isLatestRead = () => readId === latestReadId.current;
+
     startLoadingLogs(async () => {
       try {
-        const response = await invoke('container_logs', { id: containerId });
+        const response = await invoke('container_logs', {
+          id: containerId,
+          lines,
+        });
+        if (!isLatestRead()) return;
         startLoadingLogs(() =>
           setLogs(Array.isArray(response) ? response : [])
         );
       } catch (error) {
+        if (!isLatestRead()) return;
         console.error('Failed to fetch logs:', error);
         toast.error(`Failed to fetch logs: ${errorMessage(error)}`);
         startLoadingLogs(() => setLogs([]));
       }
     });
-  }, [containerId]);
+  }, [containerId, lines]);
 
   useEffect(() => {
     if (isOpen) {
@@ -148,6 +174,22 @@ export function ContainerLogsForm({
         <div className="flex-1 flex flex-col gap-4">
           <div className="flex items-center gap-4">
             <SearchInput value={searchTerm} onChange={setSearchTerm} />
+
+            <Select
+              value={String(lines)}
+              onValueChange={value => setLines(Number(value))}
+            >
+              <SelectTrigger aria-label="Lines" className="w-44">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {LINE_COUNT_OPTIONS.map(({ count, label }) => (
+                  <SelectItem key={count} value={String(count)}>
+                    {label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
 
             <ActionButton
               onClick={fetchLogs}
