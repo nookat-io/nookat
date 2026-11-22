@@ -1,4 +1,5 @@
-use crate::entities::{UsageData, Volume, VolumePruneResult};
+use crate::entities::{BulkOutcome, UsageData, Volume, VolumePruneResult};
+use crate::services::run_for_each_concurrently;
 use bollard::models::ContainerSummary;
 use bollard::query_parameters::{
     ListContainersOptions, ListVolumesOptions, PruneVolumesOptions, RemoveVolumeOptions,
@@ -55,17 +56,9 @@ impl VolumesService {
         Ok(())
     }
 
-    #[instrument(skip_all, err)]
-    pub async fn bulk_remove_volumes(docker: &Docker, names: &[String]) -> Result<(), String> {
-        for name in names {
-            let options = RemoveVolumeOptions::default();
-            docker
-                .remove_volume(name, Some(options))
-                .await
-                .map_err(|e| format!("Failed to remove volume {}: {}", name, e))?;
-        }
-
-        Ok(())
+    #[instrument(skip_all)]
+    pub async fn bulk_remove_volumes(docker: &Docker, names: &[String]) -> BulkOutcome {
+        run_for_each_concurrently(names, |name| Self::remove_volume(docker, name)).await
     }
 
     #[instrument(skip_all, err)]
@@ -153,5 +146,54 @@ mod tests {
 
         assert_eq!(count_containers_mounting("data", &containers), 2);
         assert_eq!(count_containers_mounting("logs", &containers), 0);
+    }
+
+    #[cfg(unix)]
+    mod against_a_fake_daemon {
+        use super::super::VolumesService;
+        use crate::services::fake_docker_daemon::{http_response, request_lines, serve_daemon};
+        use bollard::Docker;
+
+        #[tokio::test]
+        async fn bulk_remove_tries_every_volume_and_reports_the_ones_in_use() {
+            let dir = tempfile::tempdir().unwrap();
+            let socket = dir.path().join("docker.sock");
+            let requests = serve_daemon(&socket, |request| {
+                if request.starts_with("DELETE /volumes/b") {
+                    http_response(
+                        "409 Conflict",
+                        "application/json",
+                        r#"{"message":"volume is in use"}"#,
+                    )
+                } else {
+                    http_response("204 No Content", "text/plain", "")
+                }
+            });
+            let docker = Docker::connect_with_unix(
+                socket.to_str().unwrap(),
+                5,
+                bollard::API_DEFAULT_VERSION,
+            )
+            .unwrap();
+            let names = ["a", "b", "c"].map(String::from);
+
+            let outcome = VolumesService::bulk_remove_volumes(&docker, &names).await;
+
+            assert_eq!(outcome.succeeded, ["a", "c"]);
+            assert_eq!(outcome.failed.len(), 1);
+            assert_eq!(outcome.failed[0].id, "b");
+            assert!(
+                outcome.failed[0].error.contains("volume is in use"),
+                "{}",
+                outcome.failed[0].error
+            );
+            let lines = request_lines(&requests);
+            assert!(
+                lines
+                    .iter()
+                    .any(|line| line.starts_with("DELETE /volumes/c")),
+                "{lines:?}"
+            );
+        }
     }
 }

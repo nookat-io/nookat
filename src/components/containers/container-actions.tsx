@@ -94,13 +94,13 @@ export function ContainerActions({
   const handleDelete = () =>
     handleAction(async () => {
       const hasRunning = selectedContainerData.some(isContainerRunning);
-      const deleted = await ContainerActionService.bulkDeleteContainers(
+      const deletedIds = await ContainerActionService.bulkDeleteContainers(
         selectedContainers,
         hasRunning
       );
-      if (deleted) {
-        onSelectionChange?.([]);
-      }
+      onSelectionChange?.(
+        selectedContainers.filter(id => !deletedIds.includes(id))
+      );
     }, 'delete');
 
   const handlePrune = () =>
