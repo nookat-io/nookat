@@ -1,0 +1,255 @@
+name: '[Factory] Reviewer'
+
+on:
+  workflow_run:
+    workflows: ['\[CI\] Checks']
+    types: [completed]
+  schedule:
+    - cron: '47 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: >-
+    ${{ github.actor == 'dependabot[bot]' && format('factory-reviewer-side-{0}', github.run_id) || 'factory-reviewer' }}
+  cancel-in-progress: false
+
+jobs:
+  dispatch:
+    name: Dispatch
+    if: vars.FACTORY_ENABLED == 'true' && github.actor != 'dependabot[bot]'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    outputs:
+      mode: ${{ steps.dispatch.outputs.mode }}
+      issue: ${{ steps.dispatch.outputs.issue }}
+      sha: ${{ steps.dispatch.outputs.sha }}
+
+    steps:
+      - name: Mint the factory token
+        id: token
+        uses: actions/create-github-app-token@f418cff399f7aef4c2f0ad47e25ca7a6abbdd6fc # v3.4.0
+        with:
+          client-id: ${{ vars.FACTORY_APP_CLIENT_ID }}
+          private-key: ${{ secrets.FACTORY_APP_PRIVATE_KEY }}
+          owner: nookat-io
+          repositories: nookat,software-factory
+          permission-contents: read
+          permission-issues: write
+          permission-pull-requests: write
+          permission-actions: read
+
+      - name: Check out the factory
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: nookat-io/software-factory
+          ref: main
+          token: ${{ steps.token.outputs.token }}
+          path: factory
+          persist-credentials: false
+
+      - name: Setup Python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.13'
+
+      - name: Decide whether a pull request needs a review
+        id: dispatch
+        working-directory: factory
+        env:
+          GH_TOKEN: ${{ steps.token.outputs.token }}
+          REVIEWER_MODEL: ${{ vars.FACTORY_REVIEWER_MODEL }}
+          REVIEWER_BUDGET_USD: ${{ vars.FACTORY_REVIEWER_BUDGET_USD }}
+        run: python -m factory reviewer dispatch --out "$RUNNER_TEMP/reviewer-context"
+
+      - name: Upload the context
+        if: steps.dispatch.outputs.mode == 'review'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: reviewer-context
+          path: ${{ runner.temp }}/reviewer-context
+          retention-days: 7
+
+  work:
+    name: Review
+    needs: dispatch
+    if: needs.dispatch.outputs.mode == 'review'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      ISSUE: ${{ needs.dispatch.outputs.issue }}
+
+    steps:
+      - name: Check out the commit to review
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.dispatch.outputs.sha }}
+          persist-credentials: false
+
+      - name: Download the context
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: reviewer-context
+          path: ${{ runner.temp }}/reviewer-context
+
+      - name: Prepare the workspace
+        id: prepare
+        env:
+          CONTEXT: ${{ runner.temp }}/reviewer-context
+        run: |
+          cp "$CONTEXT/CLAUDE.md" CLAUDE.md
+          echo CLAUDE.md >> .git/info/exclude
+          {
+            echo "claude_args<<EOF_CLAUDE_ARGS"
+            cat "$CONTEXT/claude_args.txt"
+            echo
+            echo "EOF_CLAUDE_ARGS"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Install frontend dependencies
+        uses: ./.github/actions/install-frontend
+        with:
+          save-cache: 'false'
+
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@39008827e6b4319a349e9a42dfc90579dd25f1ca # stable
+        with:
+          toolchain: stable
+
+      - name: Fetch the Rust dependency sources
+        run: cargo fetch --locked --manifest-path src-tauri/Cargo.toml
+
+      - name: Run the reviewer
+        id: agent
+        uses: anthropics/claude-code-action/base-action@acfe7992852970efb4fee683d63d628e3e52df67 # v1.0.286
+        env:
+          NODE_VERSION: lts/*
+        with:
+          prompt_file: ${{ runner.temp }}/reviewer-context/prompt.md
+          claude_args: ${{ steps.prepare.outputs.claude_args }}
+          anthropic_api_key: ${{ vars.ANTHROPIC_REVIEWER_FEDERATION_RULE_ID == '' && secrets.ANTHROPIC_API_KEY || '' }}
+          anthropic_federation_rule_id: ${{ vars.ANTHROPIC_REVIEWER_FEDERATION_RULE_ID }}
+          anthropic_organization_id: ${{ vars.ANTHROPIC_ORGANIZATION_ID }}
+          anthropic_service_account_id: ${{ vars.ANTHROPIC_SERVICE_ACCOUNT_ID }}
+          anthropic_workspace_id: ${{ vars.ANTHROPIC_WORKSPACE_ID }}
+
+      - name: Record the cost
+        if: always() && steps.prepare.outcome == 'success'
+        env:
+          EXECUTION_FILE: ${{ steps.agent.outputs.execution_file }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/cost"
+          summary='{}'
+          if [[ -n "$EXECUTION_FILE" && -f "$EXECUTION_FILE" ]]; then
+            summary=$(jq -sc 'if length == 1 and (.[0] | type) == "array" then .[0] else . end
+              | map(select(type == "object" and .type == "result")) | last // {}' "$EXECUTION_FILE")
+          fi
+          jq -n --argjson s "$summary" --arg issue "$ISSUE" --arg run "$GITHUB_RUN_ID" \
+            '{role: "reviewer", mode: "review", issue: ($issue | tonumber), run_id: $run,
+              cost_usd: ($s.total_cost_usd // 0), turns: ($s.num_turns // null),
+              duration_ms: ($s.duration_ms // null), subtype: ($s.subtype // null)}' \
+            > "$RUNNER_TEMP/cost/cost.json"
+          cat "$RUNNER_TEMP/cost/cost.json"
+
+      - name: Upload the cost
+        if: always() && steps.prepare.outcome == 'success'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: factory-cost
+          path: ${{ runner.temp }}/cost/cost.json
+          retention-days: 35
+
+      - name: Save the result
+        if: steps.agent.outcome == 'success'
+        env:
+          RESULT: ${{ runner.temp }}/reviewer-result
+          STRUCTURED: ${{ steps.agent.outputs.structured_output }}
+        run: |
+          mkdir -p "$RESULT"
+          printf '%s' "$STRUCTURED" > "$RESULT/result.json"
+
+      - name: Upload the result
+        if: steps.agent.outcome == 'success'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: reviewer-result
+          path: ${{ runner.temp }}/reviewer-result
+          retention-days: 7
+
+  publish:
+    name: Publish
+    needs: [dispatch, work]
+    if: always() && needs.dispatch.result == 'success' && needs.dispatch.outputs.mode == 'review'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+
+    steps:
+      - name: Mint the factory token
+        id: token
+        uses: actions/create-github-app-token@f418cff399f7aef4c2f0ad47e25ca7a6abbdd6fc # v3.4.0
+        with:
+          client-id: ${{ vars.FACTORY_APP_CLIENT_ID }}
+          private-key: ${{ secrets.FACTORY_APP_PRIVATE_KEY }}
+          owner: nookat-io
+          repositories: nookat,software-factory
+          permission-contents: read
+          permission-issues: write
+          permission-pull-requests: write
+
+      - name: Check out the factory
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: nookat-io/software-factory
+          ref: main
+          token: ${{ steps.token.outputs.token }}
+          path: factory
+          persist-credentials: false
+
+      - name: Download the context
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: reviewer-context
+          path: ${{ runner.temp }}/reviewer-context
+
+      - name: Download the result
+        continue-on-error: true
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: reviewer-result
+          path: ${{ runner.temp }}/reviewer-result
+
+      - name: Setup Python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.13'
+
+      - name: Publish the review
+        working-directory: factory
+        env:
+          GH_TOKEN: ${{ steps.token.outputs.token }}
+          WORK_OUTCOME: ${{ needs.work.result }}
+        run: >-
+          python -m factory reviewer publish
+          --context "$RUNNER_TEMP/reviewer-context"
+          --result "$RUNNER_TEMP/reviewer-result"
+          --work-outcome "$WORK_OUTCOME"
+
+  wake-engineer:
+    name: Wake the engineer
+    needs: [dispatch, publish]
+    if: always() && needs.publish.result == 'success'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      actions: write
+
+    steps:
+      - name: Start the engineer on main
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run factory-engineer.yml --repo "$GITHUB_REPOSITORY" --ref main
