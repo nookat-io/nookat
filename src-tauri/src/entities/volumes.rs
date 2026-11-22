@@ -2,7 +2,7 @@ use bollard::models::{VolumePruneResponse, VolumeScopeEnum, VolumeUsageData};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum VolumeScope {
     #[serde(rename = "")]
     Empty,
@@ -22,7 +22,7 @@ impl From<VolumeScopeEnum> for VolumeScope {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct UsageData {
     pub size: i64,
     pub ref_count: i64,
@@ -37,7 +37,7 @@ impl From<VolumeUsageData> for UsageData {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Volume {
     pub name: String,
     pub driver: String,

@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct Network {
     pub id: String,
     pub name: String,
@@ -16,13 +16,13 @@ pub struct Network {
     pub labels: Option<HashMap<String, String>>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct Ipam {
     pub driver: Option<String>,
     pub config: Option<Vec<IpamConfig>>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct IpamConfig {
     pub subnet: Option<String>,
     pub gateway: Option<String>,
