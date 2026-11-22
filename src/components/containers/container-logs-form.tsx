@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useTransition } from 'react';
+import { useState, useEffect, useCallback, useRef, useTransition } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -103,8 +103,13 @@ export function ContainerLogsForm({
   const [searchTerm, setSearchTerm] = useState('');
   const [lines, setLines] = useState(DEFAULT_LINE_COUNT);
 
+  const latestReadId = useRef(0);
+
   const fetchLogs = useCallback(() => {
     if (!containerId) return;
+
+    const readId = ++latestReadId.current;
+    const isLatestRead = () => readId === latestReadId.current;
 
     startLoadingLogs(async () => {
       try {
@@ -112,10 +117,12 @@ export function ContainerLogsForm({
           id: containerId,
           lines,
         });
+        if (!isLatestRead()) return;
         startLoadingLogs(() =>
           setLogs(Array.isArray(response) ? response : [])
         );
       } catch (error) {
+        if (!isLatestRead()) return;
         console.error('Failed to fetch logs:', error);
         toast.error(`Failed to fetch logs: ${errorMessage(error)}`);
         startLoadingLogs(() => setLogs([]));

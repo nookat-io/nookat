@@ -88,6 +88,43 @@ describe('ContainerLogsForm', () => {
     );
   });
 
+  it('shows the logs of the newest read when an older read finishes after it', async () => {
+    const user = userEvent.setup();
+    const tenThousandLines = pendingRead();
+    const oneThousandLines = pendingRead();
+    const pendingByCount = new Map([
+      [10000, tenThousandLines],
+      [1000, oneThousandLines],
+    ]);
+    let isFirstRead = true;
+    mockLogReads(({ lines }) => {
+      if (isFirstRead) {
+        isFirstRead = false;
+        return Promise.resolve(['booting']);
+      }
+      return pendingByCount.get(lines)!.promise;
+    });
+    renderLogs();
+    await screen.findByText('booting');
+
+    const pickLineCount = async (name: string) => {
+      screen.getByRole('combobox', { name: 'Lines' }).focus();
+      await user.keyboard('{Enter}');
+      await user.click(await screen.findByRole('option', { name }));
+    };
+    await pickLineCount('Last 10,000 lines');
+    await pickLineCount('Last 1,000 lines');
+
+    await act(async () => oneThousandLines.finish(['newest read']));
+    await act(async () =>
+      tenThousandLines.finish(['older read', 'older read again'])
+    );
+
+    expect(await screen.findByText('newest read')).toBeInTheDocument();
+    expect(screen.queryByText(/older read/)).not.toBeInTheDocument();
+    expect(screen.getByText('1 log entries')).toBeInTheDocument();
+  });
+
   it('says it is loading until the first read returns, instead of claiming there are no logs', async () => {
     const read = pendingRead();
     mockLogReads(() => read.promise);
