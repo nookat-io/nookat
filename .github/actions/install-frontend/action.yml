@@ -1,5 +1,10 @@
 name: Install frontend dependencies
-description: Restores node_modules that npm ci installed from the same package.json, lockfile and .npmrc on this runner and Node version, or runs npm ci
+description: Restores node_modules that npm ci installed from the same package.json, lockfile and .npmrc on this runner and Node version, or runs npm ci and saves the result
+
+inputs:
+  save-cache:
+    description: Save node_modules after npm ci, on runs outside pull requests
+    default: 'true'
 
 runs:
   using: composite
@@ -23,7 +28,7 @@ runs:
       run: npm ci
 
     - name: Save node_modules
-      if: steps.restore.outputs.cache-hit != 'true' && github.event_name != 'pull_request'
+      if: inputs.save-cache == 'true' && steps.restore.outputs.cache-hit != 'true' && github.event_name != 'pull_request'
       uses: actions/cache/save@v4
       with:
         path: node_modules
