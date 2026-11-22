@@ -19,11 +19,13 @@ import NetworksPage from './pages/NetworksPage';
 import VolumesPage from './pages/VolumesPage';
 import SettingsPage from './pages/SettingsPage';
 import { usePageAnalytics } from './hooks/use-analytics';
+import { useUnreadableConfigNotice } from './hooks/use-unreadable-config-notice';
 import EngineErrorGate from './components/ui/engine-error';
 function AppContent() {
   const { loading } = useThemeContext();
 
   usePageAnalytics('app_started');
+  useUnreadableConfigNotice(!loading);
 
   if (loading) {
     return <LoadingScreen />;

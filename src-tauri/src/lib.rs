@@ -11,13 +11,13 @@ use crate::handlers::{
     check_homebrew_availability, container_logs, create_container, create_network, delete_image,
     engine_status, fetch_image_tag, fetch_image_tags, force_remove_container,
     get_binary_install_plan, get_colima_vm, get_config, get_connected_engine, get_docker_info,
-    get_engine_state, get_language, get_theme, inspect_volume, install_colima_command,
-    is_colima_supported, list_containers, list_images, list_networks, list_volumes, open_terminal,
-    open_url, pause_container, prune_containers, prune_images, prune_volumes, pull_image,
-    remove_container, remove_network, remove_volume, restart_app, restart_container,
-    search_docker_hub, start_colima_vm_command, start_container, start_engine_state_monitoring,
-    stop_colima_vm_command, stop_container, unpause_container, update_language,
-    update_last_update_check, update_sidebar_collapsed, update_startup_settings,
+    get_engine_state, get_language, get_theme, get_unreadable_config_backup, inspect_volume,
+    install_colima_command, is_colima_supported, list_containers, list_images, list_networks,
+    list_volumes, open_terminal, open_url, pause_container, prune_containers, prune_images,
+    prune_volumes, pull_image, remove_container, remove_network, remove_volume, restart_app,
+    restart_container, search_docker_hub, start_colima_vm_command, start_container,
+    start_engine_state_monitoring, stop_colima_vm_command, stop_container, unpause_container,
+    update_language, update_last_update_check, update_sidebar_collapsed, update_startup_settings,
     update_telemetry_settings, update_theme, use_colima_docker_context_command,
 };
 use crate::sentry::flush_sentry;
@@ -128,6 +128,7 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
             get_config,
+            get_unreadable_config_backup,
             get_theme,
             update_theme,
             get_language,
