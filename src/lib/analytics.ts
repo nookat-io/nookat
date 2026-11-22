@@ -22,10 +22,18 @@ function isNewPageView(pageName: string): boolean {
   return true;
 }
 
+async function userAllowsUsageData(): Promise<boolean> {
+  try {
+    return await ConfigService.getInstance().isAnalyticsEnabled();
+  } catch {
+    return false;
+  }
+}
+
 async function isAnalyticsEnabled(): Promise<boolean> {
-  const userAllowsUsageData =
-    await ConfigService.getInstance().isAnalyticsEnabled();
-  return Boolean(ANALYTICS_CONFIG.APTABASE_APP_KEY) && userAllowsUsageData;
+  return (
+    Boolean(ANALYTICS_CONFIG.APTABASE_APP_KEY) && (await userAllowsUsageData())
+  );
 }
 
 export const useAnalytics = () => {

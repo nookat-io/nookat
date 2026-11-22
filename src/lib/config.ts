@@ -8,22 +8,6 @@ import {
   Language,
 } from '../types/config';
 
-const fallbackConfig = (): AppConfig => ({
-  theme: Theme.System,
-  language: Language.English,
-  telemetry: {
-    send_anonymous_usage_data: false,
-    error_reporting: false,
-  },
-  startup: {
-    start_on_system_startup: false,
-    minimize_to_tray: true,
-    check_for_updates: false,
-    auto_update_settings: false,
-  },
-  sidebar_collapsed: false,
-});
-
 const setOsAutostart = (enabled: boolean) => (enabled ? enable() : disable());
 
 export class ConfigService {
@@ -79,9 +63,8 @@ export class ConfigService {
       return config;
     } catch (error) {
       console.error('ConfigService: Failed to load config:', error);
-      const fallback = fallbackConfig();
-      this.finishLoading(fallback);
-      return fallback;
+      this.pendingLoad = null;
+      throw error;
     }
   }
 

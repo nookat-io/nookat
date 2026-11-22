@@ -30,14 +30,18 @@ const savedConfig: AppConfig = {
 };
 
 async function renderGeneralSettings({
+  readConfig,
   saveTelemetry = async () => null,
-}: { saveTelemetry?: () => Promise<null> } = {}) {
+}: {
+  readConfig?: () => Promise<AppConfig>;
+  saveTelemetry?: () => Promise<null>;
+} = {}) {
   let config = savedConfig;
   const telemetryUpdates: TelemetrySettings[] = [];
   mockIPC(async (cmd, args) => {
     switch (cmd) {
       case 'get_config':
-        return config;
+        return readConfig ? readConfig() : config;
       case 'update_telemetry_settings': {
         await saveTelemetry();
         const { settings } = args as { settings: TelemetrySettings };
@@ -128,5 +132,23 @@ describe('GeneralSettings', () => {
     expect(
       screen.getByRole('switch', { name: 'Crash reporting' })
     ).toBeEnabled();
+  });
+
+  it('shows why the settings could not be loaded instead of default values', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    await renderGeneralSettings({
+      readConfig: () =>
+        Promise.reject(
+          'Failed to read config: Permission denied (os error 13)'
+        ),
+    });
+
+    expect(
+      await screen.findByText(
+        'Failed to load settings: Failed to read config: Permission denied (os error 13)'
+      )
+    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument();
+    expect(screen.queryByRole('switch')).not.toBeInTheDocument();
   });
 });
