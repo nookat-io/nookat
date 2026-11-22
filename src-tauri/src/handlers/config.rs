@@ -11,6 +11,12 @@ pub async fn get_config() -> Result<AppConfig, String> {
 
 #[tauri::command]
 #[instrument(skip_all, err)]
+pub async fn get_unreadable_config_backup() -> Result<Option<String>, String> {
+    Ok(ConfigService::unreadable_config_backup().map(|backup| backup.display().to_string()))
+}
+
+#[tauri::command]
+#[instrument(skip_all, err)]
 pub async fn update_theme(theme: String) -> Result<(), String> {
     let theme = match theme.as_str() {
         "light" => Theme::Light,
