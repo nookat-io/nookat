@@ -1,5 +1,5 @@
 use crate::entities::{AppConfig, Language, StartupSettings, TelemetrySettings, Theme};
-use crate::sentry::stop_error_reporting;
+use crate::sentry::set_error_reporting;
 use crate::services::{ConfigService, UpdaterService};
 use tracing::{debug, instrument};
 
@@ -46,9 +46,7 @@ pub async fn update_telemetry_settings(settings: TelemetrySettings) -> Result<()
         config.telemetry = settings;
     })?;
 
-    if !error_reporting {
-        stop_error_reporting();
-    }
+    set_error_reporting(error_reporting);
     Ok(())
 }
 
