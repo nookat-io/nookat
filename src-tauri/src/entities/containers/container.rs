@@ -86,7 +86,7 @@ impl From<bollard::models::ContainerSummaryStateEnum> for ContainerState {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub struct Container {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub id: Option<String>,

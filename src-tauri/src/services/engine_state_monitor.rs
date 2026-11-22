@@ -275,19 +275,10 @@ impl EngineStateMonitor {
     }
 
     fn has_state_changed(old_state: &EngineState, new_state: &EngineState) -> bool {
-        let container_added_or_changed_state =
-            new_state.containers.iter().any(|(id, new_container)| {
-                old_state
-                    .containers
-                    .get(id)
-                    .is_none_or(|old_container| old_container.state != new_container.state)
-            });
-
-        old_state.containers.len() != new_state.containers.len()
-            || container_added_or_changed_state
-            || old_state.images.len() != new_state.images.len()
-            || old_state.volumes.len() != new_state.volumes.len()
-            || old_state.networks.len() != new_state.networks.len()
+        old_state.containers != new_state.containers
+            || old_state.images != new_state.images
+            || old_state.volumes != new_state.volumes
+            || old_state.networks != new_state.networks
             || old_state.engine_status != new_state.engine_status
     }
 
@@ -364,8 +355,13 @@ mod tests {
     use super::{
         containers_by_id, follow_events_until_the_stream_breaks, keyed_by, EngineStateMonitor,
     };
-    use crate::entities::{Container, EngineInfo, EngineState, EngineStatus};
-    use bollard::models::{ContainerSummary, ContainerSummaryStateEnum as ContainerState};
+    use crate::entities::{
+        Container, EngineInfo, EngineState, EngineStatus, Image, Network, Volume,
+    };
+    use bollard::models::{
+        ContainerSummary, ContainerSummaryStateEnum as ContainerState, VolumeUsageData,
+    };
+    use chrono::{Duration as ChronoDuration, Utc};
     use std::collections::HashMap;
     use std::time::Duration;
 
@@ -455,6 +451,122 @@ mod tests {
             &snapshot,
             &snapshot.clone()
         ));
+    }
+
+    fn named_container(name: &str) -> Container {
+        Container::from(ContainerSummary {
+            id: Some("a".to_string()),
+            names: Some(vec![name.to_string()]),
+            state: Some(ContainerState::RUNNING),
+            ..Default::default()
+        })
+    }
+
+    fn image(id: &str) -> Image {
+        Image {
+            id: id.to_string(),
+            repository: None,
+            tag: None,
+            image_id: id.to_string(),
+            created: 0,
+            size: 0,
+            in_use: false,
+            dangling: false,
+        }
+    }
+
+    fn network_with_attached_containers(count: i64) -> Network {
+        Network::from_summary(
+            bollard::models::Network {
+                name: Some("net".into()),
+                ..Default::default()
+            },
+            count,
+        )
+    }
+
+    fn volume_with_ref_count(ref_count: i64) -> Volume {
+        Volume::from(bollard::models::Volume {
+            name: "vol".into(),
+            usage_data: Some(VolumeUsageData { size: 0, ref_count }),
+            ..Default::default()
+        })
+    }
+
+    #[test]
+    fn a_renamed_container_is_a_change() {
+        let before = EngineState {
+            containers: HashMap::from([("a".to_string(), named_container("/a"))]),
+            ..EngineState::default()
+        };
+        let after = EngineState {
+            containers: HashMap::from([("a".to_string(), named_container("/b"))]),
+            ..EngineState::default()
+        };
+
+        assert!(EngineStateMonitor::has_state_changed(&before, &after));
+    }
+
+    #[test]
+    fn an_image_replaced_by_another_is_a_change_even_when_the_count_holds() {
+        let before = EngineState {
+            images: HashMap::from([("sha256:a".to_string(), image("sha256:a"))]),
+            ..EngineState::default()
+        };
+        let after = EngineState {
+            images: HashMap::from([("sha256:b".to_string(), image("sha256:b"))]),
+            ..EngineState::default()
+        };
+
+        assert!(EngineStateMonitor::has_state_changed(&before, &after));
+    }
+
+    #[test]
+    fn a_network_gaining_a_container_is_a_change() {
+        let before = EngineState {
+            networks: HashMap::from([("net".to_string(), network_with_attached_containers(0))]),
+            ..EngineState::default()
+        };
+        let after = EngineState {
+            networks: HashMap::from([("net".to_string(), network_with_attached_containers(1))]),
+            ..EngineState::default()
+        };
+
+        assert!(EngineStateMonitor::has_state_changed(&before, &after));
+    }
+
+    #[test]
+    fn a_volume_whose_usage_changes_is_a_change() {
+        let before = EngineState {
+            volumes: HashMap::from([("vol".to_string(), volume_with_ref_count(0))]),
+            ..EngineState::default()
+        };
+        let after = EngineState {
+            volumes: HashMap::from([("vol".to_string(), volume_with_ref_count(1))]),
+            ..EngineState::default()
+        };
+
+        assert!(EngineStateMonitor::has_state_changed(&before, &after));
+    }
+
+    #[test]
+    fn a_new_snapshot_with_the_same_content_is_not_a_change() {
+        let before = EngineState {
+            containers: HashMap::from([("a".to_string(), named_container("/a"))]),
+            images: HashMap::from([("sha256:a".to_string(), image("sha256:a"))]),
+            volumes: HashMap::from([("vol".to_string(), volume_with_ref_count(1))]),
+            networks: HashMap::from([("net".to_string(), network_with_attached_containers(1))]),
+            engine_status: EngineStatus::Running(EngineInfo::Docker),
+            version: 1,
+            last_updated: Utc::now(),
+        };
+        let after = EngineState {
+            version: 2,
+            last_updated: before.last_updated + ChronoDuration::seconds(5),
+            ..before.clone()
+        };
+
+        assert!(!EngineStateMonitor::has_state_changed(&before, &after));
     }
 
     #[test]
