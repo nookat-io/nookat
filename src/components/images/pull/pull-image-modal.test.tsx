@@ -226,6 +226,149 @@ describe('PullImage', () => {
     ]);
   });
 
+  it.each(['https://ghcr.io', 'ghcr.io/', ' HTTPS://ghcr.io// '])(
+    'pulls a registry typed with a scheme or a trailing slash from its host: %j',
+    async registry => {
+      const { pulls } = mockDockerHub([NGINX]);
+      const user = await choosePullSource({ registry, image: 'nginx' });
+
+      await pullOnceTheTagIsChecked(user);
+
+      expect(pulls).toEqual([
+        { imageName: 'nginx', tag: 'latest', registry: 'ghcr.io' },
+      ]);
+    }
+  );
+
+  it('asks before pulling from a lookalike registry typed with a trailing slash', async () => {
+    const { pulls } = mockDockerHub([NGINX]);
+    const user = await choosePullSource({
+      registry: 'ghrc.io/',
+      image: 'nginx',
+    });
+
+    expect(
+      screen.getByText(
+        'ghrc.io looks like ghcr.io (GitHub Container Registry), but it is a different registry. Check the spelling before you pull.'
+      )
+    ).toBeInTheDocument();
+
+    await pullOnceTheTagIsChecked(user);
+
+    expect(lookalikeConfirmation('Pull from ghrc.io?')).toBeInTheDocument();
+    expect(pulls).toEqual([]);
+
+    await user.click(screen.getByRole('button', { name: 'Pull anyway' }));
+
+    expect(pulls).toEqual([
+      { imageName: 'nginx', tag: 'latest', registry: 'ghrc.io' },
+    ]);
+  });
+
+  it('checks the tag on Docker Hub when docker.io is typed as a custom registry', async () => {
+    const { pulls, tagLookups } = mockDockerHub([NGINX]);
+    const user = await choosePullSource({
+      registry: 'docker.io/',
+      image: 'nginx',
+    });
+
+    expect(await screen.findByText('Tag latest')).toBeInTheDocument();
+    expect(screen.getByText('docker.io/nginx:latest')).toBeInTheDocument();
+    await pullOnceTheTagIsChecked(user);
+
+    expect(tagLookups).toContain('latest');
+    expect(pulls).toEqual([
+      { imageName: 'nginx', tag: 'latest', registry: 'docker.io' },
+    ]);
+  });
+
+  it('refuses a registry that Docker would read as a Docker Hub namespace', async () => {
+    const { pulls } = mockDockerHub([NGINX]);
+    const user = await choosePullSource({
+      registry: 'myregistry',
+      image: 'nginx',
+    });
+
+    await pullOnceTheTagIsChecked(user);
+
+    expect(
+      await screen.findByText(
+        'myregistry is not a registry address, so Docker would pull from Docker Hub. Add its domain or port, such as myregistry:5000'
+      )
+    ).toBeInTheDocument();
+    expect(pulls).toEqual([]);
+  });
+
+  it('refuses a reference Docker cannot parse', async () => {
+    const { pulls } = mockDockerHub([NGINX]);
+    const user = await choosePullSource({
+      registry: 'ghcr.io:abc',
+      image: 'nginx',
+    });
+
+    await pullOnceTheTagIsChecked(user);
+
+    expect(
+      await screen.findByText(
+        'ghcr.io:abc/nginx:latest is not a valid image reference'
+      )
+    ).toBeInTheDocument();
+    expect(pulls).toEqual([]);
+  });
+
+  it('refuses to pull while the registry address is empty', async () => {
+    const { pulls } = mockDockerHub([NGINX]);
+    const user = userEvent.setup();
+    render(<PullImage />);
+    await user.click(screen.getByRole('button', { name: 'Pull Image' }));
+    screen.getByRole('combobox', { name: 'Registry' }).focus();
+    await user.keyboard('{Enter}');
+    await user.click(
+      await screen.findByRole('option', { name: 'Add new registry' })
+    );
+    await user.type(screen.getByLabelText('Image Name'), 'nginx');
+    await user.click(await screen.findByText('nginx', { selector: 'span' }));
+
+    await pullOnceTheTagIsChecked(user);
+
+    expect(
+      await screen.findByText('Registry address is required')
+    ).toBeInTheDocument();
+    expect(pulls).toEqual([]);
+  });
+
+  it('refuses to pull when Add new registry is chosen after the image with no address', async () => {
+    const { pulls } = mockDockerHub([NGINX]);
+    const user = await choosePullSource({ image: 'nginx' });
+    screen.getByRole('combobox', { name: 'Registry' }).focus();
+    await user.keyboard('{Enter}');
+    await user.click(
+      await screen.findByRole('option', { name: 'Add new registry' })
+    );
+
+    await pullOnceTheTagIsChecked(user);
+
+    expect(
+      await screen.findByText('Registry address is required')
+    ).toBeInTheDocument();
+    expect(pulls).toEqual([]);
+  });
+
+  it.each(['https://', 'HTTP://', '//'])(
+    'refuses to pull while the registry address %s has no host',
+    async registry => {
+      const { pulls } = mockDockerHub([NGINX]);
+      const user = await choosePullSource({ registry, image: 'nginx' });
+
+      await pullOnceTheTagIsChecked(user);
+
+      expect(
+        await screen.findByText('Registry address is required')
+      ).toBeInTheDocument();
+      expect(pulls).toEqual([]);
+    }
+  );
+
   it('asks before pulling an image named like a popular official image', async () => {
     const { pulls } = mockDockerHub([searchResult('ubunti', false)]);
     const user = await choosePullSource({ image: 'ubunti' });

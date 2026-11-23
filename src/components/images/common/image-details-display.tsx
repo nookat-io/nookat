@@ -2,7 +2,7 @@ import { Crown, Zap, Star, Download } from 'lucide-react';
 import { DockerHubImage, DockerHubTag } from '../../../types/docker-images';
 import { checkImageReference } from '../../../lib/image-source';
 import { formatBytes } from '../../../utils/format';
-import { formatNumber, pullReference } from './utils';
+import { formatNumber, normalizePullData, pullReference } from './utils';
 import { PullFormData, TagStatus } from './types';
 import { ImageSourceNote } from '../../common/image-source-warnings';
 
@@ -58,9 +58,10 @@ export function ImageDetailsDisplay({
   tagStatus,
   onClear,
 }: ImageDetailsDisplayProps) {
-  const reference = pullData.tag
-    ? `${pullData.registry}/${pullData.imageName}:${pullData.tag}`
-    : `${pullData.registry}/${pullData.imageName}`;
+  const { registry, imageName, tag } = normalizePullData(pullData);
+  const reference = tag
+    ? `${registry}/${imageName}:${tag}`
+    : `${registry}/${imageName}`;
 
   return (
     <div className="mt-4 p-4 bg-card text-card-foreground border border-border rounded-md">

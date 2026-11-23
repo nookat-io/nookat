@@ -9,6 +9,7 @@ export {
 export {
   DOCKER_HUB,
   OFFICIAL_NAMESPACE,
+  normalizeRegistry,
   parseImageReference,
   parseRegistryHost,
   type ImageReference,

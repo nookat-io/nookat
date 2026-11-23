@@ -32,6 +32,19 @@ function splitOnce(text: string, separator: string, from = 0) {
     : { before: text.slice(0, index), after: text.slice(index + 1) };
 }
 
+const SCHEME = /^https?:\/\//i;
+const TRAILING_SLASHES = /\/+$/;
+
+export function normalizeRegistry(registry: string): string {
+  const address = registry
+    .trim()
+    .replace(SCHEME, '')
+    .replace(TRAILING_SLASHES, '');
+  const { before: host, after: path } = splitOnce(address, '/');
+  const registryHost = host === LEGACY_DOCKER_HUB ? DOCKER_HUB : host;
+  return path === undefined ? registryHost : `${registryHost}/${path}`;
+}
+
 function looksLikeRegistry(component: string) {
   return (
     component.includes('.') ||
