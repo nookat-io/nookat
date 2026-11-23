@@ -27,6 +27,7 @@ export function ContainerRow({
       <TableCell className={isNested ? 'pl-8' : ''}>
         <Checkbox
           checked={isSelected}
+          aria-label={`Select ${formatContainerName(container)}`}
           onCheckedChange={checked => {
             const isChecked = checked === true;
             onSelectionChange(container.id, isChecked);
