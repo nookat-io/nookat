@@ -13,96 +13,17 @@ on:
   schedule:
     - cron: '17 * * * *'
   workflow_dispatch:
-    inputs:
-      sdk_probe:
-        description: Send one Agent SDK request instead of running the engineer, to see which credits pay for it
-        type: boolean
-        default: false
 
 permissions:
   contents: read
 
 concurrency:
   group: >-
-    ${{ (github.actor == 'dependabot[bot]' || github.event_name == 'pull_request_review' || inputs.sdk_probe) &&
+    ${{ (github.actor == 'dependabot[bot]' || github.event_name == 'pull_request_review') &&
     format('factory-engineer-side-{0}', github.run_id) || 'factory-engineer' }}
   cancel-in-progress: false
 
 jobs:
-  sdk-probe:
-    name: Agent SDK billing probe
-    if: github.event_name == 'workflow_dispatch' && inputs.sdk_probe
-    runs-on: ubuntu-24.04
-    timeout-minutes: 10
-    permissions:
-      contents: read
-      id-token: write
-
-    steps:
-      - name: Setup Python
-        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
-        with:
-          python-version: '3.13'
-
-      - name: Install Claude Code and the Agent SDK
-        run: |
-          curl -fsSL https://claude.ai/install.sh | bash -s -- 2.1.330
-          pip install claude-agent-sdk==0.2.180
-
-      - name: Fetch the GitHub identity token
-        run: |
-          token=$(curl -fsS -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
-            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=https://api.anthropic.com" | jq -r .value)
-          echo "::add-mask::$token"
-          install -m 600 /dev/null "$RUNNER_TEMP/identity-token"
-          printf '%s' "$token" > "$RUNNER_TEMP/identity-token"
-
-      - name: Send one request through the Agent SDK
-        env:
-          ANTHROPIC_FEDERATION_RULE_ID: ${{ vars.ANTHROPIC_FEDERATION_RULE_ID }}
-          ANTHROPIC_ORGANIZATION_ID: ${{ vars.ANTHROPIC_ORGANIZATION_ID }}
-          ANTHROPIC_SERVICE_ACCOUNT_ID: ${{ vars.ANTHROPIC_SERVICE_ACCOUNT_ID }}
-          ANTHROPIC_WORKSPACE_ID: ${{ vars.ANTHROPIC_WORKSPACE_ID }}
-          ANTHROPIC_IDENTITY_TOKEN_FILE: ${{ runner.temp }}/identity-token
-        shell: python
-        run: |
-          import asyncio
-          import json
-          import os
-          import sys
-
-          from claude_agent_sdk import ClaudeAgentOptions, ResultMessage, query
-
-          PROMPT = (
-              "Write a detailed technical essay of about 4000 words on how Linux namespaces "
-              "and cgroups isolate containers. Answer in plain prose."
-          )
-
-
-          async def run_probe() -> int:
-              options = ClaudeAgentOptions(
-                  model="claude-opus-5-5",
-                  tools=[],
-                  max_turns=1,
-                  cli_path=os.path.expanduser("~/.local/bin/claude"),
-              )
-              async for message in query(prompt=PROMPT, options=options):
-                  if isinstance(message, ResultMessage):
-                      print(json.dumps({
-                          "is_error": message.is_error,
-                          "subtype": message.subtype,
-                          "cost_usd": message.total_cost_usd,
-                          "turns": message.num_turns,
-                          "duration_ms": message.duration_ms,
-                          "error": message.result if message.is_error else None,
-                      }, indent=2))
-                      return 1 if message.is_error else 0
-              print("The Agent SDK returned no result message")
-              return 1
-
-
-          sys.exit(asyncio.run(run_probe()))
-
   relay:
     name: Relay the review to main
     if: >-
@@ -123,7 +44,7 @@ jobs:
     name: Dispatch
     if: >-
       vars.FACTORY_ENABLED == 'true' && github.actor != 'dependabot[bot]' &&
-      github.event_name != 'pull_request_review' && !inputs.sdk_probe
+      github.event_name != 'pull_request_review'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     outputs:
@@ -217,12 +138,6 @@ jobs:
           echo CLAUDE.md >> .git/info/exclude
           git config user.name "$BOT_NAME"
           git config user.email "$BOT_EMAIL"
-          {
-            echo "claude_args<<EOF_CLAUDE_ARGS"
-            cat "$CONTEXT/claude_args.txt"
-            echo
-            echo "EOF_CLAUDE_ARGS"
-          } >> "$GITHUB_OUTPUT"
 
       - name: Setup Python
         uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
@@ -231,6 +146,13 @@ jobs:
 
       - name: Install pre-commit
         run: pip install pre-commit
+
+      - name: Install the agent runner
+        env:
+          CONTEXT: ${{ runner.temp }}/engineer-context
+        run: |
+          python -m venv "$RUNNER_TEMP/agent-runner"
+          "$RUNNER_TEMP/agent-runner/bin/pip" install --quiet --disable-pip-version-check --require-hashes -r "$CONTEXT/runner/requirements.txt"
 
       - name: Install frontend dependencies
         uses: ./.github/actions/install-frontend
@@ -276,32 +198,32 @@ jobs:
 
       - name: Run the engineer
         id: agent
-        uses: anthropics/claude-code-action/base-action@acfe7992852970efb4fee683d63d628e3e52df67 # v1.0.286
         env:
-          NODE_VERSION: lts/*
-        with:
-          prompt_file: ${{ runner.temp }}/engineer-context/prompt.md
-          claude_args: ${{ steps.prepare.outputs.claude_args }}
-          anthropic_api_key: ${{ vars.ANTHROPIC_FEDERATION_RULE_ID == '' && secrets.ANTHROPIC_API_KEY || '' }}
-          anthropic_federation_rule_id: ${{ vars.ANTHROPIC_FEDERATION_RULE_ID }}
-          anthropic_organization_id: ${{ vars.ANTHROPIC_ORGANIZATION_ID }}
-          anthropic_service_account_id: ${{ vars.ANTHROPIC_SERVICE_ACCOUNT_ID }}
-          anthropic_workspace_id: ${{ vars.ANTHROPIC_WORKSPACE_ID }}
+          CONTEXT: ${{ runner.temp }}/engineer-context
+          ANTHROPIC_API_KEY: ${{ vars.ANTHROPIC_FEDERATION_RULE_ID == '' && secrets.ANTHROPIC_API_KEY || '' }}
+          ANTHROPIC_FEDERATION_RULE_ID: ${{ vars.ANTHROPIC_FEDERATION_RULE_ID }}
+          ANTHROPIC_ORGANIZATION_ID: ${{ vars.ANTHROPIC_ORGANIZATION_ID }}
+          ANTHROPIC_SERVICE_ACCOUNT_ID: ${{ vars.ANTHROPIC_SERVICE_ACCOUNT_ID }}
+          ANTHROPIC_WORKSPACE_ID: ${{ vars.ANTHROPIC_WORKSPACE_ID }}
+        run: >-
+          "$RUNNER_TEMP/agent-runner/bin/python" -I "$CONTEXT/runner/run_agent.py"
+          --context "$CONTEXT"
+          --result "$RUNNER_TEMP/engineer-result/result.json"
+          --summary "$RUNNER_TEMP/agent-summary.json"
 
       - name: Record the cost
         if: always() && steps.prepare.outcome == 'success'
         env:
-          EXECUTION_FILE: ${{ steps.agent.outputs.execution_file }}
+          SUMMARY: ${{ runner.temp }}/agent-summary.json
         run: |
           mkdir -p "$RUNNER_TEMP/cost"
           summary='{}'
-          if [[ -n "$EXECUTION_FILE" && -f "$EXECUTION_FILE" ]]; then
-            summary=$(jq -sc 'if length == 1 and (.[0] | type) == "array" then .[0] else . end
-              | map(select(type == "object" and .type == "result")) | last // {}' "$EXECUTION_FILE")
+          if [[ -f "$SUMMARY" ]]; then
+            summary=$(cat "$SUMMARY")
           fi
           jq -n --argjson s "$summary" --arg mode "$MODE" --arg issue "$ISSUE" --arg run "$GITHUB_RUN_ID" \
             '{role: "engineer", mode: $mode, issue: ($issue | tonumber), run_id: $run,
-              cost_usd: ($s.total_cost_usd // 0), turns: ($s.num_turns // null),
+              cost_usd: ($s.cost_usd // 0), turns: ($s.turns // null),
               duration_ms: ($s.duration_ms // null), subtype: ($s.subtype // null)}' \
             > "$RUNNER_TEMP/cost/cost.json"
           cat "$RUNNER_TEMP/cost/cost.json"
@@ -318,10 +240,7 @@ jobs:
         if: steps.agent.outcome == 'success'
         env:
           RESULT: ${{ runner.temp }}/engineer-result
-          STRUCTURED: ${{ steps.agent.outputs.structured_output }}
         run: |
-          mkdir -p "$RESULT"
-          printf '%s' "$STRUCTURED" > "$RESULT/result.json"
           if ! jq -e '.status == "done"' "$RESULT/result.json" > /dev/null; then
             exit 0
           fi
