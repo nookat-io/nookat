@@ -19,6 +19,7 @@ import {
 
 const AUTOMATIC_CHECK_RETRY_MS = 60 * 60 * 1000;
 const AUTOMATIC_CHECK_INTERVAL_MS = 24 * AUTOMATIC_CHECK_RETRY_MS;
+const AUTOMATIC_CHECK_EVALUATION_MS = 60 * 1000;
 
 type CheckOutcomesToAnnounce = 'every-outcome' | 'available-update-only';
 
@@ -196,20 +197,37 @@ export function UpdaterProvider({ children }: { children: React.ReactNode }) {
     }
   }, [currentUpdate, updateInstance]);
 
-  useEffect(() => {
-    const checkIfDue = () => {
-      const now = Date.now();
-      if (!isAutomaticCheckDue(config, lastAutomaticAttemptAt.current, now)) {
-        return;
-      }
-      lastAutomaticAttemptAt.current = now;
-      runCheck('available-update-only');
-    };
+  const latestConfig = useRef(config);
+  const latestRunCheck = useRef(runCheck);
 
-    checkIfDue();
-    const interval = setInterval(checkIfDue, AUTOMATIC_CHECK_RETRY_MS);
+  const runAutomaticCheckIfDue = useCallback(() => {
+    const now = Date.now();
+    if (
+      !isAutomaticCheckDue(
+        latestConfig.current,
+        lastAutomaticAttemptAt.current,
+        now
+      )
+    ) {
+      return;
+    }
+    lastAutomaticAttemptAt.current = now;
+    latestRunCheck.current('available-update-only');
+  }, []);
+
+  useEffect(() => {
+    latestConfig.current = config;
+    latestRunCheck.current = runCheck;
+    runAutomaticCheckIfDue();
+  }, [config, runCheck, runAutomaticCheckIfDue]);
+
+  useEffect(() => {
+    const interval = setInterval(
+      runAutomaticCheckIfDue,
+      AUTOMATIC_CHECK_EVALUATION_MS
+    );
     return () => clearInterval(interval);
-  }, [config, runCheck]);
+  }, [runAutomaticCheckIfDue]);
 
   return (
     <UpdaterContext.Provider

@@ -60,6 +60,8 @@ function mockBackend(lastUpdateCheck: string | undefined) {
           },
         };
         return null;
+      case 'update_sidebar_collapsed':
+        return null;
       case 'plugin:autostart|is_enabled':
         return false;
       default:
@@ -78,6 +80,7 @@ async function renderProvider({ reactStrictMode = false } = {}) {
   vi.resetModules();
   const { UpdaterProvider } = await import('./updater-provider');
   const { useUpdater } = await import('../hooks/use-updater');
+  const { ConfigService } = await import('./config');
 
   function FoundUpdate() {
     const { currentUpdate } = useUpdater();
@@ -91,6 +94,11 @@ async function renderProvider({ reactStrictMode = false } = {}) {
     { reactStrictMode }
   );
   await settle();
+
+  return {
+    collapseSidebar: () =>
+      act(() => ConfigService.getInstance().updateSidebarCollapsed(true)),
+  };
 }
 
 describe('UpdaterProvider', () => {
@@ -194,6 +202,38 @@ describe('UpdaterProvider', () => {
     expect(updater.check).toHaveBeenCalledTimes(2);
     expect(toast.error).not.toHaveBeenCalled();
     expect(lastCheckRecords).toHaveBeenCalledTimes(1);
+  });
+
+  it('retries a failed automatic check an hour after the failure when the config changes in between', async () => {
+    updater.check
+      .mockRejectedValueOnce(new Error('offline'))
+      .mockResolvedValueOnce(null);
+    mockBackend(hoursAgo(25));
+
+    const { collapseSidebar } = await renderProvider();
+    expect(updater.check).toHaveBeenCalledTimes(1);
+
+    await passHours(59 / 60);
+    await collapseSidebar();
+    expect(updater.check).toHaveBeenCalledTimes(1);
+
+    await passHours(1 / 60);
+    expect(updater.check).toHaveBeenCalledTimes(2);
+  });
+
+  it('checks again a day after its successful check when the config changes in between', async () => {
+    updater.check.mockResolvedValue(null);
+    mockBackend(hoursAgo(25));
+
+    const { collapseSidebar } = await renderProvider();
+    expect(updater.check).toHaveBeenCalledTimes(1);
+
+    await passHours(23.5);
+    await collapseSidebar();
+    expect(updater.check).toHaveBeenCalledTimes(1);
+
+    await passHours(0.5);
+    expect(updater.check).toHaveBeenCalledTimes(2);
   });
 
   it('does not check on its own when automatic checks are off', async () => {
