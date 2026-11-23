@@ -23,6 +23,7 @@ function renderTable(containers: Container[], selected: string[] = []) {
       selectedContainers={selected}
       onSelectionChange={onSelectionChange}
       containers={containers}
+      emptyState={null}
     />
   );
   return { ...view, onSelectionChange };
@@ -44,6 +45,7 @@ function SelectableTable({
         setSelected(ids);
       }}
       containers={containers}
+      emptyState={null}
     />
   );
 }
@@ -310,6 +312,7 @@ describe('ContainersTable', () => {
         selectedContainers={['web-id', 'db-id']}
         onSelectionChange={onSelectionChange}
         containers={[web]}
+        emptyState={null}
       />
     );
 
@@ -340,10 +343,12 @@ describe('ContainersTable', () => {
         onSelectionChange={() => {}}
         containers={[]}
         isLoading
+        emptyState="No containers yet"
       />
     );
 
     expect(screen.getByText('Loading containers...')).toBeInTheDocument();
+    expect(screen.queryByText('No containers yet')).not.toBeInTheDocument();
 
     rerender(
       <ContainersTable
@@ -352,10 +357,12 @@ describe('ContainersTable', () => {
         containers={[]}
         error="Cannot reach the engine"
         onRetry={onRetry}
+        emptyState="No containers yet"
       />
     );
 
     expect(screen.getByText('Cannot reach the engine')).toBeInTheDocument();
+    expect(screen.queryByText('No containers yet')).not.toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Retry' }));
     expect(onRetry).toHaveBeenCalledTimes(1);
   });

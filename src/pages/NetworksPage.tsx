@@ -9,7 +9,10 @@ import { usePageAnalytics } from '../hooks/use-analytics';
 import {
   NetworkFilter,
   networkFilter,
+  networkFilterPhrases,
 } from '../components/networks/network-filter';
+import { Network } from 'lucide-react';
+import { ListEmptyState, UiName } from '../components/common/list-empty-state';
 
 export default function NetworksPage() {
   usePageAnalytics('networks');
@@ -21,6 +24,7 @@ export default function NetworksPage() {
     setFilter,
     searchTerm,
     setSearchTerm,
+    showAll,
   } = usePageState<NetworkFilter>('all');
 
   const { engineState, isLoading, error } = useEngineState();
@@ -59,6 +63,23 @@ export default function NetworksPage() {
           isLoading={isLoading}
           error={error}
           onRetry={() => window.location.reload()}
+          emptyState={
+            <ListEmptyState
+              hasItems={networks.length > 0}
+              icon={Network}
+              nothingExistsTitle="No networks"
+              nothingExistsDescription={
+                <>
+                  Create one with <UiName>Create Network</UiName>.
+                </>
+              }
+              filterPhrases={networkFilterPhrases}
+              filter={filter}
+              searchTerm={searchTerm}
+              showAllLabel="Show all networks"
+              onShowAll={showAll}
+            />
+          }
         />
       }
     />

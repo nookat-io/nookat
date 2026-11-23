@@ -55,6 +55,7 @@ describe('network deletion errors', () => {
         selectedNetworks={[]}
         onSelectionChange={() => {}}
         networks={[backendNetwork]}
+        emptyState={null}
       />
     );
 
@@ -74,6 +75,7 @@ describe('network deletion errors', () => {
         selectedNetworks={[]}
         onSelectionChange={() => {}}
         networks={[{ ...backendNetwork, in_use: true }]}
+        emptyState={null}
       />
     );
 
@@ -96,6 +98,7 @@ describe('network deletion errors', () => {
         selectedNetworks={[]}
         onSelectionChange={onSelectionChange}
         networks={[backendNetwork]}
+        emptyState={null}
       />
     );
 

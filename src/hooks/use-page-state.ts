@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 
 export type FilterType =
   | 'all'
@@ -17,6 +17,7 @@ export interface PageState<T extends FilterType = FilterType> {
   setFilter: (filter: T) => void;
   searchTerm: string;
   setSearchTerm: (searchTerm: string) => void;
+  showAll: () => void;
 }
 
 export function usePageState<T extends FilterType = FilterType>(
@@ -26,7 +27,13 @@ export function usePageState<T extends FilterType = FilterType>(
   const [filter, setFilter] = useState<T>(defaultFilter);
   const [searchTerm, setSearchTerm] = useState('');
 
+  const showAll = useCallback(() => {
+    setFilter(defaultFilter);
+    setSearchTerm('');
+  }, [defaultFilter]);
+
   return {
+    showAll,
     selected,
     setSelected,
     filter,

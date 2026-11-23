@@ -9,7 +9,10 @@ import { usePageAnalytics } from '../hooks/use-analytics';
 import {
   VolumeFilter,
   volumeFilter,
+  volumeFilterPhrases,
 } from '../components/volumes/volume-filter';
+import { HardDrive } from 'lucide-react';
+import { Command, ListEmptyState } from '../components/common/list-empty-state';
 
 export default function VolumesPage() {
   usePageAnalytics('volumes');
@@ -21,6 +24,7 @@ export default function VolumesPage() {
     setFilter,
     searchTerm,
     setSearchTerm,
+    showAll,
   } = usePageState<VolumeFilter>('all');
 
   const { engineState, isLoading, error } = useEngineState();
@@ -54,6 +58,24 @@ export default function VolumesPage() {
           isLoading={isLoading}
           error={error}
           onRetry={() => window.location.reload()}
+          emptyState={
+            <ListEmptyState
+              hasItems={volumes.length > 0}
+              icon={HardDrive}
+              nothingExistsTitle="No volumes yet"
+              nothingExistsDescription={
+                <>
+                  Volumes show up here once a container mounts one, or when you
+                  create one with <Command>docker volume create</Command>.
+                </>
+              }
+              filterPhrases={volumeFilterPhrases}
+              filter={filter}
+              searchTerm={searchTerm}
+              showAllLabel="Show all volumes"
+              onShowAll={showAll}
+            />
+          }
         />
       }
     />

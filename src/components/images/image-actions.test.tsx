@@ -114,6 +114,7 @@ describe('image actions', () => {
         onSelectionChange={() => {}}
         images={[webImage]}
         onImagesDeleted={onImagesDeleted}
+        emptyState={null}
       />
     );
 
@@ -161,6 +162,7 @@ describe('image actions', () => {
         images={[localAlpine]}
         allImages={[alpine, localAlpine]}
         onImagesDeleted={onImagesDeleted}
+        emptyState={null}
       />
     );
 

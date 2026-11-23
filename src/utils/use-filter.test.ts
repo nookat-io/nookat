@@ -1,6 +1,7 @@
 import { renderHook } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import { FilterConfig, useFilter } from './use-filter';
+import { containerFilterPhrases } from '../components/containers/container-filter';
+import { FilterConfig, noMatchesTitle, useFilter } from './use-filter';
 
 interface Item {
   id: string;
@@ -55,5 +56,19 @@ describe('useFilter', () => {
 
   it('keeps only the items that match both the search and the filter', () => {
     expect(filterIds('running', 'nginx')).toEqual(['web']);
+  });
+});
+
+describe('noMatchesTitle', () => {
+  it('names the filter and the search that hide every item', () => {
+    expect(noMatchesTitle(containerFilterPhrases, 'running', '')).toBe(
+      'No running containers'
+    );
+    expect(noMatchesTitle(containerFilterPhrases, 'running', 'web')).toBe(
+      'No running containers match "web"'
+    );
+    expect(noMatchesTitle(containerFilterPhrases, 'all', 'web')).toBe(
+      'No containers match "web"'
+    );
   });
 });

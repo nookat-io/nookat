@@ -7,7 +7,13 @@ import { useFilter } from '../utils/use-filter';
 import { PageLayout } from '../components/layout/page-layout';
 import { usePageAnalytics } from '../hooks/use-analytics';
 import { useEffect, useMemo, useCallback } from 'react';
-import { ImageFilter, imageFilter } from '../components/images/image-filter';
+import {
+  ImageFilter,
+  imageFilter,
+  imageFilterPhrases,
+} from '../components/images/image-filter';
+import { Layers } from 'lucide-react';
+import { ListEmptyState, UiName } from '../components/common/list-empty-state';
 
 export default function ImagesPage() {
   usePageAnalytics('images');
@@ -19,6 +25,7 @@ export default function ImagesPage() {
     setFilter,
     searchTerm,
     setSearchTerm,
+    showAll,
   } = usePageState<ImageFilter>('all');
 
   const { engineState, isLoading, error, removeImage } = useEngineState();
@@ -73,6 +80,24 @@ export default function ImagesPage() {
               isLoading={isLoading}
               error={error}
               onRetry={() => window.location.reload()}
+              emptyState={
+                <ListEmptyState
+                  hasItems={images.length > 0}
+                  icon={Layers}
+                  nothingExistsTitle="No images yet"
+                  nothingExistsDescription={
+                    <>
+                      Pull one with <UiName>Pull Image</UiName>. Images you pull
+                      or build from a terminal show up here too.
+                    </>
+                  }
+                  filterPhrases={imageFilterPhrases}
+                  filter={filter}
+                  searchTerm={searchTerm}
+                  showAllLabel="Show all images"
+                  onShowAll={showAll}
+                />
+              }
             />
           </div>
         }
