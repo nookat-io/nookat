@@ -17,7 +17,7 @@ export type StopStep = 'idle' | 'stopping-vm' | 'complete' | 'error';
 export interface InstallationProgress {
   step: string;
   message: string;
-  percentage: number;
+  percentage: number | null;
   logs: string[];
 }
 

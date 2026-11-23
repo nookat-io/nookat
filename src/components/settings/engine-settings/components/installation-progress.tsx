@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import { Button } from '../../../ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../../../ui/card';
 import { Progress } from '../../../ui/progress';
@@ -34,6 +35,16 @@ export function InstallationProgress({
   onRetry,
   className = '',
 }: InstallationProgressProps) {
+  const logs = progress.logs ?? [];
+  const logBox = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const box = logBox.current;
+    if (box) {
+      box.scrollTop = box.scrollHeight;
+    }
+  }, [progress.logs]);
+
   const isActive =
     step === 'installing' ||
     step === 'starting-vm' ||
@@ -58,7 +69,7 @@ export function InstallationProgress({
     return 'text-blue-600 dark:text-blue-400';
   };
 
-  const logs = progress.logs ?? [];
+  const hasPercentage = typeof progress.percentage === 'number';
 
   return (
     <Card className={className}>
@@ -68,7 +79,7 @@ export function InstallationProgress({
           <span className={getStepColor()}>
             {progress.step || 'Processing...'}
           </span>
-          {isActive && (
+          {isActive && hasPercentage && (
             <Badge variant="secondary" className="ml-auto">
               {progress.percentage}%
             </Badge>
@@ -105,7 +116,11 @@ export function InstallationProgress({
         {logs.length > 0 && (
           <div className="space-y-2">
             <h4 className="text-sm font-medium text-muted-foreground">Logs</h4>
-            <div className="bg-muted/50 rounded-md p-3 max-h-32 overflow-y-auto">
+            <div
+              ref={logBox}
+              role="log"
+              className="bg-muted/50 rounded-md p-3 max-h-32 overflow-y-auto"
+            >
               <div className="space-y-1">
                 {logs.map((log, index) => (
                   <div

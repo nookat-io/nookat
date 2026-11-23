@@ -1,5 +1,6 @@
 use super::{
-    docker_exec_args, endpoints_with_the_current_context_first, DOCKER_CONTEXT_LIST_FORMAT,
+    docker_exec_args, endpoints_with_the_current_context_first, forward_output_lines,
+    DOCKER_CONTEXT_LIST_FORMAT,
 };
 use crate::entities::{ColimaHost, ColimaProfileStatus};
 use crate::services::binary_install::{bin_dir, engine_prefix};
@@ -10,7 +11,7 @@ use std::borrow::Cow;
 use std::ffi::OsStr;
 use std::path::PathBuf;
 use tauri::AppHandle;
-use tauri_plugin_shell::process::Output;
+use tauri_plugin_shell::process::{Command, Output};
 use tauri_plugin_shell::ShellExt;
 use tracing::{debug, instrument};
 
@@ -44,6 +45,35 @@ where
     I: IntoIterator<Item = S>,
     S: AsRef<OsStr>,
 {
+    login_shell_command(app, program, args).output().await
+}
+
+async fn stream_in_login_shell<I, S>(
+    app: &AppHandle,
+    program: &str,
+    args: I,
+    mut on_line: impl FnMut(&str),
+) -> Result<(), String>
+where
+    I: IntoIterator<Item = S>,
+    S: AsRef<OsStr>,
+{
+    let (events, _child) = login_shell_command(app, program, args)
+        .spawn()
+        .map_err(|e| e.to_string())?;
+
+    forward_output_lines(events, |line| {
+        debug!("{}: {}", program, line);
+        on_line(line);
+    })
+    .await
+}
+
+fn login_shell_command<I, S>(app: &AppHandle, program: &str, args: I) -> Command
+where
+    I: IntoIterator<Item = S>,
+    S: AsRef<OsStr>,
+{
     let command = app
         .shell()
         .command("zsh")
@@ -59,8 +89,6 @@ where
         Some(engine_bin) => command.env(ENGINE_BIN_ENV_VAR, engine_bin),
         None => command,
     }
-    .output()
-    .await
 }
 
 #[instrument(skip_all, err)]
@@ -207,27 +235,18 @@ pub async fn is_colima_available(app: &AppHandle) -> Result<bool, String> {
 }
 
 #[instrument(skip_all, err)]
-pub async fn install_packages_via_homebrew(
+pub async fn install_package_via_homebrew(
     app: &AppHandle,
-    packages: &[&str],
+    package: &str,
+    on_line: impl FnMut(&str),
 ) -> Result<(), String> {
-    debug!("Installing packages via Homebrew: {:?}", packages);
+    debug!("Installing {} via Homebrew", package);
 
-    for package in packages {
-        debug!("Installing package: {}", package);
+    stream_in_login_shell(app, "brew", ["install", package], on_line)
+        .await
+        .map_err(|stderr| format!("Failed to install {}: {}", package, stderr))?;
 
-        let output = run_in_login_shell(app, "brew", ["install", package])
-            .await
-            .map_err(|e| format!("Failed to execute brew install {}: {}", package, e))?;
-
-        if !output.status.success() {
-            let stderr = String::from_utf8_lossy(&output.stderr);
-            return Err(format!("Failed to install {}: {}", package, stderr));
-        }
-
-        debug!("Successfully installed package: {}", package);
-    }
-
+    debug!("Successfully installed package: {}", package);
     Ok(())
 }
 
@@ -313,17 +332,16 @@ pub async fn stop_colima(app: &AppHandle, profile: &str) -> Result<(), String> {
 }
 
 #[instrument(skip_all, err)]
-pub async fn start_colima(app: &AppHandle, args: &[String]) -> Result<(), String> {
+pub async fn start_colima(
+    app: &AppHandle,
+    args: &[String],
+    on_line: impl FnMut(&str),
+) -> Result<(), String> {
     debug!("Executing: colima {:?}", args);
 
-    let output = run_in_login_shell(app, "colima", args)
+    stream_in_login_shell(app, "colima", args, on_line)
         .await
-        .map_err(|e| format!("Failed to start Colima: {}", e))?;
-
-    if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        return Err(format!("Failed to start Colima: {}", stderr));
-    }
+        .map_err(|stderr| format!("Failed to start Colima: {}", stderr))?;
 
     debug!("Colima started successfully");
     Ok(())

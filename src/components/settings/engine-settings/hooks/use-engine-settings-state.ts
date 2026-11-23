@@ -426,7 +426,7 @@ export function useEngineSettingsState(): [
     setInstallationProgress({
       step: 'Starting installation...',
       message: 'Preparing to install Colima',
-      percentage: 0,
+      percentage: null,
       logs: ['[INFO] Starting Colima installation...'],
     });
 
@@ -447,7 +447,7 @@ export function useEngineSettingsState(): [
     setInstallationProgress({
       step: 'Starting Engine...',
       message: 'Initializing Colima virtual machine',
-      percentage: 0,
+      percentage: null,
       logs: ['[INFO] Starting Colima engine...'],
     });
 

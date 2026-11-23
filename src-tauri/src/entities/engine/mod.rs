@@ -65,7 +65,7 @@ pub enum InstallationMethod {
 pub struct InstallationProgress {
     pub step: String,
     pub message: String,
-    pub percentage: u8,
+    pub percentage: Option<u8>,
     pub logs: Vec<String>,
 }
 
