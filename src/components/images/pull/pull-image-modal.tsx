@@ -263,7 +263,10 @@ export function PullImage() {
       return;
     }
 
-    if (registryState.showCustomRegistry && !request.registry) {
+    const customRegistryIsBlank =
+      registryState.showCustomRegistry &&
+      !normalizeRegistry(registryState.customRegistry);
+    if (customRegistryIsBlank) {
       setError('Registry address is required');
       return;
     }

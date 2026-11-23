@@ -337,6 +337,23 @@ describe('PullImage', () => {
     expect(pulls).toEqual([]);
   });
 
+  it('refuses to pull when Add new registry is chosen after the image with no address', async () => {
+    const { pulls } = mockDockerHub([NGINX]);
+    const user = await choosePullSource({ image: 'nginx' });
+    screen.getByRole('combobox', { name: 'Registry' }).focus();
+    await user.keyboard('{Enter}');
+    await user.click(
+      await screen.findByRole('option', { name: 'Add new registry' })
+    );
+
+    await pullOnceTheTagIsChecked(user);
+
+    expect(
+      await screen.findByText('Registry address is required')
+    ).toBeInTheDocument();
+    expect(pulls).toEqual([]);
+  });
+
   it.each(['https://', 'HTTP://', '//'])(
     'refuses to pull while the registry address %s has no host',
     async registry => {
