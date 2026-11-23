@@ -33,7 +33,7 @@ const network = (name: string) => ({
   name,
   driver: 'bridge',
   scope: 'local',
-  containers: 0,
+  in_use: false,
   internal: false,
   ipam: {},
 });

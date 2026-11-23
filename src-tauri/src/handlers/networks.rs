@@ -1,4 +1,4 @@
-use crate::entities::{Network, NetworkCreateOptions};
+use crate::entities::{BulkOutcome, Network, NetworkCreateOptions};
 use crate::services::NetworksService;
 use crate::state::SharedEngineState;
 use tauri::State;
@@ -45,10 +45,10 @@ pub async fn remove_network(
 pub async fn bulk_remove_networks(
     state: State<'_, SharedEngineState>,
     names: Vec<String>,
-) -> Result<(), String> {
+) -> Result<BulkOutcome, String> {
     debug!("Removing {} networks", names.len());
 
     let engine = state.get_engine().await?;
     let docker = engine.docker.as_ref().ok_or("Docker not found")?;
-    NetworksService::bulk_remove_networks(docker, &names).await
+    Ok(NetworksService::bulk_remove_networks(docker, &names).await)
 }

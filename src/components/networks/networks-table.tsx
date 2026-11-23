@@ -14,6 +14,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuTrigger,
 } from '../ui/dropdown-menu';
 import { formatDistanceToNow } from 'date-fns';
@@ -61,17 +62,17 @@ export function NetworksTable({
   const handleSelectAll = (checked: boolean) => {
     const selectableNetworks = sortedNetworks.filter(n => !isSystemNetwork(n));
     if (checked) {
-      onSelectionChange(selectableNetworks.map(n => n.id));
+      onSelectionChange(selectableNetworks.map(n => n.name));
     } else {
       onSelectionChange([]);
     }
   };
 
-  const handleSelectNetwork = (networkId: string, checked: boolean) => {
+  const handleSelectNetwork = (networkName: string, checked: boolean) => {
     if (checked) {
-      onSelectionChange([...selectedNetworks, networkId]);
+      onSelectionChange([...selectedNetworks, networkName]);
     } else {
-      onSelectionChange(selectedNetworks.filter(id => id !== networkId));
+      onSelectionChange(selectedNetworks.filter(name => name !== networkName));
     }
   };
 
@@ -139,9 +140,9 @@ export function NetworksTable({
           <TableCell>
             {!isSystem && (
               <Checkbox
-                checked={selectedNetworks.includes(network.id)}
+                checked={selectedNetworks.includes(network.name)}
                 onCheckedChange={checked =>
-                  handleSelectNetwork(network.id, checked as boolean)
+                  handleSelectNetwork(network.name, checked as boolean)
                 }
               />
             )}
@@ -177,7 +178,7 @@ export function NetworksTable({
                 <DropdownMenuItem
                   className="text-destructive"
                   disabled={
-                    network.containers > 0 || deletingNetworks.has(network.name)
+                    network.in_use || deletingNetworks.has(network.name)
                   }
                   onClick={() => handleDeleteNetwork(network.name)}
                 >
@@ -186,6 +187,14 @@ export function NetworksTable({
                     ? 'Deleting...'
                     : 'Delete'}
                 </DropdownMenuItem>
+                {network.in_use && (
+                  <DropdownMenuLabel
+                    inset
+                    className="pt-0 text-xs font-normal text-muted-foreground"
+                  >
+                    In use by a running container
+                  </DropdownMenuLabel>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
           </TableCell>

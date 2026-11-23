@@ -475,13 +475,13 @@ mod tests {
         }
     }
 
-    fn network_with_attached_containers(count: i64) -> Network {
+    fn network(in_use: bool) -> Network {
         Network::from_summary(
             bollard::models::Network {
                 name: Some("net".into()),
                 ..Default::default()
             },
-            count,
+            in_use,
         )
     }
 
@@ -522,13 +522,13 @@ mod tests {
     }
 
     #[test]
-    fn a_network_gaining_a_container_is_a_change() {
+    fn a_network_coming_into_use_is_a_change() {
         let before = EngineState {
-            networks: HashMap::from([("net".to_string(), network_with_attached_containers(0))]),
+            networks: HashMap::from([("net".to_string(), network(false))]),
             ..EngineState::default()
         };
         let after = EngineState {
-            networks: HashMap::from([("net".to_string(), network_with_attached_containers(1))]),
+            networks: HashMap::from([("net".to_string(), network(true))]),
             ..EngineState::default()
         };
 
@@ -555,7 +555,7 @@ mod tests {
             containers: HashMap::from([("a".to_string(), named_container("/a"))]),
             images: HashMap::from([("sha256:a".to_string(), image("sha256:a"))]),
             volumes: HashMap::from([("vol".to_string(), volume_with_ref_count(1))]),
-            networks: HashMap::from([("net".to_string(), network_with_attached_containers(1))]),
+            networks: HashMap::from([("net".to_string(), network(true))]),
             engine_status: EngineStatus::Running(EngineInfo::Docker),
             version: 1,
             last_updated: Utc::now(),

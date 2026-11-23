@@ -1,12 +1,13 @@
 mod create_request;
 
 use super::docker_error::docker_message;
-use crate::entities::{Network, NetworkCreateOptions};
+use super::run_for_each_concurrently;
+use crate::entities::{BulkOutcome, Network, NetworkCreateOptions};
 use bollard::models::Network as BollardNetwork;
-use bollard::query_parameters::{ListContainersOptions, ListNetworksOptions};
+use bollard::query_parameters::ListNetworksOptions;
 use bollard::Docker;
 use create_request::{network_create_request, MAX_NETWORK_NAME_LENGTH};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use tracing::instrument;
 
 const SYSTEM_NETWORKS: [&str; 3] = ["bridge", "host", "none"];
@@ -17,55 +18,35 @@ pub struct NetworksService {}
 impl NetworksService {
     #[instrument(skip_all, err)]
     pub async fn get_networks(docker: &Docker) -> Result<Vec<Network>, String> {
-        let options = ListNetworksOptions::default();
-
-        let bollard_networks: Vec<BollardNetwork> = docker
-            .list_networks(Some(options))
-            .await
-            .map_err(|e| format!("Failed to list networks: {}", e))?;
-
-        let attached_counts = Self::count_attached_containers(docker).await?;
-
-        Ok(bollard_networks
-            .into_iter()
-            .map(|network| {
-                let attached = network
-                    .name
-                    .as_deref()
-                    .and_then(|name| attached_counts.get(name).copied())
-                    .unwrap_or(0);
-                Network::from_summary(network, attached)
-            })
-            .collect())
-    }
-
-    #[instrument(skip_all, err)]
-    async fn count_attached_containers(docker: &Docker) -> Result<HashMap<String, i64>, String> {
-        let running_and_stopped_containers = ListContainersOptions {
-            all: true,
-            ..Default::default()
+        let not_dangling = ListNetworksOptions {
+            filters: Some(HashMap::from([(
+                "dangling".to_string(),
+                vec!["false".to_string()],
+            )])),
         };
 
-        let containers = docker
-            .list_containers(Some(running_and_stopped_containers))
-            .await
-            .map_err(|e| format!("Failed to list containers: {}", e))?;
+        let (all_networks, networks_in_use): (Vec<BollardNetwork>, Vec<BollardNetwork>) =
+            tokio::try_join!(
+                docker.list_networks(Some(ListNetworksOptions::default())),
+                docker.list_networks(Some(not_dangling)),
+            )
+            .map_err(|e| format!("Failed to list networks: {}", docker_message(&e)))?;
 
-        let mut counts: HashMap<String, i64> = HashMap::new();
-        for container in containers {
-            let Some(networks) = container
-                .network_settings
-                .and_then(|settings| settings.networks)
-            else {
-                continue;
-            };
+        let ids_in_use: HashSet<String> = networks_in_use
+            .into_iter()
+            .filter_map(|network| network.id)
+            .collect();
 
-            for network_name in networks.into_keys() {
-                *counts.entry(network_name).or_insert(0) += 1;
-            }
-        }
-
-        Ok(counts)
+        Ok(all_networks
+            .into_iter()
+            .map(|network| {
+                let in_use = network
+                    .id
+                    .as_ref()
+                    .is_some_and(|id| ids_in_use.contains(id));
+                Network::from_summary(network, in_use)
+            })
+            .collect())
     }
 
     #[instrument(skip_all, err)]
@@ -94,33 +75,14 @@ impl NetworksService {
         docker
             .remove_network(name)
             .await
-            .map_err(|e| format!("Failed to remove network {}: {}", name, e))?;
+            .map_err(|e| format!("Failed to remove network {}: {}", name, docker_message(&e)))?;
 
         Ok(())
     }
 
-    #[instrument(skip_all, err)]
-    pub async fn bulk_remove_networks(docker: &Docker, names: &[String]) -> Result<(), String> {
-        let mut errors: Vec<String> = names
-            .iter()
-            .filter_map(|name| ensure_removable(name).err())
-            .collect();
-
-        if !errors.is_empty() {
-            return Err(errors.join("; "));
-        }
-
-        for name in names {
-            if let Err(e) = docker.remove_network(name).await {
-                errors.push(format!("Failed to remove network {}: {}", name, e));
-            }
-        }
-
-        if errors.is_empty() {
-            Ok(())
-        } else {
-            Err(errors.join("; "))
-        }
+    #[instrument(skip_all)]
+    pub async fn bulk_remove_networks(docker: &Docker, names: &[String]) -> BulkOutcome {
+        run_for_each_concurrently(names, |name| Self::remove_network(docker, name)).await
     }
 }
 
@@ -190,6 +152,112 @@ mod tests {
     fn blank_and_overlong_names_are_rejected() {
         assert!(ensure_removable("  ").is_err());
         assert!(ensure_removable(&"n".repeat(129)).is_err());
+    }
+
+    #[cfg(unix)]
+    mod against_a_fake_daemon {
+        use super::super::NetworksService;
+        use crate::services::fake_docker_daemon::{http_response, request_lines, serve_daemon};
+        use bollard::Docker;
+        use std::path::Path;
+
+        fn connect(socket: &Path) -> Docker {
+            Docker::connect_with_unix(socket.to_str().unwrap(), 5, bollard::API_DEFAULT_VERSION)
+                .unwrap()
+        }
+
+        fn first_line(request: &str) -> &str {
+            request.lines().next().unwrap_or_default()
+        }
+
+        #[tokio::test]
+        async fn a_network_is_in_use_when_the_daemon_lists_it_as_not_dangling() {
+            let dir = tempfile::tempdir().unwrap();
+            let socket = dir.path().join("docker.sock");
+            let requests = serve_daemon(&socket, |request| {
+                let line = first_line(request);
+                if line.starts_with("GET /networks") && line.contains("dangling") {
+                    http_response(
+                        "200 OK",
+                        "application/json",
+                        r#"[{"Id":"b1","Name":"busy"}]"#,
+                    )
+                } else if line.starts_with("GET /networks") {
+                    http_response(
+                        "200 OK",
+                        "application/json",
+                        r#"[{"Id":"b1","Name":"busy"},{"Id":"i1","Name":"idle"}]"#,
+                    )
+                } else {
+                    http_response("200 OK", "application/json", "[]")
+                }
+            });
+            let docker = connect(&socket);
+
+            let networks = NetworksService::get_networks(&docker).await.unwrap();
+
+            let in_use: Vec<(&str, bool)> = networks
+                .iter()
+                .map(|network| (network.name.as_str(), network.in_use))
+                .collect();
+            assert_eq!(in_use, [("busy", true), ("idle", false)]);
+            let lines = request_lines(&requests);
+            assert!(
+                !lines.iter().any(|line| line.contains("/containers/json")),
+                "{lines:?}"
+            );
+        }
+
+        #[tokio::test]
+        async fn bulk_remove_tries_every_network_and_reports_the_ones_refused() {
+            let dir = tempfile::tempdir().unwrap();
+            let socket = dir.path().join("docker.sock");
+            let requests = serve_daemon(&socket, |request| {
+                if first_line(request).starts_with("DELETE /networks/busy ") {
+                    http_response(
+                        "403 Forbidden",
+                        "application/json",
+                        r#"{"message":"error while removing network: network busy has active endpoints (name:\"web\" id:\"0a1b2c3d4e5f\")"}"#,
+                    )
+                } else {
+                    http_response("204 No Content", "text/plain", "")
+                }
+            });
+            let docker = connect(&socket);
+            let names = ["free", "busy", "bridge", "other"].map(String::from);
+
+            let outcome = NetworksService::bulk_remove_networks(&docker, &names).await;
+
+            assert_eq!(outcome.succeeded, ["free", "other"]);
+            let failures: Vec<(&str, &str)> = outcome
+                .failed
+                .iter()
+                .map(|failure| (failure.id.as_str(), failure.error.as_str()))
+                .collect();
+            assert_eq!(
+                failures,
+                [
+                    (
+                        "busy",
+                        r#"Failed to remove network busy: error while removing network: network busy has active endpoints (name:"web" id:"0a1b2c3d4e5f")"#
+                    ),
+                    ("bridge", "Cannot remove system network: bridge"),
+                ]
+            );
+            let lines = request_lines(&requests);
+            assert!(
+                lines
+                    .iter()
+                    .any(|line| line.starts_with("DELETE /networks/other")),
+                "{lines:?}"
+            );
+            assert!(
+                !lines
+                    .iter()
+                    .any(|line| line.starts_with("DELETE /networks/bridge")),
+                "{lines:?}"
+            );
+        }
     }
 
     #[tokio::test]

@@ -16,7 +16,7 @@ export interface Network {
   created?: string;
   subnet?: string;
   gateway?: string;
-  containers: number;
+  in_use: boolean;
   internal: boolean;
   ipam: Ipam;
   labels?: Record<string, string>;
