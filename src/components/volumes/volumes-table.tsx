@@ -17,7 +17,7 @@ import {
 } from '../ui/dropdown-menu';
 import { Volume, VolumeScope } from './volume-types';
 import { VolumeActionService } from './volume-actions-service';
-import { useState } from 'react';
+import { ReactNode, useState } from 'react';
 import { LoadingSpinner } from '../ui/loading-spinner';
 import { ErrorDisplay } from '../ui/error-display';
 import { SortableTableHeader } from '../ui/sortable-table-header';
@@ -39,6 +39,7 @@ interface VolumesTableProps {
   isLoading?: boolean;
   error?: string | null;
   onRetry?: () => void;
+  emptyState: ReactNode;
 }
 
 export function VolumesTable({
@@ -48,6 +49,7 @@ export function VolumesTable({
   isLoading = false,
   error = null,
   onRetry,
+  emptyState,
 }: VolumesTableProps) {
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
 
@@ -112,7 +114,11 @@ export function VolumesTable({
     }
 
     if (sortedVolumes.length === 0) {
-      return <></>;
+      return (
+        <TableRow className="hover:bg-transparent">
+          <TableCell colSpan={6}>{emptyState}</TableCell>
+        </TableRow>
+      );
     }
 
     return sortedVolumes.map(volume => (
@@ -176,6 +182,7 @@ export function VolumesTable({
                 <Checkbox
                   checked={isAllSelected}
                   onCheckedChange={handleSelectAll}
+                  disabled={totalVolumes === 0}
                 />
               </TableHead>
               <SortableTableHeader

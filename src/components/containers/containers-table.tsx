@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, ReactNode } from 'react';
 import {
   Table,
   TableBody,
@@ -25,6 +25,7 @@ interface ContainersTableProps {
   isLoading?: boolean;
   error?: string | null;
   onRetry?: () => void;
+  emptyState: ReactNode;
 }
 
 export function ContainersTable({
@@ -34,6 +35,7 @@ export function ContainersTable({
   isLoading = false,
   error = null,
   onRetry,
+  emptyState,
 }: ContainersTableProps) {
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   const [selectedContainerForLogs, setSelectedContainerForLogs] =
@@ -126,6 +128,14 @@ export function ContainersTable({
       );
     }
 
+    if (allContainers.length === 0) {
+      return (
+        <TableRow className="hover:bg-transparent">
+          <TableCell colSpan={7}>{emptyState}</TableCell>
+        </TableRow>
+      );
+    }
+
     return (
       <>
         {groupedContainers.map(group => (
@@ -167,6 +177,7 @@ export function ContainersTable({
                     allContainers.length > 0
                   }
                   onCheckedChange={value => handleSelectAll(value === true)}
+                  disabled={allContainers.length === 0}
                   aria-label="Select all containers"
                 />
               </TableHead>

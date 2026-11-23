@@ -21,7 +21,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { Network, isSystemNetwork } from './network-types';
 import { removeNetwork } from './network-actions-service';
 import { toast } from 'sonner';
-import { useState } from 'react';
+import { ReactNode, useState } from 'react';
 import { LoadingSpinner } from '../ui/loading-spinner';
 import { ErrorDisplay } from '../ui/error-display';
 import { SortableTableHeader } from '../ui/sortable-table-header';
@@ -35,6 +35,7 @@ interface NetworksTableProps {
   isLoading?: boolean;
   error?: string | null;
   onRetry?: () => void;
+  emptyState: ReactNode;
 }
 
 export function NetworksTable({
@@ -44,6 +45,7 @@ export function NetworksTable({
   isLoading = false,
   error = null,
   onRetry,
+  emptyState,
 }: NetworksTableProps) {
   const networksArray = networks || [];
   const [deletingNetworks, setDeletingNetworks] = useState<Set<string>>(
@@ -59,8 +61,9 @@ export function NetworksTable({
     'asc'
   );
 
+  const selectableNetworks = sortedNetworks.filter(n => !isSystemNetwork(n));
+
   const handleSelectAll = (checked: boolean) => {
-    const selectableNetworks = sortedNetworks.filter(n => !isSystemNetwork(n));
     if (checked) {
       onSelectionChange(selectableNetworks.map(n => n.name));
     } else {
@@ -119,7 +122,11 @@ export function NetworksTable({
     }
 
     if (sortedNetworks.length === 0) {
-      return <></>;
+      return (
+        <TableRow className="hover:bg-transparent">
+          <TableCell colSpan={8}>{emptyState}</TableCell>
+        </TableRow>
+      );
     }
 
     return sortedNetworks.map(network => {
@@ -213,10 +220,10 @@ export function NetworksTable({
                 <Checkbox
                   checked={
                     selectedNetworks.length > 0 &&
-                    selectedNetworks.length ===
-                      sortedNetworks.filter(n => !isSystemNetwork(n)).length
+                    selectedNetworks.length === selectableNetworks.length
                   }
                   onCheckedChange={value => handleSelectAll(value === true)}
+                  disabled={selectableNetworks.length === 0}
                 />
               </TableHead>
               <SortableTableHeader

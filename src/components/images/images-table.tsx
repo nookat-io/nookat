@@ -23,7 +23,7 @@ import { LoadingSpinner } from '../ui/loading-spinner';
 import { ErrorDisplay } from '../ui/error-display';
 import { SortableTableHeader } from '../ui/sortable-table-header';
 import { useTableSort } from '../../hooks/use-table-sort';
-import { useState } from 'react';
+import { ReactNode, useState } from 'react';
 import { ImageActionService } from './image-actions-service';
 import {
   Dialog,
@@ -43,6 +43,7 @@ interface ImagesTableProps {
   isLoading?: boolean;
   error?: string | null;
   onRetry?: () => void;
+  emptyState: ReactNode;
 }
 
 const imageName = (image: Image) =>
@@ -57,6 +58,7 @@ export function ImagesTable({
   isLoading = false,
   error = null,
   onRetry,
+  emptyState,
 }: ImagesTableProps) {
   const { sortedData: sortedImages, handleSort } = useTableSort(
     images,
@@ -144,7 +146,11 @@ export function ImagesTable({
     }
 
     if (sortedImages.length === 0) {
-      return <></>;
+      return (
+        <TableRow className="hover:bg-transparent">
+          <TableCell colSpan={7}>{emptyState}</TableCell>
+        </TableRow>
+      );
     }
 
     return sortedImages.map(image => (
@@ -224,6 +230,7 @@ export function ImagesTable({
                       sortedImages.length > 0
                     }
                     onCheckedChange={value => handleSelectAll(value === true)}
+                    disabled={sortedImages.length === 0}
                   />
                 </TableHead>
                 <SortableTableHeader

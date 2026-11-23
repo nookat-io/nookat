@@ -5,6 +5,15 @@ export interface FilterConfig<T, F extends string> {
   matches: Record<Exclude<F, 'all'>, (item: T) => boolean>;
 }
 
+export function noMatchesTitle<F extends string>(
+  filterPhrases: Record<F, string>,
+  filter: F,
+  searchTerm: string
+): string {
+  const title = `No ${filterPhrases[filter]}`;
+  return searchTerm === '' ? title : `${title} match "${searchTerm}"`;
+}
+
 export function useFilter<T, F extends string>(
   data: T[],
   filter: F,

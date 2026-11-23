@@ -9,7 +9,14 @@ import { usePageAnalytics } from '../hooks/use-analytics';
 import {
   ContainerFilter,
   containerFilter,
+  containerFilterPhrases,
 } from '../components/containers/container-filter';
+import { Container } from 'lucide-react';
+import {
+  Command,
+  ListEmptyState,
+  UiName,
+} from '../components/common/list-empty-state';
 
 export default function ContainersPage() {
   usePageAnalytics('containers');
@@ -21,6 +28,7 @@ export default function ContainersPage() {
     setFilter,
     searchTerm,
     setSearchTerm,
+    showAll,
   } = usePageState<ContainerFilter>('all');
 
   const { engineState, isLoading, error } = useEngineState();
@@ -59,6 +67,25 @@ export default function ContainersPage() {
           isLoading={isLoading}
           error={error}
           onRetry={() => window.location.reload()}
+          emptyState={
+            <ListEmptyState
+              hasItems={containers.length > 0}
+              icon={Container}
+              nothingExistsTitle="No containers yet"
+              nothingExistsDescription={
+                <>
+                  Create one with <UiName>Create Container</UiName>, or start
+                  one from a terminal with <Command>docker run</Command> or{' '}
+                  <Command>docker compose up</Command>.
+                </>
+              }
+              filterPhrases={containerFilterPhrases}
+              filter={filter}
+              searchTerm={searchTerm}
+              showAllLabel="Show all containers"
+              onShowAll={showAll}
+            />
+          }
         />
       }
     />
