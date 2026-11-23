@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   DOCKER_HUB,
+  normalizeRegistry,
   parseImageReference,
   parseRegistryHost,
 } from './image-reference';
@@ -105,5 +106,22 @@ describe('parseRegistryHost', () => {
     'host:abc',
   ])('rejects %j', text => {
     expect(parseRegistryHost(text)).toBeNull();
+  });
+});
+
+describe('normalizeRegistry', () => {
+  it.each([
+    ['https://ghcr.io', 'ghcr.io'],
+    ['ghcr.io/', 'ghcr.io'],
+    [' HTTPS://ghcr.io// ', 'ghcr.io'],
+    ['http://ghcr.io', 'ghcr.io'],
+    ['http://localhost:5000/', 'localhost:5000'],
+    ['index.docker.io', 'docker.io'],
+    ['docker.io/', 'docker.io'],
+    ['index.docker.io/team', 'docker.io/team'],
+    ['ghcr.io/myorg/', 'ghcr.io/myorg'],
+    ['Registry', 'Registry'],
+  ])('turns %j into %j', (registry, normalized) => {
+    expect(normalizeRegistry(registry)).toBe(normalized);
   });
 });

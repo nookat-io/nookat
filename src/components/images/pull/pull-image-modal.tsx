@@ -35,13 +35,15 @@ import {
   LookalikeCheck,
   checkImageReference,
   needsConfirmation,
+  normalizeRegistry,
 } from '../../../lib/image-source';
 import {
   DEFAULT_PROGRESS_STATE,
   DEFAULT_TAG,
   canPullWithTag,
+  normalizePullData,
   pullReference,
-  trimPullData,
+  pullReferenceProblem,
 } from '../common/utils';
 import { PullFormData, TagMessage, TagStatus } from '../common/types';
 import { createTagLookup } from '../common/tag-lookup';
@@ -130,7 +132,7 @@ export function PullImage() {
         : registryState.selectedRegistry;
       updatePullData({ imageName: image.name, tag: '', registry });
 
-      if (registry.trim() !== DOCKER_HUB) {
+      if (normalizeRegistry(registry) !== DOCKER_HUB) {
         setDefaultTagCheck(null);
         chooseTagIfBlank(image.name, DEFAULT_TAG);
         return;
@@ -172,7 +174,7 @@ export function PullImage() {
     lookupTag,
     pullData.imageName,
     pullData.tag,
-    pullData.registry.trim() === DOCKER_HUB
+    normalizeRegistry(pullData.registry) === DOCKER_HUB
   );
   const defaultTagCheckOfThisImage =
     !pullData.tag && defaultTagCheck?.imageName === pullData.imageName
@@ -244,7 +246,7 @@ export function PullImage() {
   };
 
   const handlePull = () => {
-    const request = trimPullData(pullData);
+    const request = normalizePullData(pullData);
     setAttemptedReference(pullReference(request));
     if (!request.imageName) {
       setError('Image name is required');
@@ -258,6 +260,20 @@ export function PullImage() {
 
     if (hasSpaceOrTab(request.registry)) {
       setError('Registry cannot contain spaces or tabs');
+      return;
+    }
+
+    const customRegistryIsBlank =
+      registryState.showCustomRegistry &&
+      !normalizeRegistry(registryState.customRegistry);
+    if (customRegistryIsBlank) {
+      setError('Registry address is required');
+      return;
+    }
+
+    const referenceProblem = pullReferenceProblem(request);
+    if (referenceProblem) {
+      setError(referenceProblem);
       return;
     }
 
