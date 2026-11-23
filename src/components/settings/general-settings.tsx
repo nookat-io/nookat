@@ -39,7 +39,6 @@ export function GeneralSettings() {
     updateTelemetrySettings,
     updateStartupSettings,
     updateLanguage,
-    updateLastUpdateCheck,
   } = useConfig();
   const {
     isChecking,
@@ -51,7 +50,7 @@ export function GeneralSettings() {
     isDownloading,
     isInstalling,
     progress,
-  } = useUpdater(config || undefined, updateLastUpdateCheck);
+  } = useUpdater();
   const [saving, setSaving] = useState(false);
 
   const currentVersion = import.meta.env.VITE_APP_VERSION || 'unknown';
