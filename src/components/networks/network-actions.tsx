@@ -1,9 +1,7 @@
 import { Button } from '../ui/button';
 import { Trash2 } from 'lucide-react';
 import { bulkRemoveNetworks } from './network-actions-service';
-import { toast } from 'sonner';
 import { useState } from 'react';
-import { errorMessage } from '../../utils/error-message';
 import { NetworkCreateDialog } from './network-create-dialog';
 
 interface NetworkActionsProps {
@@ -24,14 +22,10 @@ export function NetworkActions({
 
     setIsDeleting(true);
     try {
-      await bulkRemoveNetworks(selectedNetworks);
-      toast.success(
-        `Successfully deleted ${selectedNetworks.length} network(s)`
+      const deletedNames = await bulkRemoveNetworks(selectedNetworks);
+      onSelectionChange?.(
+        selectedNetworks.filter(name => !deletedNames.includes(name))
       );
-      onSelectionChange?.([]);
-    } catch (error) {
-      console.error('Failed to delete networks:', error);
-      toast.error(errorMessage(error, 'Failed to delete networks'));
     } finally {
       setIsDeleting(false);
     }

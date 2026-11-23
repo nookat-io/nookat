@@ -10,7 +10,7 @@ pub struct Network {
     pub created: Option<String>,
     pub subnet: Option<String>,
     pub gateway: Option<String>,
-    pub containers: i64,
+    pub in_use: bool,
     pub internal: bool,
     pub ipam: Ipam,
     pub labels: Option<HashMap<String, String>>,
@@ -77,7 +77,7 @@ pub struct NetworkCreateOptions {
 }
 
 impl Network {
-    pub fn from_summary(network: bollard::models::Network, attached_container_count: i64) -> Self {
+    pub fn from_summary(network: bollard::models::Network, in_use: bool) -> Self {
         let ipam_config = network.ipam.as_ref().and_then(|ipam| {
             ipam.config.as_ref().map(|configs| {
                 configs
@@ -103,7 +103,7 @@ impl Network {
             created: network.created,
             subnet: first_config.as_ref().and_then(|c| c.subnet.clone()),
             gateway: first_config.as_ref().and_then(|c| c.gateway.clone()),
-            containers: attached_container_count,
+            in_use,
             internal: network.internal.unwrap_or(false),
             ipam: Ipam {
                 driver: network.ipam.as_ref().and_then(|i| i.driver.clone()),
