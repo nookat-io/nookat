@@ -50,6 +50,7 @@ pub async fn forward_output_lines(
     mut on_line: impl FnMut(&str),
 ) -> Result<(), String> {
     let mut stderr_lines = Vec::new();
+    let mut read_error = None;
 
     while let Some(event) = events.recv().await {
         match event {
@@ -64,7 +65,7 @@ pub async fn forward_output_lines(
                     stderr_lines.push(line);
                 }
             }
-            CommandEvent::Error(error) => return Err(error),
+            CommandEvent::Error(error) => read_error = Some(error),
             CommandEvent::Terminated(payload) => {
                 return exit_result(payload, stderr_lines.join("\n"));
             }
@@ -72,7 +73,8 @@ pub async fn forward_output_lines(
         }
     }
 
-    Err("The command ended without reporting how it exited".to_string())
+    Err(read_error
+        .unwrap_or_else(|| "The command ended without reporting how it exited".to_string()))
 }
 
 #[cfg(any(target_os = "macos", test))]
@@ -206,7 +208,31 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn fails_when_the_command_reports_an_error() {
+    async fn keeps_reading_after_an_error_and_lets_the_exit_code_decide() {
+        let (result, lines) = forward_all(vec![
+            CommandEvent::Error("broken pipe".to_string()),
+            CommandEvent::Stdout(b"==> Pouring colima\n".to_vec()),
+            terminated(Some(0), None),
+        ])
+        .await;
+
+        assert_eq!(result, Ok(()));
+        assert_eq!(lines, ["==> Pouring colima"]);
+    }
+
+    #[tokio::test]
+    async fn fails_with_the_exit_code_when_the_command_fails_after_an_error() {
+        let (result, _) = forward_all(vec![
+            CommandEvent::Error("broken pipe".to_string()),
+            terminated(Some(1), None),
+        ])
+        .await;
+
+        assert_eq!(result, Err("The command exited with code 1".to_string()));
+    }
+
+    #[tokio::test]
+    async fn fails_with_the_error_when_the_command_ends_without_an_exit_status() {
         let (result, _) = forward_all(vec![CommandEvent::Error("broken pipe".to_string())]).await;
 
         assert_eq!(result, Err("broken pipe".to_string()));
