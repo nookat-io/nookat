@@ -337,6 +337,21 @@ describe('PullImage', () => {
     expect(pulls).toEqual([]);
   });
 
+  it.each(['https://', 'HTTP://', '//'])(
+    'refuses to pull while the registry address %s has no host',
+    async registry => {
+      const { pulls } = mockDockerHub([NGINX]);
+      const user = await choosePullSource({ registry, image: 'nginx' });
+
+      await pullOnceTheTagIsChecked(user);
+
+      expect(
+        await screen.findByText('Registry address is required')
+      ).toBeInTheDocument();
+      expect(pulls).toEqual([]);
+    }
+  );
+
   it('asks before pulling an image named like a popular official image', async () => {
     const { pulls } = mockDockerHub([searchResult('ubunti', false)]);
     const user = await choosePullSource({ image: 'ubunti' });

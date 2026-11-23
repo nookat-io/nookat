@@ -263,10 +263,7 @@ export function PullImage() {
       return;
     }
 
-    if (
-      registryState.showCustomRegistry &&
-      !registryState.customRegistry.trim()
-    ) {
+    if (registryState.showCustomRegistry && !request.registry) {
       setError('Registry address is required');
       return;
     }
