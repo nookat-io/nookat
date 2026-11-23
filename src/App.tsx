@@ -2,6 +2,7 @@ import { Routes, Route } from 'react-router-dom';
 import { Sidebar, Header } from './components/layout';
 import { Toaster } from './components/ui/sonner';
 import { ThemeProvider } from './lib/theme-provider';
+import { UpdaterProvider } from './lib/updater-provider';
 import { useThemeContext } from './hooks/use-theme-context';
 import { EngineProvider } from './lib/engine-provider';
 import { SentryProvider } from './lib/sentry-provider';
@@ -92,7 +93,9 @@ function App() {
     >
       <SentryProvider>
         <ThemeProvider>
-          <AppContent />
+          <UpdaterProvider>
+            <AppContent />
+          </UpdaterProvider>
         </ThemeProvider>
       </SentryProvider>
     </AptabaseProvider>

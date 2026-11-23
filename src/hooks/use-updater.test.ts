@@ -1,9 +1,9 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { mockIPC } from '@tauri-apps/api/mocks';
 import type { Update } from '@tauri-apps/plugin-updater';
+import { createElement, ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { AppConfig, Language, Theme } from '../types/config';
-import { useUpdater } from './use-updater';
+import { AppConfig, Language, StartupSettings, Theme } from '../types/config';
 
 const updater = vi.hoisted(() => ({ check: vi.fn() }));
 vi.mock('@tauri-apps/plugin-updater', () => updater);
@@ -15,6 +15,10 @@ const toast = vi.hoisted(() => ({
 }));
 vi.mock('sonner', () => ({ toast }));
 
+const MORE_THAN_A_DAY_AGO = new Date(
+  Date.now() - 25 * 60 * 60 * 1000
+).toISOString();
+
 function configWithAutomaticChecks(checkForUpdates: boolean): AppConfig {
   return {
     theme: Theme.Dark,
@@ -25,6 +29,7 @@ function configWithAutomaticChecks(checkForUpdates: boolean): AppConfig {
       minimize_to_tray: true,
       check_for_updates: checkForUpdates,
       auto_update_settings: false,
+      last_update_check: MORE_THAN_A_DAY_AGO,
     },
     sidebar_collapsed: false,
   };
@@ -54,32 +59,62 @@ function installableUpdate(install: () => Promise<void>): Update {
   });
 }
 
-function mockRestart(restart: () => unknown = () => null) {
+function mockBackend(
+  checksAutomatically: boolean,
+  restart: () => unknown = () => null
+) {
+  let config = configWithAutomaticChecks(checksAutomatically);
+  const lastCheckRecords = vi.fn();
   const restarts = vi.fn(restart);
-  mockIPC(cmd => {
-    if (cmd === 'restart_app') {
-      return restarts();
+  mockIPC((cmd, args) => {
+    switch (cmd) {
+      case 'get_config':
+        return config;
+      case 'update_last_update_check':
+        lastCheckRecords();
+        config = {
+          ...config,
+          startup: {
+            ...config.startup,
+            last_update_check: new Date().toISOString(),
+          },
+        };
+        return null;
+      case 'update_startup_settings': {
+        const { settings } = args as { settings: StartupSettings };
+        config = { ...config, startup: settings };
+        return null;
+      }
+      case 'plugin:autostart|is_enabled':
+        return false;
+      case 'restart_app':
+        return restarts();
+      default:
+        throw new Error(`Unexpected command ${cmd}`);
     }
-    throw new Error(`Unexpected command ${cmd}`);
   });
-  return restarts;
+  return { lastCheckRecords, restarts };
+}
+
+async function renderUpdater() {
+  vi.resetModules();
+  const { UpdaterProvider } = await import('../lib/updater-provider');
+  const { useUpdater } = await import('./use-updater');
+  const { ConfigService } = await import('../lib/config');
+  await ConfigService.getInstance().loadConfig();
+  const wrapper = ({ children }: { children: ReactNode }) =>
+    createElement(UpdaterProvider, null, children);
+  const view = renderHook(() => useUpdater(), { wrapper });
+  return { ...view, configService: ConfigService.getInstance() };
 }
 
 async function findAndInstall(update: Update) {
   updater.check.mockResolvedValueOnce(update);
-  const { result } = renderUpdater(false);
+  const { result } = await renderUpdater();
   await act(async () => result.current.checkForUpdates());
   await waitFor(() => expect(result.current.hasUpdate).toBe(true));
   await act(() => result.current.downloadAndInstall());
   return result;
-}
-
-function renderUpdater(checksAutomatically: boolean) {
-  const updateLastCheck = vi.fn(async () => {});
-  const view = renderHook(({ config }) => useUpdater(config, updateLastCheck), {
-    initialProps: { config: configWithAutomaticChecks(checksAutomatically) },
-  });
-  return { ...view, updateLastCheck };
 }
 
 describe('useUpdater', () => {
@@ -91,9 +126,18 @@ describe('useUpdater', () => {
     vi.spyOn(console, 'error').mockImplementation(() => {});
   });
 
+  it('throws outside an UpdaterProvider', async () => {
+    const { useUpdater } = await import('./use-updater');
+
+    expect(() => renderHook(() => useUpdater())).toThrow(
+      'useUpdater must be used within an UpdaterProvider'
+    );
+  });
+
   it('reports the automatic check as running until it finishes, so Check Now stays disabled meanwhile', async () => {
     const { finish } = pendingCheck();
-    const { result, updateLastCheck } = renderUpdater(true);
+    const { lastCheckRecords } = mockBackend(true);
+    const { result } = await renderUpdater();
 
     expect(updater.check).toHaveBeenCalledTimes(1);
     expect(result.current.isChecking).toBe(true);
@@ -103,12 +147,13 @@ describe('useUpdater', () => {
 
     await waitFor(() => expect(result.current.isChecking).toBe(false));
     expect(result.current.isBusy).toBe(false);
-    expect(updateLastCheck).toHaveBeenCalledTimes(1);
+    expect(lastCheckRecords).toHaveBeenCalledTimes(1);
   });
 
-  it('keeps the automatic check quiet when the app is up to date, so opening settings does not toast every time', async () => {
+  it('keeps the automatic check quiet when the app is up to date', async () => {
     updater.check.mockResolvedValueOnce(null);
-    const { result } = renderUpdater(true);
+    mockBackend(true);
+    const { result } = await renderUpdater();
 
     await waitFor(() => expect(result.current.isChecking).toBe(false));
 
@@ -119,7 +164,8 @@ describe('useUpdater', () => {
 
   it('announces an update found by the automatic check', async () => {
     updater.check.mockResolvedValueOnce(availableUpdate);
-    const { result } = renderUpdater(true);
+    mockBackend(true);
+    const { result } = await renderUpdater();
 
     await waitFor(() => expect(result.current.hasUpdate).toBe(true));
 
@@ -134,26 +180,34 @@ describe('useUpdater', () => {
 
   it('keeps a failed automatic check quiet', async () => {
     updater.check.mockRejectedValueOnce(new Error('offline'));
-    const { result } = renderUpdater(true);
+    const { lastCheckRecords } = mockBackend(true);
+    const { result } = await renderUpdater();
 
     await waitFor(() => expect(result.current.error).toBe('offline'));
 
     expect(result.current.isChecking).toBe(false);
     expect(toast.error).not.toHaveBeenCalled();
+    expect(lastCheckRecords).not.toHaveBeenCalled();
   });
 
-  it('does not check on its own when automatic checks are off', () => {
-    const { result } = renderUpdater(false);
+  it('does not check on its own when automatic checks are off', async () => {
+    mockBackend(false);
+    const { result } = await renderUpdater();
 
     expect(updater.check).not.toHaveBeenCalled();
     expect(result.current.isChecking).toBe(false);
   });
 
-  it('checks once automatic checks are switched on while settings are open', async () => {
+  it('checks once automatic checks are switched on', async () => {
     updater.check.mockResolvedValueOnce(null);
-    const { result, rerender } = renderUpdater(false);
+    mockBackend(false);
+    const { result, configService } = await renderUpdater();
 
-    rerender({ config: configWithAutomaticChecks(true) });
+    await act(() =>
+      configService.updateStartupSettings(
+        configWithAutomaticChecks(true).startup
+      )
+    );
 
     expect(updater.check).toHaveBeenCalledTimes(1);
     await waitFor(() => expect(result.current.isChecking).toBe(false));
@@ -161,7 +215,8 @@ describe('useUpdater', () => {
 
   it('shows a manual check as running and says when there is no update', async () => {
     const { finish } = pendingCheck();
-    const { result } = renderUpdater(false);
+    const { lastCheckRecords } = mockBackend(false);
+    const { result } = await renderUpdater();
 
     act(() => result.current.checkForUpdates());
 
@@ -169,11 +224,24 @@ describe('useUpdater', () => {
     await act(async () => finish(null));
     await waitFor(() => expect(result.current.isChecking).toBe(false));
     expect(toast.info).toHaveBeenCalledWith('No updates available');
+    expect(lastCheckRecords).toHaveBeenCalledTimes(1);
+  });
+
+  it('reports an update found by Check Now even when it was announced already', async () => {
+    updater.check.mockResolvedValue(availableUpdate);
+    mockBackend(true);
+    const { result } = await renderUpdater();
+    await waitFor(() => expect(result.current.hasUpdate).toBe(true));
+
+    await act(async () => result.current.checkForUpdates());
+
+    await waitFor(() => expect(toast.success).toHaveBeenCalledTimes(2));
   });
 
   it('shows the error of a failed manual check', async () => {
     const { fail } = pendingCheck();
-    const { result } = renderUpdater(false);
+    mockBackend(false);
+    const { result } = await renderUpdater();
 
     act(() => result.current.checkForUpdates());
     await act(async () => fail(new Error('offline')));
@@ -184,7 +252,7 @@ describe('useUpdater', () => {
   });
 
   it('restarts Nookat once the update is installed, so the new version runs', async () => {
-    const restarts = mockRestart();
+    const { restarts } = mockBackend(false);
     const update = installableUpdate(async () => {});
 
     await findAndInstall(update);
@@ -197,7 +265,7 @@ describe('useUpdater', () => {
   });
 
   it('asks for a manual restart when the automatic restart fails', async () => {
-    mockRestart(() => Promise.reject('restart refused'));
+    mockBackend(false, () => Promise.reject('restart refused'));
 
     await findAndInstall(installableUpdate(async () => {}));
 
@@ -207,7 +275,7 @@ describe('useUpdater', () => {
   });
 
   it('does not restart when installing the update fails', async () => {
-    const restarts = mockRestart();
+    const { restarts } = mockBackend(false);
 
     const result = await findAndInstall(
       installableUpdate(() => Promise.reject('signature mismatch'))
@@ -222,7 +290,8 @@ describe('useUpdater', () => {
     updater.check.mockRejectedValueOnce(
       'Could not fetch a valid release JSON from the remote'
     );
-    const { result } = renderUpdater(false);
+    mockBackend(false);
+    const { result } = await renderUpdater();
 
     await act(async () => result.current.checkForUpdates());
 

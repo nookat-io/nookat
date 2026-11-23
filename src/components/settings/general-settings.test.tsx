@@ -1,13 +1,24 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { mockIPC } from '@tauri-apps/api/mocks';
+import type { Update } from '@tauri-apps/plugin-updater';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   AppConfig,
   Language,
+  StartupSettings,
   TelemetrySettings,
   Theme,
 } from '../../types/config';
+
+const updater = vi.hoisted(() => ({ check: vi.fn() }));
+vi.mock('@tauri-apps/plugin-updater', () => updater);
+
+const availableUpdate = {
+  version: '1.2.3',
+  date: '2026-11-01',
+  body: 'Release notes',
+} as Update;
 
 const toast = vi.hoisted(() => ({
   success: vi.fn(),
@@ -29,19 +40,41 @@ const savedConfig: AppConfig = {
   sidebar_collapsed: false,
 };
 
+const MINUTE_MS = 60 * 1000;
+
+function minutesAgo(minutes: number) {
+  return new Date(Date.now() - minutes * MINUTE_MS).toISOString();
+}
+
 async function renderGeneralSettings({
   readConfig,
   saveTelemetry = async () => null,
+  startup = {},
 }: {
   readConfig?: () => Promise<AppConfig>;
   saveTelemetry?: () => Promise<null>;
+  startup?: Partial<StartupSettings>;
 } = {}) {
-  let config = savedConfig;
+  let config = {
+    ...savedConfig,
+    startup: { ...savedConfig.startup, ...startup },
+  };
   const telemetryUpdates: TelemetrySettings[] = [];
+  const lastCheckRecords = vi.fn();
   mockIPC(async (cmd, args) => {
     switch (cmd) {
       case 'get_config':
         return readConfig ? readConfig() : config;
+      case 'update_last_update_check':
+        lastCheckRecords();
+        config = {
+          ...config,
+          startup: {
+            ...config.startup,
+            last_update_check: new Date().toISOString(),
+          },
+        };
+        return null;
       case 'update_telemetry_settings': {
         await saveTelemetry();
         const { settings } = args as { settings: TelemetrySettings };
@@ -57,14 +90,53 @@ async function renderGeneralSettings({
   });
   vi.resetModules();
   const { GeneralSettings } = await import('./general-settings');
-  render(<GeneralSettings />);
-  return { telemetryUpdates };
+  const { UpdaterProvider } = await import('../../lib/updater-provider');
+  const settingsShown = (shown: boolean) => (
+    <UpdaterProvider>{shown && <GeneralSettings />}</UpdaterProvider>
+  );
+  const { rerender } = render(settingsShown(true));
+  const showSettings = (shown: boolean) => rerender(settingsShown(shown));
+  return { telemetryUpdates, lastCheckRecords, showSettings };
 }
 
 describe('GeneralSettings', () => {
   beforeEach(() => {
+    updater.check.mockReset();
     toast.success.mockClear();
+    toast.info.mockClear();
     toast.error.mockClear();
+  });
+
+  it('does not check for updates, toast or save the config when the settings open', async () => {
+    const { lastCheckRecords, showSettings } = await renderGeneralSettings({
+      startup: { check_for_updates: true, last_update_check: minutesAgo(1) },
+    });
+    await screen.findByRole('switch', { name: 'Check for updates' });
+
+    showSettings(false);
+    showSettings(true);
+    await screen.findByRole('switch', { name: 'Check for updates' });
+
+    expect(updater.check).not.toHaveBeenCalled();
+    expect(toast.success).not.toHaveBeenCalled();
+    expect(toast.info).not.toHaveBeenCalled();
+    expect(toast.error).not.toHaveBeenCalled();
+    expect(lastCheckRecords).not.toHaveBeenCalled();
+  });
+
+  it('shows an update found at startup with its Install Update button', async () => {
+    updater.check.mockResolvedValue(availableUpdate);
+    await renderGeneralSettings({
+      startup: {
+        check_for_updates: true,
+        last_update_check: minutesAgo(2 * 24 * 60),
+      },
+    });
+
+    expect(await screen.findByText('1.2.3')).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Install Update' })
+    ).toBeInTheDocument();
   });
 
   it.each([
