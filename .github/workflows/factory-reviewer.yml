@@ -104,12 +104,18 @@ jobs:
         run: |
           cp "$CONTEXT/CLAUDE.md" CLAUDE.md
           echo CLAUDE.md >> .git/info/exclude
-          {
-            echo "claude_args<<EOF_CLAUDE_ARGS"
-            cat "$CONTEXT/claude_args.txt"
-            echo
-            echo "EOF_CLAUDE_ARGS"
-          } >> "$GITHUB_OUTPUT"
+
+      - name: Setup Python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.13'
+
+      - name: Install the agent runner
+        env:
+          CONTEXT: ${{ runner.temp }}/reviewer-context
+        run: |
+          python -m venv "$RUNNER_TEMP/agent-runner"
+          "$RUNNER_TEMP/agent-runner/bin/pip" install --quiet --disable-pip-version-check --require-hashes -r "$CONTEXT/runner/requirements.txt"
 
       - name: Install frontend dependencies
         uses: ./.github/actions/install-frontend
@@ -126,32 +132,32 @@ jobs:
 
       - name: Run the reviewer
         id: agent
-        uses: anthropics/claude-code-action/base-action@acfe7992852970efb4fee683d63d628e3e52df67 # v1.0.286
         env:
-          NODE_VERSION: lts/*
-        with:
-          prompt_file: ${{ runner.temp }}/reviewer-context/prompt.md
-          claude_args: ${{ steps.prepare.outputs.claude_args }}
-          anthropic_api_key: ${{ vars.ANTHROPIC_REVIEWER_FEDERATION_RULE_ID == '' && secrets.ANTHROPIC_API_KEY || '' }}
-          anthropic_federation_rule_id: ${{ vars.ANTHROPIC_REVIEWER_FEDERATION_RULE_ID }}
-          anthropic_organization_id: ${{ vars.ANTHROPIC_ORGANIZATION_ID }}
-          anthropic_service_account_id: ${{ vars.ANTHROPIC_SERVICE_ACCOUNT_ID }}
-          anthropic_workspace_id: ${{ vars.ANTHROPIC_WORKSPACE_ID }}
+          CONTEXT: ${{ runner.temp }}/reviewer-context
+          ANTHROPIC_API_KEY: ${{ vars.ANTHROPIC_REVIEWER_FEDERATION_RULE_ID == '' && secrets.ANTHROPIC_API_KEY || '' }}
+          ANTHROPIC_FEDERATION_RULE_ID: ${{ vars.ANTHROPIC_REVIEWER_FEDERATION_RULE_ID }}
+          ANTHROPIC_ORGANIZATION_ID: ${{ vars.ANTHROPIC_ORGANIZATION_ID }}
+          ANTHROPIC_SERVICE_ACCOUNT_ID: ${{ vars.ANTHROPIC_SERVICE_ACCOUNT_ID }}
+          ANTHROPIC_WORKSPACE_ID: ${{ vars.ANTHROPIC_WORKSPACE_ID }}
+        run: >-
+          "$RUNNER_TEMP/agent-runner/bin/python" -I "$CONTEXT/runner/run_agent.py"
+          --context "$CONTEXT"
+          --result "$RUNNER_TEMP/reviewer-result/result.json"
+          --summary "$RUNNER_TEMP/agent-summary.json"
 
       - name: Record the cost
         if: always() && steps.prepare.outcome == 'success'
         env:
-          EXECUTION_FILE: ${{ steps.agent.outputs.execution_file }}
+          SUMMARY: ${{ runner.temp }}/agent-summary.json
         run: |
           mkdir -p "$RUNNER_TEMP/cost"
           summary='{}'
-          if [[ -n "$EXECUTION_FILE" && -f "$EXECUTION_FILE" ]]; then
-            summary=$(jq -sc 'if length == 1 and (.[0] | type) == "array" then .[0] else . end
-              | map(select(type == "object" and .type == "result")) | last // {}' "$EXECUTION_FILE")
+          if [[ -f "$SUMMARY" ]]; then
+            summary=$(cat "$SUMMARY")
           fi
           jq -n --argjson s "$summary" --arg issue "$ISSUE" --arg run "$GITHUB_RUN_ID" \
             '{role: "reviewer", mode: "review", issue: ($issue | tonumber), run_id: $run,
-              cost_usd: ($s.total_cost_usd // 0), turns: ($s.num_turns // null),
+              cost_usd: ($s.cost_usd // 0), turns: ($s.turns // null),
               duration_ms: ($s.duration_ms // null), subtype: ($s.subtype // null)}' \
             > "$RUNNER_TEMP/cost/cost.json"
           cat "$RUNNER_TEMP/cost/cost.json"
@@ -163,15 +169,6 @@ jobs:
           name: factory-cost
           path: ${{ runner.temp }}/cost/cost.json
           retention-days: 35
-
-      - name: Save the result
-        if: steps.agent.outcome == 'success'
-        env:
-          RESULT: ${{ runner.temp }}/reviewer-result
-          STRUCTURED: ${{ steps.agent.outputs.structured_output }}
-        run: |
-          mkdir -p "$RESULT"
-          printf '%s' "$STRUCTURED" > "$RESULT/result.json"
 
       - name: Upload the result
         if: steps.agent.outcome == 'success'
