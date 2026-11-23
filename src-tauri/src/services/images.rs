@@ -122,13 +122,6 @@ impl ImagesService {
         let full_image_name = full_image_reference(image_name, tag, registry);
         debug!("Full image name for pull: {}", full_image_name);
 
-        if let Err(e) = docker.ping().await {
-            return Err(format!(
-                "Docker connection failed: {}. Please ensure Docker is running and accessible.",
-                e
-            ));
-        }
-
         let options = CreateImageOptions {
             from_image: Some(full_image_name.clone()),
             ..Default::default()
@@ -754,5 +747,53 @@ mod tests {
                 platforms: vec![],
             }
         );
+    }
+
+    #[cfg(unix)]
+    mod against_a_fake_daemon {
+        use super::super::ImagesService;
+        use crate::entities::ImagePullOutcome;
+        use crate::services::fake_docker_daemon::{http_response, request_lines, serve_daemon};
+        use bollard::Docker;
+
+        #[tokio::test]
+        async fn a_pull_goes_straight_to_the_daemon_without_a_ping() {
+            let dir = tempfile::tempdir().unwrap();
+            let socket = dir.path().join("docker.sock");
+            let requests = serve_daemon(&socket, |_| {
+                http_response(
+                    "200 OK",
+                    "application/json",
+                    "{\"status\":\"Pulling from library/alpine\",\"id\":\"3.20\"}\n{\"status\":\"Status: Downloaded newer image for alpine:3.20\"}\n",
+                )
+            });
+            let docker = Docker::connect_with_unix(
+                socket.to_str().unwrap(),
+                5,
+                bollard::API_DEFAULT_VERSION,
+            )
+            .unwrap();
+
+            let outcome = ImagesService::pull_image(
+                &docker,
+                "alpine",
+                "3.20",
+                "docker.io",
+                std::future::pending(),
+                |_| {},
+            )
+            .await;
+
+            assert_eq!(outcome, Ok(ImagePullOutcome::Completed));
+            let lines = request_lines(&requests);
+            assert_eq!(lines.len(), 1, "{lines:?}");
+            assert!(lines[0].starts_with("POST"), "{lines:?}");
+            assert!(lines[0].contains("/images/create?"), "{lines:?}");
+            assert!(lines[0].contains("fromImage=alpine%3A3.20"), "{lines:?}");
+            assert!(
+                lines.iter().all(|line| !line.contains("/_ping")),
+                "{lines:?}"
+            );
+        }
     }
 }
