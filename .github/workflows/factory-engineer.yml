@@ -8,7 +8,7 @@ on:
   pull_request_review:
     types: [submitted]
   workflow_run:
-    workflows: ['\[CI\] Checks']
+    workflows: ['\[CI\] Checks', '\[CI\] Platform Builds']
     types: [completed]
   schedule:
     - cron: '17 * * * *'
