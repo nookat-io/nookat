@@ -27,7 +27,24 @@
       }
     ],
     "security": {
-      "csp": null
+      "csp": {
+        "default-src": ["'self'"],
+        "script-src": ["'self'"],
+        "style-src": ["'self'", "'unsafe-inline'"],
+        "connect-src": [
+          "'self'",
+          "ipc:",
+          "http://ipc.localhost",
+          "https://*.sentry.io",
+          "https://us.aptabase.com",
+          "https://eu.aptabase.com"
+        ],
+        "worker-src": ["'self'", "blob:"],
+        "object-src": ["'none'"],
+        "base-uri": ["'none'"],
+        "form-action": ["'none'"],
+        "frame-ancestors": ["'none'"]
+      }
     },
     "macOSPrivateApi": true
   },
