@@ -42,6 +42,8 @@ export function ContainerGroupRow({
             size="sm"
             onClick={() => onToggleGroup(projectName)}
             className="p-0 h-auto"
+            aria-label={`${isExpanded ? 'Collapse' : 'Expand'} ${projectName}`}
+            aria-expanded={isExpanded}
           >
             {isExpanded ? (
               <ChevronDown className="h-4 w-4" />

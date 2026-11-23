@@ -299,4 +299,52 @@ describe('container actions', () => {
     expect(remove).toHaveBeenCalledWith({ ids: ['a', 'b'] });
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
+
+  it('offers only the actions that every selected container allows', async () => {
+    const user = userEvent.setup();
+    const sent: string[] = [];
+    mockIPC(cmd => {
+      sent.push(cmd);
+      return { succeeded: [], failed: [] };
+    });
+    render(
+      <ContainerActions
+        selectedContainers={['web', 'old']}
+        containers={[
+          { id: 'web', names: ['/web'], state: ContainerState.Running },
+          { id: 'old', names: ['/old'], state: ContainerState.Exited },
+        ]}
+      />
+    );
+
+    const actions = screen.getAllByRole('button');
+    expect(actions).toHaveLength(1);
+    expect(actions[0]).toHaveAccessibleName(/delete/i);
+
+    await user.click(actions[0]);
+
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    expect(sent).toEqual([]);
+  });
+
+  it('prunes stopped containers only after confirmation', async () => {
+    const user = userEvent.setup();
+    const prune = vi.fn(() => null);
+    mockContainerCommands({ prune_containers: prune });
+    render(<ContainerActions selectedContainers={[]} containers={[]} />);
+
+    await user.click(screen.getByRole('button', { name: 'Prune Stopped' }));
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Cancel' }));
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(prune).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole('button', { name: 'Prune Stopped' }));
+    await user.click(screen.getByRole('button', { name: 'Prune Containers' }));
+
+    expect(prune).toHaveBeenCalledTimes(1);
+    expect(toast.success).toHaveBeenCalledWith('Pruned stopped containers');
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
 });

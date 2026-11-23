@@ -167,6 +167,7 @@ export function ContainersTable({
                     allContainers.length > 0
                   }
                   onCheckedChange={value => handleSelectAll(value === true)}
+                  aria-label="Select all containers"
                 />
               </TableHead>
               <SortableTableHeader
