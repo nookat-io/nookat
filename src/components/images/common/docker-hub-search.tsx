@@ -48,6 +48,7 @@ export function DockerHubSearch({
           role="combobox"
           aria-autocomplete="list"
           aria-expanded={isSearchDropdownOpen}
+          aria-busy={isSearching}
           placeholder="Search Docker Hub images..."
           value={searchQuery}
           onChange={e => onSearchChange(e.target.value)}

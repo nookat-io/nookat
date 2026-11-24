@@ -154,6 +154,63 @@ function mockPullThatRunsUntilCancelled() {
   return { pullIds, cancellations };
 }
 
+interface HeldSearch {
+  answer: (results: DockerHubImage[]) => void;
+  fail: (reason: string) => void;
+}
+
+function mockSearchThatHoldsAnswers(heldQueries: string[]) {
+  const queries: string[] = [];
+  const tagRequests: string[] = [];
+  const heldSearches = new Map<string, HeldSearch>();
+  mockIPC((cmd, args) => {
+    switch (cmd) {
+      case 'search_docker_hub': {
+        const { query } = args as { query: string };
+        queries.push(query);
+        if (!heldQueries.includes(query)) {
+          return { results: [searchResult(query, true)] };
+        }
+        return new Promise((resolve, reject) => {
+          heldSearches.set(query, {
+            answer: results => resolve({ results }),
+            fail: reject,
+          });
+        });
+      }
+      case 'fetch_image_tags': {
+        const { imageName } = args as { imageName: string };
+        tagRequests.push(imageName);
+        return ['latest', '1.27-alpine'];
+      }
+      case 'fetch_image_tag':
+        return tagDetails('latest');
+      default:
+        throw new Error(`Unexpected command ${cmd}`);
+    }
+  });
+  const heldSearch = async (query: string) => {
+    await waitFor(() => expect(heldSearches.has(query)).toBe(true));
+    return heldSearches.get(query) as HeldSearch;
+  };
+  return { queries, tagRequests, heldSearch };
+}
+
+const SEARCH_SETTLE_MS = 600;
+
+const waitPastTheSearchDebounce = () =>
+  act(() => new Promise(resolve => setTimeout(resolve, SEARCH_SETTLE_MS)));
+
+const imageNameInput = () =>
+  screen.getByRole('combobox', { name: 'Image Name' });
+
+async function openPullDialog() {
+  const user = userEvent.setup();
+  render(<PullImage />);
+  await user.click(screen.getByRole('button', { name: 'Pull Image' }));
+  return user;
+}
+
 const pullImageDialog = () =>
   screen.queryByRole('dialog', { name: 'Pull Image from Registry' });
 
@@ -668,6 +725,97 @@ describe('PullImage', () => {
     expect(pulls).toEqual([
       { imageName: 'nginx', tag: 'latest', registry: 'docker.io' },
     ]);
+  });
+
+  it('drops a search that answers after an image was chosen', async () => {
+    mockSearchThatHoldsAnswers([]);
+    const user = await openPullDialog();
+
+    await user.type(imageNameInput(), 'redis');
+    await screen.findByText('redis', { selector: 'span' });
+    await user.keyboard('{ArrowDown}');
+    await user.type(imageNameInput(), 'x{Enter}');
+    await waitPastTheSearchDebounce();
+
+    expect(imageNameInput()).toHaveAttribute('aria-expanded', 'false');
+    expect(imageNameInput()).toHaveAttribute('aria-busy', 'false');
+    expect(imageNameInput()).toHaveValue('redis');
+  });
+
+  it('shows the newest results when an older search answers last', async () => {
+    const { heldSearch } = mockSearchThatHoldsAnswers(['ng']);
+    const user = await openPullDialog();
+
+    await user.type(imageNameInput(), 'ng');
+    const olderSearch = await heldSearch('ng');
+    await user.type(imageNameInput(), 'inx');
+    await screen.findByText('nginx', { selector: 'span' });
+    await act(async () => olderSearch.answer([searchResult('ngrok', false)]));
+
+    expect(screen.getByText('nginx', { selector: 'span' })).toBeInTheDocument();
+    expect(screen.queryByText('ngrok', { selector: 'span' })).toBeNull();
+  });
+
+  it('keeps the list closed when the field is emptied during a search', async () => {
+    const { heldSearch } = mockSearchThatHoldsAnswers(['nginx']);
+    const user = await openPullDialog();
+
+    await user.type(imageNameInput(), 'nginx');
+    const search = await heldSearch('nginx');
+    await user.clear(imageNameInput());
+    await waitPastTheSearchDebounce();
+    await act(async () => search.answer([NGINX]));
+
+    expect(imageNameInput()).toHaveAttribute('aria-expanded', 'false');
+    expect(imageNameInput()).toHaveAttribute('aria-busy', 'false');
+  });
+
+  it('keeps newer results when an older search fails', async () => {
+    const { heldSearch } = mockSearchThatHoldsAnswers(['ng']);
+    const user = await openPullDialog();
+
+    await user.type(imageNameInput(), 'ng');
+    const olderSearch = await heldSearch('ng');
+    await user.type(imageNameInput(), 'inx');
+    await screen.findByText('nginx', { selector: 'span' });
+    await act(async () => olderSearch.fail('Docker Hub is unreachable'));
+
+    expect(screen.getByText('nginx', { selector: 'span' })).toBeInTheDocument();
+    expect(screen.queryByText(/Failed to search Docker Hub/)).toBeNull();
+  });
+
+  it('does not suggest Docker Hub tags for another registry', async () => {
+    const { tagRequests } = mockSearchThatHoldsAnswers([]);
+    const user = await choosePullSource({
+      registry: 'localhost:5000',
+      image: 'nginx',
+    });
+
+    await user.clear(tagInput());
+    await waitPastTheSearchDebounce();
+    await user.click(tagInput());
+
+    expect(tagRequests).toEqual([]);
+    expect(screen.queryAllByRole('option')).toEqual([]);
+  });
+
+  it('suggests Docker Hub tags again after switching back to docker.io', async () => {
+    const { tagRequests } = mockSearchThatHoldsAnswers([]);
+    const user = await choosePullSource({
+      registry: 'localhost:5000',
+      image: 'nginx',
+    });
+
+    screen.getByRole('combobox', { name: 'Registry' }).focus();
+    await user.keyboard('{Enter}');
+    await user.click(await screen.findByRole('option', { name: 'docker.io' }));
+    await user.clear(tagInput());
+    await user.click(tagInput());
+
+    expect(
+      await screen.findByRole('option', { name: '1.27-alpine' })
+    ).toBeInTheDocument();
+    expect(tagRequests).toContain('nginx');
   });
 
   it('closes an open list with Escape before it closes the dialog', async () => {
