@@ -1,5 +1,8 @@
 use super::image_pull::follow_pull;
-use crate::entities::{DockerHubTag, Image, ImagePullOutcome, ImagePullProgress, PruneResult};
+use crate::entities::{
+    DockerHubTag, Image, ImagePruneScope, ImagePullOutcome, ImagePullProgress, PruneResult,
+    PrunedImage,
+};
 use bollard::models::{ContainerSummary, ImageSummary};
 use bollard::query_parameters::{
     CreateImageOptions, ListImagesOptions, PruneImagesOptions, RemoveImageOptions,
@@ -32,10 +35,7 @@ impl ImagesService {
         docker: &Docker,
         containers: &[ContainerSummary],
     ) -> Result<Vec<Image>, String> {
-        let images = docker
-            .list_images(Some(ListImagesOptions::default()))
-            .await
-            .map_err(|e| format!("Failed to list images: {}", e))?;
+        let images = list_image_summaries(docker).await?;
 
         let used_image_ids: HashSet<String> = containers
             .iter()
@@ -51,21 +51,19 @@ impl ImagesService {
     }
 
     #[instrument(skip_all, err)]
-    pub async fn perform_prune(docker: &Docker) -> Result<PruneResult, String> {
+    pub async fn perform_prune(
+        docker: &Docker,
+        scope: ImagePruneScope,
+    ) -> Result<PruneResult, String> {
+        let before = list_image_summaries(docker).await?;
         let result = docker
-            .prune_images(Some(every_unused_image()))
+            .prune_images(Some(prune_options(scope)))
             .await
             .map_err(|e| format!("Failed to prune images: {}", e))?;
-
-        let images_deleted = result
-            .images_deleted
-            .unwrap_or_default()
-            .into_iter()
-            .map(|item| item.deleted.unwrap_or_else(|| "unknown".to_string()))
-            .collect();
+        let after = list_image_summaries(docker).await?;
 
         Ok(PruneResult {
-            images_deleted,
+            images_deleted: removed_images(&before, &after),
             space_reclaimed: result.space_reclaimed.unwrap_or_default(),
         })
     }
@@ -236,13 +234,41 @@ impl ImagesService {
     }
 }
 
-fn every_unused_image() -> PruneImagesOptions {
+async fn list_image_summaries(docker: &Docker) -> Result<Vec<ImageSummary>, String> {
+    docker
+        .list_images(Some(ListImagesOptions::default()))
+        .await
+        .map_err(|e| format!("Failed to list images: {}", e))
+}
+
+fn prune_options(scope: ImagePruneScope) -> PruneImagesOptions {
+    let dangling = match scope {
+        ImagePruneScope::Dangling => "true",
+        ImagePruneScope::AllUnused => "false",
+    };
     PruneImagesOptions {
         filters: Some(HashMap::from([(
             "dangling".to_string(),
-            vec!["false".to_string()],
+            vec![dangling.to_string()],
         )])),
     }
+}
+
+fn removed_images(before: &[ImageSummary], after: &[ImageSummary]) -> Vec<PrunedImage> {
+    let remaining_ids: HashSet<&str> = after.iter().map(|summary| summary.id.as_str()).collect();
+    before
+        .iter()
+        .filter(|summary| !remaining_ids.contains(summary.id.as_str()))
+        .map(|summary| PrunedImage {
+            id: summary.id.clone(),
+            tags: summary
+                .repo_tags
+                .iter()
+                .filter(|reference| reference.as_str() != UNTAGGED_REFERENCE)
+                .cloned()
+                .collect(),
+        })
+        .collect()
 }
 
 fn full_image_reference(image_name: &str, tag: &str, registry: &str) -> String {
@@ -420,11 +446,11 @@ fn untagged_repository(summary: &ImageSummary) -> String {
 #[cfg(test)]
 mod tests {
     use super::{
-        docker_hub_repository, docker_hub_tags_url, every_unused_image, full_image_reference,
-        is_valid_tag, split_reference, tag_names, to_docker_hub_tag, to_images, to_search_result,
-        DockerHubTag,
+        docker_hub_repository, docker_hub_tags_url, full_image_reference, is_valid_tag,
+        prune_options, removed_images, split_reference, tag_names, to_docker_hub_tag, to_images,
+        to_search_result, DockerHubTag,
     };
-    use crate::entities::Image;
+    use crate::entities::{Image, ImagePruneScope, PrunedImage};
     use bollard::models::ImageSummary;
     use serde_json::json;
     use std::collections::HashSet;
@@ -597,10 +623,53 @@ mod tests {
     }
 
     #[test]
-    fn prune_removes_tagged_unused_images_too_not_only_dangling_ones() {
-        let filters = every_unused_image().filters.expect("prune filters");
+    fn pruning_every_unused_image_sends_dangling_false() {
+        let filters = prune_options(ImagePruneScope::AllUnused)
+            .filters
+            .expect("prune filters");
 
         assert_eq!(filters.get("dangling"), Some(&vec!["false".to_string()]));
+    }
+
+    #[test]
+    fn pruning_dangling_images_only_sends_dangling_true() {
+        let filters = prune_options(ImagePruneScope::Dangling)
+            .filters
+            .expect("prune filters");
+
+        assert_eq!(filters.get("dangling"), Some(&vec!["true".to_string()]));
+    }
+
+    #[test]
+    fn a_prune_reports_each_image_that_is_gone_once_with_its_tags() {
+        let before = [
+            summary("sha256:aaa", &["alpine:3.20"]),
+            summary("sha256:bbb", &["<none>:<none>"]),
+            summary("sha256:ccc", &["busybox:1.36"]),
+        ];
+        let after = [summary("sha256:ccc", &["busybox:1.36"])];
+
+        assert_eq!(
+            removed_images(&before, &after),
+            vec![
+                PrunedImage {
+                    id: "sha256:aaa".to_string(),
+                    tags: vec!["alpine:3.20".to_string()],
+                },
+                PrunedImage {
+                    id: "sha256:bbb".to_string(),
+                    tags: vec![],
+                },
+            ]
+        );
+    }
+
+    #[test]
+    fn an_image_that_only_lost_a_tag_is_not_reported_as_removed() {
+        let before = [summary("sha256:ddd", &["web:1", "web:2"])];
+        let after = [summary("sha256:ddd", &["web:2"])];
+
+        assert_eq!(removed_images(&before, &after), vec![]);
     }
 
     #[test]
@@ -736,10 +805,13 @@ mod tests {
     #[cfg(unix)]
     mod against_a_fake_daemon {
         use super::super::ImagesService;
-        use crate::entities::ImagePullOutcome;
+        use crate::entities::{ImagePruneScope, ImagePullOutcome, PrunedImage};
         use crate::services::fake_docker_daemon::{http_response, request_lines, serve_daemon};
         use bollard::models::ContainerSummary;
         use bollard::Docker;
+        use reqwest::Url;
+        use std::sync::atomic::{AtomicUsize, Ordering};
+        use std::sync::Arc;
 
         const WEB_AND_IDLE_IMAGES: &str = r#"[
             {"Id":"sha256:web","ParentId":"","RepoTags":["web:latest"],"RepoDigests":[],"Created":0,"Size":0,"SharedSize":-1,"Labels":{},"Containers":-1},
@@ -820,6 +892,74 @@ mod tests {
             assert!(
                 lines.iter().all(|line| !line.contains("/_ping")),
                 "{lines:?}"
+            );
+        }
+
+        #[tokio::test]
+        async fn a_prune_reports_the_images_that_are_gone_and_sends_the_chosen_scope() {
+            let dir = tempfile::tempdir().unwrap();
+            let socket = dir.path().join("docker.sock");
+            let before = serde_json::to_string(&[
+                super::summary("sha256:aaa", &["alpine:3.20"]),
+                super::summary("sha256:ccc", &["busybox:1.36"]),
+            ])
+            .unwrap();
+            let after =
+                serde_json::to_string(&[super::summary("sha256:ccc", &["busybox:1.36"])]).unwrap();
+            let image_lists = Arc::new(AtomicUsize::new(0));
+            let lists_served = image_lists.clone();
+            let requests = serve_daemon(&socket, move |request| {
+                if request.contains("/images/prune") {
+                    return http_response(
+                        "200 OK",
+                        "application/json",
+                        r#"{"ImagesDeleted":[{"Untagged":"alpine:3.20"},{"Deleted":"sha256:aaa"},{"Deleted":"sha256:1111"}],"SpaceReclaimed":1024}"#,
+                    );
+                }
+                let images = if lists_served.fetch_add(1, Ordering::SeqCst) == 0 {
+                    &before
+                } else {
+                    &after
+                };
+                http_response("200 OK", "application/json", images)
+            });
+            let docker = Docker::connect_with_unix(
+                socket.to_str().unwrap(),
+                5,
+                bollard::API_DEFAULT_VERSION,
+            )
+            .unwrap();
+
+            let result = ImagesService::perform_prune(&docker, ImagePruneScope::Dangling)
+                .await
+                .unwrap();
+
+            assert_eq!(
+                result.images_deleted,
+                vec![PrunedImage {
+                    id: "sha256:aaa".to_string(),
+                    tags: vec!["alpine:3.20".to_string()],
+                }]
+            );
+            assert_eq!(result.space_reclaimed, 1024);
+            let lines = request_lines(&requests);
+            assert_eq!(lines.len(), 3, "{lines:?}");
+            assert!(lines[0].starts_with("GET"), "{lines:?}");
+            assert!(lines[0].contains("/images/json"), "{lines:?}");
+            assert!(lines[1].starts_with("POST"), "{lines:?}");
+            assert!(lines[1].contains("/images/prune?"), "{lines:?}");
+            assert!(lines[2].starts_with("GET"), "{lines:?}");
+            assert!(lines[2].contains("/images/json"), "{lines:?}");
+            let path = lines[1].split_whitespace().nth(1).unwrap();
+            let url = Url::parse(&format!("http://daemon{path}")).unwrap();
+            let filters = url
+                .query_pairs()
+                .find(|(name, _)| name == "filters")
+                .map(|(_, value)| value.into_owned())
+                .expect("filters query");
+            assert_eq!(
+                serde_json::from_str::<serde_json::Value>(&filters).unwrap(),
+                serde_json::json!({"dangling": ["true"]})
             );
         }
     }

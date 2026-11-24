@@ -30,6 +30,7 @@ export function ImageHeader({
         <div className="flex items-start">
           <ImageActions
             selectedImages={selectedImages}
+            images={images}
             onImagesDeleted={onImagesDeleted}
             onSelectionChange={onSelectionChange}
           />

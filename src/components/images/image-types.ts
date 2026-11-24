@@ -9,7 +9,14 @@ export interface Image {
   dangling: boolean;
 }
 
+export type ImagePruneScope = 'dangling' | 'all_unused';
+
+export interface PrunedImage {
+  id: string;
+  tags: string[];
+}
+
 export interface PruneResult {
-  images_deleted: string[];
+  images_deleted: PrunedImage[];
   space_reclaimed: number;
 }

@@ -8,6 +8,7 @@ import {
   DialogTitle,
 } from '../../ui/dialog';
 import { PruneResult } from '../image-types';
+import { describeImageCount, prunedImageName } from '../image-prune';
 import { formatBytes } from '../../../utils/format';
 import { CheckCircle2, HardDrive } from 'lucide-react';
 
@@ -22,47 +23,47 @@ export function PruneResultsDialog({
   result,
   onOpenChange,
 }: PruneResultsDialogProps) {
+  const removedImages = result?.images_deleted ?? [];
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Prune Results</DialogTitle>
-          <DialogDescription>
-            {result ? (
-              <div className="space-y-4">
-                <div className="flex items-center gap-2 text-green-700 dark:text-green-300">
-                  <CheckCircle2 className="h-4 w-4" />
-                  <span>Prune completed successfully</span>
-                </div>
-
-                <div className="flex flex-wrap gap-2">
-                  <span className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-0.5 text-xs font-medium">
-                    {result.images_deleted.length} removed
-                  </span>
-                  <span className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-0.5 text-xs font-medium">
-                    <HardDrive className="h-3 w-3" />{' '}
-                    {formatBytes(result.space_reclaimed)} reclaimed
-                  </span>
-                </div>
-
-                {result.images_deleted.length > 0 ? (
-                  <div className="space-y-2">
-                    <p className="font-medium">Deleted images</p>
-                    <div className="max-h-40 overflow-y-auto rounded-md border bg-muted/30 p-2 text-sm text-muted-foreground">
-                      {result.images_deleted.map((imageId, index) => (
-                        <div key={index} className="font-mono">
-                          {imageId.substring(0, 12)}...
-                        </div>
-                      ))}
-                    </div>
+          <DialogDescription asChild>
+            <div>
+              {result && removedImages.length > 0 ? (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 text-green-700 dark:text-green-300">
+                    <CheckCircle2 className="h-4 w-4" />
+                    <span>Prune completed successfully</span>
                   </div>
-                ) : null}
-              </div>
-            ) : (
-              <div className="text-muted-foreground">
-                No unused images found to remove.
-              </div>
-            )}
+
+                  <div className="flex flex-wrap gap-2">
+                    <span className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-0.5 text-xs font-medium">
+                      {describeImageCount(removedImages.length)} removed
+                    </span>
+                    <span className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-0.5 text-xs font-medium">
+                      <HardDrive className="h-3 w-3" />{' '}
+                      {formatBytes(result.space_reclaimed)} reclaimed
+                    </span>
+                  </div>
+
+                  <div className="space-y-2">
+                    <p className="font-medium">Removed images</p>
+                    <ul className="max-h-40 overflow-y-auto rounded-md border bg-muted/30 p-2 text-sm text-muted-foreground">
+                      {removedImages.map(image => (
+                        <li key={image.id} className="font-mono">
+                          {prunedImageName(image)}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-muted-foreground">No images were removed.</p>
+              )}
+            </div>
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>

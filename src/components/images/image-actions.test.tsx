@@ -39,6 +39,41 @@ const webImage: Image = {
   dangling: false,
 };
 
+const alpineImage: Image = {
+  id: 'alpine:3.20',
+  repository: 'alpine',
+  tag: '3.20',
+  image_id: 'sha256:aaa',
+  created: 1_700_000_000,
+  size: 8_000_000,
+  in_use: false,
+  dangling: false,
+};
+
+const localBuild: Image = {
+  id: 'nookat-prune:dev',
+  repository: 'nookat-prune',
+  tag: 'dev',
+  image_id: 'sha256:bbb',
+  created: 1_700_000_000,
+  size: 8_000_000,
+  in_use: false,
+  dangling: false,
+};
+
+const danglingBuild: Image = {
+  id: 'sha256:ccc',
+  repository: '<untagged>@ccc',
+  tag: null,
+  image_id: 'sha256:ccc',
+  created: 1_700_000_000,
+  size: 8_000_000,
+  in_use: false,
+  dangling: true,
+};
+
+const pruneCandidates = [danglingBuild, webImage, localBuild, alpineImage];
+
 describe('image actions', () => {
   beforeEach(() => {
     toast.success.mockClear();
@@ -55,6 +90,7 @@ describe('image actions', () => {
     render(
       <ImageActions
         selectedImages={['aaa', 'bbb']}
+        images={[]}
         onImagesDeleted={onImagesDeleted}
         onSelectionChange={onSelectionChange}
       />
@@ -76,7 +112,7 @@ describe('image actions', () => {
   it('confirms deleting the selected images in a toast, like the other pages', async () => {
     const user = userEvent.setup();
     mockImageCommands({ delete_image: () => null });
-    render(<ImageActions selectedImages={['aaa', 'bbb']} />);
+    render(<ImageActions selectedImages={['aaa', 'bbb']} images={[]} />);
 
     await user.click(
       screen.getByRole('button', { name: 'Delete Selected (2)' })
@@ -92,16 +128,166 @@ describe('image actions', () => {
     mockImageCommands({
       prune_images: () => Promise.reject('Docker not found'),
     });
-    render(<ImageActions selectedImages={[]} />);
+    render(<ImageActions selectedImages={[]} images={[alpineImage]} />);
 
     await user.click(screen.getByRole('button', { name: 'Prune Unused' }));
-    await user.click(screen.getByRole('button', { name: 'Prune Images' }));
+    await user.click(screen.getByRole('button', { name: 'Remove 1 Image' }));
 
     expect(toast.error).toHaveBeenCalledWith(
       'Failed to prune images: Docker not found'
     );
     expect(window.alert).not.toHaveBeenCalled();
     expect(screen.queryByText('Prune Results')).not.toBeInTheDocument();
+  });
+
+  it('names every image Prune Unused will remove before it asks', async () => {
+    const user = userEvent.setup();
+    mockImageCommands({});
+    render(<ImageActions selectedImages={[]} images={pruneCandidates} />);
+
+    await user.click(screen.getByRole('button', { name: 'Prune Unused' }));
+
+    const dialog = screen.getByRole('dialog');
+    const toRemove = within(dialog).getByRole('list', {
+      name: 'Images to remove',
+    });
+    expect(
+      within(toRemove)
+        .getAllByRole('listitem')
+        .map(item => item.textContent)
+    ).toEqual([
+      expect.stringMatching(/^alpine:3\.20/),
+      expect.stringMatching(/^nookat-prune:dev/),
+      expect.stringMatching(/^<untagged>@ccc/),
+    ]);
+    expect(within(dialog).queryByText('web:latest')).not.toBeInTheDocument();
+    expect(
+      within(dialog).getByRole('radio', { name: 'All unused images (3)' })
+    ).toBeChecked();
+    expect(
+      within(dialog).getByRole('button', { name: 'Remove 3 Images' })
+    ).toBeEnabled();
+  });
+
+  it('prunes every unused image when confirmed as it opens', async () => {
+    const user = userEvent.setup();
+    const pruneArgs: unknown[] = [];
+    mockImageCommands({
+      prune_images: args => {
+        pruneArgs.push(args);
+        return { images_deleted: [], space_reclaimed: 0 };
+      },
+    });
+    render(<ImageActions selectedImages={[]} images={pruneCandidates} />);
+
+    await user.click(screen.getByRole('button', { name: 'Prune Unused' }));
+    await user.click(screen.getByRole('button', { name: 'Remove 3 Images' }));
+
+    expect(pruneArgs).toEqual([{ scope: 'all_unused' }]);
+  });
+
+  it('removes only dangling images when that is chosen', async () => {
+    const user = userEvent.setup();
+    const pruneArgs: unknown[] = [];
+    mockImageCommands({
+      prune_images: args => {
+        pruneArgs.push(args);
+        return { images_deleted: [], space_reclaimed: 0 };
+      },
+    });
+    render(<ImageActions selectedImages={[]} images={pruneCandidates} />);
+
+    await user.click(screen.getByRole('button', { name: 'Prune Unused' }));
+    const dialog = screen.getByRole('dialog');
+    await user.click(
+      within(dialog).getByRole('radio', { name: 'Dangling images only (1)' })
+    );
+
+    expect(within(dialog).getByText('<untagged>@ccc')).toBeInTheDocument();
+    expect(within(dialog).queryByText('alpine:3.20')).not.toBeInTheDocument();
+    expect(
+      within(dialog).queryByText('nookat-prune:dev')
+    ).not.toBeInTheDocument();
+
+    await user.click(
+      within(dialog).getByRole('button', { name: 'Remove 1 Image' })
+    );
+
+    expect(pruneArgs).toEqual([{ scope: 'dangling' }]);
+  });
+
+  it('chooses every unused image again each time the dialog opens', async () => {
+    const user = userEvent.setup();
+    mockImageCommands({});
+    render(<ImageActions selectedImages={[]} images={pruneCandidates} />);
+
+    await user.click(screen.getByRole('button', { name: 'Prune Unused' }));
+    await user.click(
+      screen.getByRole('radio', { name: 'Dangling images only (1)' })
+    );
+    await user.click(screen.getByRole('button', { name: 'Cancel' }));
+    await user.click(screen.getByRole('button', { name: 'Prune Unused' }));
+
+    expect(
+      screen.getByRole('radio', { name: 'All unused images (3)' })
+    ).toBeChecked();
+  });
+
+  it('has nothing to remove when every image is in use', async () => {
+    const user = userEvent.setup();
+    mockImageCommands({});
+    render(<ImageActions selectedImages={[]} images={[webImage]} />);
+
+    await user.click(screen.getByRole('button', { name: 'Prune Unused' }));
+
+    expect(screen.getByText('No unused images to remove.')).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Nothing to Remove' })
+    ).toBeDisabled();
+  });
+
+  it('names each removed image once in the results', async () => {
+    const user = userEvent.setup();
+    mockImageCommands({
+      prune_images: () => ({
+        images_deleted: [
+          { id: 'sha256:aaa', tags: ['alpine:3.20'] },
+          { id: 'sha256:0123456789abcdef0123', tags: [] },
+        ],
+        space_reclaimed: 1024,
+      }),
+    });
+    render(<ImageActions selectedImages={[]} images={pruneCandidates} />);
+
+    await user.click(screen.getByRole('button', { name: 'Prune Unused' }));
+    await user.click(screen.getByRole('button', { name: 'Remove 3 Images' }));
+
+    const results = await screen.findByRole('dialog', {
+      name: 'Prune Results',
+    });
+    expect(within(results).getByText('2 images removed')).toBeInTheDocument();
+    expect(within(results).getByText('alpine:3.20')).toBeInTheDocument();
+    expect(within(results).getByText('0123456789ab')).toBeInTheDocument();
+    expect(within(results).queryByText(/unknown/)).not.toBeInTheDocument();
+  });
+
+  it('says so when a prune removed no image', async () => {
+    const user = userEvent.setup();
+    mockImageCommands({
+      prune_images: () => ({ images_deleted: [], space_reclaimed: 0 }),
+    });
+    render(<ImageActions selectedImages={[]} images={pruneCandidates} />);
+
+    await user.click(screen.getByRole('button', { name: 'Prune Unused' }));
+    await user.click(screen.getByRole('button', { name: 'Remove 3 Images' }));
+
+    const results = await screen.findByRole('dialog', {
+      name: 'Prune Results',
+    });
+    expect(
+      within(results).getByText('No images were removed.')
+    ).toBeInTheDocument();
+    expect(within(results).queryByText(/0 removed/)).not.toBeInTheDocument();
   });
 
   it('reports a failed delete from the row menu in a toast with the reason from the backend and keeps the image listed', async () => {
