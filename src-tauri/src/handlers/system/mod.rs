@@ -78,6 +78,6 @@ pub async fn start_engine_state_monitoring(
     engine_state_monitor(&app, state.inner())
         .await
         .start_monitoring()
-        .await
-        .map_err(|e| format!("Failed to start engine state monitoring: {}", e))
+        .await;
+    Ok(())
 }
