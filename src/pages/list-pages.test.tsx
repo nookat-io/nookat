@@ -20,13 +20,13 @@ vi.mock('../hooks/use-analytics', () => ({ usePageAnalytics: () => {} }));
 
 vi.mock('../utils/use-filter', async importOriginal => {
   const actual = await importOriginal<typeof import('../utils/use-filter')>();
-  return { useFilter: vi.fn(actual.useFilter) };
+  return { ...actual, useFilter: vi.fn(actual.useFilter) };
 });
 
 vi.mock('../hooks/use-table-sort', async importOriginal => {
   const actual =
     await importOriginal<typeof import('../hooks/use-table-sort')>();
-  return { useTableSort: vi.fn(actual.useTableSort) };
+  return { ...actual, useTableSort: vi.fn(actual.useTableSort) };
 });
 
 const web = aContainer('web', ContainerState.Running);
