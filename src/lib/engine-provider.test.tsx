@@ -2,7 +2,7 @@ import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { emit } from '@tauri-apps/api/event';
 import { mockIPC } from '@tauri-apps/api/mocks';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { Container } from '../components/containers/container-types';
 import { useEngine } from '../hooks/use-engine';
 import { EngineState } from '../types/engine-state';
@@ -39,22 +39,20 @@ function mockEngine({
   pull,
   startMonitoring = () => null,
   readStatus = () => running,
-  readDockerInfo = () => ({}),
 }: {
   pull: () => Promise<EngineState>;
   startMonitoring?: () => unknown;
   readStatus?: () => unknown;
-  readDockerInfo?: () => unknown;
 }) {
   let pullRequested!: () => void;
   const requested = new Promise<void>(resolve => (pullRequested = resolve));
+  const invocations: string[] = [];
   mockIPC(
     cmd => {
+      invocations.push(cmd);
       switch (cmd) {
         case 'engine_status':
           return readStatus();
-        case 'get_docker_info':
-          return readDockerInfo();
         case 'start_engine_state_monitoring':
           return startMonitoring();
         case 'get_engine_state':
@@ -66,7 +64,10 @@ function mockEngine({
     },
     { shouldMockEvents: true }
   );
-  return { pullRequested: requested };
+  return {
+    pullRequested: requested,
+    count: (cmd: string) => invocations.filter(sent => sent === cmd).length,
+  };
 }
 
 let checkingPerRender: boolean[] = [];
@@ -115,6 +116,10 @@ function deferred<T>() {
 }
 
 describe('EngineProvider', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it('shows the snapshot it pulls on mount', async () => {
     mockEngine({
       pull: async () => snapshot({ version: 1, containers: ['web', 'db'] }),
@@ -208,18 +213,62 @@ describe('EngineProvider', () => {
     expect(field('status')).toBe(`status: ${JSON.stringify(running)}`);
   });
 
-  it('treats a running engine whose daemon does not answer as unknown', async () => {
-    mockEngine({
+  it('never asks the daemon for its info to tell the engine status', async () => {
+    vi.useFakeTimers();
+    const engine = mockEngine({ pull: neverResolves });
+    renderProvider();
+    await act(() => vi.advanceTimersByTimeAsync(0));
+    expect(field('checking')).toBe('checking: false');
+    expect(engine.count('get_docker_info')).toBe(0);
+
+    await act(() => vi.advanceTimersByTimeAsync(10_000));
+
+    expect(engine.count('engine_status')).toBeGreaterThan(1);
+    expect(engine.count('get_docker_info')).toBe(0);
+  });
+
+  it('reads the status every 5 seconds until a snapshot arrives', async () => {
+    vi.useFakeTimers();
+    const engine = mockEngine({ pull: neverResolves });
+    renderProvider();
+    await act(() => vi.advanceTimersByTimeAsync(0));
+    expect(engine.count('engine_status')).toBe(1);
+
+    await act(() => vi.advanceTimersByTimeAsync(4999));
+    expect(engine.count('engine_status')).toBe(1);
+    await act(() => vi.advanceTimersByTimeAsync(1));
+    expect(engine.count('engine_status')).toBe(2);
+
+    await act(() =>
+      emit('engine_state_update', snapshot({ version: 1, containers: [] }))
+    );
+    await act(() => vi.advanceTimersByTimeAsync(10_000));
+
+    expect(engine.count('engine_status')).toBe(2);
+  });
+
+  it('keeps the status of a snapshot that arrives while a status read is in flight', async () => {
+    const statusRead = deferred<EngineStatus>();
+    const { pullRequested } = mockEngine({
       pull: neverResolves,
-      readDockerInfo: () => {
-        throw new Error('connection refused');
-      },
+      readStatus: () => statusRead.promise,
+    });
+    renderProvider();
+    await act(() => pullRequested);
+
+    await act(() =>
+      emit(
+        'engine_state_update',
+        snapshot({ version: 1, containers: [], status: running })
+      )
+    );
+    await act(async () => {
+      statusRead.resolve('Unknown');
+      await flushPromises();
     });
 
-    renderProvider();
-
-    await waitFor(() => expect(field('checking')).toBe('checking: false'));
-    expect(field('status')).toBe('status: "Unknown"');
+    expect(field('status')).toBe(`status: ${JSON.stringify(running)}`);
+    expect(field('checking')).toBe('checking: false');
   });
 
   it('treats a status it does not recognise as unknown', async () => {

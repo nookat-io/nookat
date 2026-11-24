@@ -11,7 +11,7 @@ Users cannot tell whether Docker is missing, the VM is stopped, the socket is no
 ## Current state
 
 - The header shows a colored status dot and label (`src/components/layout/header.tsx`).
-- `src/lib/engine-provider.tsx` polls the engine status every second and receives the pushed engine state, and the backend emits `engine-connected` when a connection is made (`src-tauri/src/state.rs`).
+- `src/lib/engine-provider.tsx` reads the engine status on mount and every 5 seconds until the first pushed engine state arrives, and receives the pushed engine state, and the backend emits `engine-connected` when a connection is made (`src-tauri/src/state.rs`).
 - `src/components/ui/engine-error.tsx` blocks every page except Settings with a retry button while the status is `Unknown`.
 - Settings shows engine details and warns when the Docker CLI context does not use Colima (`src/components/settings/engine-settings/components/docker-context-notice.tsx`).
 - `create_engine` in `src-tauri/src/services/engine/mod.rs` returns `EngineStatus::Unknown` for every failure, and the reason is only logged at debug level.
