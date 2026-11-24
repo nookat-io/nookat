@@ -66,7 +66,7 @@ const PLAN: BinaryInstallPlan = {
 
 interface Backend {
   colimaSupported?: () => Promise<boolean>;
-  homebrewAvailable?: boolean;
+  homebrewAvailable?: boolean | (() => Promise<boolean>);
   colimaAvailable?: boolean;
   colimaVm?: () => Promise<ColimaVm>;
   installColima?: () => Promise<null>;
@@ -97,7 +97,9 @@ function mockBackend({
         case 'is_colima_supported':
           return colimaSupported();
         case 'check_homebrew_availability':
-          return homebrewAvailable;
+          return typeof homebrewAvailable === 'function'
+            ? homebrewAvailable()
+            : homebrewAvailable;
         case 'check_colima_availability':
           return colimaAvailable;
         case 'get_docker_info':
@@ -184,17 +186,42 @@ describe('useEngineSettingsState', () => {
     expect(backend.count('is_colima_supported')).toBe(1);
   });
 
-  it('does not ask again when the availability checks rerun, because platform support never changes', async () => {
+  it('checks Homebrew and Colima once and not again when the method changes', async () => {
     const backend = mockBackend();
     const { state, actions } = renderEngineSettings();
-    await waitFor(() => expect(state().dockerInfo).not.toBeNull());
+    await waitFor(() => expect(state().colimaAvailable).toBe(true));
 
     act(() => actions().setMethod('binary'));
+    act(() => actions().setMethod('homebrew'));
+    await act(flushPromises);
 
-    await waitFor(() =>
-      expect(backend.count('check_homebrew_availability')).toBe(2)
-    );
+    expect(backend.count('check_homebrew_availability')).toBe(1);
+    expect(backend.count('check_colima_availability')).toBe(1);
     expect(backend.count('is_colima_supported')).toBe(1);
+  });
+
+  it('checks once on a Mac without Homebrew and selects the binary installation', async () => {
+    const backend = mockBackend({ homebrewAvailable: false });
+    const { state } = renderEngineSettings();
+    await waitFor(() => expect(state().method).toBe('binary'));
+    await act(flushPromises);
+
+    expect(backend.count('check_homebrew_availability')).toBe(1);
+    expect(backend.count('check_colima_availability')).toBe(1);
+  });
+
+  it('checks once and selects the binary installation when a check fails', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    const backend = mockBackend({
+      homebrewAvailable: () => Promise.reject('which brew: exit status 1'),
+    });
+    const { state } = renderEngineSettings();
+    await waitFor(() => expect(state().method).toBe('binary'));
+    await act(flushPromises);
+
+    expect(state().homebrewAvailable).toBe(false);
+    expect(state().colimaAvailable).toBe(false);
+    expect(backend.count('check_homebrew_availability')).toBe(1);
   });
 
   it('keeps support unknown, not unsupported, when the probe fails, so the install and start controls stay reachable on macOS', async () => {
