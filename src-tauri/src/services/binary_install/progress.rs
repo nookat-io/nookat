@@ -31,7 +31,7 @@ impl InstallProgress {
             progress: InstallationProgress {
                 step: "Preparing installation...".to_string(),
                 message: format!("Installing {} into {}", components, prefix),
-                percentage: 0,
+                percentage: Some(0),
                 logs: vec![format!("[INFO] Installing {} into {}", components, prefix)],
             },
             release_count: releases.len(),
@@ -63,7 +63,7 @@ impl InstallProgress {
             InstallEvent::Unpacking => {
                 self.progress.step = "Unpacking...".to_string();
                 self.progress.message = format!("Unpacking into {}", self.prefix);
-                self.progress.percentage = UNPACK_PERCENT;
+                self.progress.percentage = Some(UNPACK_PERCENT);
                 self.progress.logs.push("[INFO] Unpacking".to_string());
             }
             InstallEvent::Checked {
@@ -73,12 +73,12 @@ impl InstallProgress {
                 self.checked += 1;
                 self.progress.step = "Checking the binaries...".to_string();
                 self.progress.message = format!("{} runs on this Mac", artifact.name);
-                self.progress.percentage = share_of(
+                self.progress.percentage = Some(share_of(
                     CHECK_START_PERCENT,
                     CHECK_END_PERCENT,
                     self.checked as u64,
                     self.release_count as u64,
-                );
+                ));
                 self.progress.logs.push(format!(
                     "[INFO] {}",
                     version_output.lines().next().unwrap_or_default()
@@ -87,7 +87,7 @@ impl InstallProgress {
             InstallEvent::Activated => {
                 self.progress.step = "Installation complete".to_string();
                 self.progress.message = format!("Installed into {}", self.prefix);
-                self.progress.percentage = 100;
+                self.progress.percentage = Some(100);
                 self.progress
                     .logs
                     .push(format!("[INFO] Installed into {}", self.prefix));
@@ -102,7 +102,7 @@ impl InstallProgress {
     pub fn record_failure(&mut self, error: &str) {
         self.progress.step = "Installation failed".to_string();
         self.progress.message = error.to_string();
-        self.progress.percentage = 100;
+        self.progress.percentage = Some(100);
         self.progress.logs.push(format!("[ERROR] {}", error));
     }
 
@@ -121,12 +121,12 @@ impl InstallProgress {
             received as f64 / BYTES_PER_MB,
             artifact.download_bytes as f64 / BYTES_PER_MB
         );
-        self.progress.percentage = share_of(
+        self.progress.percentage = Some(share_of(
             DOWNLOAD_START_PERCENT,
             DOWNLOAD_END_PERCENT,
             self.finished_download_bytes + received,
             self.total_download_bytes,
-        );
+        ));
     }
 }
 
@@ -156,7 +156,7 @@ mod tests {
             progress.current().logs,
             ["[INFO] Installing Colima 0.10.3, Lima 2.2.1, Docker CLI 29.10.0 into /Users/me/.nookat/engine"]
         );
-        assert_eq!(progress.current().percentage, 0);
+        assert_eq!(progress.current().percentage, Some(0));
     }
 
     #[test]
@@ -168,7 +168,7 @@ mod tests {
             received: 0,
             total: releases[0].download_bytes,
         });
-        assert_eq!(progress.current().percentage, 5);
+        assert_eq!(progress.current().percentage, Some(5));
         assert_eq!(progress.current().step, "Downloading Colima 0.10.3...");
         assert_eq!(progress.current().message, "0.0 of 15.7 MB");
 
@@ -184,7 +184,7 @@ mod tests {
             total: releases[2].download_bytes,
         });
 
-        assert_eq!(progress.current().percentage, 80);
+        assert_eq!(progress.current().percentage, Some(80));
         assert_eq!(progress.current().message, "10.3 of 10.3 MB");
     }
 
@@ -231,20 +231,20 @@ mod tests {
         let (releases, mut progress) = progress();
 
         progress.record(&InstallEvent::Unpacking);
-        assert_eq!(progress.current().percentage, 85);
+        assert_eq!(progress.current().percentage, Some(85));
 
         progress.record(&InstallEvent::Checked {
             artifact: &releases[0],
             version_output: "colima version v0.10.3\ngit commit: 0a1b2c".to_string(),
         });
-        assert_eq!(progress.current().percentage, 91);
+        assert_eq!(progress.current().percentage, Some(91));
         assert_eq!(
             progress.current().logs.last().unwrap(),
             "[INFO] colima version v0.10.3"
         );
 
         progress.record(&InstallEvent::Activated);
-        assert_eq!(progress.current().percentage, 100);
+        assert_eq!(progress.current().percentage, Some(100));
         assert_eq!(
             progress.current().logs.last().unwrap(),
             "[INFO] Installed into /Users/me/.nookat/engine"

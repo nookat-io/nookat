@@ -1,6 +1,6 @@
 use crate::entities::{
     BinaryInstallPlan, ColimaEngineStopProgress, ColimaProfileStatus, ColimaVm,
-    ColimaVmSettingsChanges, DockerCliContext, InstallationMethod, InstallationProgress,
+    ColimaVmSettingsChanges, DockerCliContext, InstallationMethod,
 };
 use crate::services::binary_install::{
     engine_prefix, install_plan, install_releases, pinned_releases, Downloader, InstallProgress,
@@ -11,9 +11,9 @@ use crate::services::colima::{
     parse_profile_config, performance_warnings, profile_config_path, ColimaProfileConfig,
     PROFILE_ENV_VAR,
 };
-use crate::services::engine::should_stop_vm;
+use crate::services::engine::{should_stop_vm, CommandProgress};
 use crate::services::shell::{
-    colima_profile_status, inspect_current_docker_context, install_packages_via_homebrew,
+    colima_profile_status, inspect_current_docker_context, install_package_via_homebrew,
     list_colima_instances, read_colima_host, start_colima, stop_colima, use_docker_context,
 };
 use serde::Serialize;
@@ -24,6 +24,7 @@ use tauri::{AppHandle, Emitter};
 use tracing::{debug, instrument, warn};
 
 const INSTALLATION_PROGRESS: &str = "installation-progress";
+const HOMEBREW_PACKAGES: [&str; 2] = ["colima", "docker"];
 
 const STATUS_POLL_INTERVAL: Duration = Duration::from_millis(500);
 const DOCKER_READY_TIMEOUT: Duration = Duration::from_secs(60);
@@ -168,40 +169,41 @@ async fn run_installation(
 async fn install_via_homebrew(app_handle: AppHandle) -> Result<(), String> {
     debug!("Installing Colima via Homebrew");
 
-    let report = |progress: &InstallationProgress| {
-        emit(&app_handle, INSTALLATION_PROGRESS, progress);
+    let report = |progress: &CommandProgress| {
+        emit(&app_handle, INSTALLATION_PROGRESS, progress.current());
     };
 
-    let mut progress = InstallationProgress {
-        step: "Checking prerequisites...".to_string(),
-        message: "Verifying system requirements".to_string(),
-        percentage: 10,
-        logs: vec![],
-    };
-    report(&progress);
+    let mut progress = CommandProgress::new(
+        "Installing Colima...",
+        "Installing Colima with Homebrew",
+        "Installing Colima with Homebrew",
+    );
 
-    progress.step = "Installing Colima...".to_string();
-    progress.message = "Installing Colima via Homebrew".to_string();
-    progress.percentage = 30;
-    progress
-        .logs
-        .push("[INFO] Installing Colima via Homebrew".to_string());
-    report(&progress);
-
-    let packages = vec!["colima", "docker"];
-    if let Err(e) = install_packages_via_homebrew(&app_handle, &packages).await {
-        progress.step = "Installation failed".to_string();
-        progress.message = format!("Failed to install Colima: {}", e);
-        progress.percentage = 100;
-        progress.logs.push(format!("[ERROR] {}", e));
+    for (index, package) in HOMEBREW_PACKAGES.iter().enumerate() {
+        progress.begin_homebrew_install(package, index + 1, HOMEBREW_PACKAGES.len());
         report(&progress);
-        return Err(e);
+
+        let installed = install_package_via_homebrew(&app_handle, package, |line| {
+            progress.output_line(line);
+            report(&progress);
+        })
+        .await;
+
+        if let Err(e) = installed {
+            progress.fail(
+                "Installation failed",
+                &format!("Failed to install Colima: {}", e),
+                &e,
+            );
+            report(&progress);
+            return Err(e);
+        }
     }
 
-    progress
-        .logs
-        .push("[INFO] Colima installation completed successfully".to_string());
-    progress.percentage = 100;
+    progress.succeed(
+        "Installation complete",
+        "Colima installation completed successfully",
+    );
     report(&progress);
 
     Ok(())
@@ -243,92 +245,76 @@ pub async fn start_colima_vm(
     let task_app_handle = app_handle.clone();
     let vm_handle = tokio::spawn(async move {
         let app_handle = task_app_handle;
-        let report = |progress: &InstallationProgress| {
-            emit(&app_handle, "vm-startup-progress", progress);
+        let report = |progress: &CommandProgress| {
+            emit(&app_handle, "vm-startup-progress", progress.current());
         };
 
-        let mut progress = InstallationProgress {
-            step: "Starting Colima VM...".to_string(),
-            message: "Initializing virtual machine".to_string(),
-            percentage: 10,
-            logs: vec![],
-        };
-        report(&progress);
-
-        progress.step = "Checking Colima status...".to_string();
-        progress.message = "Verifying current VM status".to_string();
-        progress.percentage = 20;
-        progress
-            .logs
-            .push("[INFO] Checking Colima status".to_string());
+        let mut progress = CommandProgress::new(
+            "Checking Colima status...",
+            "Verifying current VM status",
+            "Checking Colima status",
+        );
         report(&progress);
 
         let (vm, colima_socket) = match read_colima_vm_and_socket(&app_handle).await {
             Ok(vm_and_socket) => vm_and_socket,
             Err(e) => {
-                progress.step = "VM startup failed".to_string();
-                progress.message = format!("Failed to read the Colima profile: {}", e);
-                progress.percentage = 100;
-                progress.logs.push(format!("[ERROR] {}", e));
+                progress.fail(
+                    "VM startup failed",
+                    &format!("Failed to read the Colima profile: {}", e),
+                    &e,
+                );
                 report(&progress);
                 return Err(e);
             }
         };
 
         if vm.profile.status == ColimaProfileStatus::Running {
-            progress.step = "Colima already running".to_string();
-            progress.message = "Colima VM is already running".to_string();
-            progress.percentage = 100;
-            progress
-                .logs
-                .push("[INFO] Colima VM is already running".to_string());
+            progress.succeed("Colima already running", "Colima VM is already running");
             report(&progress);
             return Ok(());
         }
 
-        progress.step = "Starting VM...".to_string();
-        progress.message = "Launching Colima virtual machine".to_string();
-        progress.percentage = 40;
         let existing_settings =
             (vm.profile.status != ColimaProfileStatus::Missing).then_some(&vm.profile.settings);
         let args = colima_start_args(&vm.profile.name, existing_settings, &changes, &vm.host);
-        progress
-            .logs
-            .push(format!("[INFO] Running: colima {}", args.join(" ")));
+        progress.begin_command("Starting VM...", &format!("colima {}", args.join(" ")));
         report(&progress);
 
-        if let Err(e) = start_colima(&app_handle, &args).await {
-            progress.step = "VM startup failed".to_string();
-            progress.message = format!("Failed to start Colima VM: {}", e);
-            progress.percentage = 100;
-            progress.logs.push(format!("[ERROR] {}", e));
+        let started = start_colima(&app_handle, &args, |line| {
+            progress.output_line(line);
+            report(&progress);
+        })
+        .await;
+
+        if let Err(e) = started {
+            progress.fail(
+                "VM startup failed",
+                &format!("Failed to start Colima VM: {}", e),
+                &e,
+            );
             report(&progress);
             return Err(e);
         }
 
-        progress.step = "Validating startup...".to_string();
-        progress.message = "Testing Docker connectivity".to_string();
-        progress.percentage = 80;
-        progress
-            .logs
-            .push("[INFO] Validating Colima startup".to_string());
+        progress.begin(
+            "Validating startup...",
+            "Testing Docker connectivity",
+            "Validating Colima startup",
+        );
         report(&progress);
 
         if let Err(e) = wait_for_docker_to_respond(&colima_socket).await {
-            progress.step = "Validation failed".to_string();
-            progress.message = format!("Failed to validate startup: {}", e);
-            progress.percentage = 100;
-            progress.logs.push(format!("[ERROR] {}", e));
+            progress.fail(
+                "Validation failed",
+                &format!("Failed to validate startup: {}", e),
+                &e,
+            );
             report(&progress);
             return Err(e);
         }
 
-        progress.step = "VM startup complete".to_string();
-        progress.message = "Colima VM is running successfully".to_string();
-        progress.percentage = 100;
-        progress
-            .logs
-            .push("[INFO] Colima VM started successfully".to_string());
+        progress.succeed("VM startup complete", "Colima VM started successfully");
         report(&progress);
 
         Ok(())

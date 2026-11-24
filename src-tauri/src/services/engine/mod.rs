@@ -6,10 +6,14 @@ use std::time::Duration;
 use tauri::AppHandle;
 use tracing::{debug, instrument};
 
+#[cfg(any(target_os = "macos", test))]
+mod command_progress;
 mod connected_engine;
 #[cfg(target_os = "macos")]
 mod macos;
 
+#[cfg(target_os = "macos")]
+pub use command_progress::CommandProgress;
 pub use connected_engine::describe_connected_engine;
 
 #[cfg(target_os = "macos")]
