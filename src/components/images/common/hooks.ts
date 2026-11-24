@@ -168,15 +168,27 @@ export function useDockerHubSearch(
   });
 
   const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const latestSearchRef = useRef(0);
   const searchContainerRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
-  const performSearch = useCallback(async (query: string) => {
+  const dropPendingSearches = useCallback(() => {
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+      searchTimeoutRef.current = null;
+    }
+    latestSearchRef.current += 1;
+    return latestSearchRef.current;
+  }, []);
+
+  const performSearch = useCallback(async (query: string, search: number) => {
+    const isLatestSearch = () => latestSearchRef.current === search;
     if (!query.trim()) {
       setSearchState(prev => ({
         ...prev,
         searchResults: [],
         isSearchDropdownOpen: false,
+        isSearching: false,
       }));
       return;
     }
@@ -189,6 +201,9 @@ export function useDockerHubSearch(
 
     try {
       const result = await searchDockerHub(query);
+      if (!isLatestSearch()) {
+        return;
+      }
       const images = result.results || [];
 
       const sortedImages = images
@@ -203,6 +218,9 @@ export function useDockerHubSearch(
       }));
     } catch (error) {
       console.error('Search error:', error);
+      if (!isLatestSearch()) {
+        return;
+      }
       setSearchState(prev => ({
         ...prev,
         searchError: 'Failed to search Docker Hub. Please try again.',
@@ -216,39 +234,40 @@ export function useDockerHubSearch(
     (query: string) => {
       setSearchState(prev => ({ ...prev, searchQuery: query }));
 
-      if (searchTimeoutRef.current) {
-        clearTimeout(searchTimeoutRef.current);
-      }
-
+      const search = dropPendingSearches();
       searchTimeoutRef.current = setTimeout(() => {
-        performSearch(query);
+        performSearch(query, search);
       }, SEARCH_DEBOUNCE_MS);
     },
-    [performSearch]
+    [dropPendingSearches, performSearch]
   );
 
   const selectImage = useCallback(
     (image: DockerHubImage) => {
+      dropPendingSearches();
       setSearchState(prev => ({
         ...prev,
         selectedImageDetails: image,
         searchQuery: image.name,
         searchResults: [],
+        isSearching: false,
         isSearchDropdownOpen: false,
         focusedSearchIndex: -1,
       }));
       onImageSelected(image);
     },
-    [onImageSelected]
+    [dropPendingSearches, onImageSelected]
   );
 
   const clearSelection = useCallback(() => {
+    dropPendingSearches();
     setSearchState(prev => ({
       ...prev,
       selectedImageDetails: null,
       searchQuery: '',
+      isSearching: false,
     }));
-  }, []);
+  }, [dropPendingSearches]);
 
   const handleSearchKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
@@ -338,6 +357,7 @@ export function useDockerHubSearch(
   }, []);
 
   const resetSearch = useCallback(() => {
+    dropPendingSearches();
     setSearchState({
       searchQuery: '',
       searchResults: [],
@@ -347,7 +367,7 @@ export function useDockerHubSearch(
       focusedSearchIndex: -1,
       selectedImageDetails: null,
     });
-  }, []);
+  }, [dropPendingSearches]);
 
   return {
     searchState,

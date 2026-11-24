@@ -166,15 +166,18 @@ export function PullImage() {
     handleSearchKeyDown,
     resetSearch,
   } = useDockerHubSearch(chooseImage);
+  const pullsFromDockerHub =
+    normalizeRegistry(pullData.registry) === DOCKER_HUB;
+  const chosenImageName = searchState.selectedImageDetails?.name ?? null;
   const { tagSuggestions, isLoadingTags, tagError } = useTagSuggestions(
-    searchState.selectedImageDetails?.name ?? null,
+    pullsFromDockerHub ? chosenImageName : null,
     pullData.tag
   );
   const tagStatus = useTagStatus(
     lookupTag,
     pullData.imageName,
     pullData.tag,
-    normalizeRegistry(pullData.registry) === DOCKER_HUB
+    pullsFromDockerHub
   );
   const defaultTagCheckOfThisImage =
     !pullData.tag && defaultTagCheck?.imageName === pullData.imageName
