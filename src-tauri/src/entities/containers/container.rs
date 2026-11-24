@@ -110,12 +110,6 @@ pub struct Container {
     pub ports: Option<Vec<Port>>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub size_rw: Option<i64>,
-
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub size_root_fs: Option<i64>,
-
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub labels: Option<HashMap<String, String>>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -146,8 +140,6 @@ impl From<ContainerSummary> for Container {
             ports: container
                 .ports
                 .map(|ports| ports.into_iter().map(|port| port.into()).collect()),
-            size_rw: container.size_rw,
-            size_root_fs: container.size_root_fs,
             labels: container.labels,
             state: container.state.map(|state| state.into()),
             status: container.status,

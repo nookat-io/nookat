@@ -1,7 +1,7 @@
 use crate::entities::{
     DockerHubTag, Image, ImagePullOutcome, ImagePullProgress, ImagePullRequest, PruneResult,
 };
-use crate::services::ImagesService;
+use crate::services::{ContainersService, ImagesService};
 use crate::state::{RunningPulls, SharedEngineState};
 use tauri::ipc::{Channel, JavaScriptChannelId};
 use tauri::{State, Webview};
@@ -13,7 +13,8 @@ pub async fn list_images(state: State<'_, SharedEngineState>) -> Result<Vec<Imag
     debug!("Listing images");
     let engine = state.get_engine().await?;
     let docker = engine.docker.as_ref().ok_or("Docker not found")?;
-    ImagesService::get_images(docker).await
+    let containers = ContainersService::get_containers(docker).await?;
+    ImagesService::get_images(docker, &containers).await
 }
 
 #[tauri::command]
