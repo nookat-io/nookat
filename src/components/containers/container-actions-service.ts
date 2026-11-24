@@ -1,7 +1,9 @@
 import { invoke } from '@tauri-apps/api/core';
 import { toast } from 'sonner';
 import { errorMessage } from '../../utils/error-message';
-import { BulkOutcome, distinctReasons } from '../../types/bulk-outcome';
+import { BulkOutcome, describeFailures } from '../../types/bulk-outcome';
+import { Container } from './container-types';
+import { formatContainerName } from './container-utils';
 
 type ContainerAction =
   | 'start'
@@ -44,11 +46,21 @@ async function runContainerAction(
   }
 }
 
+const shortId = (id: string) => id.slice(0, 12);
+
+const containerLabeler = (containers: Container[]) => {
+  const names = new Map(
+    containers.map(container => [container.id, formatContainerName(container)])
+  );
+  return (id: string) => names.get(id) || shortId(id);
+};
+
 async function runBulkContainerAction(
   action: ContainerAction,
   command: string,
-  ids: string[]
+  containers: Container[]
 ): Promise<string[]> {
+  const ids = containers.map(container => container.id);
   let outcome: BulkOutcome;
   try {
     outcome = await invoke<BulkOutcome>(command, { ids });
@@ -69,7 +81,7 @@ async function runBulkContainerAction(
     );
     console.error(`Failed to ${action} ${failedContainers}:`, failed);
     toast.error(
-      `Failed to ${action} ${failedContainers}: ${distinctReasons(failed)}`
+      `Failed to ${action} ${failedContainers}: ${describeFailures(failed, containerLabeler(containers))}`
     );
   }
   return succeeded;
@@ -101,31 +113,39 @@ export class ContainerActionService {
     return runContainerAction('remove', command, { id });
   }
 
-  static bulkStartContainers(ids: string[]) {
-    return runBulkContainerAction('start', 'bulk_start_containers', ids);
+  static bulkStartContainers(containers: Container[]) {
+    return runBulkContainerAction('start', 'bulk_start_containers', containers);
   }
 
-  static bulkStopContainers(ids: string[]) {
-    return runBulkContainerAction('stop', 'bulk_stop_containers', ids);
+  static bulkStopContainers(containers: Container[]) {
+    return runBulkContainerAction('stop', 'bulk_stop_containers', containers);
   }
 
-  static bulkPauseContainers(ids: string[]) {
-    return runBulkContainerAction('pause', 'bulk_pause_containers', ids);
+  static bulkPauseContainers(containers: Container[]) {
+    return runBulkContainerAction('pause', 'bulk_pause_containers', containers);
   }
 
-  static bulkResumeContainers(ids: string[]) {
-    return runBulkContainerAction('resume', 'bulk_unpause_containers', ids);
+  static bulkResumeContainers(containers: Container[]) {
+    return runBulkContainerAction(
+      'resume',
+      'bulk_unpause_containers',
+      containers
+    );
   }
 
-  static bulkRestartContainers(ids: string[]) {
-    return runBulkContainerAction('restart', 'bulk_restart_containers', ids);
+  static bulkRestartContainers(containers: Container[]) {
+    return runBulkContainerAction(
+      'restart',
+      'bulk_restart_containers',
+      containers
+    );
   }
 
-  static bulkDeleteContainers(ids: string[], hasRunning: boolean) {
+  static bulkDeleteContainers(containers: Container[], hasRunning: boolean) {
     const command = hasRunning
       ? 'bulk_force_remove_containers'
       : 'bulk_remove_containers';
-    return runBulkContainerAction('remove', command, ids);
+    return runBulkContainerAction('remove', command, containers);
   }
 
   static async openTerminal(containerId: string) {
