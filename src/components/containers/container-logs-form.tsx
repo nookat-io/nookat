@@ -37,19 +37,6 @@ const LINE_COUNT_OPTIONS = [
 
 const DEFAULT_LINE_COUNT = LINE_COUNT_OPTIONS[0].count;
 
-const exportLogs = (logs: string[], filename: string) => {
-  const logText = logs.join('\n');
-  const blob = new Blob([logText], { type: 'text/plain' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-};
-
 const SearchInput = ({
   value,
   onChange,
@@ -102,6 +89,7 @@ export function ContainerLogsForm({
   const [isLoading, startLoadingLogs] = useTransition();
   const [searchTerm, setSearchTerm] = useState('');
   const [lines, setLines] = useState(DEFAULT_LINE_COUNT);
+  const [isSaving, setIsSaving] = useState(false);
 
   const latestReadId = useRef(0);
 
@@ -136,16 +124,33 @@ export function ContainerLogsForm({
     }
   }, [isOpen, fetchLogs]);
 
-  const handleCopyLogs = () => {
-    const logText = logs.join('\n');
-    navigator.clipboard.writeText(logText);
-    toast.success('Logs copied to clipboard');
+  const handleCopyLogs = async () => {
+    try {
+      await navigator.clipboard.writeText(logs.join('\n'));
+      toast.success('Logs copied to clipboard');
+    } catch (error) {
+      toast.error(`Failed to copy logs: ${errorMessage(error)}`);
+    }
   };
 
-  const handleDownloadLogs = () => {
-    exportLogs(logs, `${containerName}-logs.txt`);
-    toast.success('Logs downloaded');
+  const handleDownloadLogs = async () => {
+    setIsSaving(true);
+    try {
+      const savedPath = await invoke<string | null>('save_container_logs', {
+        fileName: `${containerName}-logs.txt`,
+        lines: logs,
+      });
+      if (savedPath) {
+        toast.success(`Saved the logs to ${savedPath}`);
+      }
+    } catch (error) {
+      toast.error(`Failed to save logs: ${errorMessage(error)}`);
+    } finally {
+      setIsSaving(false);
+    }
   };
+
+  const hasLogs = logs.length > 0;
 
   const filteredLogs = logs.filter(log =>
     log.toLowerCase().includes(searchTerm.toLowerCase())
@@ -226,11 +231,19 @@ export function ContainerLogsForm({
             </div>
 
             <div className="flex items-center gap-2">
-              <ActionButton onClick={handleCopyLogs} icon={Copy}>
+              <ActionButton
+                onClick={handleCopyLogs}
+                icon={Copy}
+                disabled={!hasLogs}
+              >
                 Copy
               </ActionButton>
 
-              <ActionButton onClick={handleDownloadLogs} icon={Download}>
+              <ActionButton
+                onClick={handleDownloadLogs}
+                icon={Download}
+                disabled={!hasLogs || isSaving}
+              >
                 Download
               </ActionButton>
 

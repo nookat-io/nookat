@@ -8,6 +8,7 @@ use bollard::query_parameters::{
 use bollard::Docker;
 use futures_util::StreamExt;
 use std::future::Future;
+use std::path::Path;
 use tracing::instrument;
 
 const INTERACTIVE_SHELLS: [&str; 2] = ["bash", "sh"];
@@ -151,6 +152,15 @@ impl ContainersService {
     }
 
     #[instrument(skip_all, err)]
+    pub async fn save_logs(path: &Path, lines: &[String]) -> Result<(), String> {
+        let text: String = lines.iter().map(|line| format!("{}\n", line)).collect();
+
+        tokio::fs::write(path, text)
+            .await
+            .map_err(|error| format!("{}: {}", path.display(), error))
+    }
+
+    #[instrument(skip_all, err)]
     pub async fn prune_containers(docker: &Docker) -> Result<(), String> {
         docker
             .prune_containers(None::<PruneContainersOptions>)
@@ -273,6 +283,50 @@ mod tests {
 
         assert_eq!(shell, Err("The engine stopped answering".to_string()));
         assert_eq!(tried, ["bash"]);
+    }
+
+    fn log_lines(lines: &[&str]) -> Vec<String> {
+        lines.iter().map(|line| line.to_string()).collect()
+    }
+
+    #[tokio::test]
+    async fn saved_logs_end_every_line_with_a_line_break() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("web-logs.txt");
+
+        ContainersService::save_logs(&path, &log_lines(&["booting", "listening on :80"]))
+            .await
+            .unwrap();
+
+        assert_eq!(
+            std::fs::read_to_string(&path).unwrap(),
+            "booting\nlistening on :80\n"
+        );
+    }
+
+    #[tokio::test]
+    async fn saving_logs_replaces_the_whole_previous_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("web-logs.txt");
+        std::fs::write(&path, "an older and much longer log\nwith more lines\n").unwrap();
+
+        ContainersService::save_logs(&path, &log_lines(&["booting"]))
+            .await
+            .unwrap();
+
+        assert_eq!(std::fs::read_to_string(&path).unwrap(), "booting\n");
+    }
+
+    #[tokio::test]
+    async fn saving_logs_into_a_missing_folder_names_the_path() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("missing").join("web-logs.txt");
+
+        let error = ContainersService::save_logs(&path, &log_lines(&["booting"]))
+            .await
+            .unwrap_err();
+
+        assert!(error.starts_with(&path.display().to_string()), "{error}");
     }
 
     #[cfg(unix)]
