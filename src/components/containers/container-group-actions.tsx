@@ -7,15 +7,16 @@ import {
   DropdownMenuTrigger,
 } from '../ui/dropdown-menu';
 import { ContainerActionService } from './container-actions-service';
+import { Container } from './container-types';
 
 interface ContainerGroupActionsProps {
-  containerIds: string[];
+  containers: Container[];
   hasRunningContainers: boolean;
   allStopped: boolean;
 }
 
 export function ContainerGroupActions({
-  containerIds,
+  containers,
   hasRunningContainers,
   allStopped,
 }: ContainerGroupActionsProps) {
@@ -30,7 +31,7 @@ export function ContainerGroupActions({
         {allStopped && (
           <DropdownMenuItem
             onClick={() =>
-              ContainerActionService.bulkStartContainers(containerIds)
+              ContainerActionService.bulkStartContainers(containers)
             }
           >
             <Play className="mr-2 h-4 w-4" />
@@ -41,7 +42,7 @@ export function ContainerGroupActions({
         {hasRunningContainers && (
           <DropdownMenuItem
             onClick={() =>
-              ContainerActionService.bulkStopContainers(containerIds)
+              ContainerActionService.bulkStopContainers(containers)
             }
           >
             <Square className="mr-2 h-4 w-4" />
@@ -53,7 +54,7 @@ export function ContainerGroupActions({
           className="text-destructive"
           onClick={() =>
             ContainerActionService.bulkDeleteContainers(
-              containerIds,
+              containers,
               hasRunningContainers
             )
           }

@@ -4,21 +4,14 @@ import { mockIPC } from '@tauri-apps/api/mocks';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ContainerActions } from './container-actions';
 import { Container, ContainerState } from './container-types';
+import { CommandHandlers, recordCommands } from '../../tests/containers';
 
 const toast = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn() }));
 vi.mock('sonner', () => ({ toast }));
 
-function mockContainerCommands(
-  handlers: Partial<Record<string, (args: Record<string, unknown>) => unknown>>
-) {
-  mockIPC((cmd, args) => {
-    const handler = handlers[cmd];
-    if (!handler) {
-      throw new Error(`Unexpected command ${cmd}`);
-    }
-    return handler(args as Record<string, unknown>);
-  });
-}
+const mockContainerCommands = (handlers: CommandHandlers) => {
+  recordCommands(handlers);
+};
 
 const containersIn = (state: ContainerState): Container[] =>
   ['a', 'b', 'c'].map(id => ({ id, names: [`/${id}`], state }));
@@ -50,12 +43,12 @@ describe('container actions', () => {
     await user.click(screen.getByRole('button', { name: 'Stop' }));
 
     expect(toast.error).toHaveBeenCalledWith(
-      'Failed to stop 1 of 3 containers: Failed to stop container: boom'
+      'Failed to stop 1 of 3 containers: b: Failed to stop container: boom'
     );
     expect(toast.success).not.toHaveBeenCalled();
   });
 
-  it('lists each distinct reason once when several containers fail', async () => {
+  it('names the containers behind each distinct reason', async () => {
     const user = userEvent.setup();
     mockContainerCommands({
       bulk_start_containers: () => ({
@@ -77,7 +70,34 @@ describe('container actions', () => {
     await user.click(screen.getByRole('button', { name: 'Start' }));
 
     expect(toast.error).toHaveBeenCalledWith(
-      'Failed to start 3 containers: port is already allocated; no such image'
+      'Failed to start 3 containers: a, b: port is already allocated; c: no such image'
+    );
+  });
+
+  it('names a container by its short id when it has no name', async () => {
+    const user = userEvent.setup();
+    const unnamedId = 'f'.repeat(12) + '0'.repeat(52);
+    const containers: Container[] = [
+      ...containersIn(ContainerState.Running).slice(0, 2),
+      { id: unnamedId, names: [], state: ContainerState.Running },
+    ];
+    mockContainerCommands({
+      bulk_stop_containers: () => ({
+        succeeded: ['a', 'b'],
+        failed: [{ id: unnamedId, error: 'boom' }],
+      }),
+    });
+    render(
+      <ContainerActions
+        selectedContainers={['a', 'b', unnamedId]}
+        containers={containers}
+      />
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Stop' }));
+
+    expect(toast.error).toHaveBeenCalledWith(
+      'Failed to stop 1 of 3 containers: ffffffffffff: boom'
     );
   });
 
@@ -122,7 +142,7 @@ describe('container actions', () => {
     await user.click(screen.getByRole('button', { name: 'Delete' }));
 
     expect(toast.error).toHaveBeenCalledWith(
-      'Failed to remove 1 of 3 containers: Failed to remove container: conflict'
+      'Failed to remove 1 of 3 containers: b: Failed to remove container: conflict'
     );
     expect(onSelectionChange).toHaveBeenCalledWith(['b']);
   });

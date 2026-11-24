@@ -29,7 +29,6 @@ export function ContainerGroupRow({
     c => c.state === ContainerState.Running
   );
   const allStopped = containers.every(c => c.state !== ContainerState.Running);
-  const groupContainerIds = containers.map(c => c.id);
 
   if (containers.length === 0) return null;
 
@@ -83,7 +82,7 @@ export function ContainerGroupRow({
         <TableCell className="text-muted-foreground">-</TableCell>
         <TableCell className="text-left">
           <ContainerGroupActions
-            containerIds={groupContainerIds}
+            containers={containers}
             hasRunningContainers={hasRunningContainers}
             allStopped={allStopped}
           />

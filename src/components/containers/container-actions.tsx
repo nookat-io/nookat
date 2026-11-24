@@ -38,8 +38,8 @@ export function ContainerActions({
   const [pruneDialogOpen, setPruneDialogOpen] = useState(false);
   const [forceDeleteDialogOpen, setForceDeleteDialogOpen] = useState(false);
 
-  const selectedContainerData = containers.filter(container =>
-    selectedContainers.includes(container.id)
+  const selectedContainerData = selectedContainers.flatMap(id =>
+    containers.filter(container => container.id === id)
   );
 
   const allSelected = (predicate: (container: Container) => boolean) =>
@@ -75,38 +75,38 @@ export function ContainerActions({
 
   const handleStart = () =>
     handleAction(
-      () => ContainerActionService.bulkStartContainers(selectedContainers),
+      () => ContainerActionService.bulkStartContainers(selectedContainerData),
       'start'
     );
 
   const handleStop = () =>
     handleAction(
-      () => ContainerActionService.bulkStopContainers(selectedContainers),
+      () => ContainerActionService.bulkStopContainers(selectedContainerData),
       'stop'
     );
 
   const handlePause = () =>
     handleAction(
-      () => ContainerActionService.bulkPauseContainers(selectedContainers),
+      () => ContainerActionService.bulkPauseContainers(selectedContainerData),
       'pause'
     );
 
   const handleResume = () =>
     handleAction(
-      () => ContainerActionService.bulkResumeContainers(selectedContainers),
+      () => ContainerActionService.bulkResumeContainers(selectedContainerData),
       'resume'
     );
 
   const handleRestart = () =>
     handleAction(
-      () => ContainerActionService.bulkRestartContainers(selectedContainers),
+      () => ContainerActionService.bulkRestartContainers(selectedContainerData),
       'restart'
     );
 
   const handleDelete = () =>
     handleAction(async () => {
       const deletedIds = await ContainerActionService.bulkDeleteContainers(
-        selectedContainers,
+        selectedContainerData,
         hasRunning
       );
       setForceDeleteDialogOpen(false);
