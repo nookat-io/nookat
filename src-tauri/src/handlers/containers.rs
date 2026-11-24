@@ -6,6 +6,7 @@ use crate::services::{
 };
 use crate::state::SharedEngineState;
 use tauri::State;
+use tauri_plugin_dialog::DialogExt;
 use tracing::{debug, instrument};
 
 #[tauri::command]
@@ -229,6 +230,36 @@ pub async fn container_logs(
     let engine = state.get_engine().await?;
     let docker = engine.docker.as_ref().ok_or("Docker not found")?;
     ContainersService::get_container_logs(docker, &id, lines).await
+}
+
+#[tauri::command]
+#[instrument(skip_all, err)]
+pub async fn save_container_logs(
+    window: tauri::WebviewWindow,
+    file_name: String,
+    lines: Vec<String>,
+) -> Result<Option<String>, String> {
+    debug!("Asking where to save {} log lines", lines.len());
+
+    let (send_choice, choice) = tokio::sync::oneshot::channel();
+    window
+        .dialog()
+        .file()
+        .set_parent(&window)
+        .set_file_name(file_name)
+        .add_filter("Text", &["txt"])
+        .save_file(move |path| {
+            let _ = send_choice.send(path);
+        });
+    let Some(path) = choice
+        .await
+        .map_err(|_| "The save dialog closed without an answer")?
+    else {
+        return Ok(None);
+    };
+    let path = path.into_path().map_err(|e| e.to_string())?;
+    ContainersService::save_logs(&path, &lines).await?;
+    Ok(Some(path.display().to_string()))
 }
 
 #[tauri::command]

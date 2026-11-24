@@ -12,17 +12,37 @@ interface LogRead {
   lines: number;
 }
 
-function mockLogReads(readLogs: (read: LogRead) => Promise<string[]>) {
+interface LogSave {
+  fileName: string;
+  lines: string[];
+}
+
+function mockLogReads(
+  readLogs: (read: LogRead) => Promise<string[]>,
+  saveLogs?: (save: LogSave) => Promise<string | null>
+) {
   const reads: LogRead[] = [];
   mockIPC((cmd, args) => {
-    if (cmd !== 'container_logs') {
-      throw new Error(`Unexpected command ${cmd}`);
+    if (cmd === 'container_logs') {
+      const read = args as unknown as LogRead;
+      reads.push(read);
+      return readLogs(read);
     }
-    const read = args as unknown as LogRead;
-    reads.push(read);
-    return readLogs(read);
+    if (cmd === 'save_container_logs' && saveLogs) {
+      return saveLogs(args as unknown as LogSave);
+    }
+    throw new Error(`Unexpected command ${cmd}`);
   });
   return reads;
+}
+
+function recordSaves(answer: () => Promise<string | null>) {
+  const saves: LogSave[] = [];
+  const saveLogs = (save: LogSave) => {
+    saves.push(save);
+    return answer();
+  };
+  return { saves, saveLogs };
 }
 
 function pendingRead() {
@@ -46,6 +66,7 @@ function renderLogs() {
 describe('ContainerLogsForm', () => {
   beforeEach(() => {
     toast.error.mockClear();
+    toast.success.mockClear();
   });
 
   it('reads the container logs as soon as it opens', async () => {
@@ -165,5 +186,126 @@ describe('ContainerLogsForm', () => {
       'Failed to fetch logs: No such container: c0ffee'
     );
     expect(screen.getByRole('button', { name: 'Refresh' })).toBeEnabled();
+  });
+
+  it('saves the lines it shows to the file the user picks', async () => {
+    const user = userEvent.setup();
+    const { saves, saveLogs } = recordSaves(
+      async () => '/home/me/web-logs.txt'
+    );
+    mockLogReads(async () => ['booting', 'listening on :80'], saveLogs);
+    renderLogs();
+    await screen.findByText(/listening on :80/);
+
+    await user.click(screen.getByRole('button', { name: 'Download' }));
+
+    await waitFor(() =>
+      expect(toast.success).toHaveBeenCalledWith(
+        'Saved the logs to /home/me/web-logs.txt'
+      )
+    );
+    expect(saves).toEqual([
+      { fileName: 'web-logs.txt', lines: ['booting', 'listening on :80'] },
+    ]);
+  });
+
+  it('keeps Download disabled until the save finishes', async () => {
+    const user = userEvent.setup();
+    let finishSave!: (path: string) => void;
+    const save = new Promise<string>(resolve => (finishSave = resolve));
+    mockLogReads(
+      async () => ['booting'],
+      () => save
+    );
+    renderLogs();
+    await screen.findByText('booting');
+    const download = screen.getByRole('button', { name: 'Download' });
+
+    await user.click(download);
+
+    await waitFor(() => expect(download).toBeDisabled());
+    await act(async () => finishSave('/home/me/web-logs.txt'));
+    await waitFor(() => expect(download).toBeEnabled());
+  });
+
+  it('says nothing when the user cancels the save dialog', async () => {
+    const user = userEvent.setup();
+    const { saves, saveLogs } = recordSaves(async () => null);
+    mockLogReads(async () => ['booting'], saveLogs);
+    renderLogs();
+    await screen.findByText('booting');
+    const download = screen.getByRole('button', { name: 'Download' });
+
+    await user.click(download);
+
+    await waitFor(() => expect(saves).toHaveLength(1));
+    await waitFor(() => expect(download).toBeEnabled());
+    expect(toast.success).not.toHaveBeenCalled();
+    expect(toast.error).not.toHaveBeenCalled();
+  });
+
+  it('shows the reason when the logs cannot be saved', async () => {
+    const user = userEvent.setup();
+    const denied = '/root/web-logs.txt: Permission denied (os error 13)';
+    mockLogReads(
+      async () => ['booting'],
+      () => Promise.reject(denied)
+    );
+    renderLogs();
+    await screen.findByText('booting');
+
+    await user.click(screen.getByRole('button', { name: 'Download' }));
+
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith(
+        'Failed to save logs: /root/web-logs.txt: Permission denied (os error 13)'
+      )
+    );
+    expect(toast.success).not.toHaveBeenCalled();
+  });
+
+  it('copies the lines it shows and confirms it once the clipboard has them', async () => {
+    const user = userEvent.setup();
+    mockLogReads(async () => ['booting', 'listening on :80']);
+    renderLogs();
+    await screen.findByText(/listening on :80/);
+
+    await user.click(screen.getByRole('button', { name: 'Copy' }));
+
+    await waitFor(() =>
+      expect(toast.success).toHaveBeenCalledWith('Logs copied to clipboard')
+    );
+    await expect(navigator.clipboard.readText()).resolves.toBe(
+      'booting\nlistening on :80'
+    );
+  });
+
+  it('reports a clipboard failure instead of claiming the logs were copied', async () => {
+    const user = userEvent.setup();
+    vi.spyOn(navigator.clipboard, 'writeText').mockRejectedValue(
+      new Error('Document is not focused.')
+    );
+    mockLogReads(async () => ['booting']);
+    renderLogs();
+    await screen.findByText('booting');
+
+    await user.click(screen.getByRole('button', { name: 'Copy' }));
+
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith(
+        'Failed to copy logs: Document is not focused.'
+      )
+    );
+    expect(toast.success).not.toHaveBeenCalled();
+  });
+
+  it('offers no Copy or Download while there are no lines', async () => {
+    mockLogReads(async () => []);
+
+    renderLogs();
+
+    expect(await screen.findByText('No logs found')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Copy' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Download' })).toBeDisabled();
   });
 });
