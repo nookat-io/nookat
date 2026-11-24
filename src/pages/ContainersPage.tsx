@@ -12,6 +12,7 @@ import {
   containerFilterPhrases,
 } from '../components/containers/container-filter';
 import { Container } from 'lucide-react';
+import { useMemo } from 'react';
 import {
   Command,
   ListEmptyState,
@@ -33,7 +34,10 @@ export default function ContainersPage() {
 
   const { engineState, isLoading, error } = useEngineState();
 
-  const containers = engineState ? Object.values(engineState.containers) : [];
+  const containers = useMemo(
+    () => (engineState ? Object.values(engineState.containers) : []),
+    [engineState]
+  );
 
   const filteredContainers = useFilter(
     containers,

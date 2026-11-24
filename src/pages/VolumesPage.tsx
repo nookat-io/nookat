@@ -12,6 +12,7 @@ import {
   volumeFilterPhrases,
 } from '../components/volumes/volume-filter';
 import { HardDrive } from 'lucide-react';
+import { useMemo } from 'react';
 import { Command, ListEmptyState } from '../components/common/list-empty-state';
 
 export default function VolumesPage() {
@@ -29,7 +30,10 @@ export default function VolumesPage() {
 
   const { engineState, isLoading, error } = useEngineState();
 
-  const volumes = engineState ? Object.values(engineState.volumes) : [];
+  const volumes = useMemo(
+    () => (engineState ? Object.values(engineState.volumes) : []),
+    [engineState]
+  );
 
   const filteredVolumes = useFilter(volumes, filter, searchTerm, volumeFilter);
 

@@ -12,6 +12,7 @@ import {
   networkFilterPhrases,
 } from '../components/networks/network-filter';
 import { Network } from 'lucide-react';
+import { useMemo } from 'react';
 import { ListEmptyState, UiName } from '../components/common/list-empty-state';
 
 export default function NetworksPage() {
@@ -29,7 +30,10 @@ export default function NetworksPage() {
 
   const { engineState, isLoading, error } = useEngineState();
 
-  const networks = engineState ? Object.values(engineState.networks) : [];
+  const networks = useMemo(
+    () => (engineState ? Object.values(engineState.networks) : []),
+    [engineState]
+  );
 
   const filteredNetworks = useFilter(
     networks,
