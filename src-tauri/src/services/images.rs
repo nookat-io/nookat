@@ -1,9 +1,8 @@
 use super::image_pull::follow_pull;
 use crate::entities::{DockerHubTag, Image, ImagePullOutcome, ImagePullProgress, PruneResult};
-use bollard::models::ImageSummary;
+use bollard::models::{ContainerSummary, ImageSummary};
 use bollard::query_parameters::{
-    CreateImageOptions, ListContainersOptions, ListImagesOptions, PruneImagesOptions,
-    RemoveImageOptions,
+    CreateImageOptions, ListImagesOptions, PruneImagesOptions, RemoveImageOptions,
 };
 use bollard::Docker;
 use reqwest::{StatusCode, Url};
@@ -28,37 +27,22 @@ const DOCKER_HUB_USER_AGENT: &str = "Nookat/1.0";
 pub struct ImagesService {}
 
 impl ImagesService {
-    async fn get_images_and_used_ids(
+    #[instrument(skip_all, err)]
+    pub async fn get_images(
         docker: &Docker,
-    ) -> Result<(Vec<ImageSummary>, HashSet<String>), String> {
-        let image_options = ListImagesOptions::default();
+        containers: &[ContainerSummary],
+    ) -> Result<Vec<Image>, String> {
         let images = docker
-            .list_images(Some(image_options))
+            .list_images(Some(ListImagesOptions::default()))
             .await
             .map_err(|e| format!("Failed to list images: {}", e))?;
-
-        let container_options = ListContainersOptions {
-            all: true,
-            ..Default::default()
-        };
-        let containers = docker
-            .list_containers(Some(container_options))
-            .await
-            .map_err(|e| format!("Failed to list containers: {}", e))?;
 
         let used_image_ids: HashSet<String> = containers
             .iter()
             .filter_map(|container| container.image_id.clone())
             .collect();
 
-        debug!("Found {} containers using images", used_image_ids.len());
-
-        Ok((images, used_image_ids))
-    }
-
-    #[instrument(skip_all, err)]
-    pub async fn get_images(docker: &Docker) -> Result<Vec<Image>, String> {
-        let (images, used_image_ids) = Self::get_images_and_used_ids(docker).await?;
+        debug!("Found {} images used by containers", used_image_ids.len());
 
         Ok(images
             .iter()
@@ -754,7 +738,50 @@ mod tests {
         use super::super::ImagesService;
         use crate::entities::ImagePullOutcome;
         use crate::services::fake_docker_daemon::{http_response, request_lines, serve_daemon};
+        use bollard::models::ContainerSummary;
         use bollard::Docker;
+
+        const WEB_AND_IDLE_IMAGES: &str = r#"[
+            {"Id":"sha256:web","ParentId":"","RepoTags":["web:latest"],"RepoDigests":[],"Created":0,"Size":0,"SharedSize":-1,"Labels":{},"Containers":-1},
+            {"Id":"sha256:idle","ParentId":"","RepoTags":["idle:latest"],"RepoDigests":[],"Created":0,"Size":0,"SharedSize":-1,"Labels":{},"Containers":-1}
+        ]"#;
+
+        #[tokio::test]
+        async fn marks_images_in_use_from_the_given_containers_without_listing_them() {
+            let dir = tempfile::tempdir().unwrap();
+            let socket = dir.path().join("docker.sock");
+            let requests = serve_daemon(&socket, |_| {
+                http_response("200 OK", "application/json", WEB_AND_IDLE_IMAGES)
+            });
+            let docker = Docker::connect_with_unix(
+                socket.to_str().unwrap(),
+                5,
+                bollard::API_DEFAULT_VERSION,
+            )
+            .unwrap();
+            let containers = [ContainerSummary {
+                image_id: Some("sha256:web".to_string()),
+                ..Default::default()
+            }];
+
+            let images = ImagesService::get_images(&docker, &containers)
+                .await
+                .unwrap();
+
+            let in_use_of = |id: &str| {
+                images
+                    .iter()
+                    .find(|image| image.image_id == id)
+                    .map(|image| image.in_use)
+            };
+            assert_eq!(in_use_of("sha256:web"), Some(true));
+            assert_eq!(in_use_of("sha256:idle"), Some(false));
+            let lines = request_lines(&requests);
+            assert!(
+                lines.iter().all(|line| !line.contains("/containers/json")),
+                "{lines:?}"
+            );
+        }
 
         #[tokio::test]
         async fn a_pull_goes_straight_to_the_daemon_without_a_ping() {

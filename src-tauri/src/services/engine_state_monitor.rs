@@ -1,4 +1,4 @@
-use crate::entities::{Container, Engine, EngineState};
+use crate::entities::{Container, Engine, EngineState, Image};
 use crate::services::{ContainersService, ImagesService, NetworksService, VolumesService};
 use crate::state::SharedEngineState;
 use bollard::models::ContainerSummary;
@@ -287,9 +287,8 @@ impl EngineStateMonitor {
             return Ok(Self::status_only_state(engine));
         };
 
-        let (containers, images, volumes, networks) = tokio::try_join!(
-            ContainersService::get_containers(docker),
-            ImagesService::get_images(docker),
+        let ((containers, images), volumes, networks) = tokio::try_join!(
+            Self::read_containers_then_images(docker),
             VolumesService::get_volumes(docker),
             NetworksService::get_networks(docker)
         )?;
@@ -303,6 +302,14 @@ impl EngineStateMonitor {
             version: UNPUBLISHED_VERSION,
             last_updated: Utc::now(),
         })
+    }
+
+    async fn read_containers_then_images(
+        docker: &Docker,
+    ) -> Result<(Vec<ContainerSummary>, Vec<Image>), String> {
+        let containers = ContainersService::get_containers(docker).await?;
+        let images = ImagesService::get_images(docker, &containers).await?;
+        Ok((containers, images))
     }
 
     fn status_only_state(engine: &Engine) -> EngineState {
@@ -598,5 +605,64 @@ mod tests {
             names,
             HashMap::from([("vol-a".to_string(), "vol-a".to_string())])
         );
+    }
+
+    #[cfg(unix)]
+    mod against_a_fake_daemon {
+        use super::super::EngineStateMonitor;
+        use crate::entities::{Engine, EngineInfo, EngineStatus};
+        use crate::services::fake_docker_daemon::{http_response, request_lines, serve_daemon};
+        use bollard::Docker;
+
+        const CONTAINERS: &str = r#"[{"Id":"web-1","ImageID":"sha256:web","Names":["/web"]}]"#;
+        const IMAGES: &str = r#"[{"Id":"sha256:web","ParentId":"","RepoTags":["web:latest"],"RepoDigests":[],"Created":0,"Size":0,"SharedSize":-1,"Labels":{},"Containers":-1}]"#;
+
+        fn answer(request: &str) -> String {
+            let path = request.split_whitespace().nth(1).unwrap_or_default();
+            let body = if path.contains("/containers/json") {
+                CONTAINERS
+            } else if path.contains("/images/json") {
+                IMAGES
+            } else if path.contains("/volumes") {
+                r#"{"Volumes":[],"Warnings":[]}"#
+            } else {
+                "[]"
+            };
+            http_response("200 OK", "application/json", body)
+        }
+
+        #[tokio::test]
+        async fn a_snapshot_never_asks_the_daemon_for_container_sizes() {
+            let dir = tempfile::tempdir().unwrap();
+            let socket = dir.path().join("docker.sock");
+            let requests = serve_daemon(&socket, answer);
+            let docker = Docker::connect_with_unix(
+                socket.to_str().unwrap(),
+                5,
+                bollard::API_DEFAULT_VERSION,
+            )
+            .unwrap();
+            let engine = Engine {
+                engine_status: EngineStatus::Running(EngineInfo::Docker),
+                docker: Some(docker),
+                endpoint: None,
+            };
+
+            let state = EngineStateMonitor::read_engine_state(&engine)
+                .await
+                .unwrap();
+
+            let lines = request_lines(&requests);
+            assert!(
+                lines.iter().all(|line| !line.contains("size=true")),
+                "{lines:?}"
+            );
+            let web = state
+                .images
+                .values()
+                .find(|image| image.image_id == "sha256:web")
+                .expect("the image sha256:web is listed");
+            assert!(web.in_use);
+        }
     }
 }

@@ -86,8 +86,6 @@ export interface Container {
   command?: string;
   created?: number;
   ports?: Port[];
-  size_rw?: number;
-  size_root_fs?: number;
   labels?: Record<string, string>;
   state?: ContainerState;
   status?: string;

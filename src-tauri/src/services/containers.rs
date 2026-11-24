@@ -21,7 +21,6 @@ impl ContainersService {
     pub async fn get_containers(docker: &Docker) -> Result<Vec<ContainerSummary>, String> {
         let options = ListContainersOptions {
             all: true,
-            size: true,
             ..Default::default()
         };
 
