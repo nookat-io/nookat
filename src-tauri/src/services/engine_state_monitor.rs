@@ -11,26 +11,139 @@ use std::future::Future;
 use std::sync::Arc;
 use std::time::Duration;
 use tauri::Emitter;
-use tokio::sync::{futures::Notified, Mutex, MutexGuard};
-use tokio::task::JoinError;
-use tracing::{debug, error, info, warn};
+use tokio::sync::{Mutex, MutexGuard};
+use tokio::task::{JoinError, JoinHandle, JoinSet};
+use tracing::{debug, error, warn};
 
 type MonitorResult<T> = Result<T, Box<dyn std::error::Error + Send + Sync>>;
+
+struct BrokenStream {
+    cause: Box<dyn std::error::Error + Send + Sync>,
+    delivered_events: bool,
+}
 
 async fn follow_events_until_the_stream_breaks<T, E, Reaction>(
     events: impl Stream<Item = Result<T, E>>,
     mut react: impl FnMut() -> Reaction,
-) -> MonitorResult<()>
+) -> BrokenStream
 where
     E: Into<Box<dyn std::error::Error + Send + Sync>>,
     Reaction: Future<Output = ()>,
 {
     futures_util::pin_mut!(events);
+    let mut delivered_events = false;
     while let Some(event) = events.next().await {
-        event.map_err(Into::into)?;
+        if let Err(e) = event {
+            return BrokenStream {
+                cause: e.into(),
+                delivered_events,
+            };
+        }
+        delivered_events = true;
         react().await;
     }
-    Err("The Docker events stream ended".into())
+    BrokenStream {
+        cause: "The Docker events stream ended".into(),
+        delivered_events,
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum EventsWatchOutcome {
+    NoEngine,
+    BrokeBeforeAnyEvent,
+    BrokeAfterEvents,
+    EngineChanged,
+}
+
+const FIRST_RETRY_DELAY: Duration = Duration::from_secs(2);
+const LONGEST_RETRY_DELAY: Duration = Duration::from_secs(16);
+
+struct RetryDelay {
+    next: Duration,
+}
+
+impl RetryDelay {
+    fn new() -> Self {
+        Self {
+            next: FIRST_RETRY_DELAY,
+        }
+    }
+
+    fn reset(&mut self) {
+        self.next = FIRST_RETRY_DELAY;
+    }
+
+    fn take(&mut self) -> Duration {
+        let delay = self.next;
+        self.next = (delay * 2).min(LONGEST_RETRY_DELAY);
+        delay
+    }
+}
+
+async fn keep_following_events<Attempt, Wait>(
+    mut attempt: impl FnMut() -> Attempt,
+    mut wait: impl FnMut(Duration) -> Wait,
+) where
+    Attempt: Future<Output = EventsWatchOutcome>,
+    Wait: Future<Output = ()>,
+{
+    let mut delay = RetryDelay::new();
+    loop {
+        match attempt().await {
+            EventsWatchOutcome::EngineChanged => delay.reset(),
+            EventsWatchOutcome::BrokeAfterEvents => {
+                delay.reset();
+                wait(delay.take()).await;
+            }
+            EventsWatchOutcome::NoEngine | EventsWatchOutcome::BrokeBeforeAnyEvent => {
+                wait(delay.take()).await;
+            }
+        }
+    }
+}
+
+#[derive(Default)]
+struct MonitorTask {
+    handle: Mutex<Option<JoinHandle<()>>>,
+}
+
+impl MonitorTask {
+    async fn start_unless_running(&self, spawn: impl FnOnce() -> JoinHandle<()>) {
+        let mut handle = self.handle.lock().await;
+
+        match handle.take() {
+            Some(running) if !running.is_finished() => {
+                debug!("Engine state monitoring already running");
+                *handle = Some(running);
+                return;
+            }
+            Some(finished) => log_monitor_loop_exit(finished.await),
+            None => {}
+        }
+
+        *handle = Some(spawn());
+        debug!("Engine state monitoring started");
+    }
+
+    #[cfg(test)]
+    async fn has_finished(&self) -> bool {
+        self.handle
+            .lock()
+            .await
+            .as_ref()
+            .is_some_and(JoinHandle::is_finished)
+    }
+}
+
+fn log_monitor_loop_exit(outcome: Result<(), JoinError>) {
+    match outcome {
+        Ok(()) => error!("Engine state monitoring ended, starting it again"),
+        Err(e) => error!(
+            "Engine state monitoring task failed: {}, starting it again",
+            e
+        ),
+    }
 }
 
 const POLL_INTERVAL: Duration = Duration::from_secs(5);
@@ -38,7 +151,7 @@ const UNPUBLISHED_VERSION: u64 = 0;
 
 pub struct EngineStateMonitor {
     state: Arc<SharedEngineState>,
-    is_monitoring: Arc<Mutex<bool>>,
+    monitor_task: MonitorTask,
     last_published: Arc<Mutex<Option<EngineState>>>,
     app_handle: tauri::AppHandle,
 }
@@ -47,56 +160,38 @@ impl EngineStateMonitor {
     pub fn new(state: Arc<SharedEngineState>, app_handle: tauri::AppHandle) -> Self {
         Self {
             state,
-            is_monitoring: Arc::new(Mutex::new(false)),
+            monitor_task: MonitorTask::default(),
             last_published: Arc::new(Mutex::new(None)),
             app_handle,
         }
     }
 
-    pub async fn start_monitoring(&self) -> MonitorResult<()> {
-        let mut is_monitoring = self.is_monitoring.lock().await;
-
-        if *is_monitoring {
-            debug!("Engine state monitoring already running");
-            return Ok(());
-        }
-
-        *is_monitoring = true;
-        drop(is_monitoring);
-
-        let state = self.state.clone();
-        let is_monitoring = self.is_monitoring.clone();
-        let last_published = self.last_published.clone();
-        let app_handle = self.app_handle.clone();
-
-        tokio::spawn(async move {
-            if let Err(e) =
-                Self::monitor_loop(state, is_monitoring, last_published, app_handle).await
-            {
-                error!("Engine state monitoring error: {}", e);
-            }
-        });
-
-        debug!("Engine state monitoring started");
-        Ok(())
+    pub async fn start_monitoring(&self) {
+        self.monitor_task
+            .start_unless_running(|| {
+                tokio::spawn(Self::monitor_loop(
+                    self.state.clone(),
+                    self.last_published.clone(),
+                    self.app_handle.clone(),
+                ))
+            })
+            .await;
     }
 
     async fn monitor_loop(
         state: Arc<SharedEngineState>,
-        is_monitoring: Arc<Mutex<bool>>,
         last_published: Arc<Mutex<Option<EngineState>>>,
         app_handle: tauri::AppHandle,
-    ) -> MonitorResult<()> {
-        let spawn_docker_events_task = || {
-            tokio::spawn(Self::monitor_docker_events_continuously(
+    ) {
+        let follow_docker_events = || {
+            Self::monitor_docker_events_continuously(
                 state.clone(),
                 last_published.clone(),
-                is_monitoring.clone(),
                 app_handle.clone(),
-            ))
+            )
         };
-
-        let mut docker_events_task = spawn_docker_events_task();
+        let mut docker_events = JoinSet::new();
+        docker_events.spawn(follow_docker_events());
 
         if let Err(e) = Self::publish_if_changed(&state, &last_published, &app_handle).await {
             warn!("Initial baseline snapshot error: {}", e);
@@ -107,107 +202,47 @@ impl EngineStateMonitor {
         loop {
             poll_interval.tick().await;
 
-            if !*is_monitoring.lock().await {
-                break;
-            }
-
-            if docker_events_task.is_finished() {
-                log_docker_events_task_exit(docker_events_task.await);
-                docker_events_task = spawn_docker_events_task();
-                debug!("Docker events monitoring task respawned");
+            if let Some(exit) = docker_events.try_join_next() {
+                log_docker_events_task_exit(exit);
+                docker_events.spawn(follow_docker_events());
             }
 
             if let Err(e) = Self::publish_if_changed(&state, &last_published, &app_handle).await {
                 warn!("State change check error: {}", e);
             }
         }
-
-        Ok(())
     }
 
     async fn monitor_docker_events_continuously(
         state: Arc<SharedEngineState>,
         last_published: Arc<Mutex<Option<EngineState>>>,
-        is_monitoring: Arc<Mutex<bool>>,
         app_handle: tauri::AppHandle,
-    ) -> MonitorResult<()> {
-        let mut consecutive_failures = 0;
-        const MAX_CONSECUTIVE_FAILURES: u32 = 5;
-
-        loop {
-            if !*is_monitoring.lock().await {
-                break;
-            }
-
-            let connection_forgotten = state.connection_forgotten();
-            match state.get_engine().await {
-                Ok(engine) => {
-                    if let Some(docker) = &engine.docker {
-                        consecutive_failures = 0;
-
-                        if let Err(e) = Self::monitor_docker_events(
-                            docker,
-                            connection_forgotten,
-                            &state,
-                            &last_published,
-                            &app_handle,
-                        )
-                        .await
-                        {
-                            warn!("Docker events monitoring error: {}", e);
-                            if docker.ping().await.is_err() {
-                                warn!("The engine stopped answering, Nookat will connect again");
-                                state.forget_connection().await;
-                            }
-                            consecutive_failures += 1;
-
-                            if consecutive_failures >= MAX_CONSECUTIVE_FAILURES {
-                                error!("Too many consecutive Docker monitoring failures ({}), stopping monitoring", consecutive_failures);
-                                break;
-                            }
-
-                            let delay = Duration::from_secs(2_u64.pow(consecutive_failures));
-                            tokio::time::sleep(delay).await;
-                        }
-                    } else {
-                        consecutive_failures += 1;
-                        if consecutive_failures >= MAX_CONSECUTIVE_FAILURES {
-                            error!("No Docker instance available after {} attempts, stopping monitoring", consecutive_failures);
-                            break;
-                        }
-
-                        let delay = Duration::from_secs(2_u64.pow(consecutive_failures));
-                        tokio::time::sleep(delay).await;
-                    }
-                }
-                Err(e) => {
-                    consecutive_failures += 1;
-
-                    if consecutive_failures >= MAX_CONSECUTIVE_FAILURES {
-                        error!(
-                            "Engine not available after {} attempts: {}. Stopping monitoring.",
-                            consecutive_failures, e
-                        );
-                        break;
-                    }
-
-                    let delay = Duration::from_secs(2_u64.pow(consecutive_failures));
-                    tokio::time::sleep(delay).await;
-                }
-            }
-        }
-
-        info!("Docker events monitoring stopped");
-        Ok(())
+    ) {
+        keep_following_events(
+            || Self::follow_docker_events_once(&state, &last_published, &app_handle),
+            tokio::time::sleep,
+        )
+        .await
     }
 
-    async fn monitor_docker_events(
-        docker: &Docker,
-        connection_forgotten: Notified<'_>,
+    async fn follow_docker_events_once(
         state: &Arc<SharedEngineState>,
         last_published: &Arc<Mutex<Option<EngineState>>>,
         app_handle: &tauri::AppHandle,
-    ) -> MonitorResult<()> {
+    ) -> EventsWatchOutcome {
+        let connection_forgotten = state.connection_forgotten();
+        let engine = match state.get_engine().await {
+            Ok(engine) => engine,
+            Err(e) => {
+                warn!("The engine is not available: {}", e);
+                return EventsWatchOutcome::NoEngine;
+            }
+        };
+        let Some(docker) = &engine.docker else {
+            debug!("No engine runs, waiting before following its events");
+            return EventsWatchOutcome::NoEngine;
+        };
+
         let events = docker.events(Some(EventsOptions::default()));
         let follow_events = follow_events_until_the_stream_breaks(events, move || async move {
             debug!("Docker event received, broadcasting state update");
@@ -216,12 +251,24 @@ impl EngineStateMonitor {
             }
         });
 
-        tokio::select! {
+        let broken = tokio::select! {
             _ = connection_forgotten => {
                 debug!("The engine connection was forgotten, following the new engine's events");
-                Ok(())
+                return EventsWatchOutcome::EngineChanged;
             }
-            followed = follow_events => followed,
+            broken = follow_events => broken,
+        };
+
+        warn!("Docker events monitoring error: {}", broken.cause);
+        if docker.ping().await.is_err() {
+            warn!("The engine stopped answering, Nookat will connect again");
+            state.forget_connection().await;
+        }
+
+        if broken.delivered_events {
+            EventsWatchOutcome::BrokeAfterEvents
+        } else {
+            EventsWatchOutcome::BrokeBeforeAnyEvent
         }
     }
 
@@ -322,12 +369,11 @@ impl EngineStateMonitor {
     }
 }
 
-fn log_docker_events_task_exit(outcome: Result<MonitorResult<()>, JoinError>) {
+fn log_docker_events_task_exit(outcome: Result<(), JoinError>) {
     match outcome {
-        Ok(Ok(())) => debug!("Docker events monitoring completed successfully, respawning..."),
-        Ok(Err(e)) => warn!("Docker events monitoring failed: {}, respawning...", e),
+        Ok(()) => error!("Docker events monitoring ended, starting it again"),
         Err(e) => error!(
-            "Docker events monitoring task panicked: {}, respawning...",
+            "Docker events monitoring task failed: {}, starting it again",
             e
         ),
     }
@@ -360,7 +406,8 @@ fn keyed_by<T>(items: Vec<T>, key_of: impl Fn(&T) -> String) -> HashMap<String, 
 #[cfg(test)]
 mod tests {
     use super::{
-        containers_by_id, follow_events_until_the_stream_breaks, keyed_by, EngineStateMonitor,
+        containers_by_id, follow_events_until_the_stream_breaks, keep_following_events, keyed_by,
+        EngineStateMonitor, EventsWatchOutcome, MonitorTask,
     };
     use crate::entities::{
         Container, EngineInfo, EngineState, EngineStatus, Image, Network, Volume,
@@ -369,7 +416,9 @@ mod tests {
         ContainerSummary, ContainerSummaryStateEnum as ContainerState, VolumeUsageData,
     };
     use chrono::{Duration as ChronoDuration, Utc};
+    use std::cell::{Cell, RefCell};
     use std::collections::HashMap;
+    use std::collections::VecDeque;
     use std::time::Duration;
 
     #[tokio::test]
@@ -382,11 +431,12 @@ mod tests {
             reactions += 1;
             async {}
         });
-        let result = tokio::time::timeout(Duration::from_secs(1), watch).await;
+        let broken = tokio::time::timeout(Duration::from_secs(1), watch)
+            .await
+            .expect("the watch spins on a failing stream");
 
-        assert!(result
-            .expect("the watch spins on a failing stream")
-            .is_err());
+        assert_eq!(broken.cause.to_string(), "connection refused");
+        assert!(!broken.delivered_events);
         assert_eq!(reactions, 0);
     }
 
@@ -395,14 +445,125 @@ mod tests {
         let events = futures_util::stream::iter([Ok::<_, &str>(()), Ok(())]);
         let mut reactions = 0;
 
-        let result = follow_events_until_the_stream_breaks(events, || {
+        let broken = follow_events_until_the_stream_breaks(events, || {
             reactions += 1;
             async {}
         })
         .await;
 
         assert_eq!(reactions, 2);
-        assert!(result.is_err());
+        assert!(broken.delivered_events);
+    }
+
+    async fn waits_between_tries(outcomes: &[EventsWatchOutcome]) -> (Vec<Duration>, usize) {
+        let scripted = RefCell::new(outcomes.iter().copied().collect::<VecDeque<_>>());
+        let tries = Cell::new(0);
+        let waits = RefCell::new(Vec::new());
+
+        let attempt = || {
+            tries.set(tries.get() + 1);
+            let next = scripted.borrow_mut().pop_front();
+            async move {
+                match next {
+                    Some(outcome) => outcome,
+                    None => std::future::pending().await,
+                }
+            }
+        };
+        let wait = |delay| {
+            waits.borrow_mut().push(delay);
+            async {}
+        };
+
+        let following = keep_following_events(attempt, wait);
+        assert!(tokio::time::timeout(Duration::from_secs(1), following)
+            .await
+            .is_err());
+
+        let scripted_tries = tries.get() - 1;
+        (waits.into_inner(), scripted_tries)
+    }
+
+    fn seconds(values: &[u64]) -> Vec<Duration> {
+        values.iter().copied().map(Duration::from_secs).collect()
+    }
+
+    #[tokio::test]
+    async fn keeps_following_after_five_tries_without_an_engine() {
+        let (waits, tries) = waits_between_tries(&[EventsWatchOutcome::NoEngine; 7]).await;
+
+        assert_eq!(tries, 7);
+        assert_eq!(waits, seconds(&[2, 4, 8, 16, 16, 16, 16]));
+    }
+
+    #[tokio::test]
+    async fn a_stream_that_breaks_before_any_event_keeps_the_delay_growing() {
+        let (waits, _) = waits_between_tries(&[EventsWatchOutcome::BrokeBeforeAnyEvent; 3]).await;
+
+        assert_eq!(waits, seconds(&[2, 4, 8]));
+    }
+
+    #[tokio::test]
+    async fn a_stream_that_delivered_events_starts_the_delay_again() {
+        let (waits, _) = waits_between_tries(&[
+            EventsWatchOutcome::BrokeBeforeAnyEvent,
+            EventsWatchOutcome::BrokeBeforeAnyEvent,
+            EventsWatchOutcome::BrokeAfterEvents,
+            EventsWatchOutcome::BrokeBeforeAnyEvent,
+        ])
+        .await;
+
+        assert_eq!(waits, seconds(&[2, 4, 2, 4]));
+    }
+
+    #[tokio::test]
+    async fn a_changed_engine_is_followed_without_waiting() {
+        let (waits, tries) = waits_between_tries(&[
+            EventsWatchOutcome::BrokeBeforeAnyEvent,
+            EventsWatchOutcome::EngineChanged,
+            EventsWatchOutcome::BrokeBeforeAnyEvent,
+        ])
+        .await;
+
+        assert_eq!(tries, 3);
+        assert_eq!(waits, seconds(&[2, 2]));
+    }
+
+    #[tokio::test]
+    async fn a_running_monitor_is_not_started_twice() {
+        let monitor = MonitorTask::default();
+        let starts = Cell::new(0);
+        let spawn = || {
+            starts.set(starts.get() + 1);
+            tokio::spawn(std::future::pending())
+        };
+
+        monitor.start_unless_running(spawn).await;
+        monitor.start_unless_running(spawn).await;
+
+        assert_eq!(starts.get(), 1);
+    }
+
+    #[tokio::test]
+    async fn a_monitor_whose_task_ended_is_started_again() {
+        let monitor = MonitorTask::default();
+        let starts = Cell::new(0);
+        let spawn = || {
+            starts.set(starts.get() + 1);
+            tokio::spawn(async { panic!("the monitor loop broke") })
+        };
+
+        monitor.start_unless_running(spawn).await;
+        tokio::time::timeout(Duration::from_secs(1), async {
+            while !monitor.has_finished().await {
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .expect("the panicking monitor loop never finished");
+        monitor.start_unless_running(spawn).await;
+
+        assert_eq!(starts.get(), 2);
     }
 
     fn container(id: &str, state: ContainerState) -> Container {
