@@ -86,8 +86,6 @@ function renderWizard(handlers: Record<string, Handler> = {}) {
       switch (cmd) {
         case 'engine_status':
           return { Running: 'Docker' };
-        case 'get_docker_info':
-          return {};
         case 'start_engine_state_monitoring':
           return null;
         case 'get_engine_state':

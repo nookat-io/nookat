@@ -42,7 +42,7 @@ interface EngineProviderProps {
   children: ReactNode;
 }
 
-const STATUS_POLL_INTERVAL_MS = 1000;
+const STATUS_POLL_INTERVAL_MS = 5000;
 const FIRST_SNAPSHOT_TIMEOUT_MS = 15_000;
 
 function isEngineStatus(value: unknown): value is EngineStatus {
@@ -56,26 +56,10 @@ function isEngineStatus(value: unknown): value is EngineStatus {
   );
 }
 
-async function isDaemonReachable() {
-  try {
-    await invoke('get_docker_info');
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 async function readEngineStatus(): Promise<EngineStatus> {
   try {
     const reported = await invoke<unknown>('engine_status');
-    if (!isEngineStatus(reported)) {
-      return 'Unknown';
-    }
-    const claimsRunning = typeof reported === 'object' && 'Running' in reported;
-    if (claimsRunning && !(await isDaemonReachable())) {
-      return 'Unknown';
-    }
-    return reported;
+    return isEngineStatus(reported) ? reported : 'Unknown';
   } catch {
     return 'Unknown';
   }
@@ -91,16 +75,20 @@ export function EngineProvider({ children }: EngineProviderProps) {
 
   const mountedRef = useRef(true);
   const statusPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const appliedSnapshotCountRef = useRef(0);
 
-  const refreshEngineStatus = useCallback(
-    () =>
-      readEngineStatus().then(status => {
-        if (!mountedRef.current) return;
+  const refreshEngineStatus = useCallback(() => {
+    const snapshotsAppliedBeforeRead = appliedSnapshotCountRef.current;
+    return readEngineStatus().then(status => {
+      if (!mountedRef.current) return;
+      const snapshotArrivedDuringRead =
+        appliedSnapshotCountRef.current !== snapshotsAppliedBeforeRead;
+      if (!snapshotArrivedDuringRead) {
         setEngineStatus(status);
-        setIsChecking(false);
-      }),
-    []
-  );
+      }
+      setIsChecking(false);
+    });
+  }, []);
 
   const manualRefresh = useCallback(async () => {
     setIsChecking(true);
@@ -117,6 +105,7 @@ export function EngineProvider({ children }: EngineProviderProps) {
       const isStale = snapshot.version <= newestAppliedVersion;
       if (isStale) return;
       newestAppliedVersion = snapshot.version;
+      appliedSnapshotCountRef.current += 1;
 
       setEngineState(snapshot);
       setError(null);
