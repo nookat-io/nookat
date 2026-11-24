@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { PullImage } from './pull/pull-image-modal';
-import { PruneResult } from './image-types';
+import { Image, ImagePruneScope, PruneResult } from './image-types';
 import { ImageActionService } from './image-actions-service';
 import { PruneConfirmDialog } from './dialogs/PruneConfirmDialog';
 import { DeleteConfirmDialog } from './dialogs/DeleteConfirmDialog';
@@ -8,12 +8,14 @@ import { PruneResultsDialog } from './dialogs/PruneResultsDialog';
 
 interface ImageActionsProps {
   selectedImages: string[];
+  images: Image[];
   onImagesDeleted?: (imageIds: string[]) => void;
   onSelectionChange?: (selected: string[]) => void;
 }
 
 export function ImageActions({
   selectedImages,
+  images,
   onImagesDeleted,
   onSelectionChange,
 }: ImageActionsProps) {
@@ -24,9 +26,9 @@ export function ImageActions({
   const [confirmDeleteDialogOpen, setConfirmDeleteDialogOpen] = useState(false);
   const [pruneResult, setPruneResult] = useState<PruneResult | null>(null);
 
-  const handlePrune = async () => {
+  const handlePrune = async (scope: ImagePruneScope) => {
     setIsPruning(true);
-    const result = await ImageActionService.pruneImages();
+    const result = await ImageActionService.pruneImages(scope);
     setIsPruning(false);
     setConfirmPruneDialogOpen(false);
     if (result) {
@@ -54,6 +56,7 @@ export function ImageActions({
       <PruneConfirmDialog
         open={confirmPruneDialogOpen}
         isPruning={isPruning}
+        images={images}
         onOpenChange={setConfirmPruneDialogOpen}
         onConfirm={handlePrune}
       />

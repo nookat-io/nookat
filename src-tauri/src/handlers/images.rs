@@ -1,5 +1,6 @@
 use crate::entities::{
-    DockerHubTag, Image, ImagePullOutcome, ImagePullProgress, ImagePullRequest, PruneResult,
+    DockerHubTag, Image, ImagePruneScope, ImagePullOutcome, ImagePullProgress, ImagePullRequest,
+    PruneResult,
 };
 use crate::services::{ContainersService, ImagesService};
 use crate::state::{RunningPulls, SharedEngineState};
@@ -19,12 +20,15 @@ pub async fn list_images(state: State<'_, SharedEngineState>) -> Result<Vec<Imag
 
 #[tauri::command]
 #[instrument(skip_all, err)]
-pub async fn prune_images(state: State<'_, SharedEngineState>) -> Result<PruneResult, String> {
-    debug!("Pruning unused images");
+pub async fn prune_images(
+    state: State<'_, SharedEngineState>,
+    scope: ImagePruneScope,
+) -> Result<PruneResult, String> {
+    debug!("Pruning images: {:?}", scope);
 
     let engine = state.get_engine().await?;
     let docker = engine.docker.as_ref().ok_or("Docker not found")?;
-    ImagesService::perform_prune(docker).await
+    ImagesService::perform_prune(docker, scope).await
 }
 
 #[tauri::command]

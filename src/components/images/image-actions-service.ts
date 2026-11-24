@@ -1,6 +1,6 @@
 import { invoke } from '@tauri-apps/api/core';
 import { toast } from 'sonner';
-import { PruneResult } from './image-types';
+import { ImagePruneScope, PruneResult } from './image-types';
 import { errorMessage } from '../../utils/error-message';
 
 const describeImages = (count: number) =>
@@ -40,9 +40,11 @@ export class ImageActionService {
     return deletedIds;
   }
 
-  static async pruneImages(): Promise<PruneResult | null> {
+  static async pruneImages(
+    scope: ImagePruneScope
+  ): Promise<PruneResult | null> {
     try {
-      return await invoke<PruneResult>('prune_images');
+      return await invoke<PruneResult>('prune_images', { scope });
     } catch (error) {
       console.error('Error pruning images:', error);
       toast.error(`Failed to prune images: ${errorMessage(error)}`);

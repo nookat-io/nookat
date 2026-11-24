@@ -12,9 +12,22 @@ pub struct Image {
     pub dangling: bool,
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum ImagePruneScope {
+    Dangling,
+    AllUnused,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub struct PrunedImage {
+    pub id: String,
+    pub tags: Vec<String>,
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct PruneResult {
-    pub images_deleted: Vec<String>,
+    pub images_deleted: Vec<PrunedImage>,
     pub space_reclaimed: i64,
 }
 

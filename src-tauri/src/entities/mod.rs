@@ -14,6 +14,6 @@ pub use self::containers::*;
 pub use self::engine::*;
 pub use self::engine_state::EngineState;
 pub use self::image_pull::*;
-pub use self::images::{DockerHubTag, Image, PruneResult};
+pub use self::images::{DockerHubTag, Image, ImagePruneScope, PruneResult, PrunedImage};
 pub use self::networks::*;
 pub use self::volumes::*;

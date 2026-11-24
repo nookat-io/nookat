@@ -18,6 +18,7 @@ import {
 } from '../ui/dropdown-menu';
 import { formatDistanceToNow } from 'date-fns';
 import { Image } from './image-types';
+import { imageName } from './image-prune';
 import { formatBytes } from '../../utils/format';
 import { LoadingSpinner } from '../ui/loading-spinner';
 import { ErrorDisplay } from '../ui/error-display';
@@ -45,9 +46,6 @@ interface ImagesTableProps {
   onRetry?: () => void;
   emptyState: ReactNode;
 }
-
-const imageName = (image: Image) =>
-  image.tag ? `${image.repository}:${image.tag}` : image.repository;
 
 export function ImagesTable({
   selectedImages,
