@@ -97,8 +97,10 @@ function mockBackend({
   const startRequests: unknown[] = [];
   const installRequests: unknown[] = [];
   const contextSwitches: unknown[] = [];
+  const calls: string[] = [];
   mockIPC(
     (cmd, args) => {
+      calls.push(cmd);
       switch (cmd) {
         case 'is_colima_supported':
           return colimaSupported;
@@ -150,7 +152,12 @@ function mockBackend({
     },
     { shouldMockEvents: true }
   );
-  return { startRequests, installRequests, contextSwitches };
+  return {
+    startRequests,
+    installRequests,
+    contextSwitches,
+    count: (cmd: string) => calls.filter(call => call === cmd).length,
+  };
 }
 
 const engineSection = (name: string | RegExp) =>
@@ -399,6 +406,27 @@ describe('EngineSettings', () => {
     await waitFor(() =>
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     );
+  });
+
+  it('does not check Homebrew and Colima again when the user switches the installation method', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    const user = userEvent.setup();
+    const backend = mockBackend({
+      colimaInstalled: false,
+      profileStatus: 'Missing',
+    });
+    render(<EngineSettings />);
+    const install = await screen.findByRole('button', {
+      name: 'Install Colima',
+    });
+    await waitFor(() => expect(install).toBeEnabled());
+
+    await user.click(screen.getByText('Binary Installation'));
+    await user.click(screen.getByText('Install via Homebrew'));
+    await act(() => new Promise(resolve => setTimeout(resolve, 0)));
+
+    expect(backend.count('check_homebrew_availability')).toBe(1);
+    expect(backend.count('check_colima_availability')).toBe(1);
   });
 
   it('warns that Nookat and terminal docker commands use OrbStack while Colima runs, and switches both to Colima', async () => {

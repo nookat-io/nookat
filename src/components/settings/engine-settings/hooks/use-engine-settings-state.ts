@@ -38,6 +38,9 @@ function withSettingChange<K extends EditableColimaVmSetting>(
   return next;
 }
 
+const withoutHomebrew = (method: InstallationMethod): InstallationMethod =>
+  method === 'homebrew' ? 'binary' : method;
+
 function connectionTo(engine: ConnectedEngine | null): EngineConnection {
   return engine ? { kind: 'connected', engine } : { kind: 'disconnected' };
 }
@@ -251,21 +254,19 @@ export function useEngineSettingsState(): [
         );
         setColimaAvailable(isColimaAvailable);
 
-        if (!isHomebrewAvailable && method === 'homebrew') {
-          setMethod('binary');
+        if (!isHomebrewAvailable) {
+          setMethod(withoutHomebrew);
         }
       } catch (error) {
         console.error('Error checking availability:', error);
         setHomebrewAvailable(false);
         setColimaAvailable(false);
-        if (method === 'homebrew') {
-          setMethod('binary');
-        }
+        setMethod(withoutHomebrew);
       }
     };
 
     checkAvailability();
-  }, [method]);
+  }, []);
 
   useEffect(() => {
     fetchEngineDetails();
