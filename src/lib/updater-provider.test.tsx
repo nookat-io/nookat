@@ -105,11 +105,18 @@ async function renderProvider({ reactStrictMode = false } = {}) {
 async function renderProviderAroundRoutes() {
   vi.resetModules();
   const { UpdaterProvider } = await import('./updater-provider');
+  const { useUpdater } = await import('../hooks/use-updater');
   window.history.pushState({}, '', '/');
+
+  function CheckNow() {
+    const { checkForUpdates } = useUpdater();
+    return <button onClick={() => void checkForUpdates()}>Check Now</button>;
+  }
 
   render(
     <BrowserRouter>
       <UpdaterProvider>
+        <CheckNow />
         <Link to="/images">Images</Link>
         <Routes>
           <Route path="/" element={<p>Containers page</p>} />
@@ -281,6 +288,23 @@ describe('UpdaterProvider', () => {
     mockBackend(undefined);
 
     await renderProviderAroundRoutes();
+    expect(updater.check).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(screen.getByRole('link', { name: 'Images' }));
+    await settle();
+
+    expect(screen.getByText('Images page')).toBeInTheDocument();
+  });
+
+  it('navigates while a manual update check has not answered yet', async () => {
+    updater.check.mockReturnValue(new Promise(() => {}));
+    mockBackend(hoursAgo(1));
+
+    await renderProviderAroundRoutes();
+    expect(updater.check).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Check Now' }));
+    await settle();
     expect(updater.check).toHaveBeenCalledTimes(1);
 
     fireEvent.click(screen.getByRole('link', { name: 'Images' }));

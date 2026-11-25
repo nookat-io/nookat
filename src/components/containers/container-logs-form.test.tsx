@@ -187,6 +187,48 @@ describe('ContainerLogsForm', () => {
     expect(screen.getByText('newest read')).toBeInTheDocument();
   });
 
+  it('keeps loading when a replaced read finishes before the newest read', async () => {
+    const user = userEvent.setup();
+    const tenThousandLines = pendingRead();
+    const oneThousandLines = pendingRead();
+    const pendingByCount = new Map([
+      [10000, tenThousandLines],
+      [1000, oneThousandLines],
+    ]);
+    let isFirstRead = true;
+    mockLogReads(({ lines }) => {
+      if (isFirstRead) {
+        isFirstRead = false;
+        return Promise.resolve(['booting']);
+      }
+      return pendingByCount.get(lines)!.promise;
+    });
+    renderLogs();
+    await screen.findByText('booting');
+
+    const pickLineCount = async (name: string) => {
+      screen.getByRole('combobox', { name: 'Lines' }).focus();
+      await user.keyboard('{Enter}');
+      await user.click(await screen.findByRole('option', { name }));
+    };
+    await pickLineCount('Last 10,000 lines');
+    await pickLineCount('Last 1,000 lines');
+
+    await act(async () =>
+      tenThousandLines.finish(['older read', 'older read again'])
+    );
+
+    expect(screen.queryByText(/older read/)).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Refresh' })
+    ).not.toBeInTheDocument();
+
+    await act(async () => oneThousandLines.finish(['newest read']));
+
+    expect(await screen.findByText('newest read')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Refresh' })).toBeEnabled();
+  });
+
   it('says it is loading until the first read returns, instead of claiming there are no logs', async () => {
     const read = pendingRead();
     mockLogReads(() => read.promise);
