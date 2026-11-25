@@ -7,8 +7,37 @@ import {
   Theme,
   Language,
 } from '../types/config';
+import { errorMessage } from '../utils/error-message';
 
 const setOsAutostart = (enabled: boolean) => (enabled ? enable() : disable());
+
+const saveStartupSettings = (settings: StartupSettings) =>
+  invoke('update_startup_settings', { settings });
+
+async function switchOsAutostart(enabled: boolean): Promise<void> {
+  try {
+    await setOsAutostart(enabled);
+  } catch (error) {
+    const action = enabled ? 'turn on' : 'turn off';
+    throw new Error(
+      `Could not ${action} Start on system boot: ${errorMessage(error)}`,
+      { cause: error }
+    );
+  }
+}
+
+async function saveOrUndoOsAutostart(settings: StartupSettings): Promise<void> {
+  try {
+    await saveStartupSettings(settings);
+  } catch (saveError) {
+    try {
+      await setOsAutostart(!settings.start_on_system_startup);
+    } catch (undoError) {
+      console.error('Failed to undo OS autostart change:', undoError);
+    }
+    throw saveError;
+  }
+}
 
 export class ConfigService {
   private static instance: ConfigService;
@@ -115,10 +144,11 @@ export class ConfigService {
         this.config.startup.start_on_system_startup !==
           settings.start_on_system_startup;
 
-      await invoke('update_startup_settings', { settings });
-
       if (autostartChanged) {
-        await setOsAutostart(settings.start_on_system_startup);
+        await switchOsAutostart(settings.start_on_system_startup);
+        await saveOrUndoOsAutostart(settings);
+      } else {
+        await saveStartupSettings(settings);
       }
 
       await this.refreshConfig();
