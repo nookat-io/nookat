@@ -11,13 +11,13 @@ Without that they cannot tell whether a volume is safe to remove, or why a conta
 ## Current state
 
 - The Volumes table (`src/components/volumes/volumes-table.tsx`) shows each volume's host mountpoint path.
-- The In Use and Unused filters (`src/components/volumes/volume-filter.ts`) rely on `ref_count`, which `count_containers_mounting` in `src-tauri/src/services/volumes.rs` computes by scanning container mounts.
-  Only the count is kept, not which containers matched.
+- The In Use and Unused filters (`src/components/volumes/volume-filter.ts`) rely on `in_use`, which `VolumesService::get_volumes` in `src-tauri/src/services/volumes.rs` reads from the daemon's `dangling=false` volume list.
+  The daemon says only whether a volume is referenced, not by which containers.
 - `mounts` is typed on containers in `src/components/containers/container-types.ts`, but no component shows a container's mounts.
 
 ## Scope
 
-- Keep the names of the containers that mount each volume, not only the count, when building the volume list.
+- Find the names of the containers that mount each volume, not only whether one does.
 - In the Volumes table, show the containers that use a volume, with the path each one mounts it at and whether it is read-only.
 - Link each container to its row on the Containers page.
 - Show a container's mounts (volumes, bind mounts and tmpfs) in the container details from CONTAINER-007.
@@ -25,5 +25,5 @@ Without that they cannot tell whether a volume is safe to remove, or why a conta
 
 ## Notes
 
-- The container list that `get_volumes` already fetches has every mount, so this needs no extra Docker calls.
+- `get_volumes` fetches no containers, but every container in the engine state snapshot carries its `mounts`, so the frontend can match them to volumes without extra Docker calls.
 - A graph view of volumes and containers was part of the original ticket; a list is enough to start.

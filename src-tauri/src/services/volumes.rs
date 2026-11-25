@@ -34,7 +34,7 @@ impl VolumesService {
     }
 
     #[instrument(skip_all, err)]
-    pub async fn get_volume_sizes(docker: &Docker) -> Result<VolumeSizes, String> {
+    pub async fn get_volume_sizes(docker: &Docker) -> Result<Option<VolumeSizes>, String> {
         let every_volume_with_its_usage = DataUsageOptions {
             _type: None,
             verbose: true,
@@ -126,10 +126,10 @@ fn referenced_by_a_container() -> HashMap<String, Vec<String>> {
     HashMap::from([("dangling".to_string(), vec!["false".to_string()])])
 }
 
-fn sizes_by_volume_name(report: SystemDataUsageResponse) -> VolumeSizes {
-    report
-        .volume_usage
-        .and_then(|usage| usage.items)
+fn sizes_by_volume_name(report: SystemDataUsageResponse) -> Option<VolumeSizes> {
+    let volume_usage = report.volume_usage?;
+    let sizes = volume_usage
+        .items
         .unwrap_or_default()
         .into_iter()
         .filter_map(|item| serde_json::from_value::<bollard::models::Volume>(item).ok())
@@ -137,7 +137,8 @@ fn sizes_by_volume_name(report: SystemDataUsageResponse) -> VolumeSizes {
             let size = volume.usage_data?.size;
             (size >= 0).then_some((volume.name, size))
         })
-        .collect()
+        .collect();
+    Some(sizes)
 }
 
 fn anonymous_volumes_only() -> PruneVolumesOptions {
@@ -189,13 +190,26 @@ mod tests {
 
         assert_eq!(
             sizes_by_volume_name(report),
-            HashMap::from([("data".to_string(), 52_428_800)])
+            Some(HashMap::from([("data".to_string(), 52_428_800)]))
         );
     }
 
     #[test]
-    fn a_report_without_volume_usage_has_no_sizes() {
-        assert!(sizes_by_volume_name(SystemDataUsageResponse::default()).is_empty());
+    fn a_report_without_volume_usage_means_the_daemon_cannot_report_sizes() {
+        assert_eq!(
+            sizes_by_volume_name(SystemDataUsageResponse::default()),
+            None
+        );
+    }
+
+    #[test]
+    fn a_report_with_no_volumes_has_empty_sizes() {
+        let report = SystemDataUsageResponse {
+            volume_usage: Some(VolumesDiskUsage::default()),
+            ..Default::default()
+        };
+
+        assert_eq!(sizes_by_volume_name(report), Some(HashMap::new()));
     }
 
     #[cfg(unix)]
@@ -208,9 +222,42 @@ mod tests {
         use std::collections::HashMap;
         use std::path::Path;
 
+        const NOT_DANGLING_FILTER: &str = "filters=%7B%22dangling%22%3A%5B%22false%22%5D%7D";
+
         fn connect(socket: &Path) -> Docker {
             Docker::connect_with_unix(socket.to_str().unwrap(), 5, bollard::API_DEFAULT_VERSION)
                 .unwrap()
+        }
+
+        async fn inspect_in_use(name: &str, referenced: Vec<serde_json::Value>) -> bool {
+            let dir = tempfile::tempdir().unwrap();
+            let socket = dir.path().join("docker.sock");
+            let inspected = daemon_volume(name).to_string();
+            let referenced = json!({ "Volumes": referenced }).to_string();
+            serve_daemon(&socket, move |request| {
+                let request_line = request.lines().next().unwrap_or_default();
+                let body = if request_line.starts_with("GET /volumes?") {
+                    &referenced
+                } else {
+                    &inspected
+                };
+                http_response("200 OK", "application/json", body)
+            });
+
+            VolumesService::inspect_volume(&connect(&socket), name)
+                .await
+                .unwrap()
+                .in_use
+        }
+
+        #[tokio::test]
+        async fn inspect_reports_a_volume_in_use_when_the_daemon_lists_it_as_not_dangling() {
+            assert!(inspect_in_use("data", vec![daemon_volume("data")]).await);
+        }
+
+        #[tokio::test]
+        async fn inspect_ignores_referenced_volumes_whose_names_only_contain_the_name() {
+            assert!(!inspect_in_use("data", vec![daemon_volume("data2")]).await);
         }
 
         #[tokio::test]
@@ -229,7 +276,10 @@ mod tests {
                 .await
                 .unwrap();
 
-            assert_eq!(sizes, HashMap::from([("data".to_string(), 52_428_800)]));
+            assert_eq!(
+                sizes,
+                Some(HashMap::from([("data".to_string(), 52_428_800)]))
+            );
             let lines = request_lines(&requests);
             assert_eq!(lines.len(), 1, "{lines:?}");
             assert!(
@@ -245,10 +295,14 @@ mod tests {
             let in_use = json!({ "Volumes": [daemon_volume("data")] }).to_string();
             let all =
                 json!({ "Volumes": [daemon_volume("data"), daemon_volume("orphan")] }).to_string();
+            let any_other_dangling_filter =
+                json!({ "Volumes": [daemon_volume("orphan")] }).to_string();
             let requests = serve_daemon(&socket, move |request| {
                 let request_line = request.lines().next().unwrap_or_default();
-                let body = if request_line.contains("dangling") {
+                let body = if request_line.contains(NOT_DANGLING_FILTER) {
                     &in_use
+                } else if request_line.contains("dangling") {
+                    &any_other_dangling_filter
                 } else {
                     &all
                 };

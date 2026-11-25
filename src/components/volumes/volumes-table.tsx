@@ -36,6 +36,9 @@ const formatScope = (scope?: VolumeScope) =>
 const formatSize = (size?: number) =>
   size === undefined ? '-' : formatBytes(size);
 
+const sizeOf = (sizes: VolumeSizes, name: string) =>
+  Object.prototype.hasOwnProperty.call(sizes, name) ? sizes[name] : undefined;
+
 interface VolumesTableProps {
   selectedVolumes: string[];
   onSelectionChange: (_selected: string[]) => void;
@@ -60,7 +63,8 @@ export function VolumesTable({
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
 
   const volumesWithSize = useMemo(
-    () => volumes.map(volume => ({ ...volume, size: sizes[volume.name] })),
+    () =>
+      volumes.map(volume => ({ ...volume, size: sizeOf(sizes, volume.name) })),
     [volumes, sizes]
   );
 

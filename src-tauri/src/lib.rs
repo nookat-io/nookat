@@ -28,11 +28,12 @@ use tauri::{
     image::Image,
     menu::{MenuBuilder, MenuItem},
     tray::TrayIconBuilder,
-    App, AppHandle, Manager, RunEvent, Window, WindowEvent,
+    App, AppHandle, Emitter, Manager, RunEvent, Window, WindowEvent,
 };
-use tracing::{info, instrument};
+use tracing::{info, instrument, warn};
 
 const MAIN_WINDOW_LABEL: &str = "main";
+const MAIN_WINDOW_VISIBILITY_EVENT: &str = "main-window-visibility";
 
 #[instrument(skip_all, err)]
 fn show_main_window(app: &AppHandle) -> tauri::Result<()> {
@@ -43,17 +44,25 @@ fn show_main_window(app: &AppHandle) -> tauri::Result<()> {
         .ok_or(tauri::Error::WindowNotFound)?;
     window.unminimize()?;
     window.show()?;
+    announce_main_window_visibility(app, true);
     window.set_focus()
 }
 
 #[instrument(skip_all, err)]
 fn hide_to_tray(window: &Window) -> tauri::Result<()> {
     window.hide()?;
+    announce_main_window_visibility(window.app_handle(), false);
     #[cfg(target_os = "macos")]
     window
         .app_handle()
         .set_activation_policy(tauri::ActivationPolicy::Accessory)?;
     Ok(())
+}
+
+fn announce_main_window_visibility(app: &AppHandle, visible: bool) {
+    if let Err(e) = app.emit(MAIN_WINDOW_VISIBILITY_EVENT, visible) {
+        warn!("Failed to announce the main window visibility: {}", e);
+    }
 }
 
 fn closes_to_tray() -> bool {

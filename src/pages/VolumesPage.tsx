@@ -1,7 +1,7 @@
 import { VolumeHeader } from '../components/volumes/volume-header';
 import { VolumeControls } from '../components/volumes/volume-controls';
 import { VolumesTable } from '../components/volumes/volumes-table';
-import { useVolumeSizes } from '../components/volumes/volume-actions-service';
+import { useVolumeSizes } from '../components/volumes/use-volume-sizes';
 import { usePageState } from '../hooks/use-page-state';
 import { useEngineState } from '../hooks/use-engine-state';
 import { useFilter } from '../utils/use-filter';

@@ -16,7 +16,9 @@ pub async fn list_volumes(state: State<'_, SharedEngineState>) -> Result<Vec<Vol
 
 #[tauri::command]
 #[instrument(skip_all, err)]
-pub async fn get_volume_sizes(state: State<'_, SharedEngineState>) -> Result<VolumeSizes, String> {
+pub async fn get_volume_sizes(
+    state: State<'_, SharedEngineState>,
+) -> Result<Option<VolumeSizes>, String> {
     debug!("Reading volume sizes");
 
     let engine = state.get_engine().await?;
