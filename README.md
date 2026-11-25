@@ -14,7 +14,7 @@ Built with <strong>Tauri</strong>, <strong>React</strong>, and <strong>TypeScrip
 
 ![GitHub Release](https://img.shields.io/github/v/release/nookat-io/nookat)
 [![built_with-Rust](https://img.shields.io/badge/built_with-Rust-dca282.svg?style=flat-square)](https://www.rust-lang.org/)
-[![built_with-React](https://img.shields.io/badge/built_with-React-61dafb.svg?style=flat-square)](https://reactjs.org/)
+[![built_with-React](https://img.shields.io/badge/built_with-React-61dafb.svg?style=flat-square)](https://react.dev/)
 [![built_with-Tauri](https://img.shields.io/badge/built_with-Tauri-ffc131.svg?style=flat-square)](https://tauri.app/)
 
 </div>
@@ -29,7 +29,7 @@ Built with <strong>Tauri</strong>, <strong>React</strong>, and <strong>TypeScrip
 
 <div align="center">
 
-**Get started** [Download](https://github.com/nookat-io/nookat/releases) | [Website](https://nookat-io.github.io)
+**Get started** [Download](https://github.com/nookat-io/nookat/releases) | [Website](https://nookat.io/)
 
 </div>
 
@@ -37,14 +37,15 @@ Built with <strong>Tauri</strong>, <strong>React</strong>, and <strong>TypeScrip
 
 ## Key Features
 
-- **🚀 Lightweight & Fast**: Built with Rust and Tauri for optimal performance
-- **📦 Container Management**: Start, stop, and manage containers with ease
-- **🖼️ Image Management**: Browse, pull, and manage Docker images
-- **🌐 Network Management**: Configure and monitor Docker networks
-- **💾 Volume Management**: Handle Docker volumes and data persistence
-- **⚙️ Settings & Configuration**: Customize your Docker experience
-- **🔧 Auto Container Engine Setup**: Downloads and Installs container engines if needed, with [Colima](https://github.com/abiosoft/colima) as the default
-- **🎨 Modern UI**: Clean, intuitive interface built with React and Tailwind CSS
+- **🚀 Lightweight & Fast**: Built with Rust and Tauri, and kept up to date by a live stream of Docker events instead of manual refreshes
+- **📦 Containers**: Start, stop, restart, pause, remove and prune containers, read their logs, open a terminal in them, and act on many containers at once
+- **🧩 Compose Projects**: Containers started by Docker Compose are grouped by their project, and a whole project can be started, stopped or removed together
+- **🪄 Create Container Wizard**: Step by step image, ports, environment, storage and network settings, with `.env` file import and the equivalent `docker run` command on the review step
+- **🖼️ Images**: Pull images with live progress, remove images and tags, and prune unused ones
+- **🌐 Networks**: Create and remove networks
+- **💾 Volumes**: Browse volumes with their sizes, and remove or prune them
+- **🔧 Managed Colima Engine (macOS only)**: Install [Colima](https://github.com/abiosoft/colima) from the app settings, and start or stop its VM from Nookat
+- **⚙️ Settings**: Light, dark or system theme, start on system boot, close to tray, and automatic updates
 - **🆓 Completely Free**: No premium features, no subscriptions
 
 ## Screenshots
@@ -62,17 +63,33 @@ _Container management interface_
 
 ## Installation
 
-### Prerequisites
+### System Requirements
 
-- **macOS**: macOS 11 (Big Sur) or later, with Safari updated to 16.4 or later on macOS 11 and 12, since Nookat renders with the system WebKit
-- **Linux**: Most modern distributions
-- **Windows**: Windows 10 or later
-- **Any [OCI](https://opencontainers.org/)-compatible container runtime**, or install [Colima](https://github.com/abiosoft/colima) in Nookat app settings
-- [Tauri](https://tauri.app/start/prerequisites/) (for development)
+- **macOS**: macOS 11 (Big Sur) or later on Apple Silicon or Intel, with Safari updated to 16.4 or later on macOS 11 and 12, since Nookat renders with the system WebKit
+- **Linux**: an `x86_64` or `aarch64` distribution with glibc 2.35 and WebKitGTK 4.1 or later, such as Ubuntu 22.04, Debian 12 or Fedora 37 and newer
+- **Windows**: Windows 10 or later on `x86_64`
+- **A container engine that speaks the Docker API**, such as [Docker Engine](https://docs.docker.com/engine/install/), Docker Desktop, [Podman](https://podman.io/) with its Docker compatible socket, or Colima.
+  On macOS, Nookat can also install and run [Colima](https://github.com/abiosoft/colima) for you from **Settings > Engine**.
+  On Linux and Windows, start the engine yourself and Nookat connects to it.
 
 ### Download Nookat
 
-You can download the latest release from [GitHub Releases](https://github.com/nookat-io/nookat/releases)
+Download the file for your platform from the latest [GitHub Release](https://github.com/nookat-io/nookat/releases/latest):
+
+| Platform | Architecture            | File                                                                                                  |
+| -------- | ----------------------- | ----------------------------------------------------------------------------------------------------- |
+| macOS    | Apple Silicon and Intel | `Nookat_<version>_universal.dmg`                                                                      |
+| Windows  | `x86_64`                | `Nookat_<version>_x64-setup.exe` or `Nookat_<version>_x64_en-US.msi`                                  |
+| Linux    | `x86_64`                | `Nookat_<version>_amd64.deb`, `Nookat-<version>-1.x86_64.rpm` or `Nookat_<version>_amd64.AppImage`    |
+| Linux    | `aarch64`               | `Nookat_<version>_arm64.deb`, `Nookat-<version>-1.aarch64.rpm` or `Nookat_<version>_aarch64.AppImage` |
+
+On Linux, pick `.deb` for Debian and Ubuntu, `.rpm` for Fedora and openSUSE, and `.AppImage` for any other distribution.
+
+### Updates
+
+Nookat updates itself through the signed Tauri updater.
+Turn on **Check for updates** in **Settings > General** to be told about new versions, and **Automatic updates** to download and install them without asking.
+Both are off on a fresh install, and **Check Now** checks once on demand.
 
 ### macOS: first launch
 
@@ -87,63 +104,76 @@ To allow it, open the DMG, drag Nookat to Applications, and then either:
 You only need to do this once.
 Prefer either of these over stripping the quarantine attribute by hand: they scope the exception to this one app and leave macOS to keep checking everything else you download.
 
+## Privacy
+
+Nookat sends nothing until you allow it, and both switches live in **Settings > General > Usage Statistics**:
+
+- **Anonymous usage statistics** (off by default) sends the name of each page you open and the app version to [Aptabase](https://aptabase.com/).
+- **Crash reporting** (off by default) sends error reports to [Sentry](https://sentry.io/) so that crashes can be fixed.
+
+Builds from source send neither unless you put your own keys into `.env`.
+
 ## Development Setup
 
 ### Prerequisites
 
-- [Node.js](https://nodejs.org/) (v18 or higher)
+- [Node.js](https://nodejs.org/en) 22.12 or later
 - [Rust](https://rustup.rs/) (latest stable)
+- [just](https://github.com/casey/just) and [pre-commit](https://pre-commit.com/)
+- The [Tauri system prerequisites](https://tauri.app/start/prerequisites/) for your platform, for example `libwebkit2gtk-4.1-dev`, `libappindicator3-dev`, `librsvg2-dev` and `patchelf` on Debian and Ubuntu
+- A running Docker API compatible engine, to see the app work
 
 ### Build from Source
 
 ```bash
-# Clone the repository
 git clone https://github.com/nookat-io/nookat.git
 cd nookat
-
-# Install dependencies
-npm i
-
-# Set up environment variables
-cp env.example .env
-
-# Start development server
-npm run tauri dev
+just install
+just tauri_dev
 ```
 
-### Available Scripts
+`just install` installs the npm dependencies, the pre-commit hooks and the `rustfmt` and `clippy` components, and creates `.env` from `env.example`.
+`just tauri_dev` starts the app in development mode, and `just tauri_build` builds the release bundles.
+Run `just --list` to see every recipe.
 
-- `npm run tauri dev` - Start Tauri development mode
-- `npm run build` - Build for production
+### Checks
 
-> **💡 Pro Tip**: Most of the convenient development scripts are available in the `justfile`. Check out `just --list` to see all available commands, or run `just` to see the most common ones.
+CI runs these, so run them before you open a pull request:
+
+- `npm run lint` - ESLint with no warnings allowed
+- `npm run type-check` - TypeScript
+- `npm test` - Vitest unit tests
+- `npm run format` - Prettier, which rewrites files in place
+- `just pre_commit` - every pre-commit hook on every file, including `cargo fmt`, `cargo clippy` and `cargo test`
+- `cargo test` from `src-tauri/` - the Rust tests on their own
 
 ## Architecture
 
-Nookat is built with a modern, cross-platform architecture:
-
-- **Frontend**: React with TypeScript and Tailwind CSS
-- **Backend**: Rust with Tauri
-- **Container Engine**: Colima and Lima as a container runtime
-- **Docker API**: bollard-rs for Docker daemon communication
+- **Frontend**: React with TypeScript and Tailwind CSS in `src/`
+- **Backend**: Rust with Tauri in `src-tauri/`, split into three layers:
+  - `entities/` - serde types shared with the frontend, with no I/O
+  - `services/` - all logic and side effects, talking to the daemon through [bollard](https://github.com/fussybeaver/bollard)
+  - `handlers/` - thin `#[tauri::command]` wrappers that delegate to the services
+- **State push model**: `services/engine_state_monitor.rs` follows the Docker events stream, polls every 5 seconds, and emits the whole engine state to the frontend as the `engine_state_update` event.
+  The frontend does not poll for lists: `src/lib/engine-provider.tsx` listens for that event and is the single source of truth.
+- **Engine detection**: Nookat tries `DOCKER_HOST` first, then the endpoints of the Docker contexts, then the platform default socket.
+  On macOS, when none of them answers, **Settings > Engine** can install and start a managed Colima.
 
 ## Contributing
 
 We welcome contributions from the community! Here's how to get started:
 
-1. **Fork** the repository
-2. **Create** a new branch (`git checkout -b feature/YourFeature`)
-3. **Make** your changes
-4. **Commit** your changes (`git commit -am 'Add YourFeature'`)
-5. **Push** to the branch (`git push origin feature/YourFeature`)
-6. **Open** a Pull Request
+1. Look at [`tasks/README.md`](tasks/README.md) and [`tasks/ROADMAP.md`](tasks/ROADMAP.md) for planned work, or open an issue first for anything larger
+2. Fork the repository and create a branch
+3. Run `just install` so the pre-commit hooks check every commit
+4. Use [conventional commit](https://www.conventionalcommits.org/en/v1.0.0/) messages, such as `feat: add volume export` or `fix: keep the selection after a refresh`
+5. Make sure the [checks](#checks) pass, then open a pull request
 
 ## Recommended IDE Setup
 
 - [VS Code](https://code.visualstudio.com/) with extensions:
   - [Tauri](https://marketplace.visualstudio.com/items?itemName=tauri-apps.tauri-vscode)
   - [rust-analyzer](https://marketplace.visualstudio.com/items?itemName=rust-lang.rust-analyzer)
-  - [TypeScript Importer](https://marketplace.visualstudio.com/items?itemName=pmneo.tsimporter)
 
 ## License
 
@@ -151,22 +181,13 @@ Nookat is licensed under the [Apache License 2.0](LICENSE).
 
 ## Acknowledgements
 
-- Built with [Tauri](https://tauri.app/), [React](https://reactjs.org/), and [Rust](https://www.rust-lang.org/), [bollard-rs](https://github.com/fussybeaver/bollard)
+- Built with [Tauri](https://tauri.app/), [React](https://react.dev/), [Rust](https://www.rust-lang.org/) and [bollard](https://github.com/fussybeaver/bollard)
 
 ## Community
 
 - **GitHub**: [nookat-io/nookat](https://github.com/nookat-io/nookat)
-- **Issues**: [Report bugs or request features](https://github.com/nookat-io/nookat/issues)
-- **Discussions**: [Join the community](https://github.com/nookat-io/nookat/discussions)
-
-## Support
-
-If you encounter any issues or have questions:
-
-1. Check the [GitHub Issues](https://github.com/nookat-io/nookat/issues) page
-2. Search existing discussions
-3. Create a new issue with detailed information
-4. Join our community discussions
+- **Issues**: [Report bugs or request features](https://github.com/nookat-io/nookat/issues), after searching the existing ones
+- **Discussions**: [Ask questions and join the community](https://github.com/nookat-io/nookat/discussions)
 
 ---
 
