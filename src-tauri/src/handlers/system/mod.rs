@@ -6,23 +6,10 @@ use crate::state::SharedEngineState;
 pub use engine::*;
 use std::sync::Arc;
 use tauri::State;
-use tauri_plugin_opener::OpenerExt;
 use tokio::sync::Mutex;
 use tracing::{info, instrument};
 
 static ENGINE_STATE_MONITOR: Mutex<Option<Arc<EngineStateMonitor>>> = Mutex::const_new(None);
-
-#[tauri::command]
-#[instrument(skip_all, err)]
-pub async fn open_url(app: tauri::AppHandle, url: String) -> Result<(), String> {
-    if url.trim().is_empty() {
-        return Err("URL cannot be empty".to_string());
-    }
-
-    app.opener()
-        .open_url(&url, None::<&str>)
-        .map_err(|e| format!("Failed to open URL: {}", e))
-}
 
 #[tauri::command]
 #[instrument(skip_all)]
