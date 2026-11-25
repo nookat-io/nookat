@@ -72,6 +72,9 @@ function mockBackend({
     calls,
     count: (cmd: string) => calls.filter(call => call.cmd === cmd).length,
     osAutostart: () => osAutostart,
+    setOsAutostart: (enabled: boolean) => {
+      osAutostart = enabled;
+    },
   };
 }
 
@@ -291,6 +294,76 @@ describe('ConfigService', () => {
     expect(backend.count('plugin:autostart|disable')).toBe(1);
     expect(backend.osAutostart()).toBe(false);
     expect(service.getConfig()?.startup.start_on_system_startup).toBe(false);
+  });
+
+  it('shows the save error and logs the undo error when both fail', async () => {
+    const consoleError = vi
+      .spyOn(console, 'error')
+      .mockImplementation(() => {});
+    const saveError = 'Failed to save config: Permission denied (os error 13)';
+    const undoError = 'Permission denied (os error 13)';
+    mockBackend({
+      saveStartupSettings: () => Promise.reject(saveError),
+      disableAutostart: () => Promise.reject(undoError),
+    });
+    const service = await freshService();
+    const { startup } = await service.loadConfig();
+
+    await expect(
+      service.updateStartupSettings({
+        ...startup,
+        start_on_system_startup: true,
+      })
+    ).rejects.toBe(saveError);
+
+    expect(consoleError).toHaveBeenCalledWith(expect.any(String), undoError);
+    expect(service.getConfig()?.startup.start_on_system_startup).toBe(false);
+  });
+
+  it('leaves an OS registration removed outside Nookat alone when the save fails', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    const saveError = 'Failed to save config: Permission denied (os error 13)';
+    const config = savedConfig();
+    config.startup.start_on_system_startup = true;
+    const backend = mockBackend({
+      config,
+      osAutostart: true,
+      saveStartupSettings: () => Promise.reject(saveError),
+    });
+    const service = await freshService();
+    const { startup } = await service.loadConfig();
+    backend.setOsAutostart(false);
+
+    await expect(
+      service.updateStartupSettings({
+        ...startup,
+        start_on_system_startup: false,
+      })
+    ).rejects.toBe(saveError);
+
+    expect(backend.count('plugin:autostart|enable')).toBe(0);
+    expect(backend.osAutostart()).toBe(false);
+  });
+
+  it('leaves an OS registration added outside Nookat alone when the save fails', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    const saveError = 'Failed to save config: Permission denied (os error 13)';
+    const backend = mockBackend({
+      saveStartupSettings: () => Promise.reject(saveError),
+    });
+    const service = await freshService();
+    const { startup } = await service.loadConfig();
+    backend.setOsAutostart(true);
+
+    await expect(
+      service.updateStartupSettings({
+        ...startup,
+        start_on_system_startup: true,
+      })
+    ).rejects.toBe(saveError);
+
+    expect(backend.count('plugin:autostart|disable')).toBe(0);
+    expect(backend.osAutostart()).toBe(true);
   });
 
   it('adopts the OS autostart state when it differs from the saved setting', async () => {

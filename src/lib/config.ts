@@ -14,9 +14,13 @@ const setOsAutostart = (enabled: boolean) => (enabled ? enable() : disable());
 const saveStartupSettings = (settings: StartupSettings) =>
   invoke('update_startup_settings', { settings });
 
-async function switchOsAutostart(enabled: boolean): Promise<void> {
+async function switchOsAutostart(enabled: boolean): Promise<boolean> {
   try {
-    await setOsAutostart(enabled);
+    const osWasEnabled = await isEnabled();
+    if (osWasEnabled !== enabled) {
+      await setOsAutostart(enabled);
+    }
+    return osWasEnabled;
   } catch (error) {
     const action = enabled ? 'turn on' : 'turn off';
     throw new Error(
@@ -26,14 +30,19 @@ async function switchOsAutostart(enabled: boolean): Promise<void> {
   }
 }
 
-async function saveOrUndoOsAutostart(settings: StartupSettings): Promise<void> {
+async function saveOrRestoreOsAutostart(
+  settings: StartupSettings,
+  osWasEnabled: boolean
+): Promise<void> {
   try {
     await saveStartupSettings(settings);
   } catch (saveError) {
-    try {
-      await setOsAutostart(!settings.start_on_system_startup);
-    } catch (undoError) {
-      console.error('Failed to undo OS autostart change:', undoError);
+    if (osWasEnabled !== settings.start_on_system_startup) {
+      try {
+        await setOsAutostart(osWasEnabled);
+      } catch (undoError) {
+        console.error('Failed to undo OS autostart change:', undoError);
+      }
     }
     throw saveError;
   }
@@ -145,8 +154,10 @@ export class ConfigService {
           settings.start_on_system_startup;
 
       if (autostartChanged) {
-        await switchOsAutostart(settings.start_on_system_startup);
-        await saveOrUndoOsAutostart(settings);
+        const osWasEnabled = await switchOsAutostart(
+          settings.start_on_system_startup
+        );
+        await saveOrRestoreOsAutostart(settings, osWasEnabled);
       } else {
         await saveStartupSettings(settings);
       }
