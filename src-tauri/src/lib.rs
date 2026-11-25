@@ -13,13 +13,12 @@ use crate::handlers::{
     get_binary_install_plan, get_colima_vm, get_config, get_connected_engine, get_docker_info,
     get_engine_state, get_language, get_theme, get_unreadable_config_backup, inspect_volume,
     install_colima_command, is_colima_supported, list_containers, list_images, list_networks,
-    list_volumes, open_terminal, open_url, pause_container, prune_containers, prune_images,
-    prune_volumes, pull_image, remove_container, remove_network, remove_volume, restart_app,
-    restart_container, save_container_logs, search_docker_hub, start_colima_vm_command,
-    start_container, start_engine_state_monitoring, stop_colima_vm_command, stop_container,
-    unpause_container, update_language, update_last_update_check, update_sidebar_collapsed,
-    update_startup_settings, update_telemetry_settings, update_theme,
-    use_colima_docker_context_command,
+    list_volumes, open_terminal, pause_container, prune_containers, prune_images, prune_volumes,
+    pull_image, remove_container, remove_network, remove_volume, restart_app, restart_container,
+    save_container_logs, search_docker_hub, start_colima_vm_command, start_container,
+    start_engine_state_monitoring, stop_colima_vm_command, stop_container, unpause_container,
+    update_language, update_last_update_check, update_sidebar_collapsed, update_startup_settings,
+    update_telemetry_settings, update_theme, use_colima_docker_context_command,
 };
 use crate::sentry::flush_sentry;
 use crate::services::ConfigService;
@@ -176,7 +175,6 @@ pub fn run() {
             bulk_remove_volumes,
             inspect_volume,
             prune_volumes,
-            open_url,
             restart_app,
             get_docker_info,
             engine_status,

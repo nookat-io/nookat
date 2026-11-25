@@ -1,6 +1,6 @@
-import { invoke } from '@tauri-apps/api/core';
+import { openUrl } from '@tauri-apps/plugin-opener';
 import { toast } from 'sonner';
-import { Port } from './container-types';
+import { Port, PortTypeEnum } from './container-types';
 import { errorMessage } from '../../utils/error-message';
 
 interface PortMappingsProps {
@@ -8,22 +8,27 @@ interface PortMappingsProps {
   maxVisible?: number;
 }
 
-const URL_SCHEME_BY_WELL_KNOWN_PORT: Record<number, string> = {
-  21: 'ftp',
-  22: 'ssh',
-  23: 'telnet',
-  443: 'https',
-  8443: 'https',
-};
+const HTTPS_CONTAINER_PORTS = [443, 8443];
 
 const WILDCARD_ADDRESSES = ['0.0.0.0', '::'];
 
 const isPublished = (port: Port) => port.public_port !== undefined;
 
+const isTcp = (port: Port) =>
+  !port.port_type || port.port_type.toLowerCase() === PortTypeEnum.Tcp;
+
+const opensInBrowser = (port: Port) => isPublished(port) && isTcp(port);
+
+const scheme = (port: Port) =>
+  HTTPS_CONTAINER_PORTS.includes(port.private_port) ? 'https' : 'http';
+
 const hostPort = (port: Port) => port.public_port ?? port.private_port;
 
 const reachableHost = (port: Port) =>
   !port.ip || WILDCARD_ADDRESSES.includes(port.ip) ? 'localhost' : port.ip;
+
+const hostWithPort = (host: string, hostPort: number) =>
+  host.includes(':') ? `[${host}]:${hostPort}` : `${host}:${hostPort}`;
 
 const mappingKey = (port: Port) => {
   const protocol = port.port_type?.toLowerCase() || 'tcp';
@@ -53,21 +58,20 @@ const formatPortMapping = (port: Port) =>
 
 const formatFullPortMapping = (port: Port) => {
   const protocol = port.port_type?.toUpperCase() || 'TCP';
-  return isPublished(port)
-    ? `${reachableHost(port)}:${port.public_port}:${port.private_port}/${protocol}`
-    : `${port.private_port}/${protocol}`;
+  return port.public_port === undefined
+    ? `${port.private_port}/${protocol}`
+    : `${hostWithPort(reachableHost(port), port.public_port)}:${port.private_port}/${protocol}`;
 };
 
 async function openPublishedPort(port: Port) {
-  if (port.public_port === undefined) {
+  if (port.public_port === undefined || !isTcp(port)) {
     return;
   }
 
-  const scheme = URL_SCHEME_BY_WELL_KNOWN_PORT[port.public_port] ?? 'http';
-  const url = `${scheme}://${reachableHost(port)}:${port.public_port}`;
+  const url = `${scheme(port)}://${hostWithPort(reachableHost(port), port.public_port)}`;
 
   try {
-    await invoke('open_url', { url });
+    await openUrl(url);
   } catch (error) {
     console.error('Failed to open port URL:', error);
     toast.error(`Failed to open ${url}: ${errorMessage(error)}`);
@@ -86,7 +90,7 @@ export function PortMappings({ ports, maxVisible = 3 }: PortMappingsProps) {
   return (
     <div className="flex flex-wrap gap-1">
       {visiblePorts.map((port, index) => {
-        const clickable = isPublished(port);
+        const clickable = opensInBrowser(port);
         return (
           <button
             key={index}
