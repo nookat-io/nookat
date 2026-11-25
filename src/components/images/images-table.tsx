@@ -99,15 +99,23 @@ export function ImagesTable({
     setDeleteDialogOpen(true);
   };
 
+  const removeTagOf = async (image: Image) => {
+    const removed = await ImageActionService.removeTag(
+      image.id,
+      imageName(image)
+    );
+    return removed ? [image.id] : [];
+  };
+
   const confirmDeleteImage = async () => {
     if (!imageToDelete) return;
 
     setDeletingImageId(imageToDelete.id);
     setDeleteDialogOpen(false);
 
-    const deletedIds = await ImageActionService.deleteImages([
-      imageToDelete.id,
-    ]);
+    const deletedIds = removesOnlyTag
+      ? await removeTagOf(imageToDelete)
+      : await ImageActionService.deleteImages([imageToDelete.id]);
     if (deletedIds.length > 0) {
       if (selectedImages.includes(imageToDelete.id)) {
         onSelectionChange(selectedImages.filter(id => id !== imageToDelete.id));

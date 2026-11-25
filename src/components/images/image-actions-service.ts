@@ -40,6 +40,18 @@ export class ImageActionService {
     return deletedIds;
   }
 
+  static async removeTag(imageId: string, tag: string): Promise<boolean> {
+    try {
+      await invoke('delete_image', { imageId });
+      toast.success(`Removed tag ${tag}`);
+      return true;
+    } catch (error) {
+      console.error(`Failed to remove tag ${tag}:`, error);
+      toast.error(`Failed to remove tag ${tag}: ${errorMessage(error)}`);
+      return false;
+    }
+  }
+
   static async pruneImages(
     scope: ImagePruneScope
   ): Promise<PruneResult | null> {

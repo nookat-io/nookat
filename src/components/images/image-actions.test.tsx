@@ -374,5 +374,52 @@ describe('image actions', () => {
     expect(onImagesDeleted).toHaveBeenCalledWith([
       'localhost:5000/alpine:3.20',
     ]);
+    expect(toast.success).toHaveBeenCalledWith(
+      'Removed tag localhost:5000/alpine:3.20'
+    );
+    expect(toast.error).not.toHaveBeenCalled();
+  });
+
+  it('reports a failed tag removal in a toast with the reason from the backend', async () => {
+    const user = userEvent.setup();
+    const reason = 'No such image: localhost:5000/alpine:3.20';
+    mockImageCommands({ delete_image: () => Promise.reject(reason) });
+    const onImagesDeleted = vi.fn();
+    const alpine: Image = {
+      id: 'alpine:3.20',
+      repository: 'alpine',
+      tag: '3.20',
+      image_id: 'sha256:abc',
+      created: 1_700_000_000,
+      size: 1024,
+      in_use: false,
+      dangling: false,
+    };
+    const localAlpine: Image = {
+      ...alpine,
+      id: 'localhost:5000/alpine:3.20',
+      repository: 'localhost:5000/alpine',
+    };
+    render(
+      <ImagesTable
+        selectedImages={[]}
+        onSelectionChange={() => {}}
+        images={[localAlpine]}
+        allImages={[alpine, localAlpine]}
+        onImagesDeleted={onImagesDeleted}
+        emptyState={null}
+      />
+    );
+
+    const row = screen.getByRole('row', { name: /localhost:5000\/alpine/ });
+    await user.click(within(row).getByRole('button'));
+    await user.click(await screen.findByRole('menuitem', { name: 'Delete' }));
+    await user.click(screen.getByRole('button', { name: 'Remove Tag' }));
+
+    expect(toast.error).toHaveBeenCalledWith(
+      `Failed to remove tag localhost:5000/alpine:3.20: ${reason}`
+    );
+    expect(toast.success).not.toHaveBeenCalled();
+    expect(onImagesDeleted).not.toHaveBeenCalled();
   });
 });
