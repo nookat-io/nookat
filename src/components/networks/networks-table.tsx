@@ -21,7 +21,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { Network, isSystemNetwork } from './network-types';
 import { removeNetwork } from './network-actions-service';
 import { toast } from 'sonner';
-import { ReactNode, useState } from 'react';
+import { ReactNode, useMemo, useState } from 'react';
 import { LoadingSpinner } from '../ui/loading-spinner';
 import { ErrorDisplay } from '../ui/error-display';
 import { SortableTableHeader } from '../ui/sortable-table-header';
@@ -47,16 +47,21 @@ export function NetworksTable({
   onRetry,
   emptyState,
 }: NetworksTableProps) {
-  const networksArray = networks || [];
   const [deletingNetworks, setDeletingNetworks] = useState<Set<string>>(
     new Set()
   );
 
+  const networksWithType = useMemo(
+    () =>
+      networks.map(network => ({
+        ...network,
+        isSystem: isSystemNetwork(network),
+      })),
+    [networks]
+  );
+
   const { sortedData: sortedNetworks, handleSort } = useTableSort(
-    networksArray.map(network => ({
-      ...network,
-      isSystem: isSystemNetwork(network),
-    })),
+    networksWithType,
     'name',
     'asc'
   );
