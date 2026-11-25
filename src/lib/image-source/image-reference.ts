@@ -32,14 +32,14 @@ function splitOnce(text: string, separator: string, from = 0) {
     : { before: text.slice(0, index), after: text.slice(index + 1) };
 }
 
-const SCHEME = /^https?:\/\//i;
-const TRAILING_SLASHES = /\/+$/;
+const LEADING_SCHEMES = /^(?:https?:\/\/\s*)+/i;
+const TRAILING_SLASHES_AND_SPACES = /[\s/]+$/;
 
 export function normalizeRegistry(registry: string): string {
   const address = registry
     .trim()
-    .replace(SCHEME, '')
-    .replace(TRAILING_SLASHES, '');
+    .replace(LEADING_SCHEMES, '')
+    .replace(TRAILING_SLASHES_AND_SPACES, '');
   const { before: host, after: path } = splitOnce(address, '/');
   const registryHost = host === LEGACY_DOCKER_HUB ? DOCKER_HUB : host;
   return path === undefined ? registryHost : `${registryHost}/${path}`;

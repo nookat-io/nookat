@@ -297,6 +297,36 @@ describe('PullImage', () => {
     }
   );
 
+  it.each(['https://https://ghcr.io', 'https:// ghcr.io', 'ghcr.io /'])(
+    'pulls the registry it checked when %j needs more than one cleanup',
+    async registry => {
+      const { pulls } = mockDockerHub([NGINX]);
+      const user = await choosePullSource({ registry, image: 'nginx' });
+
+      expect(screen.getByText('ghcr.io/nginx:latest')).toBeInTheDocument();
+      await pullOnceTheTagIsChecked(user);
+
+      expect(pulls).toEqual([
+        { imageName: 'nginx', tag: 'latest', registry: 'ghcr.io' },
+      ]);
+    }
+  );
+
+  it.each(['ghcr .io', 'https://ghcr .io/', 'https://https://ghcr .io'])(
+    'shows why it refuses a registry with a space or tab inside: %j',
+    async registry => {
+      const { pulls } = mockDockerHub([NGINX]);
+      const user = await choosePullSource({ registry, image: 'nginx' });
+
+      await pullOnceTheTagIsChecked(user);
+
+      expect(
+        await screen.findByText('Registry cannot contain spaces or tabs')
+      ).toBeInTheDocument();
+      expect(pulls).toEqual([]);
+    }
+  );
+
   it('asks before pulling from a lookalike registry typed with a trailing slash', async () => {
     const { pulls } = mockDockerHub([NGINX]);
     const user = await choosePullSource({
