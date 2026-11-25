@@ -68,9 +68,6 @@ export function requestReferenceProblem(request: PullFormData): string | null {
   return null;
 }
 
-export const pullReferenceProblem = (pullData: PullFormData) =>
-  requestReferenceProblem(normalizePullData(pullData));
-
 export const DEFAULT_PROGRESS_STATE: ProgressState = {
   isRunning: false,
   progress: '',

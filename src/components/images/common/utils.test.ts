@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { isValidTag, pullReference, pullReferenceProblem } from './utils';
+import {
+  isValidTag,
+  normalizePullData,
+  pullReference,
+  requestReferenceProblem,
+} from './utils';
 
 describe('isValidTag', () => {
   it.each([
@@ -36,15 +41,17 @@ describe('pullReference', () => {
   });
 });
 
-describe('pullReferenceProblem', () => {
+describe('requestReferenceProblem', () => {
   const nginxFrom = (registry: string) => ({
     imageName: 'nginx',
     tag: 'latest',
     registry,
   });
+  const problemOfPullFrom = (registry: string) =>
+    requestReferenceProblem(normalizePullData(nginxFrom(registry)));
 
   it('pulls a registry pasted with a scheme and a trailing slash from its host', () => {
-    expect(pullReferenceProblem(nginxFrom('https://ghcr.io/'))).toBeNull();
+    expect(problemOfPullFrom('https://ghcr.io/')).toBeNull();
     expect(pullReference(nginxFrom('https://ghcr.io/'))).toBe(
       'ghcr.io/nginx:latest'
     );
@@ -53,18 +60,18 @@ describe('pullReferenceProblem', () => {
   it.each(['docker.io', 'localhost:5000', 'ghcr.io/myorg', 'Registry'])(
     'finds no problem with %s',
     registry => {
-      expect(pullReferenceProblem(nginxFrom(registry))).toBeNull();
+      expect(problemOfPullFrom(registry)).toBeNull();
     }
   );
 
   it('refuses a registry Docker would read as a Docker Hub namespace', () => {
-    expect(pullReferenceProblem(nginxFrom('myregistry'))).toBe(
+    expect(problemOfPullFrom('myregistry')).toBe(
       'myregistry is not a registry address, so Docker would pull from Docker Hub. Add its domain or port, such as myregistry:5000'
     );
   });
 
   it('refuses a reference Docker cannot parse', () => {
-    expect(pullReferenceProblem(nginxFrom('ghcr.io:abc'))).toBe(
+    expect(problemOfPullFrom('ghcr.io:abc')).toBe(
       'ghcr.io:abc/nginx:latest is not a valid image reference'
     );
   });
