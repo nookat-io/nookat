@@ -1,6 +1,7 @@
 import { invoke } from '@tauri-apps/api/core';
+import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
-import { VolumePruneResult } from './volume-types';
+import { VolumePruneResult, VolumeSizes } from './volume-types';
 import { formatBytes } from '../../utils/format';
 import { errorMessage } from '../../utils/error-message';
 import { BulkOutcome, distinctReasons } from '../../types/bulk-outcome';
@@ -15,7 +16,13 @@ const describeFailedVolumes = (failed: number, requested: number) =>
     ? describeVolumes(failed)
     : `${failed} of ${requested} volumes`;
 
+const SIZES_REFRESH_MS = 60_000;
+
 export class VolumeActionService {
+  static async getVolumeSizes(): Promise<VolumeSizes> {
+    return invoke<VolumeSizes>('get_volume_sizes');
+  }
+
   static async removeVolume(name: string): Promise<boolean> {
     try {
       await invoke('remove_volume', { name });
@@ -72,4 +79,34 @@ export class VolumeActionService {
       toast.error(`Failed to prune volumes: ${errorMessage(error)}`);
     }
   }
+}
+
+export function useVolumeSizes(volumeNames: string[]): VolumeSizes {
+  const [sizes, setSizes] = useState<VolumeSizes>({});
+  const namesKey = JSON.stringify([...volumeNames].sort());
+
+  useEffect(() => {
+    let isMounted = true;
+    let nextRequest: ReturnType<typeof setTimeout> | undefined;
+
+    const requestSizes = async () => {
+      try {
+        const answer = await VolumeActionService.getVolumeSizes();
+        if (isMounted) setSizes(answer);
+      } catch (error) {
+        if (isMounted) console.error('Failed to read volume sizes:', error);
+      } finally {
+        if (isMounted) nextRequest = setTimeout(requestSizes, SIZES_REFRESH_MS);
+      }
+    };
+
+    requestSizes();
+
+    return () => {
+      isMounted = false;
+      clearTimeout(nextRequest);
+    };
+  }, [namesKey]);
+
+  return sizes;
 }

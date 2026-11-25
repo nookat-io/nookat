@@ -4,11 +4,6 @@ export enum VolumeScope {
   Global = 'global',
 }
 
-export interface UsageData {
-  size: number;
-  ref_count: number;
-}
-
 export interface Volume {
   name: string;
   driver: string;
@@ -18,8 +13,10 @@ export interface Volume {
   labels: Record<string, string>;
   scope?: VolumeScope;
   options: Record<string, string>;
-  usage_data?: UsageData;
+  in_use: boolean;
 }
+
+export type VolumeSizes = Record<string, number>;
 
 export interface VolumePruneResult {
   volumes_deleted: string[];

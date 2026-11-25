@@ -412,9 +412,7 @@ mod tests {
     use crate::entities::{
         Container, EngineInfo, EngineState, EngineStatus, Image, Network, Volume,
     };
-    use bollard::models::{
-        ContainerSummary, ContainerSummaryStateEnum as ContainerState, VolumeUsageData,
-    };
+    use bollard::models::{ContainerSummary, ContainerSummaryStateEnum as ContainerState};
     use chrono::{Duration as ChronoDuration, Utc};
     use std::cell::{Cell, RefCell};
     use std::collections::HashMap;
@@ -653,12 +651,14 @@ mod tests {
         )
     }
 
-    fn volume_with_ref_count(ref_count: i64) -> Volume {
-        Volume::from(bollard::models::Volume {
-            name: "vol".into(),
-            usage_data: Some(VolumeUsageData { size: 0, ref_count }),
-            ..Default::default()
-        })
+    fn volume(in_use: bool) -> Volume {
+        Volume::from_summary(
+            bollard::models::Volume {
+                name: "vol".into(),
+                ..Default::default()
+            },
+            in_use,
+        )
     }
 
     #[test]
@@ -704,13 +704,13 @@ mod tests {
     }
 
     #[test]
-    fn a_volume_whose_usage_changes_is_a_change() {
+    fn a_volume_coming_into_use_is_a_change() {
         let before = EngineState {
-            volumes: HashMap::from([("vol".to_string(), volume_with_ref_count(0))]),
+            volumes: HashMap::from([("vol".to_string(), volume(false))]),
             ..EngineState::default()
         };
         let after = EngineState {
-            volumes: HashMap::from([("vol".to_string(), volume_with_ref_count(1))]),
+            volumes: HashMap::from([("vol".to_string(), volume(true))]),
             ..EngineState::default()
         };
 
@@ -722,7 +722,7 @@ mod tests {
         let before = EngineState {
             containers: HashMap::from([("a".to_string(), named_container("/a"))]),
             images: HashMap::from([("sha256:a".to_string(), image("sha256:a"))]),
-            volumes: HashMap::from([("vol".to_string(), volume_with_ref_count(1))]),
+            volumes: HashMap::from([("vol".to_string(), volume(true))]),
             networks: HashMap::from([("net".to_string(), network(true))]),
             engine_status: EngineStatus::Running(EngineInfo::Docker),
             version: 1,
@@ -816,6 +816,10 @@ mod tests {
             let lines = request_lines(&requests);
             assert!(
                 lines.iter().all(|line| !line.contains("size=true")),
+                "{lines:?}"
+            );
+            assert!(
+                lines.iter().all(|line| !line.contains("/system/df")),
                 "{lines:?}"
             );
             let web = state

@@ -1,6 +1,6 @@
 # [VOLUME-003] Show volume sizes
 
-- **Status:** Not started
+- **Status:** Partially done
 - **Related:** VOLUME-001, VOLUME-004
 
 ## Problem
@@ -9,15 +9,16 @@ Users cannot see how much disk each volume uses, so they cannot tell which volum
 
 ## Current state
 
-- `VolumesService::get_volumes` in `src-tauri/src/services/volumes.rs` sets `size: 0` for every volume and fills only `ref_count`.
-- The frontend type in `src/components/volumes/volume-types.ts` carries `size`, but `src/components/volumes/volumes-table.tsx` has no size column.
+- `VolumesService::get_volume_sizes` in `src-tauri/src/services/volumes.rs`, exposed as the `get_volume_sizes` command, reads the sizes from `GET /system/df?verbose=true`.
+- It only sees the `VolumeUsage` field of API 1.52 (Docker Engine 29) and newer, so older daemons give no sizes.
+- `useVolumeSizes` in `src/components/volumes/volume-actions-service.ts` asks for the sizes only while the Volumes page is open: when it opens, when volumes are created or removed, and a minute after the previous answer.
+- `src/components/volumes/volumes-table.tsx` shows a sortable Size column, with `-` for volumes the daemon does not measure.
+- No totals are shown yet.
 
 ## Scope
 
-- Read volume sizes from Docker's disk usage endpoint (`/system/df`, bollard's `df`).
-- Show a Size column in the Volumes table, formatted with the existing byte formatting, and allow sorting by it.
 - Show the total size of all volumes and of unused volumes, so users see what Prune Unused would free.
-- Show a placeholder instead of `0 B` when the size is not known, for example for drivers that do not report it.
+- Limit the `df` request to volumes with `type=volume` once bollard can encode `DataUsageOptions::_type`.
 
 ## Notes
 
