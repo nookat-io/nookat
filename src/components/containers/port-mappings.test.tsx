@@ -60,13 +60,25 @@ describe('PortMappings', () => {
     await waitFor(() => expect(urls).toEqual(['http://[::1]:8080']));
   });
 
-  it('picks https from the container port', async () => {
-    const url = await clickPort(
-      [tcpPort({ ip: '0.0.0.0', private_port: 443, public_port: 9443 })],
-      '9443:443'
-    );
-    expect(url).toBe('https://localhost:9443');
-  });
+  it.each([
+    { privatePort: 443, publicPort: 9443 },
+    { privatePort: 8443, publicPort: 9000 },
+  ])(
+    'picks https from the container port ($publicPort:$privatePort)',
+    async ({ privatePort, publicPort }) => {
+      const url = await clickPort(
+        [
+          tcpPort({
+            ip: '0.0.0.0',
+            private_port: privatePort,
+            public_port: publicPort,
+          }),
+        ],
+        `${publicPort}:${privatePort}`
+      );
+      expect(url).toBe(`https://localhost:${publicPort}`);
+    }
+  );
 
   it('picks http when only the host port is 8443', async () => {
     const url = await clickPort(
@@ -84,13 +96,23 @@ describe('PortMappings', () => {
     expect(url).toBe(`http://localhost:${port}`);
   });
 
-  it('treats a port without a protocol as TCP', async () => {
-    const url = await clickPort(
-      [{ ip: '0.0.0.0', private_port: 80, public_port: 8080 }],
-      '8080:80'
-    );
-    expect(url).toBe('http://localhost:8080');
-  });
+  it.each([undefined, PortTypeEnum.Empty])(
+    'treats a port without a protocol as TCP (%j)',
+    async portType => {
+      const url = await clickPort(
+        [
+          {
+            ip: '0.0.0.0',
+            private_port: 80,
+            public_port: 8080,
+            port_type: portType,
+          },
+        ],
+        '8080:80'
+      );
+      expect(url).toBe('http://localhost:8080');
+    }
+  );
 
   it.each([PortTypeEnum.Udp, PortTypeEnum.Sctp])(
     'shows a %s port as text, not as a link',
