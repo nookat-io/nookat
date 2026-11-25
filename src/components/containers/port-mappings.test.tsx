@@ -143,6 +143,15 @@ describe('PortMappings', () => {
     }
   );
 
+  it('shows an unpublished port as text, not as a link', () => {
+    recordOpenedUrls();
+    render(<PortMappings ports={[tcpPort({ private_port: 80 })]} />);
+
+    const button = screen.getByRole('button', { name: '80' });
+    expect(button).toBeDisabled();
+    expect(button).toHaveAttribute('title', '80/TCP');
+  });
+
   it('shows why a port could not be opened', async () => {
     recordOpenedUrls(() => Promise.reject('No browser found'));
     vi.spyOn(console, 'error').mockImplementation(() => {});
