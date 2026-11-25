@@ -227,6 +227,29 @@ describe('useUpdater', () => {
     expect(lastCheckRecords).toHaveBeenCalledTimes(1);
   });
 
+  it('keeps Check Now disabled until every overlapping check has finished', async () => {
+    const manualCheck = pendingCheck();
+    const automaticCheck = pendingCheck();
+    mockBackend(false);
+    const { result, configService } = await renderUpdater();
+
+    act(() => result.current.checkForUpdates());
+    await act(() =>
+      configService.updateStartupSettings(
+        configWithAutomaticChecks(true).startup
+      )
+    );
+    expect(updater.check).toHaveBeenCalledTimes(2);
+
+    await act(async () => automaticCheck.finish(null));
+    expect(result.current.isChecking).toBe(true);
+    expect(result.current.isBusy).toBe(true);
+
+    await act(async () => manualCheck.finish(null));
+    await waitFor(() => expect(result.current.isChecking).toBe(false));
+    expect(result.current.isBusy).toBe(false);
+  });
+
   it('reports an update found by Check Now even when it was announced already', async () => {
     updater.check.mockResolvedValue(availableUpdate);
     mockBackend(true);
