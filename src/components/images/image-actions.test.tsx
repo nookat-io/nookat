@@ -10,7 +10,7 @@ const toast = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn() }));
 vi.mock('sonner', () => ({ toast }));
 
 const IN_USE =
-  'Failed to delete image bbb: conflict: unable to delete bbb (cannot be forced) - image is being used by running container web';
+  'conflict: unable to delete bbb (cannot be forced) - image is being used by running container web';
 
 function mockImageCommands(
   handlers: Partial<Record<string, (args: Record<string, unknown>) => unknown>>
