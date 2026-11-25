@@ -1,4 +1,5 @@
 import { useEngineStatus } from '../../../hooks/use-engine-status';
+import { useEngineState } from '../../../hooks/use-engine-state';
 import {
   Card,
   CardContent,
@@ -64,6 +65,7 @@ function ConnectionDescription({
 
 export function EngineSettings() {
   const { isChecking } = useEngineStatus();
+  const { engineState } = useEngineState();
   const [state, actions] = useEngineSettingsState();
 
   const isEngineRunning = state.colimaVm?.profile.status === 'Running';
@@ -103,7 +105,10 @@ export function EngineSettings() {
           />
         </CardHeader>
         <CardContent>
-          <EngineStatusSection dockerInfo={state.dockerInfo} />
+          <EngineStatusSection
+            dockerInfo={state.dockerInfo}
+            engineState={engineState}
+          />
         </CardContent>
       </Card>
 
