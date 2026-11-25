@@ -223,6 +223,7 @@ mod tests {
         use std::path::Path;
 
         const NOT_DANGLING_FILTER: &str = "filters=%7B%22dangling%22%3A%5B%22false%22%5D%7D";
+        const NOT_DANGLING_CONDITION: &str = "%22dangling%22%3A%5B%22false%22%5D";
 
         fn connect(socket: &Path) -> Docker {
             Docker::connect_with_unix(socket.to_str().unwrap(), 5, bollard::API_DEFAULT_VERSION)
@@ -234,12 +235,15 @@ mod tests {
             let socket = dir.path().join("docker.sock");
             let inspected = daemon_volume(name).to_string();
             let referenced = json!({ "Volumes": referenced }).to_string();
+            let any_with_this_name = json!({ "Volumes": [daemon_volume(name)] }).to_string();
             serve_daemon(&socket, move |request| {
                 let request_line = request.lines().next().unwrap_or_default();
-                let body = if request_line.starts_with("GET /volumes?") {
+                let body = if !request_line.starts_with("GET /volumes?") {
+                    &inspected
+                } else if request_line.contains(NOT_DANGLING_CONDITION) {
                     &referenced
                 } else {
-                    &inspected
+                    &any_with_this_name
                 };
                 http_response("200 OK", "application/json", body)
             });

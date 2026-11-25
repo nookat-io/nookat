@@ -1,6 +1,6 @@
 import { act, renderHook } from '@testing-library/react';
 import { emit } from '@tauri-apps/api/event';
-import { mockIPC } from '@tauri-apps/api/mocks';
+import { mockIPC, mockWindows } from '@tauri-apps/api/mocks';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SIZES_REFRESH_MS, useVolumeSizes } from './use-volume-sizes';
 import { VolumeSizes } from './volume-types';
@@ -11,10 +11,12 @@ vi.mock('sonner', () => ({ toast }));
 
 type Answer = VolumeSizes | null | Error;
 
-function mockSizesBackend() {
+function mockSizesBackend({ windowVisible = true } = {}) {
   const pendingAnswers: Array<(answer: Answer) => void> = [];
+  mockWindows('main');
   mockIPC(
     cmd => {
+      if (cmd === 'plugin:window|is_visible') return windowVisible;
       if (cmd !== 'get_volume_sizes') {
         throw new Error(`Unexpected command ${cmd}`);
       }
@@ -198,5 +200,17 @@ describe('useVolumeSizes', () => {
     await act(() => emit(MAIN_WINDOW_VISIBILITY_EVENT, true));
     await settle();
     expect(backend.requestCount).toBe(2);
+  });
+
+  it('does not ask when it mounts while the window is hidden, until the window is shown', async () => {
+    const backend = mockSizesBackend({ windowVisible: false });
+
+    renderSizes(['data']);
+    await waitFor(SIZES_REFRESH_MS * 3);
+    expect(backend.requestCount).toBe(0);
+
+    await act(() => emit(MAIN_WINDOW_VISIBILITY_EVENT, true));
+    await settle();
+    expect(backend.requestCount).toBe(1);
   });
 });
