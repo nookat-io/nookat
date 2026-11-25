@@ -4,7 +4,6 @@ use crate::entities::{
     DockerHubTag, Image, ImagePruneScope, ImagePullOutcome, ImagePullProgress, PruneResult,
     PrunedImage,
 };
-use bollard::errors::Error as DockerError;
 use bollard::models::{ContainerSummary, ImageSummary};
 use bollard::query_parameters::{
     CreateImageOptions, ListImagesOptions, PruneImagesOptions, RemoveImageOptions,
@@ -83,7 +82,7 @@ impl ImagesService {
         docker
             .remove_image(image_id, Some(options), None)
             .await
-            .map_err(|e| removal_failure(&e))?;
+            .map_err(|e| docker_message(&e))?;
 
         debug!("Successfully deleted image: {}", image_id);
         Ok(())
@@ -445,19 +444,14 @@ fn untagged_repository(summary: &ImageSummary) -> String {
         })
 }
 
-fn removal_failure(error: &DockerError) -> String {
-    docker_message(error)
-}
-
 #[cfg(test)]
 mod tests {
     use super::{
         docker_hub_repository, docker_hub_tags_url, full_image_reference, is_valid_tag,
-        prune_options, removal_failure, removed_images, split_reference, tag_names,
-        to_docker_hub_tag, to_images, to_search_result, DockerHubTag,
+        prune_options, removed_images, split_reference, tag_names, to_docker_hub_tag, to_images,
+        to_search_result, DockerHubTag,
     };
     use crate::entities::{Image, ImagePruneScope, PrunedImage};
-    use bollard::errors::Error as DockerError;
     use bollard::models::ImageSummary;
     use serde_json::json;
     use std::collections::HashSet;
@@ -969,18 +963,34 @@ mod tests {
                 serde_json::json!({"dangling": ["true"]})
             );
         }
-    }
 
-    #[test]
-    fn a_failed_removal_reports_what_the_engine_answered_without_claiming_an_image_deletion() {
-        let error = DockerError::DockerResponseServerError {
-            status_code: 404,
-            message: "No such image: localhost:5000/alpine:3.20".to_string(),
-        };
+        #[tokio::test]
+        async fn a_failed_removal_returns_only_what_the_engine_answered() {
+            let dir = tempfile::tempdir().unwrap();
+            let socket = dir.path().join("docker.sock");
+            let requests = serve_daemon(&socket, |_| {
+                http_response(
+                    "404 Not Found",
+                    "application/json",
+                    r#"{"message":"No such image: localhost:5000/alpine:3.20"}"#,
+                )
+            });
+            let docker = Docker::connect_with_unix(
+                socket.to_str().unwrap(),
+                5,
+                bollard::API_DEFAULT_VERSION,
+            )
+            .unwrap();
 
-        assert_eq!(
-            removal_failure(&error),
-            "No such image: localhost:5000/alpine:3.20"
-        );
+            let result = ImagesService::delete_image(&docker, "localhost:5000/alpine:3.20").await;
+
+            assert_eq!(
+                result,
+                Err("No such image: localhost:5000/alpine:3.20".to_string())
+            );
+            let lines = request_lines(&requests);
+            assert_eq!(lines.len(), 1, "{lines:?}");
+            assert!(lines[0].starts_with("DELETE"), "{lines:?}");
+        }
     }
 }
