@@ -9,7 +9,7 @@ import {
 import { Checkbox } from '../ui/checkbox';
 import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
-import { Trash2, MoreHorizontal } from 'lucide-react';
+import { Trash2, MoreHorizontal, AlertTriangle } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -122,7 +122,7 @@ export function ImagesTable({
     if (isLoading) {
       return (
         <TableRow>
-          <TableCell colSpan={8}>
+          <TableCell colSpan={7}>
             <div className="flex items-center justify-center">
               <LoadingSpinner message="Loading images..." size="lg" />
             </div>
@@ -134,7 +134,7 @@ export function ImagesTable({
     if (error) {
       return (
         <TableRow>
-          <TableCell colSpan={8}>
+          <TableCell colSpan={7}>
             <div className="flex items-center justify-center">
               <ErrorDisplay error={error} onRetry={onRetry} showRetry={true} />
             </div>
@@ -298,17 +298,27 @@ export function ImagesTable({
                 .
               </DialogDescription>
             ) : (
-              <DialogDescription>
-                Are you sure you want to delete the image{' '}
-                <span className="font-mono font-medium">
-                  {imageToDelete && imageName(imageToDelete)}
-                </span>
-                ? This action cannot be undone.
-                {imageToDelete?.in_use && (
-                  <div className="mt-2 p-2 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded text-yellow-800 dark:text-yellow-200">
-                    ⚠️ Warning: This image is currently in use by containers.
-                  </div>
-                )}
+              <DialogDescription asChild>
+                <div className="space-y-3">
+                  <p>
+                    Are you sure you want to delete the image{' '}
+                    <span className="font-mono font-medium">
+                      {imageToDelete && imageName(imageToDelete)}
+                    </span>
+                    ? This action cannot be undone.
+                  </p>
+                  {imageToDelete?.in_use && (
+                    <div className="rounded-md border border-amber-300/50 bg-amber-50 dark:bg-amber-950/30 text-amber-900 dark:text-amber-200 p-3 flex items-start gap-3">
+                      <AlertTriangle
+                        className="h-4 w-4 mt-0.5"
+                        aria-hidden="true"
+                      />
+                      <p className="leading-relaxed">
+                        Warning: This image is currently in use by containers.
+                      </p>
+                    </div>
+                  )}
+                </div>
               </DialogDescription>
             )}
           </DialogHeader>
