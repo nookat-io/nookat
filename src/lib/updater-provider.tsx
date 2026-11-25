@@ -1,10 +1,4 @@
-import React, {
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-  useTransition,
-} from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { check, Update, DownloadEvent } from '@tauri-apps/plugin-updater';
 import { toast } from 'sonner';
@@ -58,7 +52,7 @@ async function restartToRunInstalledUpdate() {
 
 export function UpdaterProvider({ children }: { children: React.ReactNode }) {
   const { config, updateLastUpdateCheck } = useConfig();
-  const [isChecking, startCheck] = useTransition();
+  const [pendingCheckCount, setPendingCheckCount] = useState(0);
   const [isDownloading, setIsDownloading] = useState(false);
   const [isInstalling, setIsInstalling] = useState(false);
   const [updateAvailable, setUpdateAvailable] = useState(false);
@@ -89,47 +83,46 @@ export function UpdaterProvider({ children }: { children: React.ReactNode }) {
   );
 
   const runCheck = useCallback(
-    (announce: CheckOutcomesToAnnounce) =>
-      startCheck(async () => {
-        try {
-          const update = await check();
-          startCheck(() => {
-            setError(null);
-            setUpdateAvailable(update !== null);
-            setUpdateInstance(update);
-            setCurrentUpdate(
-              update && {
-                version: update.version,
-                date: update.date,
-                body: update.body,
-                pubDate: undefined,
-              }
-            );
-          });
-
-          if (update) {
-            announceUpdate(update.version, announce);
-          } else if (announce === 'every-outcome') {
-            toast.info('No updates available');
+    async (announce: CheckOutcomesToAnnounce) => {
+      setPendingCheckCount(count => count + 1);
+      try {
+        const update = await check();
+        setError(null);
+        setUpdateAvailable(update !== null);
+        setUpdateInstance(update);
+        setCurrentUpdate(
+          update && {
+            version: update.version,
+            date: update.date,
+            body: update.body,
+            pubDate: undefined,
           }
+        );
 
-          await recordLastCheck();
-        } catch (err) {
-          console.error('Failed to check for updates:', err);
-          const message = errorMessage(err, 'Failed to check for updates');
-          startCheck(() => setError(message));
-          if (announce === 'every-outcome') {
-            toast.error(message);
-          }
+        if (update) {
+          announceUpdate(update.version, announce);
+        } else if (announce === 'every-outcome') {
+          toast.info('No updates available');
         }
-      }),
+
+        await recordLastCheck();
+      } catch (err) {
+        console.error('Failed to check for updates:', err);
+        const message = errorMessage(err, 'Failed to check for updates');
+        setError(message);
+        if (announce === 'every-outcome') {
+          toast.error(message);
+        }
+      } finally {
+        setPendingCheckCount(count => count - 1);
+      }
+    },
     [announceUpdate, recordLastCheck]
   );
 
-  const checkForUpdates = useCallback(
-    () => runCheck('every-outcome'),
-    [runCheck]
-  );
+  const checkForUpdates = useCallback(() => {
+    void runCheck('every-outcome');
+  }, [runCheck]);
 
   const downloadAndInstall = useCallback(async () => {
     if (!currentUpdate || !updateInstance) {
@@ -212,7 +205,7 @@ export function UpdaterProvider({ children }: { children: React.ReactNode }) {
       return;
     }
     lastAutomaticAttemptAt.current = now;
-    latestRunCheck.current('available-update-only');
+    void latestRunCheck.current('available-update-only');
   }, []);
 
   useEffect(() => {
@@ -228,6 +221,8 @@ export function UpdaterProvider({ children }: { children: React.ReactNode }) {
     );
     return () => clearInterval(interval);
   }, [runAutomaticCheckIfDue]);
+
+  const isChecking = pendingCheckCount > 0;
 
   return (
     <UpdaterContext.Provider

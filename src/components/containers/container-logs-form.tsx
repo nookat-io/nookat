@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef, useTransition } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -86,41 +86,42 @@ export function ContainerLogsForm({
   onClose,
 }: ContainerLogsFormProps) {
   const [logs, setLogs] = useState<string[]>([]);
-  const [isLoading, startLoadingLogs] = useTransition();
+  const [loadingReadId, setLoadingReadId] = useState<number | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [lines, setLines] = useState(DEFAULT_LINE_COUNT);
   const [isSaving, setIsSaving] = useState(false);
 
   const latestReadId = useRef(0);
 
-  const fetchLogs = useCallback(() => {
+  const fetchLogs = useCallback(async () => {
     if (!containerId) return;
 
     const readId = ++latestReadId.current;
     const isLatestRead = () => readId === latestReadId.current;
+    setLoadingReadId(readId);
 
-    startLoadingLogs(async () => {
-      try {
-        const response = await invoke('container_logs', {
-          id: containerId,
-          lines,
-        });
-        if (!isLatestRead()) return;
-        startLoadingLogs(() =>
-          setLogs(Array.isArray(response) ? response : [])
-        );
-      } catch (error) {
-        if (!isLatestRead()) return;
-        console.error('Failed to fetch logs:', error);
-        toast.error(`Failed to fetch logs: ${errorMessage(error)}`);
-        startLoadingLogs(() => setLogs([]));
-      }
-    });
+    try {
+      const response = await invoke('container_logs', {
+        id: containerId,
+        lines,
+      });
+      if (!isLatestRead()) return;
+      setLogs(Array.isArray(response) ? response : []);
+    } catch (error) {
+      if (!isLatestRead()) return;
+      console.error('Failed to fetch logs:', error);
+      toast.error(`Failed to fetch logs: ${errorMessage(error)}`);
+      setLogs([]);
+    } finally {
+      setLoadingReadId(current => (current === readId ? null : current));
+    }
   }, [containerId, lines]);
+
+  const isLoading = loadingReadId !== null;
 
   useEffect(() => {
     if (isOpen) {
-      fetchLogs();
+      void fetchLogs();
     }
   }, [isOpen, fetchLogs]);
 
