@@ -1,7 +1,12 @@
 import { Separator } from '../../ui/separator';
 import { AlertTriangle, Cpu, Package, Info } from 'lucide-react';
 import { DockerInfo } from '../../../types/docker-info';
+import { EngineState } from '../../../types/engine-state';
 import { formatBytes } from '../../../utils/format';
+import {
+  containerStatistics,
+  ContainerStatisticsCounts,
+} from './container-statistics';
 import {
   StatCard,
   InfoItem,
@@ -12,31 +17,41 @@ import {
 
 interface EngineStatusSectionProps {
   dockerInfo: DockerInfo | null;
+  engineState: EngineState | null;
 }
 
-const ContainerStatistics = ({ dockerInfo }: { dockerInfo: DockerInfo }) => (
-  <div className="space-y-4">
-    <SectionHeader icon={Package} title="Container Statistics" />
-    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-      <StatCard
-        value={dockerInfo.containers_running ?? 0}
-        label="Running"
-        variant="blue"
-      />
-      <StatCard
-        value={dockerInfo.containers_paused ?? 0}
-        label="Paused"
-        variant="yellow"
-      />
-      <StatCard
-        value={dockerInfo.containers_stopped ?? 0}
-        label="Stopped"
-        variant="red"
-      />
-      <StatCard value={dockerInfo.images ?? 0} label="Images" variant="green" />
+const dockerInfoStatistics = (
+  dockerInfo: DockerInfo
+): ContainerStatisticsCounts => ({
+  running: dockerInfo.containers_running ?? 0,
+  paused: dockerInfo.containers_paused ?? 0,
+  stopped: dockerInfo.containers_stopped ?? 0,
+  images: dockerInfo.images ?? 0,
+});
+
+const ContainerStatistics = ({
+  dockerInfo,
+  engineState,
+}: {
+  dockerInfo: DockerInfo;
+  engineState: EngineState | null;
+}) => {
+  const counts = engineState
+    ? containerStatistics(engineState)
+    : dockerInfoStatistics(dockerInfo);
+
+  return (
+    <div className="space-y-4">
+      <SectionHeader icon={Package} title="Container Statistics" />
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <StatCard value={counts.running} label="Running" variant="blue" />
+        <StatCard value={counts.paused} label="Paused" variant="yellow" />
+        <StatCard value={counts.stopped} label="Stopped" variant="red" />
+        <StatCard value={counts.images} label="Images" variant="green" />
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 const SystemInformation = ({ dockerInfo }: { dockerInfo: DockerInfo }) => (
   <div className="space-y-4">
@@ -99,6 +114,7 @@ const WarningsSection = ({ warnings }: { warnings: string[] }) => (
 
 export const EngineStatusSection = ({
   dockerInfo,
+  engineState,
 }: EngineStatusSectionProps) => {
   if (!dockerInfo) {
     return (
@@ -112,7 +128,7 @@ export const EngineStatusSection = ({
 
   return (
     <div className="space-y-6">
-      <ContainerStatistics dockerInfo={dockerInfo} />
+      <ContainerStatistics dockerInfo={dockerInfo} engineState={engineState} />
 
       <Separator />
 

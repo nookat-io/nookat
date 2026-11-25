@@ -14,6 +14,10 @@ vi.mock('../../../hooks/use-engine-status', () => ({
   }),
 }));
 
+vi.mock('../../../hooks/use-engine-state', () => ({
+  useEngineState: () => ({ engineState: null }),
+}));
+
 const APPLE_SILICON = {
   cpus: 12,
   memory_gib: 36,
