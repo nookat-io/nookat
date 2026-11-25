@@ -15,9 +15,10 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '../ui/dropdown-menu';
-import { Volume, VolumeScope } from './volume-types';
+import { Volume, VolumeScope, VolumeSizes } from './volume-types';
 import { VolumeActionService } from './volume-actions-service';
-import { ReactNode, useState } from 'react';
+import { ReactNode, useMemo, useState } from 'react';
+import { formatBytes } from '../../utils/format';
 import { LoadingSpinner } from '../ui/loading-spinner';
 import { ErrorDisplay } from '../ui/error-display';
 import { SortableTableHeader } from '../ui/sortable-table-header';
@@ -32,10 +33,17 @@ const SCOPE_LABELS: Record<VolumeScope, string> = {
 const formatScope = (scope?: VolumeScope) =>
   scope ? SCOPE_LABELS[scope] : '-';
 
+const formatSize = (size?: number) =>
+  size === undefined ? '-' : formatBytes(size);
+
+const sizeOf = (sizes: VolumeSizes, name: string) =>
+  Object.prototype.hasOwnProperty.call(sizes, name) ? sizes[name] : undefined;
+
 interface VolumesTableProps {
   selectedVolumes: string[];
   onSelectionChange: (_selected: string[]) => void;
   volumes: Volume[];
+  sizes: VolumeSizes;
   isLoading?: boolean;
   error?: string | null;
   onRetry?: () => void;
@@ -46,6 +54,7 @@ export function VolumesTable({
   selectedVolumes,
   onSelectionChange,
   volumes,
+  sizes,
   isLoading = false,
   error = null,
   onRetry,
@@ -53,8 +62,14 @@ export function VolumesTable({
 }: VolumesTableProps) {
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
 
+  const volumesWithSize = useMemo(
+    () =>
+      volumes.map(volume => ({ ...volume, size: sizeOf(sizes, volume.name) })),
+    [volumes, sizes]
+  );
+
   const { sortedData: sortedVolumes, handleSort } = useTableSort(
-    volumes,
+    volumesWithSize,
     'name',
     'asc'
   );
@@ -92,7 +107,7 @@ export function VolumesTable({
     if (isLoading) {
       return (
         <TableRow>
-          <TableCell colSpan={6}>
+          <TableCell colSpan={7}>
             <div className="flex items-center justify-center">
               <LoadingSpinner message="Loading volumes..." size="lg" />
             </div>
@@ -104,7 +119,7 @@ export function VolumesTable({
     if (error) {
       return (
         <TableRow>
-          <TableCell colSpan={6}>
+          <TableCell colSpan={7}>
             <div className="flex items-center justify-center">
               <ErrorDisplay error={error} onRetry={onRetry} showRetry={true} />
             </div>
@@ -116,7 +131,7 @@ export function VolumesTable({
     if (sortedVolumes.length === 0) {
       return (
         <TableRow className="hover:bg-transparent">
-          <TableCell colSpan={6}>{emptyState}</TableCell>
+          <TableCell colSpan={7}>{emptyState}</TableCell>
         </TableRow>
       );
     }
@@ -142,6 +157,9 @@ export function VolumesTable({
         </TableCell>
         <TableCell className="text-muted-foreground">
           {formatScope(volume.scope)}
+        </TableCell>
+        <TableCell className="text-muted-foreground">
+          {formatSize(volume.size)}
         </TableCell>
         <TableCell
           className="text-muted-foreground text-xs font-mono truncate"
@@ -188,7 +206,7 @@ export function VolumesTable({
               <SortableTableHeader
                 sortKey="name"
                 onSort={handleSort}
-                className="w-[40%]"
+                className="w-[35%]"
               >
                 Name
               </SortableTableHeader>
@@ -207,9 +225,16 @@ export function VolumesTable({
                 Scope
               </SortableTableHeader>
               <SortableTableHeader
+                sortKey="size"
+                onSort={handleSort}
+                className="w-[10%]"
+              >
+                Size
+              </SortableTableHeader>
+              <SortableTableHeader
                 sortKey="mountpoint"
                 onSort={handleSort}
-                className="w-[30%]"
+                className="w-[25%]"
               >
                 Mount Point
               </SortableTableHeader>

@@ -3,9 +3,8 @@ import { volumeFilter } from './volume-filter';
 import { Volume } from './volume-types';
 
 const volumes = [
-  { name: 'mounted', usage_data: { size: 0, ref_count: 2 } },
-  { name: 'orphan', usage_data: { size: 0, ref_count: 0 } },
-  { name: 'unknown' },
+  { name: 'mounted', in_use: true },
+  { name: 'orphan', in_use: false },
 ] as Volume[];
 
 const namesMatching = (filter: 'used' | 'unused') =>
@@ -14,6 +13,6 @@ const namesMatching = (filter: 'used' | 'unused') =>
 describe('volumeFilter', () => {
   it('splits volumes by whether a container references them', () => {
     expect(namesMatching('used')).toEqual(['mounted']);
-    expect(namesMatching('unused')).toEqual(['orphan', 'unknown']);
+    expect(namesMatching('unused')).toEqual(['orphan']);
   });
 });

@@ -1,4 +1,4 @@
-use bollard::models::{VolumePruneResponse, VolumeScopeEnum, VolumeUsageData};
+use bollard::models::{VolumePruneResponse, VolumeScopeEnum};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -22,20 +22,7 @@ impl From<VolumeScopeEnum> for VolumeScope {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct UsageData {
-    pub size: i64,
-    pub ref_count: i64,
-}
-
-impl From<VolumeUsageData> for UsageData {
-    fn from(usage_data: VolumeUsageData) -> Self {
-        UsageData {
-            size: usage_data.size,
-            ref_count: usage_data.ref_count,
-        }
-    }
-}
+pub type VolumeSizes = HashMap<String, i64>;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Volume {
@@ -47,11 +34,11 @@ pub struct Volume {
     pub labels: HashMap<String, String>,
     pub scope: Option<VolumeScope>,
     pub options: HashMap<String, String>,
-    pub usage_data: Option<UsageData>,
+    pub in_use: bool,
 }
 
-impl From<bollard::models::Volume> for Volume {
-    fn from(volume: bollard::models::Volume) -> Self {
+impl Volume {
+    pub fn from_summary(volume: bollard::models::Volume, in_use: bool) -> Self {
         Volume {
             name: volume.name,
             driver: volume.driver,
@@ -63,7 +50,7 @@ impl From<bollard::models::Volume> for Volume {
             labels: volume.labels,
             scope: volume.scope.map(VolumeScope::from),
             options: volume.options,
-            usage_data: volume.usage_data.map(UsageData::from),
+            in_use,
         }
     }
 }

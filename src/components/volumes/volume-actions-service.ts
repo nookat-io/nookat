@@ -1,6 +1,6 @@
 import { invoke } from '@tauri-apps/api/core';
 import { toast } from 'sonner';
-import { VolumePruneResult } from './volume-types';
+import { VolumePruneResult, VolumeSizes } from './volume-types';
 import { formatBytes } from '../../utils/format';
 import { errorMessage } from '../../utils/error-message';
 import { BulkOutcome, distinctReasons } from '../../types/bulk-outcome';
@@ -16,6 +16,10 @@ const describeFailedVolumes = (failed: number, requested: number) =>
     : `${failed} of ${requested} volumes`;
 
 export class VolumeActionService {
+  static async getVolumeSizes(): Promise<VolumeSizes | null> {
+    return invoke<VolumeSizes | null>('get_volume_sizes');
+  }
+
   static async removeVolume(name: string): Promise<boolean> {
     try {
       await invoke('remove_volume', { name });

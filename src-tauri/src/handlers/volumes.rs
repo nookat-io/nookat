@@ -1,4 +1,4 @@
-use crate::entities::{BulkOutcome, Volume, VolumePruneResult};
+use crate::entities::{BulkOutcome, Volume, VolumePruneResult, VolumeSizes};
 use crate::services::VolumesService;
 use crate::state::SharedEngineState;
 use tauri::State;
@@ -12,6 +12,18 @@ pub async fn list_volumes(state: State<'_, SharedEngineState>) -> Result<Vec<Vol
     let engine = state.get_engine().await?;
     let docker = engine.docker.as_ref().ok_or("Docker not found")?;
     VolumesService::get_volumes(docker).await
+}
+
+#[tauri::command]
+#[instrument(skip_all, err)]
+pub async fn get_volume_sizes(
+    state: State<'_, SharedEngineState>,
+) -> Result<Option<VolumeSizes>, String> {
+    debug!("Reading volume sizes");
+
+    let engine = state.get_engine().await?;
+    let docker = engine.docker.as_ref().ok_or("Docker not found")?;
+    VolumesService::get_volume_sizes(docker).await
 }
 
 #[tauri::command]

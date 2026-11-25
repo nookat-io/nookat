@@ -13,7 +13,7 @@ Today they have to inspect containers one by one, and there is nothing to inspec
 There is no dashboard page; the routes in `src/App.tsx` are Containers, Images, Networks, Volumes and Settings.
 `src/components/settings/engine-settings/engine-status-section.tsx` shows fixed Docker info such as total CPU cores and memory, not live usage.
 `src/components/settings/engine-settings/components/vm-resources-card.tsx` shows the Colima VM's configured CPUs, memory and disk.
-No backend code reads disk usage from the Docker `system df` API.
+`VolumesService::get_volume_sizes` in `src-tauri/src/services/volumes.rs` calls the Docker `system df` API with `verbose=true`, but keeps only the volume sizes for the Volumes page.
 
 ## Scope
 

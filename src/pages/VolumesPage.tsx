@@ -1,6 +1,7 @@
 import { VolumeHeader } from '../components/volumes/volume-header';
 import { VolumeControls } from '../components/volumes/volume-controls';
 import { VolumesTable } from '../components/volumes/volumes-table';
+import { useVolumeSizes } from '../components/volumes/use-volume-sizes';
 import { usePageState } from '../hooks/use-page-state';
 import { useEngineState } from '../hooks/use-engine-state';
 import { useFilter } from '../utils/use-filter';
@@ -37,6 +38,8 @@ export default function VolumesPage() {
 
   const filteredVolumes = useFilter(volumes, filter, searchTerm, volumeFilter);
 
+  const sizes = useVolumeSizes(volumes.map(volume => volume.name));
+
   return (
     <PageLayout
       header={
@@ -59,6 +62,7 @@ export default function VolumesPage() {
           selectedVolumes={selected}
           onSelectionChange={setSelected}
           volumes={filteredVolumes}
+          sizes={sizes}
           isLoading={isLoading}
           error={error}
           onRetry={() => window.location.reload()}

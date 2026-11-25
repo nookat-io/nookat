@@ -65,6 +65,7 @@ const snapshot: EngineState = {
       mountpoint: '/var/lib/docker/volumes/pgdata/_data',
       labels: {},
       options: {},
+      in_use: false,
     },
   },
   networks: {

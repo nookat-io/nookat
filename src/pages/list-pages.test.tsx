@@ -49,7 +49,7 @@ const pgdata: Volume = {
   mountpoint: '/var/lib/docker/volumes/pgdata/_data',
   labels: {},
   options: {},
-  usage_data: { size: 0, ref_count: 0 },
+  in_use: false,
 };
 
 const backend: Network = {

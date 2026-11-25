@@ -9,7 +9,7 @@ export const volumeFilterPhrases: Record<VolumeFilter, string> = {
   unused: 'unused volumes',
 };
 
-const isInUse = (volume: Volume) => (volume.usage_data?.ref_count ?? 0) > 0;
+const isInUse = (volume: Volume) => volume.in_use;
 
 export const volumeFilter: FilterConfig<Volume, VolumeFilter> = {
   searchFields: ['name', 'driver'],

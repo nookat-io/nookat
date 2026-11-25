@@ -472,6 +472,7 @@ describe('wizardContext', () => {
           mountpoint: '/var/lib/docker/volumes/pgdata',
           labels: {},
           options: {},
+          in_use: false,
         },
       },
       networks: {

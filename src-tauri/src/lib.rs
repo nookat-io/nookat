@@ -11,14 +11,15 @@ use crate::handlers::{
     check_homebrew_availability, container_logs, create_container, create_network, delete_image,
     engine_status, fetch_image_tag, fetch_image_tags, force_remove_container,
     get_binary_install_plan, get_colima_vm, get_config, get_connected_engine, get_docker_info,
-    get_engine_state, get_language, get_theme, get_unreadable_config_backup, inspect_volume,
-    install_colima_command, is_colima_supported, list_containers, list_images, list_networks,
-    list_volumes, open_terminal, pause_container, prune_containers, prune_images, prune_volumes,
-    pull_image, remove_container, remove_network, remove_volume, restart_app, restart_container,
-    save_container_logs, search_docker_hub, start_colima_vm_command, start_container,
-    start_engine_state_monitoring, stop_colima_vm_command, stop_container, unpause_container,
-    update_language, update_last_update_check, update_sidebar_collapsed, update_startup_settings,
-    update_telemetry_settings, update_theme, use_colima_docker_context_command,
+    get_engine_state, get_language, get_theme, get_unreadable_config_backup, get_volume_sizes,
+    inspect_volume, install_colima_command, is_colima_supported, list_containers, list_images,
+    list_networks, list_volumes, open_terminal, pause_container, prune_containers, prune_images,
+    prune_volumes, pull_image, remove_container, remove_network, remove_volume, restart_app,
+    restart_container, save_container_logs, search_docker_hub, start_colima_vm_command,
+    start_container, start_engine_state_monitoring, stop_colima_vm_command, stop_container,
+    unpause_container, update_language, update_last_update_check, update_sidebar_collapsed,
+    update_startup_settings, update_telemetry_settings, update_theme,
+    use_colima_docker_context_command,
 };
 use crate::sentry::flush_sentry;
 use crate::services::ConfigService;
@@ -27,11 +28,12 @@ use tauri::{
     image::Image,
     menu::{MenuBuilder, MenuItem},
     tray::TrayIconBuilder,
-    App, AppHandle, Manager, RunEvent, Window, WindowEvent,
+    App, AppHandle, Emitter, Manager, RunEvent, Window, WindowEvent,
 };
-use tracing::{info, instrument};
+use tracing::{info, instrument, warn};
 
 const MAIN_WINDOW_LABEL: &str = "main";
+const MAIN_WINDOW_VISIBILITY_EVENT: &str = "main-window-visibility";
 
 #[instrument(skip_all, err)]
 fn show_main_window(app: &AppHandle) -> tauri::Result<()> {
@@ -42,17 +44,25 @@ fn show_main_window(app: &AppHandle) -> tauri::Result<()> {
         .ok_or(tauri::Error::WindowNotFound)?;
     window.unminimize()?;
     window.show()?;
+    announce_main_window_visibility(app, true);
     window.set_focus()
 }
 
 #[instrument(skip_all, err)]
 fn hide_to_tray(window: &Window) -> tauri::Result<()> {
     window.hide()?;
+    announce_main_window_visibility(window.app_handle(), false);
     #[cfg(target_os = "macos")]
     window
         .app_handle()
         .set_activation_policy(tauri::ActivationPolicy::Accessory)?;
     Ok(())
+}
+
+fn announce_main_window_visibility(app: &AppHandle, visible: bool) {
+    if let Err(e) = app.emit(MAIN_WINDOW_VISIBILITY_EVENT, visible) {
+        warn!("Failed to announce the main window visibility: {}", e);
+    }
 }
 
 fn closes_to_tray() -> bool {
@@ -171,6 +181,7 @@ pub fn run() {
             remove_network,
             bulk_remove_networks,
             list_volumes,
+            get_volume_sizes,
             remove_volume,
             bulk_remove_volumes,
             inspect_volume,
