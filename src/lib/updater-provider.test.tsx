@@ -1,6 +1,7 @@
-import { act, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import { mockIPC } from '@tauri-apps/api/mocks';
 import type { Update } from '@tauri-apps/plugin-updater';
+import { BrowserRouter, Link, Route, Routes } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AppConfig, Language, Theme } from '../types/config';
 
@@ -99,6 +100,32 @@ async function renderProvider({ reactStrictMode = false } = {}) {
     collapseSidebar: () =>
       act(() => ConfigService.getInstance().updateSidebarCollapsed(true)),
   };
+}
+
+async function renderProviderAroundRoutes() {
+  vi.resetModules();
+  const { UpdaterProvider } = await import('./updater-provider');
+  const { useUpdater } = await import('../hooks/use-updater');
+  window.history.pushState({}, '', '/');
+
+  function CheckNow() {
+    const { checkForUpdates } = useUpdater();
+    return <button onClick={() => void checkForUpdates()}>Check Now</button>;
+  }
+
+  render(
+    <BrowserRouter>
+      <UpdaterProvider>
+        <CheckNow />
+        <Link to="/images">Images</Link>
+        <Routes>
+          <Route path="/" element={<p>Containers page</p>} />
+          <Route path="/images" element={<p>Images page</p>} />
+        </Routes>
+      </UpdaterProvider>
+    </BrowserRouter>
+  );
+  await settle();
 }
 
 describe('UpdaterProvider', () => {
@@ -254,5 +281,35 @@ describe('UpdaterProvider', () => {
     await passHours(48);
 
     expect(updater.check).not.toHaveBeenCalled();
+  });
+
+  it('navigates while the update check has not answered yet', async () => {
+    updater.check.mockReturnValue(new Promise(() => {}));
+    mockBackend(undefined);
+
+    await renderProviderAroundRoutes();
+    expect(updater.check).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(screen.getByRole('link', { name: 'Images' }));
+    await settle();
+
+    expect(screen.getByText('Images page')).toBeInTheDocument();
+  });
+
+  it('navigates while a manual update check has not answered yet', async () => {
+    updater.check.mockReturnValue(new Promise(() => {}));
+    mockBackend(hoursAgo(1));
+
+    await renderProviderAroundRoutes();
+    expect(updater.check).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Check Now' }));
+    await settle();
+    expect(updater.check).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(screen.getByRole('link', { name: 'Images' }));
+    await settle();
+
+    expect(screen.getByText('Images page')).toBeInTheDocument();
   });
 });
