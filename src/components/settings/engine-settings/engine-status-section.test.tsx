@@ -5,6 +5,7 @@ import { Container, ContainerState } from '../../containers/container-types';
 import { Image } from '../../images/image-types';
 import { EngineState } from '../../../types/engine-state';
 import { DockerInfo } from '../../../types/docker-info';
+import { EngineStatus } from '../../../types/engine-status';
 
 const EMPTY_DOCKER_INFO: DockerInfo = {
   containers_running: 0,
@@ -27,12 +28,16 @@ const image = (id: string): Image => ({
   dangling: false,
 });
 
-const snapshot = (containers: Container[], images: Image[]): EngineState => ({
+const snapshot = (
+  containers: Container[],
+  images: Image[],
+  engineStatus: EngineStatus = { Running: 'Docker' }
+): EngineState => ({
   containers: Object.fromEntries(containers.map(c => [c.id, c])),
   images: Object.fromEntries(images.map(i => [i.id, i])),
   volumes: {},
   networks: {},
-  engine_status: { Running: 'Docker' },
+  engine_status: engineStatus,
   version: 1,
   last_updated: '2026-11-25T00:00:00Z',
 });
@@ -120,6 +125,22 @@ describe('EngineStatusSection', () => {
           images: 9,
         }}
         engineState={null}
+      />
+    );
+
+    expectCounts({ running: 4, paused: 2, stopped: 7, images: 9 });
+  });
+
+  it('shows the docker info counts while the snapshot says no engine is running', () => {
+    render(
+      <EngineStatusSection
+        dockerInfo={{
+          containers_running: 4,
+          containers_paused: 2,
+          containers_stopped: 7,
+          images: 9,
+        }}
+        engineState={snapshot([], [], 'Unknown')}
       />
     );
 

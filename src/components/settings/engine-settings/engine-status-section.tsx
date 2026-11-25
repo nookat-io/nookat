@@ -29,6 +29,13 @@ const dockerInfoStatistics = (
   images: dockerInfo.images ?? 0,
 });
 
+const isSnapshotOfRunningEngine = (
+  engineState: EngineState | null
+): engineState is EngineState =>
+  engineState !== null &&
+  typeof engineState.engine_status === 'object' &&
+  'Running' in engineState.engine_status;
+
 const ContainerStatistics = ({
   dockerInfo,
   engineState,
@@ -36,7 +43,7 @@ const ContainerStatistics = ({
   dockerInfo: DockerInfo;
   engineState: EngineState | null;
 }) => {
-  const counts = engineState
+  const counts = isSnapshotOfRunningEngine(engineState)
     ? containerStatistics(engineState)
     : dockerInfoStatistics(dockerInfo);
 

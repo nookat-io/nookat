@@ -2,9 +2,11 @@ import { act, render, screen, waitFor, within } from '@testing-library/react';
 import { emit } from '@tauri-apps/api/event';
 import userEvent from '@testing-library/user-event';
 import { mockIPC } from '@tauri-apps/api/mocks';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { EngineSettings } from './engine-settings';
 import { ConnectedEngine } from './types';
+import { ContainerState } from '../../containers/container-types';
+import { EngineState } from '../../../types/engine-state';
 
 vi.mock('../../../hooks/use-engine-status', () => ({
   useEngineStatus: () => ({
@@ -14,9 +16,35 @@ vi.mock('../../../hooks/use-engine-status', () => ({
   }),
 }));
 
-vi.mock('../../../hooks/use-engine-state', () => ({
-  useEngineState: () => ({ engineState: null }),
+const engineSnapshot = vi.hoisted(() => ({
+  current: null as EngineState | null,
 }));
+
+vi.mock('../../../hooks/use-engine-state', () => ({
+  useEngineState: () => ({ engineState: engineSnapshot.current }),
+}));
+
+afterEach(() => {
+  engineSnapshot.current = null;
+});
+
+const snapshotOfContainers = (
+  version: number,
+  states: Record<string, ContainerState>
+): EngineState => ({
+  containers: Object.fromEntries(
+    Object.entries(states).map(([id, state]) => [id, { id, state }])
+  ),
+  images: {},
+  volumes: {},
+  networks: {},
+  engine_status: { Running: 'Docker' },
+  version,
+  last_updated: '2026-11-25T00:00:00Z',
+});
+
+const statValue = (label: string) =>
+  screen.getByText(label).previousElementSibling?.textContent;
 
 const APPLE_SILICON = {
   cpus: 12,
@@ -168,6 +196,38 @@ const engineSection = (name: string | RegExp) =>
   screen.findByRole('button', { name });
 
 describe('EngineSettings', () => {
+  it('shows the container counts of each pushed snapshot without loading docker info again', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    const backend = mockBackend({
+      connectedEngine: { beforeSwitch: ORBSTACK_ENGINE },
+      otherEngineAnswers: true,
+    });
+    engineSnapshot.current = snapshotOfContainers(1, {
+      web: ContainerState.Running,
+      db: ContainerState.Running,
+      job: ContainerState.Exited,
+    });
+    const { rerender } = render(<EngineSettings />);
+
+    await screen.findByText('Container Statistics');
+    expect(statValue('Running')).toBe('2');
+    expect(statValue('Stopped')).toBe('1');
+    await act(() => new Promise(resolve => setTimeout(resolve, 0)));
+    const dockerInfoLoads = backend.count('get_docker_info');
+
+    engineSnapshot.current = snapshotOfContainers(2, {
+      web: ContainerState.Running,
+      db: ContainerState.Exited,
+      job: ContainerState.Exited,
+    });
+    rerender(<EngineSettings />);
+    await act(() => new Promise(resolve => setTimeout(resolve, 0)));
+
+    expect(statValue('Running')).toBe('1');
+    expect(statValue('Stopped')).toBe('2');
+    expect(backend.count('get_docker_info')).toBe(dockerInfoLoads);
+  });
+
   it('names the engine Nookat is connected to and folds Colima under it', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => {});
     const user = userEvent.setup();
