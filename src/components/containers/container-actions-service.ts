@@ -6,12 +6,7 @@ import { Container } from './container-types';
 import { formatContainerName } from './container-utils';
 
 type ContainerAction =
-  | 'start'
-  | 'stop'
-  | 'pause'
-  | 'resume'
-  | 'restart'
-  | 'remove';
+  'start' | 'stop' | 'pause' | 'resume' | 'restart' | 'remove';
 
 const PAST_TENSE: Record<ContainerAction, string> = {
   start: 'Started',

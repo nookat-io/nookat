@@ -10,9 +10,7 @@ export interface ColimaEngineInfo {
 export type EngineInfo = { Colima: ColimaEngineInfo } | 'Docker';
 
 export type EngineStatus =
-  | 'Unknown'
-  | { Installed: EngineInfo }
-  | { Running: EngineInfo };
+  'Unknown' | { Installed: EngineInfo } | { Running: EngineInfo };
 
 export type EngineContextValue = {
   status: EngineStatus;

@@ -1,12 +1,7 @@
 export type InstallationMethod = 'homebrew' | 'binary';
 
 export type InstallationStep =
-  | 'idle'
-  | 'installing'
-  | 'starting-vm'
-  | 'validating'
-  | 'complete'
-  | 'error';
+  'idle' | 'installing' | 'starting-vm' | 'validating' | 'complete' | 'error';
 
 export type InstallationOperation = 'install' | 'start';
 
@@ -33,11 +28,7 @@ export type ColimaArchitecture = 'aarch64' | 'x86_64';
 export type ColimaVmType = 'vz' | 'qemu' | 'krunkit' | 'other';
 
 export type ColimaProfileStatus =
-  | 'Missing'
-  | 'Running'
-  | 'Stopped'
-  | 'Broken'
-  | 'Unknown';
+  'Missing' | 'Running' | 'Stopped' | 'Broken' | 'Unknown';
 
 export interface ColimaVmSettings {
   cpus: number;
@@ -50,11 +41,7 @@ export interface ColimaVmSettings {
 }
 
 export type EditableColimaVmSetting =
-  | 'cpus'
-  | 'memory_gib'
-  | 'disk_gib'
-  | 'architecture'
-  | 'mount_inotify';
+  'cpus' | 'memory_gib' | 'disk_gib' | 'architecture' | 'mount_inotify';
 
 export type ColimaVmSettingsChanges = Partial<
   Pick<ColimaVmSettings, EditableColimaVmSetting>
@@ -80,8 +67,7 @@ export interface ColimaProfile {
 }
 
 export type ColimaPerformanceWarning =
-  | { kind: 'FewCpus'; cpus: number }
-  | { kind: 'RosettaOff' };
+  { kind: 'FewCpus'; cpus: number } | { kind: 'RosettaOff' };
 
 export interface ConnectedEngine {
   name: string;

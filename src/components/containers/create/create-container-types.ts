@@ -3,10 +3,7 @@ export type PortProtocol = 'tcp' | 'udp' | 'sctp';
 export const PORT_PROTOCOLS: PortProtocol[] = ['tcp', 'udp', 'sctp'];
 
 export type RestartPolicyName =
-  | 'no'
-  | 'always'
-  | 'unless-stopped'
-  | 'on-failure';
+  'no' | 'always' | 'unless-stopped' | 'on-failure';
 
 export type RestartPolicy =
   | { name: 'no' }
