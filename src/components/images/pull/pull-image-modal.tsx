@@ -43,7 +43,8 @@ import {
   canPullWithTag,
   normalizePullData,
   pullReference,
-  pullReferenceProblem,
+  referenceOfRequest,
+  requestReferenceProblem,
 } from '../common/utils';
 import { PullFormData, TagMessage, TagStatus } from '../common/types';
 import { createTagLookup } from '../common/tag-lookup';
@@ -250,7 +251,8 @@ export function PullImage() {
 
   const handlePull = () => {
     const request = normalizePullData(pullData);
-    setAttemptedReference(pullReference(request));
+    const reference = referenceOfRequest(request);
+    setAttemptedReference(reference);
     if (!request.imageName) {
       setError('Image name is required');
       return;
@@ -274,13 +276,13 @@ export function PullImage() {
       return;
     }
 
-    const referenceProblem = pullReferenceProblem(request);
+    const referenceProblem = requestReferenceProblem(request);
     if (referenceProblem) {
       setError(referenceProblem);
       return;
     }
 
-    const source = checkImageReference(pullReference(request));
+    const source = checkImageReference(reference);
     if (needsConfirmation(source)) {
       setPullToConfirm({ request, source });
       return;

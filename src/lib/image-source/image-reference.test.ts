@@ -124,4 +124,32 @@ describe('normalizeRegistry', () => {
   ])('turns %j into %j', (registry, normalized) => {
     expect(normalizeRegistry(registry)).toBe(normalized);
   });
+
+  it.each([
+    'https://https://ghcr.io',
+    'https:// ghcr.io',
+    'ghcr.io /',
+    'https://ghcr.io',
+    'ghcr.io/',
+    ' HTTPS://ghcr.io// ',
+    'http://ghcr.io',
+    'http://localhost:5000/',
+    'index.docker.io',
+    'docker.io/',
+    'index.docker.io/team',
+    'ghcr.io/myorg/',
+    'Registry',
+    'https://',
+    '//',
+  ])('normalizes %j to the same registry on a second pass', registry => {
+    const normalized = normalizeRegistry(registry);
+    expect(normalizeRegistry(normalized)).toBe(normalized);
+  });
+
+  it.each(['https://https://ghcr.io', 'https:// ghcr.io', 'ghcr.io /'])(
+    'turns %j into ghcr.io',
+    registry => {
+      expect(normalizeRegistry(registry)).toBe('ghcr.io');
+    }
+  );
 });

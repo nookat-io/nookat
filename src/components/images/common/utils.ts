@@ -45,25 +45,31 @@ export const normalizePullData = ({
   registry: normalizeRegistry(registry),
 });
 
-export function pullReference(pullData: PullFormData) {
-  const { registry, imageName, tag } = normalizePullData(pullData);
+export function referenceOfRequest({ registry, imageName, tag }: PullFormData) {
   const repository =
     registry === DOCKER_HUB ? imageName : `${registry}/${imageName}`;
   return tag ? `${repository}:${tag}` : repository;
 }
 
-export function pullReferenceProblem(pullData: PullFormData): string | null {
-  const reference = pullReference(pullData);
+export function pullReference(pullData: PullFormData) {
+  return referenceOfRequest(normalizePullData(pullData));
+}
+
+export function requestReferenceProblem(request: PullFormData): string | null {
+  const reference = referenceOfRequest(request);
   const parsed = parseImageReference(reference);
   if (!parsed) {
     return `${reference} is not a valid image reference`;
   }
-  const [registryHost] = normalizePullData(pullData).registry.split('/');
+  const [registryHost] = request.registry.split('/');
   if (parsed.registry !== registryHost) {
     return `${registryHost} is not a registry address, so Docker would pull from Docker Hub. Add its domain or port, such as ${registryHost}:5000`;
   }
   return null;
 }
+
+export const pullReferenceProblem = (pullData: PullFormData) =>
+  requestReferenceProblem(normalizePullData(pullData));
 
 export const DEFAULT_PROGRESS_STATE: ProgressState = {
   isRunning: false,
