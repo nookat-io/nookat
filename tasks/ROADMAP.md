@@ -16,6 +16,7 @@ Before the launch, the first install has to work without friction, and Nookat ne
 
 - Fix the first install before the launch: a notarized app, a Homebrew cask, an engine that installs itself, and errors that say what to do.
 - Decide before building: the model engine measurement comes before the Models page, and the conversations with developers come before the wedge.
+- Make the app look finished before the launch: confirmations that protect data, one colour system, denser lists and a clear Settings page.
 - After the launch, the developer's daily loop comes first: Compose, logs, proxies and registries, and what happens inside a container.
 - Then breadth: images, Linux, networks, data and security.
 - Translations, policy and compliance features, and the blocked Windows work come last.
@@ -25,7 +26,7 @@ Before the launch, the first install has to work without friction, and Nookat ne
 ## How to use it
 
 - A release is a train: it ships at the end of its two weeks with what is merged, and an unfinished task moves to the next release instead of holding the tag.
-- The launch is the exception: v0.2.0 ships only after the Models page (v0.1.13) and the wedge (v0.1.14) are out.
+- The launch is the exception: v0.2.0 ships only after the Models page (v0.1.13), the wedge (v0.1.14) and the design pass (v0.1.15) are out.
 - Bug fixes go into the next release and are not listed here.
 - A pull request that deletes a finished task also removes its line from this file, and a pull request that adds a task places it in a release here.
 - The order after v0.2.0 is the best guess before the launch; re-rank it with the launch feedback and the funnel events from v0.1.13.
@@ -39,7 +40,8 @@ Before the launch, the first install has to work without friction, and Nookat ne
 | v0.1.12 | Nookat Engine | DIST-013, ENGINE-008, DIST-004 |
 | v0.1.13 | Models | MODEL-001, PERF-004 |
 | v0.1.14 | The wedge | the wedge (new task), TECH-002 |
-| v0.2.0 | Launch | TECH-003, UX-002, UX-003 |
+| v0.1.15 | Feels finished | UX-011, UX-012, UX-013, UX-014 |
+| v0.2.0 | Launch | TECH-003, UX-002, UX-003, UX-015 |
 | v0.2.1 | The Compose loop | DIST-007, ORCHESTRATION-001, MONITOR-004 |
 | v0.2.2 | Proxies and private registries | ENGINE-006, ENGINE-004, ENGINE-005 |
 | v0.2.3 | Inside a container | MONITOR-001, MONITOR-003, DEBUG-001 |
@@ -90,6 +92,7 @@ Write a task for each before its release starts.
 - **[DIST-003](distribution/DIST-003-homebrew-cask.md)** Publish a Homebrew cask.
   Start with the `nookat-io/homebrew-tap` tap, so `brew install --cask nookat-io/tap/nookat` works, and submit to `homebrew/cask` once the app is notarized.
 - **[UX-004](ux/UX-004-improve-engine-status-monitoring.md)** Explain why the engine is unreachable.
+  A new user without Docker meets a red "Error" first, so the screen installs or starts the engine instead, as the design review in #341 found.
   Also replace the "Engine management is available on macOS only" banner on Windows with the engines Nookat works with there, as DIST-016 suggests.
 - **[UX-006](ux/UX-006-enhance-loading-states-error-handling.md)** Add an error boundary and loading skeletons.
   A blank window is the worst first impression a new user can get.
@@ -143,6 +146,20 @@ It installs without network access apart from the VM image, leaves `~/.colima`, 
 
 **Depends on:** v0.1.13 and the ten conversations.
 
+## v0.1.15 - Feels finished
+
+**Outcome:** Nookat asks before it destroys data, its colours mean the same thing on every page and pass WCAG AA in both themes, a list page shows a working session's worth of rows, and Settings reads at a glance.
+The design review in #341 found these gaps and chose to keep the current layout.
+
+- **[UX-011](ux/UX-011-confirm-destructive-actions.md)** Confirm every action that destroys data or a running container.
+  Its one-click row deletes are a data-loss bug, so fix them earlier as a standalone bug fix; the shared confirm component and the menu order land here.
+- **[UX-012](ux/UX-012-colour-system.md)** Give the app one colour system that passes contrast in both themes.
+  It also moves the Models page from v0.1.13 onto the new tokens.
+- **[UX-013](ux/UX-013-dense-list-pages.md)** Make the list pages dense enough for a working session.
+- **[UX-014](ux/UX-014-settings-layout.md)** Rework the Settings layout into clear groups.
+
+**Order:** UX-012 first, because UX-013 and UX-014 build on its tokens.
+
 ## v0.2.0 - Launch
 
 **Outcome:** The public launch.
@@ -154,6 +171,8 @@ A visitor installs Nookat with one command, and the app feels finished to someon
 - **[UX-002](ux/UX-002-comprehensive-keyboard-shortcuts.md)** Add keyboard shortcuts.
   The app menu that lists them is where macOS users look first.
 - **[UX-003](ux/UX-003-accessibility-improvements.md)** Fix accessibility gaps.
+- **[UX-015](ux/UX-015-polish-dialogs-and-lists.md)** Polish the dialogs, menus and list details.
+  It is the last pass over what a visitor sees in the first five minutes.
 
 **Launch work outside the code:**
 
@@ -162,7 +181,7 @@ A visitor installs Nookat with one command, and the app feels finished to someon
 - A comparison page on nookat.io with the same table.
 - While the launch is live, merge only fixes.
 
-**Depends on:** v0.1.11 to v0.1.14.
+**Depends on:** v0.1.11 to v0.1.15.
 
 ## v0.2.1 - The Compose loop
 
