@@ -37,10 +37,9 @@ Built with <strong>Tauri</strong>, <strong>React</strong>, and <strong>TypeScrip
 
 ## Key Features
 
-- **🚀 Lightweight & Fast**: Built with Rust and Tauri, and kept up to date by a live stream of Docker events instead of manual refreshes
-- **📦 Containers**: Start, stop, restart, pause, remove and prune containers, read their logs, open a terminal in them, and act on many containers at once
-- **🧩 Compose Projects**: Containers started by Docker Compose are grouped by their project, and a whole project can be started, stopped or removed together
-- **🪄 Create Container Wizard**: Step by step image, ports, environment, storage and network settings, with `.env` file import and the equivalent `docker run` command on the review step
+- **🚀 Lightweight & Fast**: Built with Rust and Tauri
+- **📦 Containers**: Start, stop, restart, pause, remove and prune containers, and more
+- **🧩 Compose Projects**: Manage grouped containers easily
 - **🖼️ Images**: Pull images with live progress, remove images and tags, and prune unused ones
 - **🌐 Networks**: Create and remove networks
 - **💾 Volumes**: Browse volumes with their sizes, and remove or prune them
@@ -65,12 +64,9 @@ _Container management interface_
 
 ### System Requirements
 
-- **macOS**: macOS 11 (Big Sur) or later on Apple Silicon or Intel, with Safari updated to 16.4 or later on macOS 11 and 12, since Nookat renders with the system WebKit
-- **Linux**: an `x86_64` or `aarch64` distribution with glibc 2.35 and WebKitGTK 4.1 or later, such as Ubuntu 22.04, Debian 12 or Fedora 37 and newer
+- **macOS**: macOS 11 (Big Sur) or later on Apple Silicon or Intel
+- **Linux**: an `x86_64` or `aarch64` distribution, like Ubuntu 22.04, Debian 12 or Fedora 37 and newer
 - **Windows**: Windows 10 or later on `x86_64`
-- **A container engine that speaks the Docker API**, such as [Docker Engine](https://docs.docker.com/engine/install/), Docker Desktop, [Podman](https://podman.io/) with its Docker compatible socket, or Colima.
-  On macOS, Nookat can also install and run [Colima](https://github.com/abiosoft/colima) for you from **Settings > Engine**.
-  On Linux and Windows, start the engine yourself and Nookat connects to it.
 
 ### Download Nookat
 
@@ -103,15 +99,6 @@ To allow it, open the DMG, drag Nookat to Applications, and then either:
 
 You only need to do this once.
 Prefer either of these over stripping the quarantine attribute by hand: they scope the exception to this one app and leave macOS to keep checking everything else you download.
-
-## Privacy
-
-Nookat sends nothing until you allow it, and both switches live in **Settings > General > Usage Statistics**:
-
-- **Anonymous usage statistics** (off by default) sends the name of each page you open and the app version to [Aptabase](https://aptabase.com/).
-- **Crash reporting** (off by default) sends error reports to [Sentry](https://sentry.io/) so that crashes can be fixed.
-
-Builds from source send neither unless you put your own keys into `.env`.
 
 ## Development Setup
 
