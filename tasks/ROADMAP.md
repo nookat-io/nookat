@@ -2,7 +2,7 @@
 
 This roadmap puts every task in `tasks/` into a release.
 A release ships every two weeks, and the timing of each one is set separately, so this file names only the release and its scope.
-Release numbers continue from v0.1.9, and the public launch takes v0.2.0.
+Release numbers continue from v0.1.10, which shipped only bug fixes, and the public launch takes v0.2.0.
 
 ## Direction
 
@@ -25,20 +25,20 @@ Before the launch, the first install has to work without friction, and Nookat ne
 ## How to use it
 
 - A release is a train: it ships at the end of its two weeks with what is merged, and an unfinished task moves to the next release instead of holding the tag.
-- The launch is the exception: v0.2.0 ships only after the Models page (v0.1.12) and the wedge (v0.1.13) are out.
+- The launch is the exception: v0.2.0 ships only after the Models page (v0.1.13) and the wedge (v0.1.14) are out.
 - Bug fixes go into the next release and are not listed here.
 - A pull request that deletes a finished task also removes its line from this file, and a pull request that adds a task places it in a release here.
-- The order after v0.2.0 is the best guess before the launch; re-rank it with the launch feedback and the funnel events from v0.1.12.
+- The order after v0.2.0 is the best guess before the launch; re-rank it with the launch feedback and the funnel events from v0.1.13.
 - A blocked task names what unblocks it, and its release moves up as soon as the blocker clears.
 
 ## Overview
 
 | Release | Theme | Tasks |
 | --- | --- | --- |
-| v0.1.10 | Trust on first install | DIST-008, DIST-003, UX-004, UX-006 |
-| v0.1.11 | Nookat Engine | DIST-013, ENGINE-008, DIST-004 |
-| v0.1.12 | Models | MODEL-001, PERF-004 |
-| v0.1.13 | The wedge | the wedge (new task), TECH-002 |
+| v0.1.11 | Trust on first install | DIST-008, DIST-003, UX-004, UX-006 |
+| v0.1.12 | Nookat Engine | DIST-013, ENGINE-008, DIST-004 |
+| v0.1.13 | Models | MODEL-001, PERF-004 |
+| v0.1.14 | The wedge | the wedge (new task), TECH-002 |
 | v0.2.0 | Launch | TECH-003, UX-002, UX-003 |
 | v0.2.1 | The Compose loop | DIST-007, ORCHESTRATION-001, MONITOR-004 |
 | v0.2.2 | Proxies and private registries | ENGINE-006, ENGINE-004, ENGINE-005 |
@@ -61,9 +61,9 @@ Before the launch, the first install has to work without friction, and Nookat ne
 
 | What | Needed by |
 | --- | --- |
-| Buy the Apple Developer Program membership ($99 a year). | v0.1.10 (DIST-008) |
-| Fix the pass threshold, then run the #214 measurement: `colima model run` on `krunkit` against native Ollama, same model, same quantization, same Mac. | v0.1.11 and v0.1.12 |
-| Hold ten conversations with developers who build LLM features locally, with the share that confirms the hypothesis set before the first one. | v0.1.13 |
+| Buy the Apple Developer Program membership ($99 a year). | v0.1.11 (DIST-008) |
+| Fix the pass threshold, then run the #214 measurement: `colima model run` on `krunkit` against native Ollama, same model, same quantization, same Mac. | v0.1.12 and v0.1.13 |
+| Hold ten conversations with developers who build LLM features locally, with the share that confirms the hypothesis set before the first one. | v0.1.14 |
 | Decide whether the Models page comes to Linux. | v0.2.8 |
 | Buy a Windows code-signing certificate or an Azure Trusted Signing account, and open a Partner Center account. | v0.2.16 |
 | Colima publishes a release with Windows binaries, which is outside our control. | v0.2.16 |
@@ -75,13 +75,13 @@ Write a task for each before its release starts.
 
 | Work | Release |
 | --- | --- |
-| Opt-in funnel events in Aptabase: app started, engine ready, model downloaded, first request served. | v0.1.12 |
-| The model reachable from any container under one stable host name, with no network setup; add it to MODEL-001. | v0.1.12 |
-| The default catalog: which small models are offered and where they come from; add it to MODEL-001. | v0.1.12 |
-| The wedge, whose leading hypothesis is that every model call from the app is visible. | v0.1.13 |
+| Opt-in funnel events in Aptabase: app started, engine ready, model downloaded, first request served. | v0.1.13 |
+| The model reachable from any container under one stable host name, with no network setup; add it to MODEL-001. | v0.1.13 |
+| The default catalog: which small models are offered and where they come from; add it to MODEL-001. | v0.1.13 |
+| The wedge, whose leading hypothesis is that every model call from the app is visible. | v0.1.14 |
 | Models pinned per project, so a team runs the same model. | v0.2.1 |
 
-## v0.1.10 - Trust on first install
+## v0.1.11 - Trust on first install
 
 **Outcome:** A new Mac user installs Nookat from a notarized DMG or with one `brew` command without allowing it in Privacy & Security, and when the engine cannot be reached, Nookat says why and what to do next.
 
@@ -97,7 +97,7 @@ Write a task for each before its release starts.
 **Runs alongside:** the #214 measurement, which is the first step of MODEL-001, and the ten conversations.
 Both feed later releases and need no code.
 
-## v0.1.11 - Nookat Engine
+## v0.1.12 - Nookat Engine
 
 **Outcome:** On macOS the engine ships inside the DMG as the Nookat Engine.
 It installs without network access apart from the VM image, leaves `~/.colima`, `~/.ssh/config` and the user's Docker context alone, and gives the terminal `docker`, `docker compose` and `docker buildx` once the user agrees.
@@ -114,7 +114,7 @@ It installs without network access apart from the VM image, leaves `~/.colima`, 
 
 **Depends on:** the #214 measurement.
 
-## v0.1.12 - Models
+## v0.1.13 - Models
 
 **Outcome:** On an Apple silicon Mac, a new user goes from install to a model answering a request from a container in a few minutes, without a terminal, checked on a clean macOS user account.
 
@@ -127,9 +127,9 @@ It installs without network access apart from the VM image, leaves `~/.colima`, 
 - **New: funnel events.**
   `page_viewed` alone cannot tell a model user from a container user, and the launch needs to be measured from its first day.
 
-**Depends on:** v0.1.11.
+**Depends on:** v0.1.12.
 
-## v0.1.13 - The wedge
+## v0.1.14 - The wedge
 
 **Outcome:** Nookat does one thing for a developer debugging an LLM feature that Ollama, LM Studio and Docker Model Runner do not.
 
@@ -141,7 +141,7 @@ It installs without network access apart from the VM image, leaves `~/.colima`, 
   Before strangers try the app, CI should catch a bollard upgrade or a daemon that behaves differently from what the code expects.
   TECH-003 in v0.2.0 runs on the CI job with a Docker engine that this task adds.
 
-**Depends on:** v0.1.12 and the ten conversations.
+**Depends on:** v0.1.13 and the ten conversations.
 
 ## v0.2.0 - Launch
 
@@ -162,7 +162,7 @@ A visitor installs Nookat with one command, and the app feels finished to someon
 - A comparison page on nookat.io with the same table.
 - While the launch is live, merge only fixes.
 
-**Depends on:** v0.1.10 to v0.1.13.
+**Depends on:** v0.1.11 to v0.1.14.
 
 ## v0.2.1 - The Compose loop
 
@@ -225,7 +225,7 @@ A visitor installs Nookat with one command, and the app feels finished to someon
 
 - **[PERF-008](perf/PERF-008-optimize-container-operations-1000-plus.md)** Keep the app fast with 1000+ containers.
   Its change detection bug, which compares list lengths, can be fixed earlier as a standalone bug fix and must be fixed before IMAGE-006.
-  The integration tests from TECH-002 in v0.1.13 are the safety net for moving bulk actions into services.
+  The integration tests from TECH-002 in v0.1.14 are the safety net for moving bulk actions into services.
 - **[PERF-003](perf/PERF-003-memory-optimization-large-datasets.md)** Render large lists efficiently.
 - **[TECH-001](tech/TECH-001-test-coverage-reporting.md)** Report test coverage in CI.
 
