@@ -89,6 +89,7 @@ upgrade_version version:
 
     jq '.version = "{{version}}"' src-tauri/tauri.conf.json > src-tauri/tauri.conf.json.tmp
     mv src-tauri/tauri.conf.json.tmp src-tauri/tauri.conf.json
+    npx --no-install prettier --write src-tauri/tauri.conf.json > /dev/null
     echo "✅ Updated version in src-tauri/tauri.conf.json"
 
     sed -i.bak -E "s/^version = \".*\"/version = \"{{version}}\"/" src-tauri/Cargo.toml
