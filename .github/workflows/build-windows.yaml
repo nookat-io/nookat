@@ -68,7 +68,7 @@ jobs:
           tagName: ${{ inputs.version-tag }}
           releaseName: 'Nookat ${{ inputs.version-tag }}'
           releaseDraft: true
-          updaterJsonPreferNsis: true
+          includeUpdaterJson: false
 
       - name: Build Summary
         shell: pwsh

@@ -97,7 +97,7 @@ jobs:
           tagName: ${{ inputs.version-tag }}
           releaseName: 'Nookat ${{ inputs.version-tag }}'
           releaseDraft: true
-          updaterJsonKeepUniversal: true
+          includeUpdaterJson: false
           args: --target universal-apple-darwin
 
       - name: Build Summary
