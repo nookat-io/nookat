@@ -81,12 +81,14 @@ Download the file for your platform from the latest [GitHub Release](https://git
 | Linux    | `x86_64`                | `Nookat_<version>_amd64.deb`, `Nookat-<version>-1.x86_64.rpm` or `Nookat_<version>_amd64.AppImage`    |
 | Linux    | `aarch64`               | `Nookat_<version>_arm64.deb`, `Nookat-<version>-1.aarch64.rpm` or `Nookat_<version>_aarch64.AppImage` |
 
-On Linux, pick `.deb` for Debian and Ubuntu, `.rpm` for Fedora and openSUSE, and `.AppImage` for any other distribution.
+On Linux, pick `.deb` for Ubuntu, `.rpm` for Fedora and openSUSE, and `.AppImage` for Debian and any other distribution.
+The `.deb` depends on `libappindicator3-1`, which Debian 12 does not ship, while the `.AppImage` bundles its own tray library.
 
 ### Updates
 
 Nookat gets new versions through the signed Tauri updater.
-With **Check for updates** on in **Settings > General**, Nookat checks at most once a day and announces a new version.
+**Check for updates** in **Settings > General** is off on a fresh install, so Nookat does not look for new versions until you turn it on.
+With it on, Nookat checks once a day, retries every hour after a failed check, and announces a new version.
 **Check Now** checks once on demand.
 **Install Update** in **Settings > General** downloads and installs the new version, then restarts Nookat.
 
