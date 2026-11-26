@@ -79,6 +79,7 @@ jobs:
           tagName: ${{ inputs.version-tag }}
           releaseName: 'Nookat ${{ inputs.version-tag }}'
           releaseDraft: true
+          includeUpdaterJson: false
           args: --target ${{ matrix.rust_target }}
 
       - name: Build Summary

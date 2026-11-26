@@ -36,7 +36,7 @@ repos:
         name: Prettier
         entry: npx --no-install prettier --check
         language: system
-        files: ^src/.*\.(ts|tsx|js|jsx|json|css|md)$
+        files: ^(src/.*\.(ts|tsx|js|jsx|json|css|md)|\.github/scripts/.*\.mjs)$
 
   - repo: local
     hooks:
@@ -46,6 +46,15 @@ repos:
         language: system
         files: \.(ts|tsx)$
         require_serial: true
+
+  - repo: local
+    hooks:
+      - id: release-script-tests
+        name: Release Script Tests
+        entry: npm run --silent test:scripts
+        language: system
+        files: ^\.github/scripts/
+        pass_filenames: false
 
   - repo: local
     hooks:
