@@ -3,7 +3,8 @@
 </h1>
 
 <p align="center">
-Nookat is a lightweight container management tool that provides all the essential features you need without the bloat. Fast, intuitive, and completely free.
+Nookat is a lightweight container management tool that provides all the essential features you need without the bloat.
+Fast, intuitive, and completely free.
 </p>
 
 <p align="center">
@@ -44,7 +45,8 @@ Built with <strong>Tauri</strong>, <strong>React</strong>, and <strong>TypeScrip
 - **🌐 Networks**: Create and remove networks
 - **💾 Volumes**: Browse volumes with their sizes, and remove or prune them
 - **🔧 Managed Colima Engine (macOS only)**: Install [Colima](https://github.com/abiosoft/colima) from the app settings, and start or stop its VM from Nookat
-- **⚙️ Settings**: Light, dark or system theme, start on system boot, close to tray, and automatic updates
+- **🎨 Themes**: Light, dark or system theme from the toggle in the header
+- **⚙️ Settings**: Start on system boot, close to tray, and update checks
 - **🆓 Completely Free**: No premium features, no subscriptions
 
 ## Screenshots
@@ -70,7 +72,7 @@ _Container management interface_
 
 ### Download Nookat
 
-Download the file for your platform from the latest [GitHub Release](https://github.com/nookat-io/nookat/releases/latest):
+Download the file for your platform from the latest [GitHub Release](https://github.com/nookat-io/nookat/releases):
 
 | Platform | Architecture            | File                                                                                                  |
 | -------- | ----------------------- | ----------------------------------------------------------------------------------------------------- |
@@ -83,9 +85,10 @@ On Linux, pick `.deb` for Debian and Ubuntu, `.rpm` for Fedora and openSUSE, and
 
 ### Updates
 
-Nookat updates itself through the signed Tauri updater.
-Turn on **Check for updates** in **Settings > General** to be told about new versions, and **Automatic updates** to download and install them without asking.
-Both are off on a fresh install, and **Check Now** checks once on demand.
+Nookat gets new versions through the signed Tauri updater.
+With **Check for updates** on in **Settings > General**, Nookat checks at most once a day and announces a new version.
+**Check Now** checks once on demand.
+**Install Update** in **Settings > General** downloads and installs the new version, then restarts Nookat.
 
 ### macOS: first launch
 
@@ -95,7 +98,8 @@ The warning means macOS cannot tell who published the app, which is expected her
 To allow it, open the DMG, drag Nookat to Applications, and then either:
 
 - Right-click (or Control-click) Nookat in Applications and choose **Open**, then confirm **Open** in the dialog, or
-- Open Nookat normally and let macOS block it, then go to **System Settings -> Privacy & Security**, scroll to the message about Nookat being blocked, and click **Open Anyway**. The message and the button only appear after a blocked launch attempt.
+- Open Nookat normally and let macOS block it, then go to **System Settings -> Privacy & Security**, scroll to the message about Nookat being blocked, and click **Open Anyway**.
+  The message and the button only appear after a blocked launch attempt.
 
 You only need to do this once.
 Prefer either of these over stripping the quarantine attribute by hand: they scope the exception to this one app and leave macOS to keep checking everything else you download.
@@ -104,11 +108,12 @@ Prefer either of these over stripping the quarantine attribute by hand: they sco
 
 ### Prerequisites
 
-- [Node.js](https://nodejs.org/en) 22.12 or later
+- [Node.js](https://nodejs.org/en) 22.22.2 or later 22.x, 24.15 or later 24.x, or 26 and newer; CI uses the current LTS
 - [Rust](https://rustup.rs/) (latest stable)
 - [just](https://github.com/casey/just) and [pre-commit](https://pre-commit.com/)
-- The [Tauri system prerequisites](https://tauri.app/start/prerequisites/) for your platform, for example `libwebkit2gtk-4.1-dev`, `libappindicator3-dev`, `librsvg2-dev` and `patchelf` on Debian and Ubuntu
-- A running Docker API compatible engine, to see the app work
+- The [Tauri system prerequisites](https://tauri.app/start/prerequisites/) for your platform, for example `libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev` on Debian and Ubuntu
+- On Windows, [Git for Windows](https://gitforwindows.org/), because the `just` recipes need a POSIX shell, so run them from Git Bash
+- A running Docker API compatible engine and the `docker` CLI on your `PATH`, to see the app work
 
 ### Build from Source
 
@@ -120,7 +125,8 @@ just tauri_dev
 ```
 
 `just install` installs the npm dependencies, the pre-commit hooks and the `rustfmt` and `clippy` components, and creates `.env` from `env.example`.
-`just tauri_dev` starts the app in development mode, and `just tauri_build` builds the release bundles.
+`just tauri_dev` starts the app in development mode.
+`just tauri_build` builds the release bundles, and it needs the updater signing key in `TAURI_SIGNING_PRIVATE_KEY`, which only the release workflows have.
 Run `just --list` to see every recipe.
 
 ### Checks
@@ -143,12 +149,14 @@ CI runs these, so run them before you open a pull request:
   - `handlers/` - thin `#[tauri::command]` wrappers that delegate to the services
 - **State push model**: `services/engine_state_monitor.rs` follows the Docker events stream, polls every 5 seconds, and emits the whole engine state to the frontend as the `engine_state_update` event.
   The frontend does not poll for lists: `src/lib/engine-provider.tsx` listens for that event and is the single source of truth.
-- **Engine detection**: Nookat tries `DOCKER_HOST` first, then the endpoints of the Docker contexts, then the platform default socket.
+- **Engine detection**: Nookat needs the `docker` CLI on `PATH`, and reports the engine as unknown without it.
+  With the CLI present, it tries `DOCKER_HOST` first, then the endpoints of the Docker contexts, then the platform default socket.
   On macOS, when none of them answers, **Settings > Engine** can install and start a managed Colima.
 
 ## Contributing
 
-We welcome contributions from the community! Here's how to get started:
+We welcome contributions from the community!
+Here's how to get started:
 
 1. Look at [`tasks/README.md`](tasks/README.md) and [`tasks/ROADMAP.md`](tasks/ROADMAP.md) for planned work, or open an issue first for anything larger
 2. Fork the repository and create a branch
